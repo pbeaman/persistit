@@ -159,6 +159,11 @@ class ManagementImpl implements Management {
         return getTransactionInfo().getRollbackCount();
     }
 
+    @Override
+    public VolumeInfo[] getVolumes() throws RemoteException {
+        return getVolumeInfoArray();
+    }
+
     /**
      * Indicates whether Persistit will suspend its shutdown activities on
      * invocation of {@link #close}. This flag is intended for use by management
@@ -1272,6 +1277,10 @@ class ManagementImpl implements Management {
         } catch (Exception ex) {
             return "Failed: " + ex.toString();
         }
+    }
+
+    public VolumeInfo volumeByName(final String volumeName) throws RemoteException {
+        return getVolumeInfo(volumeName);
     }
 
     @Override

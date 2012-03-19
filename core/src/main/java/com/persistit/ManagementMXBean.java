@@ -95,6 +95,15 @@ public interface ManagementMXBean {
     public long getRollbackCount() throws RemoteException;
 
     /**
+     * Return an array of information of all volumes that Persistit
+     * knows about, or null if there are none.
+     *
+     * @return array of volumes
+     * @throws RemoteException
+     */
+    public Management.VolumeInfo[] getVolumes() throws RemoteException;
+
+    /**
      * @param max Maximum number of transactions to report on.
      * @return Report on the <code>max</code> longest-running transactions.
      * @throws RemoteException
@@ -180,4 +189,13 @@ public interface ManagementMXBean {
      * @throws RemoteException
      */
     public String launch(final String commandLine) throws RemoteException;
+
+    /**
+     * Query information about a specific volume from it's name.
+     *
+     * @param volumeName name of the volume to lookup
+     * @return information about the volume, or null if none found
+     * @throws RemoteException
+     */
+    public Management.VolumeInfo volumeByName(final String volumeName) throws RemoteException;
 }
