@@ -59,11 +59,6 @@ public class BufferPool {
     private final static long RETRY_SLEEP_TIME = 50;
 
     /**
-     * Wait time in ms when assessing dirty buffers
-     */
-    private final static long SELECT_DIRTY_BUFFERS_WAIT_INTERVAL = 50;
-
-    /**
      * The ratio of hash table slots per buffer in this pool
      */
     private final static int HASH_MULTIPLE = 3;
@@ -1090,15 +1085,18 @@ public class BufferPool {
         }
     }
 
-    private void writeDirtyBuffers(final int[] priorities, final Buffer[] selectedBuffers) throws PersistitException {
+    private void writeDirtyBuffers(final int[] priorities, final BufferHolder[] selectedBuffers)
+            throws PersistitException {
         int count = selectDirtyBuffers(priorities, selectedBuffers);
         if (count > 0) {
             Arrays.sort(selectedBuffers, 0, count);
             for (int index = 0; index < count; index++) {
-                final Buffer buffer = selectedBuffers[index];
+                final BufferHolder holder = selectedBuffers[index];
+                final Buffer buffer = holder._buffer;
                 if (buffer.claim(true, 0)) {
                     try {
-                        if (buffer.isDirty() && buffer.isValid()) {
+
+                        if (holder.matches(buffer) && buffer.isDirty() && buffer.isValid()) {
                             buffer.writePage();
                         }
                     } finally {
@@ -1109,7 +1107,7 @@ public class BufferPool {
         }
     }
 
-    int selectDirtyBuffers(final int[] priorities, final Buffer[] buffers) throws PersistitException {
+    int selectDirtyBuffers(final int[] priorities, final BufferHolder[] holders) throws PersistitException {
         int count = 0;
         int min = Integer.MAX_VALUE;
         final int clock = _clock.get();
@@ -1154,7 +1152,7 @@ public class BufferPool {
                             if (priority <= min) {
                                 if (count < priorities.length) {
                                     priorities[count] = priority;
-                                    buffers[count] = buffer;
+                                    holders[count].set(buffer);
                                     count++;
                                     min = priority;
                                 }
@@ -1164,9 +1162,9 @@ public class BufferPool {
                                 for (where = count; --where >= 0 && priorities[where] < priority;) {
                                 }
                                 System.arraycopy(priorities, where + 1, priorities, where + 2, count - where - 1);
-                                System.arraycopy(buffers, where + 1, buffers, where + 2, count - where - 1);
+                                System.arraycopy(holders, where + 1, holders, where + 2, count - where - 1);
                                 priorities[where + 1] = priority;
-                                buffers[where + 1] = buffer;
+                                holders[where + 1].set(buffer);
                                 count++;
                             }
                             if (!buffer.isTemporary()) {
@@ -1253,16 +1251,51 @@ public class BufferPool {
         return _bufferCount * 2 - distance + age;
     }
 
+    private static class BufferHolder implements Comparable<BufferHolder> {
+
+        long _page;
+        long _volumeId;
+        Buffer _buffer;
+
+        private void set(final Buffer buffer) {
+            _page = buffer.getPageAddress();
+            _volumeId = buffer.getVolumeId();
+            _buffer = buffer;
+        }
+
+        private boolean matches(final Buffer buffer) {
+            return buffer == _buffer && buffer.getPageAddress() == _page && buffer.getVolumeId() == _volumeId;
+        }
+
+        /**
+         * Used to sort buffers in ascending page address order by volume.
+         * 
+         * @param buffer
+         * @return -1, 0 or 1 as this <code>Buffer</code> falls before, a, or
+         *         after the supplied <code>Buffer</code> in the desired page
+         *         address order.
+         */
+        @Override
+        public int compareTo(BufferHolder buffer) {
+            return _volumeId > buffer._volumeId ? 1 : _volumeId < buffer._volumeId ? -1 : _page > buffer._page ? 1
+                    : _page < buffer._page ? -1 : 0;
+
+        }
+    }
+
     /**
      * Implementation of PAGE_WRITER thread.
      */
     private class PageWriter extends IOTaskRunnable {
 
         final int[] _priorities = new int[PAGE_WRITER_TRANCHE_SIZE];
-        final Buffer[] _selectedBuffers = new Buffer[PAGE_WRITER_TRANCHE_SIZE];
+        final BufferHolder[] _selectedBuffers = new BufferHolder[PAGE_WRITER_TRANCHE_SIZE];
 
         PageWriter() {
             super(BufferPool.this._persistit);
+            for (int index = 0; index < _selectedBuffers.length; index++) {
+                _selectedBuffers[index] = new BufferHolder();
+            }
         }
 
         void start() {
@@ -1344,9 +1377,8 @@ public class BufferPool {
         }
         stream.flush();
     }
-    
-    
+
     // TODO -- Remove this when done with bug
-    
+
     LockManager _lockManager = new LockManager();
 }

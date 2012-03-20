@@ -72,7 +72,7 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 
-public class Buffer extends SharedResource implements Comparable<Buffer> {
+public class Buffer extends SharedResource {
 
     /**
      * Architectural lower bound on buffer size
@@ -209,9 +209,9 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
 
     final static int P_MASK = 0x0000FFFC;
 
-    private final static int DEPTH_MASK = 0x0FFF0000;
-    private final static int DEPTH_SHIFT = 16;
-    private final static int FIXUP_MASK = 0x40000000;
+    final static int DEPTH_MASK = 0x0FFF0000;
+    final static int DEPTH_SHIFT = 16;
+    final static int FIXUP_MASK = 0x40000000;
 
     // Mask for the discriminator byte field within a keyblock
     private final static int DB_MASK = 0x000000FF;
@@ -297,12 +297,12 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     /**
      * The page address of the page currently loaded in this buffer.
      */
-    private long _page;
+    private volatile long _page;
 
     /**
      * The Volume from which the page was loaded.
      */
-    private Volume _vol;
+    private volatile Volume _vol;
 
     /**
      * Timestamp of last Transaction to modify this resource
@@ -323,7 +323,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     /**
      * The right sibling page address
      */
-    private long _rightSibling;
+    private volatile long _rightSibling;
 
     /**
      * The size of this buffer
@@ -338,33 +338,33 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     /**
      * Type code for this page.
      */
-    private int _type;
+    private volatile int _type;
 
     /**
      * Tailblock header size
      */
-    private int _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
+    private volatile int _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
 
     /**
      * Offset within the buffer to the first byte past the last keyblock
      */
-    private int _keyBlockEnd;
+    private volatile int _keyBlockEnd;
 
     /**
      * Offset within the buffer to the lowest tailblock. To allocate a new
      * tailblock, consume the space below this point.
      */
-    private int _alloc;
+    private volatile int _alloc;
 
     /**
      * Count of unused bytes above _alloc.
      */
-    private int _slack;
+    private volatile int _slack;
 
     /**
      * Count of MVV values
      */
-    private int _mvvCount;
+    private volatile int _mvvCount;
 
     /**
      * Singly-linked list of Buffers current having the same hash code.
@@ -760,6 +760,11 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     void setRightSibling(long pageAddress) {
         Debug.$assert0.t(isMine());
         _rightSibling = pageAddress;
+    }
+
+    long getVolumeId() {
+        final Volume volume = _vol;
+        return volume == null ? 0 : volume.getId();
     }
 
     int getKeyBlockStart() {
@@ -2166,6 +2171,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
         // Now move all the records from the split point forward to the
         // right page and deallocate their space in the left page.
         //
+
         for (int p = splitAtPosition; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
 
             final int kbData = getInt(p);
@@ -3679,13 +3685,12 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                         } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
                             Debug.$assert1.t(false);
                         } else {
-                            if (removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey)) {
-                                p -= KEYBLOCK_LENGTH;
-                                changed = true;
-                                if (!bumped) {
-                                    bumpGeneration();
-                                    bumped = true;
-                                }
+                            Debug.$assert0.t(removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey));
+                            p -= KEYBLOCK_LENGTH;
+                            changed = true;
+                            if (!bumped) {
+                                bumpGeneration();
+                                bumped = true;
                             }
                         }
                     }
@@ -3963,7 +3968,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     long getGarbageChainRightPage() {
-        Debug.$assert0.t(isGarbagePage());
+        Debug.$assert1.t(isGarbagePage());
         if (_alloc + GARBAGE_BLOCK_SIZE > _bufferSize)
             return -1;
         else
@@ -3972,7 +3977,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
 
     long getGarbageChainLeftPage(int p) {
         long page = getLong(p + GARBAGE_BLOCK_LEFT_PAGE);
-        Debug.$assert0.t(page > 0 && page <= MAX_VALID_PAGE_ADDR && page != _page);
+        Debug.$assert1.t(page > 0 && page <= MAX_VALID_PAGE_ADDR && page != _page);
         return page;
     }
 
@@ -3980,22 +3985,16 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
         return getLong(p + GARBAGE_BLOCK_RIGHT_PAGE);
     }
 
-    boolean removeGarbageChain() {
-        Debug.$assert0.t(isGarbagePage());
-        if (_alloc + GARBAGE_BLOCK_SIZE > _bufferSize)
-            return false;
+    void removeGarbageChain() {
+        Debug.$assert1.t(isGarbagePage() && _alloc + GARBAGE_BLOCK_SIZE >= _bufferSize);
         clearBytes(_alloc, _alloc + GARBAGE_BLOCK_SIZE);
         _alloc += GARBAGE_BLOCK_SIZE;
         bumpGeneration();
-        return true;
     }
 
     void setGarbageLeftPage(long left) {
-        Debug.$assert0.t(isMine());
-        Debug.$assert0.t(left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page);
-        Debug.$assert0.t(isGarbagePage());
-        Debug.$assert0.t(_alloc + GARBAGE_BLOCK_SIZE <= _bufferSize);
-        Debug.$assert0.t(_alloc >= _keyBlockEnd);
+        Debug.$assert1.t(isMine() && isGarbagePage() && left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page
+                && _alloc + GARBAGE_BLOCK_SIZE <= _bufferSize && _alloc >= _keyBlockEnd);
         putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
         bumpGeneration();
     }
@@ -4042,29 +4041,6 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                 }
             }
         }
-    }
-
-    /**
-     * Used to sort buffers in ascending page address order by volume.
-     * 
-     * @param buffer
-     * @return -1, 0 or 1 as this <code>Buffer</code> falls before, a, or after
-     *         the supplied <code>Buffer</code> in the desired page address
-     *         order.
-     */
-    @Override
-    public int compareTo(Buffer buffer) {
-        if (buffer.getVolume() == null) {
-            return 1;
-        }
-        if (getVolume() == null) {
-            return -1;
-        }
-        if (getVolume().equals(buffer.getVolume())) {
-            return getPageAddress() > buffer.getPageAddress() ? 1 : getPageAddress() < buffer.getPageAddress() ? -1 : 0;
-        }
-        return getVolume().getId() > buffer.getVolume().getId() ? 1
-                : getVolume().getId() < buffer.getVolume().getId() ? -1 : 0;
     }
 
     /**
