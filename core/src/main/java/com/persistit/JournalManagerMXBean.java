@@ -128,6 +128,8 @@ public interface JournalManagerMXBean {
 
     String getJournalFilePath();
 
+    long getReadPageCount();
+
     long getJournaledPageCount();
 
     long getCopiedPageCount();
@@ -149,4 +151,8 @@ public interface JournalManagerMXBean {
     String getLastCopierException();
 
     String getLastFlusherException();
+
+    long getCheckpointIntervalNanos();
+
+    long getLastValidCheckpointTimestampMillis();
 }

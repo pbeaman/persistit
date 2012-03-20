@@ -53,7 +53,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
 
     public final void setUp() throws Exception {
         final long FIVE_MIN_NANOS = 1000000000L * 60 * 5;
-        _persistit.getCheckpointManager().setCheckpointInterval(FIVE_MIN_NANOS);
+        _persistit.getCheckpointManager().setCheckpointIntervalNanos(FIVE_MIN_NANOS);
         super.setUp();
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
     }

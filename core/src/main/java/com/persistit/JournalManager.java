@@ -385,6 +385,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         return _writePageCount;
     }
 
+    @Override
     public long getReadPageCount() {
         return _readPageCount;
     }
@@ -416,6 +417,16 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     @Override
     public String getLastFlusherException() {
         return Util.toString(_flusher.getLastException());
+    }
+
+    @Override
+    public long getCheckpointIntervalNanos() {
+        return _persistit.getCheckpointIntervalNanos();
+    }
+
+    @Override
+    public long getLastValidCheckpointTimestampMillis() {
+        return _lastValidCheckpoint.getSystemTimeMillis();
     }
 
     /**
