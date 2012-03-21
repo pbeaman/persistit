@@ -3937,7 +3937,7 @@ public class Buffer extends SharedResource {
     }
 
     void removeGarbageChain() {
-        Debug.$assert1.t(isGarbagePage() && _alloc + GARBAGE_BLOCK_SIZE >= _bufferSize);
+        Debug.$assert1.t(isGarbagePage() && _alloc + GARBAGE_BLOCK_SIZE <= _bufferSize);
         clearBytes(_alloc, _alloc + GARBAGE_BLOCK_SIZE);
         _alloc += GARBAGE_BLOCK_SIZE;
         bumpGeneration();

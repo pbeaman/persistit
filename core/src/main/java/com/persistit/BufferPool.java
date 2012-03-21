@@ -213,8 +213,9 @@ public class BufferPool {
     /**
      * Polling interval for PageWriter
      */
-    private long _writerPollInterval = DEFAULT_WRITER_POLL_INTERVAL;
+    private volatile long _writerPollInterval = DEFAULT_WRITER_POLL_INTERVAL;
 
+    private volatile int _pageWriterTrancheSize = PAGE_WRITER_TRANCHE_SIZE;
     /**
      * The PAGE_WRITER IOTaskRunnable
      */
@@ -680,7 +681,8 @@ public class BufferPool {
                 _hashTable[hash] = buffer.getNext();
             } else {
                 Buffer prev = _hashTable[hash];
-                for (Buffer next = prev.getNext(); next != null; next = prev.getNext()) {
+                for (Buffer next = prev.getNext();; next = prev.getNext()) {
+                    assert next != null : "Attempting to detach an unattached Buffer";
                     if (next == buffer) {
                         prev.setNext(next.getNext());
                         break;
@@ -716,7 +718,6 @@ public class BufferPool {
         Buffer buffer = null;
 
         for (;;) {
-            boolean mustRead = false;
             boolean mustClaim = false;
             _hashLocks[hash % HASH_LOCKS].lock();
             try {
@@ -748,34 +749,26 @@ public class BufferPool {
                     // in the page from the Volume.
                     //
                     buffer = allocBuffer();
-                    //
-                    // buffer may be null if allocBuffer found no available
-                    // clean buffers. In that case we need to back off and
-                    // get some buffers written.
-                    //
-                    if (buffer != null) {
-                        Debug.$assert1.t(!buffer.isDirty());
-                        Debug.$assert0.t(buffer != _hashTable[hash]);
-                        Debug.$assert0.t(buffer.getNext() != buffer);
+                    Debug.$assert1.t(!buffer.isDirty());
+                    Debug.$assert0.t(buffer != _hashTable[hash]);
+                    Debug.$assert0.t(buffer.getNext() != buffer);
 
-                        buffer.setPageAddressAndVolume(page, vol);
-                        buffer.setNext(_hashTable[hash]);
-                        _hashTable[hash] = buffer;
-                        //
-                        // It's not really valid yet, but it does have a writer
-                        // claim on it so no other Thread can access it. In the
-                        // meantime, any other Thread seeking access to the same
-                        // page will find it.
-                        //
-                        buffer.setValid();
-                        if (vol.isTemporary()) {
-                            buffer.setTemporary();
-                        } else {
-                            buffer.clearTemporary();
-                        }
-                        Debug.$assert0.t(buffer.getNext() != buffer);
-                        mustRead = true;
+                    buffer.setPageAddressAndVolume(page, vol);
+                    buffer.setNext(_hashTable[hash]);
+                    _hashTable[hash] = buffer;
+                    //
+                    // It's not really valid yet, but it does have a writer
+                    // claim on it so no other Thread can access it. In the
+                    // meantime, any other Thread seeking access to the same
+                    // page will find it.
+                    //
+                    buffer.setValid();
+                    if (vol.isTemporary()) {
+                        buffer.setTemporary();
+                    } else {
+                        buffer.clearTemporary();
                     }
+                    Debug.$assert0.t(buffer.getNext() != buffer);
                 }
             } finally {
                 _hashLocks[hash % HASH_LOCKS].unlock();
@@ -790,8 +783,14 @@ public class BufferPool {
                     }
                 }
             } else {
-                Debug.$assert0.t(!mustClaim || !mustRead);
+
                 if (mustClaim) {
+                    /*
+                     * We're here because we found the page we want, but another
+                     * thread has an incompatible claim on it. Here we wait,
+                     * then recheck to make sure the buffer still represents the
+                     * same page.
+                     */
                     if (!buffer.claim(writer)) {
                         throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to acquire "
                                 + (writer ? "writer" : "reader") + " claim on " + buffer);
@@ -813,23 +812,23 @@ public class BufferPool {
                     //
                     buffer.release();
                     continue;
-                }
-                if (mustRead) {
-                    // We're here because the required page was not found
-                    // in the pool so we have to read it from the Volume.
-                    // We have a writer claim on the buffer, so anyone
-                    // else attempting to get this page will simply wait
-                    // for us to finish reading it.
-                    //
-                    // At this point, the Buffer has been fully set up. It is
-                    // on the hash table chain under its new page address,
-                    // it is marked valid, and this Thread has a writer claim.
-                    // If the read attempt fails, we need to mark the page
-                    // INVALID so that any Thread waiting for access to
-                    // this buffer will not use it. We also need to demote
-                    // the writer claim to a reader claim unless the caller
-                    // originally asked for a writer claim.
-                    //
+                } else {
+                    /*
+                     * We're here because the required page was not found in the
+                     * pool so we have to read it from the Volume. We have a
+                     * writer claim on the buffer, so anyone else attempting to
+                     * get this page will simply wait for us to finish reading
+                     * it.
+                     * 
+                     * At this point, the Buffer has been fully set up. It is on
+                     * the hash table chain under its new page address, it is
+                     * marked valid, and this Thread has a writer claim. If the
+                     * read attempt fails, we need to mark the page INVALID so
+                     * that any Thread waiting for access to this buffer will
+                     * not use it. We also need to demote the writer claim to a
+                     * reader claim unless the caller originally asked for a
+                     * writer claim.
+                     */
                     if (wantRead) {
                         boolean loaded = false;
                         try {
@@ -923,13 +922,15 @@ public class BufferPool {
 
     /**
      * Returns an available buffer. The replacement policy is to return a buffer
-     * that's already been marked invalid, if available. Otherwise traverse the
-     * least-recently-used queue to find the least- recently-used buffer that is
-     * not claimed. Throws a RetryException if there is no available buffer.
+     * that's already been marked invalid, if available. Otherwise use the Clock
+     * algorithm to choose a page for replacement that is approximately the
+     * least-recently-used page.
      * 
      * @return Buffer An available buffer, or <i>null</i> if no buffer is
      *         currently available. The buffer has a writer claim.
-     * @throws InvalidPageStructureException
+     * @throws PersistitException
+     * @throws IllegalStateException
+     *             if there is no available buffer.
      */
 
     private Buffer allocBuffer() throws PersistitException {
@@ -943,9 +944,6 @@ public class BufferPool {
                 q += 64;
                 if (q >= _bufferCount) {
                     q = 0;
-                }
-                if (q == start) {
-                    break;
                 }
                 long bits = _availablePagesBits.get(q / 64);
                 if (bits != 0) {
@@ -969,6 +967,10 @@ public class BufferPool {
                         }
                     }
                 }
+                if (q == start) {
+                    break;
+                }
+
             }
             _availablePages.set(false);
         }
@@ -1033,7 +1035,7 @@ public class BufferPool {
             }
             retry++;
         }
-        return null;
+        throw new IllegalStateException("No available Buffers");
     }
 
     FastIndex allocFastIndex() throws PersistitInterruptedException {
@@ -1085,8 +1087,30 @@ public class BufferPool {
         }
     }
 
-    private void writeDirtyBuffers(final int[] priorities, final BufferHolder[] selectedBuffers)
-            throws PersistitException {
+    /**
+     * Heuristic to determine when the PAGE_WRITER thread(s) can relax.
+     * 
+     * @return <code>true</code> if the PAGE_WRITER thread can relax and do
+     *         nothing, else <code>false</code>
+     */
+    boolean shouldWritePages() {
+        int cleanCount = _bufferCount - _dirtyPageCount.get();
+        if (getEarliestDirtyTimestamp() < _flushTimestamp.get()) {
+            return true;
+        }
+        if (getEarliestDirtyTimestamp() <= _persistit.getCurrentCheckpoint().getTimestamp()) {
+            return true;
+        }
+        if (cleanCount < _pageWriterTrancheSize * 2) {
+            return true;
+        }
+        if (cleanCount < _bufferCount / 8) {
+            return true;
+        }
+        return false;
+    }
+
+    void writeDirtyBuffers(final int[] priorities, final BufferHolder[] selectedBuffers) throws PersistitException {
         int count = selectDirtyBuffers(priorities, selectedBuffers);
         if (count > 0) {
             Arrays.sort(selectedBuffers, 0, count);
@@ -1095,7 +1119,6 @@ public class BufferPool {
                 final Buffer buffer = holder._buffer;
                 if (buffer.claim(true, 0)) {
                     try {
-
                         if (holder.matches(buffer) && buffer.isDirty() && buffer.isValid()) {
                             buffer.writePage();
                         }
@@ -1229,8 +1252,7 @@ public class BufferPool {
             }
             //
             // Give higher priority to a older dirty buffers that need to be
-            // written soon
-            // to allow a checkpoint.
+            // written soon to allow a checkpoint.
             //
             if (buffer.getTimestamp() < timestampThreshold) {
                 age = (int) Math.min(timestampThreshold - buffer.getTimestamp(), Integer.MAX_VALUE / 2);
@@ -1251,7 +1273,7 @@ public class BufferPool {
         return _bufferCount * 2 - distance + age;
     }
 
-    private static class BufferHolder implements Comparable<BufferHolder> {
+    static class BufferHolder implements Comparable<BufferHolder> {
 
         long _page;
         long _volumeId;
@@ -1261,6 +1283,27 @@ public class BufferPool {
             _page = buffer.getPageAddress();
             _volumeId = buffer.getVolumeId();
             _buffer = buffer;
+        }
+
+        /**
+         * @return the page address
+         */
+        long getPage() {
+            return _page;
+        }
+
+        /**
+         * @return the volumeId
+         */
+        long getVolumeId() {
+            return _volumeId;
+        }
+
+        /**
+         * @return the Buffer
+         */
+        Buffer getBuffer() {
+            return _buffer;
         }
 
         private boolean matches(final Buffer buffer) {
@@ -1281,21 +1324,21 @@ public class BufferPool {
                     : _page < buffer._page ? -1 : 0;
 
         }
-        
+
         @Override
         public String toString() {
             final Buffer buffer = _buffer;
-            return buffer == null ? null :  buffer.toString();
+            return buffer == null ? null : buffer.toString();
         }
     }
 
     /**
      * Implementation of PAGE_WRITER thread.
      */
-    private class PageWriter extends IOTaskRunnable {
+    class PageWriter extends IOTaskRunnable {
 
-        final int[] _priorities = new int[PAGE_WRITER_TRANCHE_SIZE];
-        final BufferHolder[] _selectedBuffers = new BufferHolder[PAGE_WRITER_TRANCHE_SIZE];
+        int[] _priorities = new int[0];
+        BufferHolder[] _selectedBuffers = new BufferHolder[0];
 
         PageWriter() {
             super(BufferPool.this._persistit);
@@ -1310,12 +1353,18 @@ public class BufferPool {
 
         @Override
         public void runTask() throws PersistitException {
-            int cleanCount = _bufferCount - _dirtyPageCount.get();
-            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8 && !isFlushing()
-                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {
-                return;
+            int size = _pageWriterTrancheSize;
+            if (size != _priorities.length) {
+                _priorities = new int[size];
+                _selectedBuffers = new BufferHolder[size];
+                for (int index = 0; index < size; index++) {
+                    _selectedBuffers[index] = new BufferHolder();
+                }
             }
-            writeDirtyBuffers(_priorities, _selectedBuffers);
+
+            if (shouldWritePages()) {
+                writeDirtyBuffers(_priorities, _selectedBuffers);
+            }
         }
 
         @Override
