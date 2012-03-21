@@ -1281,6 +1281,12 @@ public class BufferPool {
                     : _page < buffer._page ? -1 : 0;
 
         }
+        
+        @Override
+        public String toString() {
+            final Buffer buffer = _buffer;
+            return buffer == null ? null :  buffer.toString();
+        }
     }
 
     /**
