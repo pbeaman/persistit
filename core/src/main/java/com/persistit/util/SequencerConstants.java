@@ -55,4 +55,15 @@ public interface SequencerConstants {
             array(WRITE_WRITE_STORE_A, WRITE_WRITE_STORE_C), array(WRITE_WRITE_STORE_A, WRITE_WRITE_STORE_C)
     };
 
+    /*
+    * Used in testing sequencing between tree creation and removal
+    */
+    int TREE_CREATE_REMOVE_A = allocate("TREE_CREATE_REMOVE_A");
+    int TREE_CREATE_REMOVE_B = allocate("TREE_CREATE_REMOVE_B");
+    int TREE_CREATE_REMOVE_C = allocate("TREE_CREATE_REMOVE_C");
+
+    int[][] TREE_CREATE_REMOVE_SCHEDULE = new int[][] {
+            array(TREE_CREATE_REMOVE_A, TREE_CREATE_REMOVE_B), array(TREE_CREATE_REMOVE_B),
+            array(TREE_CREATE_REMOVE_A, TREE_CREATE_REMOVE_C), array(TREE_CREATE_REMOVE_A, TREE_CREATE_REMOVE_C)
+    };
 }

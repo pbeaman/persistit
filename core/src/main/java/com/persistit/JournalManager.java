@@ -385,6 +385,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         return _writePageCount;
     }
 
+    @Override
     public long getReadPageCount() {
         return _readPageCount;
     }
@@ -416,6 +417,16 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     @Override
     public String getLastFlusherException() {
         return Util.toString(_flusher.getLastException());
+    }
+
+    @Override
+    public long getCheckpointIntervalNanos() {
+        return _persistit.getCheckpointIntervalNanos();
+    }
+
+    @Override
+    public long getLastValidCheckpointTimestampMillis() {
+        return _lastValidCheckpoint.getSystemTimeMillis();
     }
 
     /**
@@ -459,13 +470,16 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
     }
 
-    synchronized int handleForTree(final TreeDescriptor td) throws PersistitIOException {
+    synchronized int handleForTree(final TreeDescriptor td, final boolean create) throws PersistitIOException {
         if (td.getVolumeHandle() == -1) {
             // Tree in transient volume -- don't journal updates to it
             return -1;
         }
         Integer handle = _treeToHandleMap.get(td);
         if (handle == null) {
+            if (!create) {
+                return -1;
+            }
             handle = Integer.valueOf(++_handleCounter);
             Debug.$assert0.t(!_handleToTreeMap.containsKey(handle));
             writeTreeHandleToJournal(td, handle.intValue());
@@ -484,7 +498,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 return tree.getHandle();
             }
             final TreeDescriptor td = new TreeDescriptor(handleForVolume(tree.getVolume()), tree.getName());
-            return tree.setHandle(handleForTree(td));
+            return tree.setHandle(handleForTree(td, true));
         }
     }
 
