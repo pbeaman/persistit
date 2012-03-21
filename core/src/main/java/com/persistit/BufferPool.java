@@ -1088,10 +1088,10 @@ public class BufferPool {
     }
 
     /**
-     * Heuristic to determine when the PAGE_WRITER thread(s) can relax.
+     * Heuristic to determine when the PAGE_WRITER thread(s) should do work.
      * 
-     * @return <code>true</code> if the PAGE_WRITER thread can relax and do
-     *         nothing, else <code>false</code>
+     * @return whether PAGE_WRITER thread should write pages on the current
+     *         polling cycle
      */
     boolean shouldWritePages() {
         int cleanCount = _bufferCount - _dirtyPageCount.get();
