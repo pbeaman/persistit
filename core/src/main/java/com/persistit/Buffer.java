@@ -263,6 +263,8 @@ public class Buffer extends SharedResource {
     public final static int MAX_KEY_RATIO = 16;
 
     final static boolean ENABLE_LOCK_MANAGER = false;
+    
+    private final static int BINARY_SEARCH_THRESHOLD = 6;
 
     abstract static class VerifyVisitor {
 
@@ -574,15 +576,6 @@ public class Buffer extends SharedResource {
     }
 
     @Override
-    boolean upgradeClaim() {
-        boolean result = super.upgradeClaim();
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.registerUpgrade(this);
-        }
-        return result;
-    }
-
-    @Override
     void releaseWriterClaim() {
         if (ENABLE_LOCK_MANAGER) {
             _pool._lockManager.registerDowngrade(this);
@@ -711,15 +704,13 @@ public class Buffer extends SharedResource {
      * @return A displayable String version of the page type.
      */
     public String getPageTypeName() {
-        if (_page == 0 && isValid())
-            return TYPE_NAMES[PAGE_TYPE_HEAD];
         return getPageTypeName(_page, _type);
     }
 
     public static String getPageTypeName(final long page, final int type) {
-        if (page == 0)
+        if (page == 0) {
             return TYPE_NAMES[PAGE_TYPE_HEAD];
-
+        }
         if (type == Buffer.PAGE_TYPE_UNALLOCATED || type == Buffer.PAGE_TYPE_DATA || type >= Buffer.PAGE_TYPE_INDEX_MIN
                 && type <= Buffer.PAGE_TYPE_INDEX_MAX || type == Buffer.PAGE_TYPE_GARBAGE
                 || type == Buffer.PAGE_TYPE_LONG_RECORD) {
@@ -798,6 +789,7 @@ public class Buffer extends SharedResource {
     Buffer getNext() {
         return _next;
     }
+
 
     /**
      * Finds the keyblock in this page that exactly matches or immediately
@@ -879,9 +871,8 @@ public class Buffer extends SharedResource {
                         //
                         // There is a run of runCount keys after p that all have
                         // the same ebc. Depending on how big the run is, we
-                        // either do a
-                        // linear search or perform a binary search within the
-                        // run.
+                        // either do a linear search or perform a binary search
+                        // within the run.
                         //
                         int p2 = p + (runCount * KEYBLOCK_LENGTH);
                         //
@@ -945,7 +936,7 @@ public class Buffer extends SharedResource {
                             // and right ends of the range to the keyblock
                             // we are seeking.
                             //
-                            if (runCount > 6) {
+                            if (runCount > BINARY_SEARCH_THRESHOLD) {
                                 int distance = (right - left) >> 2;
                                 int oldRight = right;
                                 if (distance > kb - db + 1) {
@@ -962,11 +953,10 @@ public class Buffer extends SharedResource {
                                 p = ((left + right) >> 1) & P_MASK;
                                 if (p == left) {
                                     //
-                                    // This is right because if p == left then
-                                    // right = left + 1. We already know
+                                    // This is true because if p == left then
+                                    // right must be left + 1. We already know
                                     // that kb > db and less than db2, so the
-                                    // final
-                                    // answer is in right.
+                                    // final answer is know to be in right.
                                     //
                                     int result = right | (depth << DEPTH_SHIFT);
                                     return result;
@@ -1017,75 +1007,74 @@ public class Buffer extends SharedResource {
                     }
                 }
 
-                if (kb == db) {
-                    //
-                    // If kb == db then we now try to go deeper into the key. On
-                    // an exact match we will perform this block of code once
-                    // for each byte in the key.
-                    //
-                    kbData = getInt(p);
-                    int tail = decodeKeyBlockTail(kbData);
-                    int tbData = getInt(tail);
-                    int tlength = decodeTailBlockKLength(tbData) + depth + 1;
-                    int qlength = tlength < klength ? tlength : klength;
-                    //
-                    // Walk down the key, increasing depth
-                    //
-                    boolean matched = true;
-                    if (++depth < qlength) {
-                        int q = tail + tailHeaderSize;
+                assert db == kb;
+                //
+                // kb == db so we now try to go deeper into the key. On
+                // an exact match we will perform this block of code once
+                // for each byte in the key.
+                //
+                kbData = getInt(p);
+                int tail = decodeKeyBlockTail(kbData);
+                int tbData = getInt(tail);
+                int tlength = decodeTailBlockKLength(tbData) + depth + 1;
+                int qlength = tlength < klength ? tlength : klength;
+                //
+                // Walk down the key, increasing depth
+                //
+                boolean matched = true;
+                if (++depth < qlength) {
+                    int q = tail + tailHeaderSize;
+                    kb = kbytes[depth];
+                    db = _bytes[q++];
+
+                    while (kb == db && ++depth < qlength) {
                         kb = kbytes[depth];
                         db = _bytes[q++];
-
-                        while (kb == db && ++depth < qlength) {
-                            kb = kbytes[depth];
-                            db = _bytes[q++];
-                        }
-
-                        if (kb != db) {
-                            kb = kb & 0xFF;
-                            db = db & 0xFF;
-
-                            if (kb < db) {
-                                //
-                                // Key is less than tail, so we return
-                                // this keyblock
-                                //
-                                int result = p | (depth << DEPTH_SHIFT) | FIXUP_MASK;
-                                return result;
-                            }
-                            matched = false;
-                        }
                     }
 
-                    if (matched && depth == qlength) {
-                        // We matched all the way to the end of either key or
-                        // tail.
-                        //
-                        if (qlength == tlength) {
+                    if (kb != db) {
+                        kb = kb & 0xFF;
+                        db = db & 0xFF;
+
+                        if (kb < db) {
                             //
-                            // We matched all the way to the end of the tail
-                            //
-                            if (qlength == klength) {
-                                //
-                                // And the key lengths are equal so this is an
-                                // exact match.
-                                //
-                                int result = p | (depth << DEPTH_SHIFT) | EXACT_MASK;
-                                return result;
-                            }
-                        } else if (tlength > qlength) {
-                            //
-                            // Tail is longer, so the key
-                            // key is less than tail, so we return the
-                            // this keyblock since it is greater than the key
+                            // Key is less than tail, so we return
+                            // this keyblock
                             //
                             int result = p | (depth << DEPTH_SHIFT) | FIXUP_MASK;
                             return result;
                         }
-                        // Otherwise, the key is longer, so we move to the next
-                        // key block at the bottom of this loop.
+                        matched = false;
                     }
+                }
+
+                if (matched && depth == qlength) {
+                    // We matched all the way to the end of either key or
+                    // tail.
+                    //
+                    if (qlength == tlength) {
+                        //
+                        // We matched all the way to the end of the tail
+                        //
+                        if (qlength == klength) {
+                            //
+                            // And the key lengths are equal so this is an
+                            // exact match.
+                            //
+                            int result = p | (depth << DEPTH_SHIFT) | EXACT_MASK;
+                            return result;
+                        }
+                    } else if (tlength > qlength) {
+                        //
+                        // Tail is longer, so the key
+                        // key is less than tail, so we return the
+                        // this keyblock since it is greater than the key
+                        //
+                        int result = p | (depth << DEPTH_SHIFT) | FIXUP_MASK;
+                        return result;
+                    }
+                    // Otherwise, the key is longer, so we move to the next
+                    // key block at the bottom of this loop.
                 }
                 // Advance to the next keyblock
                 p += KEYBLOCK_LENGTH;
@@ -1113,44 +1102,6 @@ public class Buffer extends SharedResource {
         }
         return false;
 
-    }
-
-    boolean hasValue(Key key) throws PersistitInterruptedException {
-        int foundAt = findKey(key);
-        return ((foundAt & EXACT_MASK) != 0);
-    }
-
-    boolean hasChild(Key key) throws PersistitException {
-        if (!isDataPage()) {
-            throw new InvalidPageTypeException("type=" + _type);
-        }
-        int foundAt = findKey(key);
-        return hasChild(foundAt, key);
-    }
-
-    boolean hasChild(int foundAt, Key key) {
-        int p = foundAt & P_MASK;
-        if ((foundAt & EXACT_MASK) != 0) {
-            p += KEYBLOCK_LENGTH;
-            if (p >= _keyBlockEnd)
-                return false;
-            int kbData = getInt(p);
-            int ebc = decodeKeyBlockEbc(kbData);
-            return ebc == key.getEncodedSize();
-        } else {
-            if (p >= _keyBlockEnd)
-                return false;
-            int depth = (foundAt & DEPTH_MASK) >>> DEPTH_SHIFT;
-            return depth == key.getEncodedSize() && depth > 0;
-        }
-    }
-
-    Value fetch(Key key, Value value) throws PersistitException {
-        if (!isDataPage()) {
-            throw new InvalidPageTypeException("type=" + _type);
-        }
-        int foundAt = findKey(key);
-        return fetch(foundAt, value);
     }
 
     /**
@@ -1270,7 +1221,7 @@ public class Buffer extends SharedResource {
      * @param foundAt
      * @return
      */
-    private int previousKey(Key key, int foundAt) {
+    int previousKey(Key key, int foundAt) {
         int p = (foundAt & P_MASK) - KEYBLOCK_LENGTH;
         int depth = (foundAt & DEPTH_MASK) >>> DEPTH_SHIFT;
 
@@ -1288,10 +1239,12 @@ public class Buffer extends SharedResource {
         int kbData = getInt(p);
         int ebc = decodeKeyBlockEbc(kbData);
         int knownGood = ebc;
-        if (ebc2 < ebc)
+        if (ebc2 < ebc) {
             knownGood = ebc2;
-        if (depth < knownGood)
+        }
+        if (depth < knownGood) {
             knownGood = depth;
+        }
 
         int tail = decodeKeyBlockTail(kbData);
         //
@@ -1303,11 +1256,8 @@ public class Buffer extends SharedResource {
         // the unknown count becomes less than or equal to the knownGood count,
         // we are done.
         //
-        int unknown = decodeTailBlockKLength(getInt(tail)) + ebc + 1; // (+1 is
-                                                                      // for
-                                                                      // the
-                                                                      // discriminator
-                                                                      // byte)
+        // (+1 is for the discriminator byte)
+        int unknown = decodeTailBlockKLength(getInt(tail)) + ebc + 1;
         key.setEncodedSize(unknown);
 
         int result = p | (unknown << DEPTH_SHIFT) | EXACT_MASK;
@@ -1328,8 +1278,8 @@ public class Buffer extends SharedResource {
                 break;
 
             p -= KEYBLOCK_LENGTH;
-            if (p < KEY_BLOCK_START)
-                break;
+            Debug.$assert1.t(p >= KEY_BLOCK_START);
+
             kbData = getInt(p);
             ebc = decodeKeyBlockEbc(kbData);
             tail = decodeKeyBlockTail(kbData);
@@ -1750,8 +1700,9 @@ public class Buffer extends SharedResource {
         for (int p = p1; p < p2; p += KEYBLOCK_LENGTH) {
             int kbData = getInt(p);
             int ebcCandidate = decodeKeyBlockEbc(kbData);
-            if (ebcCandidate < ebc)
+            if (ebcCandidate < ebc) {
                 ebc = ebcCandidate;
+            }
             int db = decodeKeyBlockDb(kbData);
             int tail = decodeKeyBlockTail(kbData);
             int tbData = getInt(tail);
