@@ -1541,12 +1541,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * three commit modes: SOFT, HARD and GROUP. The two parameters represent
      * time intervals in milliseconds.
      * 
-     * @param anticipation
+     * @param leadTime
      *            time interval in milliseconds by which to anticipate I/O
      *            completion; the method will return as soon as the I/O
      *            operation that will flush the current generation of data is
      *            expected to complete within that time interval
-     * @param procrastination
+     * @param stallTime
      *            time interval in milliseconds that this thread is willing to
      *            wait for I/O completion. If if the JOURNAL_FLUSHER is
      *            currently pausing, the pause time may be shortened to try to
@@ -1555,10 +1555,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @throws PersistitInterruptedException
      */
 
-    void waitForDurability(final long anticipation, final long procrastination) throws PersistitException {
+    void waitForDurability(final long leadTime, final long stallTime) throws PersistitException {
         JournalFlusher flusher = _flusher;
         if (flusher != null) {
-            flusher.waitForDurability(anticipation, procrastination);
+            flusher.waitForDurability(leadTime, stallTime);
         } else {
             throw new IllegalStateException("JOURNAL_FLUSHER is not running");
         }
@@ -1953,8 +1953,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
          * 
          * @throws PersistitInterruptedException
          */
-        private void waitForDurability(final long anticipation, final long procrastination) throws PersistitException {
-
+        private void waitForDurability(final long leadTime, final long stallTime) throws PersistitException {
             /*
              * Commit is known durable once the JOURNAL_FLUSHER thread has
              * posted a timestamp value to _endTimestamp larger than this.
@@ -2005,12 +2004,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
                 long estimatedNanosToFinish = Math.max(estimatedRemainingIoNanos, 0);
                 if (startTimestamp < timestamp) {
-                    estimatedNanosToFinish += remainingSleepNanos + _ioTimeAverage;
+                    estimatedNanosToFinish += remainingSleepNanos + estimatedRemainingIoNanos;
                 }
 
-                if (anticipation * NS_PER_MS >= estimatedNanosToFinish) {
+                if (leadTime * NS_PER_MS >= estimatedNanosToFinish) {
                     /*
-                     * If the caller specified an anticipation interval larger
+                     * If the caller specified an leadTime interval larger
                      * than the estimated time remaining in the cycle, then
                      * return immediately. This handles the "soft" commit case.
                      */
@@ -2018,10 +2017,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 } else if (estimatedRemainingIoNanos == -1) {
                     /*
                      * If there is no I/O in progress, then wait as long as
-                     * possible (determined by procrastination) before kicking
+                     * possible (determined by stallTime) before kicking
                      * the JOURNAL_FLUSHER to write the caller's transaction.
                      */
-                    long delay = procrastination * NS_PER_MS - estimatedNanosToFinish;
+                    long delay = stallTime * NS_PER_MS - estimatedNanosToFinish;
                     if (delay > 0) {
                         Util.sleep(delay / NS_PER_MS);
                     }
@@ -2029,9 +2028,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 } else {
                     /*
                      * Otherwise, wait until the I/O is done (or nearly done if
-                     * anticipation > 0).
+                     * leadTime > 0).
                      */
-                    long delay = estimatedNanosToFinish - anticipation * NS_PER_MS;
+                    long delay = estimatedNanosToFinish - leadTime * NS_PER_MS;
                     try {
                         if (delay > 0 && _lock.readLock().tryLock(delay, TimeUnit.NANOSECONDS)) {
                             _lock.readLock().unlock();
