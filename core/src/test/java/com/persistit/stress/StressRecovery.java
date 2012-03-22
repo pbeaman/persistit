@@ -109,7 +109,7 @@ public class StressRecovery extends StressBase {
          * @param ticketId
          * @throws Exception
          */
-        void performTransaction(final long ticketId) throws Exception;
+        long performTransaction(final long ticketId) throws Exception;
 
         /**
          * Given a ticketId, verify that the transaction previously performed by
@@ -177,11 +177,11 @@ public class StressRecovery extends StressBase {
             final TransactionType tt = registry.get((int) (ticketId % registry.size()));
             final long start = System.nanoTime();
             try {
-                tt.performTransaction(ticketId);
+                long commitTs = tt.performTransaction(ticketId);
                 final long now = System.nanoTime();
-                emit(ticketId, start - zero, now - start);
+                emit(ticketId, start - zero, now - start, commitTs);
             } catch (Exception e) {
-                emit(ticketId, start - zero, -1);
+                emit(ticketId, start - zero, -1, -1);
                 printStackTrace(e);
             }
         }
@@ -262,8 +262,8 @@ public class StressRecovery extends StressBase {
         }
     }
 
-    private synchronized static void emit(final long ticketId, final long start, final long elapsed) {
-        System.out.println(ticketId + "," + start + "," + elapsed);
+    private synchronized static void emit(final long ticketId, final long start, final long elapsed, final long ts) {
+        System.out.println(ticketId + "," + start + "," + elapsed + "," + ts);
         System.out.flush();
     }
 
@@ -279,7 +279,7 @@ public class StressRecovery extends StressBase {
         private static final int SCALE = 10000;
 
         @Override
-        public void performTransaction(long ticketId) throws Exception {
+        public long performTransaction(long ticketId) throws Exception {
             Transaction txn = _persistit.getTransaction();
             for (;;) {
                 txn.begin();
@@ -295,6 +295,7 @@ public class StressRecovery extends StressBase {
                     txn.end();
                 }
             }
+            return txn.getCommitTimestamp();
         }
 
         @Override
@@ -311,7 +312,7 @@ public class StressRecovery extends StressBase {
                 "aid", "some", "party" };
 
         @Override
-        public void performTransaction(long ticketId) throws Exception {
+        public long performTransaction(long ticketId) throws Exception {
             final StringBuilder sb = new StringBuilder(String.format("%,15d", ticketId));
             final int size = (int) ((ticketId * 17) % 876);
             for (int i = 0; i < size; i++) {
@@ -355,6 +356,7 @@ public class StressRecovery extends StressBase {
                     txn.end();
                 }
             }
+            return txn.getCommitTimestamp();
         }
 
         @Override

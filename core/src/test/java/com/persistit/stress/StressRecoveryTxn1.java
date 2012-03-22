@@ -20,9 +20,9 @@ import com.persistit.stress.StressRecovery.TransactionType;
 public class StressRecoveryTxn1 implements TransactionType {
 
     @Override
-    public void performTransaction(long ticketId) throws Exception {
+    public long performTransaction(long ticketId) throws Exception {
         // TODO Auto-generated method stub
-        
+        return -1;
     }
 
     @Override
