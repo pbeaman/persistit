@@ -2107,7 +2107,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                         max = Math.max(max, _ioTimes[index]);
                     }
                     _expectedIoTime = max;
-                    if (elapsed > _slowIoAlertThreshold) {
+                    if (elapsed > _slowIoAlertThreshold * 1000000) {
                         _persistit.getLogBase().longJournalIO.log(elapsed / 1000000);
                     }
 
