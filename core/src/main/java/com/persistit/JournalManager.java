@@ -186,10 +186,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private volatile long _logRepeatInterval = DEFAULT_LOG_REPEAT_INTERVAL;
     
-    private volatile long _longJournalFlushIOThreshold = 1000000000L;
+    private volatile long _slowIoAlertThreshold = 1000L;
     
-    private volatile long _lastReportedLongJournalFlushIOtime = DEFAULT_LOG_REPEAT_INTERVAL;
-
     private TransactionPlayer _player = new TransactionPlayer(new JournalTransactionPlayerSupport());
 
     private TransactionPlayerListener _listener = new ProactiveRollbackListener();
@@ -445,6 +443,26 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     @Override
     public long getLastValidCheckpointTimestampMillis() {
         return _lastValidCheckpoint.getSystemTimeMillis();
+    }
+
+    @Override
+    public long getLogRepeatInterval() {
+        return _logRepeatInterval;
+    }
+
+    @Override
+    public void setLogRepeatInterval(long logRepeatInterval) {
+        _logRepeatInterval = logRepeatInterval;
+    }
+
+    @Override
+    public long getSlowIoAlertThreshold() {
+        return _slowIoAlertThreshold;
+    }
+
+    @Override
+    public void setSlowIoAlertThreshold(long slowIoAlertThreshold) {
+        _slowIoAlertThreshold = slowIoAlertThreshold;
     }
 
     /**
@@ -2089,7 +2107,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                         total += _ioTimes[index];
                     }
                     _ioTimeAverage = total / _ioTimes.length;
-                    if (elapsed > _longJournalFlushIOThreshold) {
+                    if (elapsed > _slowIoAlertThreshold) {
                         _persistit.getLogBase().longJournalIO.log(elapsed / 1000000);
                     }
 
@@ -2098,7 +2116,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                         _closed.set(true);
                     }
                     if (_lastException == null || !e.getClass().equals(_lastException.getClass())
-                            || now - _lastLogMessageTime > -_logRepeatInterval) {
+                            || now - _lastLogMessageTime > -_logRepeatInterval * 1000000) {
                         _lastException = e;
                         _lastLogMessageTime = now;
                         _lastExceptionTimestamp = _endTimestamp;
