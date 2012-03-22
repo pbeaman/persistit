@@ -140,7 +140,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     }
 
     public void testComplexPruning() throws Exception {
-        _persistit.getCheckpointManager().setCheckpointInterval(5000);
+        _persistit.getCheckpointManager().setCheckpointIntervalNanos(5000);
         final Thread[] threads = new Thread[500];
         for (int cycle = 0; cycle < threads.length; cycle++) {
             Thread.sleep(50);

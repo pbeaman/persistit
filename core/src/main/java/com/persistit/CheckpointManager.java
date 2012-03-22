@@ -92,7 +92,7 @@ class CheckpointManager extends IOTaskRunnable {
 
     private final SessionId _checkpointTxnSessionId = new SessionId();
 
-    private volatile long _checkpointInterval = DEFAULT_CHECKPOINT_INTERVAL;
+    private volatile long _checkpointIntervalNanos = DEFAULT_CHECKPOINT_INTERVAL;
 
     private volatile long _lastCheckpointNanos = Long.MAX_VALUE;
 
@@ -128,12 +128,12 @@ class CheckpointManager extends IOTaskRunnable {
         return _currentCheckpoint;
     }
 
-    long getCheckpointInterval() {
-        return _checkpointInterval;
+    long getCheckpointIntervalNanos() {
+        return _checkpointIntervalNanos;
     }
 
-    void setCheckpointInterval(long interval) {
-        _checkpointInterval = interval;
+    void setCheckpointIntervalNanos(long interval) {
+        _checkpointIntervalNanos = interval;
     }
 
     Checkpoint checkpoint() throws PersistitException {
@@ -158,7 +158,7 @@ class CheckpointManager extends IOTaskRunnable {
 
     void pollCreateCheckpoint() throws PersistitException {
         final long now = System.nanoTime();
-        if (_lastCheckpointNanos + _checkpointInterval < now) {
+        if (_lastCheckpointNanos + _checkpointIntervalNanos < now) {
             createCheckpoint();
         }
     }
@@ -249,5 +249,4 @@ class CheckpointManager extends IOTaskRunnable {
         pollCreateCheckpoint();
         pollFlushCheckpoint();
     }
-
 }

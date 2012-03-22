@@ -2292,6 +2292,10 @@ public class Persistit {
         return _transactionIndex;
     }
 
+    public long getCheckpointIntervalNanos() {
+        return _checkpointManager.getCheckpointIntervalNanos();
+    }
+
     /**
      * Replaces the current logger implementation.
      * 
