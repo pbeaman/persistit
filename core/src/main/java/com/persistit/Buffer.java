@@ -72,7 +72,7 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 
-public class Buffer extends SharedResource implements Comparable<Buffer> {
+public class Buffer extends SharedResource {
 
     /**
      * Architectural lower bound on buffer size
@@ -209,9 +209,9 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
 
     final static int P_MASK = 0x0000FFFC;
 
-    private final static int DEPTH_MASK = 0x0FFF0000;
-    private final static int DEPTH_SHIFT = 16;
-    private final static int FIXUP_MASK = 0x40000000;
+    final static int DEPTH_MASK = 0x0FFF0000;
+    final static int DEPTH_SHIFT = 16;
+    final static int FIXUP_MASK = 0x40000000;
 
     // Mask for the discriminator byte field within a keyblock
     private final static int DB_MASK = 0x000000FF;
@@ -263,6 +263,8 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     public final static int MAX_KEY_RATIO = 16;
 
     final static boolean ENABLE_LOCK_MANAGER = false;
+    
+    private final static int BINARY_SEARCH_THRESHOLD = 6;
 
     abstract static class VerifyVisitor {
 
@@ -297,12 +299,12 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     /**
      * The page address of the page currently loaded in this buffer.
      */
-    private long _page;
+    private volatile long _page;
 
     /**
      * The Volume from which the page was loaded.
      */
-    private Volume _vol;
+    private volatile Volume _vol;
 
     /**
      * Timestamp of last Transaction to modify this resource
@@ -323,7 +325,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     /**
      * The right sibling page address
      */
-    private long _rightSibling;
+    private volatile long _rightSibling;
 
     /**
      * The size of this buffer
@@ -338,33 +340,33 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     /**
      * Type code for this page.
      */
-    private int _type;
+    private volatile int _type;
 
     /**
      * Tailblock header size
      */
-    private int _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
+    private volatile int _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
 
     /**
      * Offset within the buffer to the first byte past the last keyblock
      */
-    private int _keyBlockEnd;
+    private volatile int _keyBlockEnd;
 
     /**
      * Offset within the buffer to the lowest tailblock. To allocate a new
      * tailblock, consume the space below this point.
      */
-    private int _alloc;
+    private volatile int _alloc;
 
     /**
      * Count of unused bytes above _alloc.
      */
-    private int _slack;
+    private volatile int _slack;
 
     /**
      * Count of MVV values
      */
-    private int _mvvCount;
+    private volatile int _mvvCount;
 
     /**
      * Singly-linked list of Buffers current having the same hash code.
@@ -574,15 +576,6 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     @Override
-    boolean upgradeClaim() {
-        boolean result = super.upgradeClaim();
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.registerUpgrade(this);
-        }
-        return result;
-    }
-
-    @Override
     void releaseWriterClaim() {
         if (ENABLE_LOCK_MANAGER) {
             _pool._lockManager.registerDowngrade(this);
@@ -711,15 +704,13 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
      * @return A displayable String version of the page type.
      */
     public String getPageTypeName() {
-        if (_page == 0 && isValid())
-            return TYPE_NAMES[PAGE_TYPE_HEAD];
         return getPageTypeName(_page, _type);
     }
 
     public static String getPageTypeName(final long page, final int type) {
-        if (page == 0)
+        if (page == 0) {
             return TYPE_NAMES[PAGE_TYPE_HEAD];
-
+        }
         if (type == Buffer.PAGE_TYPE_UNALLOCATED || type == Buffer.PAGE_TYPE_DATA || type >= Buffer.PAGE_TYPE_INDEX_MIN
                 && type <= Buffer.PAGE_TYPE_INDEX_MAX || type == Buffer.PAGE_TYPE_GARBAGE
                 || type == Buffer.PAGE_TYPE_LONG_RECORD) {
@@ -762,6 +753,11 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
         _rightSibling = pageAddress;
     }
 
+    long getVolumeId() {
+        final Volume volume = _vol;
+        return volume == null ? 0 : volume.getId();
+    }
+
     int getKeyBlockStart() {
         return KEY_BLOCK_START;
     }
@@ -793,6 +789,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     Buffer getNext() {
         return _next;
     }
+
 
     /**
      * Finds the keyblock in this page that exactly matches or immediately
@@ -874,9 +871,8 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                         //
                         // There is a run of runCount keys after p that all have
                         // the same ebc. Depending on how big the run is, we
-                        // either do a
-                        // linear search or perform a binary search within the
-                        // run.
+                        // either do a linear search or perform a binary search
+                        // within the run.
                         //
                         int p2 = p + (runCount * KEYBLOCK_LENGTH);
                         //
@@ -940,7 +936,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                             // and right ends of the range to the keyblock
                             // we are seeking.
                             //
-                            if (runCount > 6) {
+                            if (runCount > BINARY_SEARCH_THRESHOLD) {
                                 int distance = (right - left) >> 2;
                                 int oldRight = right;
                                 if (distance > kb - db + 1) {
@@ -957,11 +953,10 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                                 p = ((left + right) >> 1) & P_MASK;
                                 if (p == left) {
                                     //
-                                    // This is right because if p == left then
-                                    // right = left + 1. We already know
+                                    // This is true because if p == left then
+                                    // right must be left + 1. We already know
                                     // that kb > db and less than db2, so the
-                                    // final
-                                    // answer is in right.
+                                    // final answer is know to be in right.
                                     //
                                     int result = right | (depth << DEPTH_SHIFT);
                                     return result;
@@ -1012,75 +1007,74 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                     }
                 }
 
-                if (kb == db) {
-                    //
-                    // If kb == db then we now try to go deeper into the key. On
-                    // an exact match we will perform this block of code once
-                    // for each byte in the key.
-                    //
-                    kbData = getInt(p);
-                    int tail = decodeKeyBlockTail(kbData);
-                    int tbData = getInt(tail);
-                    int tlength = decodeTailBlockKLength(tbData) + depth + 1;
-                    int qlength = tlength < klength ? tlength : klength;
-                    //
-                    // Walk down the key, increasing depth
-                    //
-                    boolean matched = true;
-                    if (++depth < qlength) {
-                        int q = tail + tailHeaderSize;
+                assert db == kb;
+                //
+                // kb == db so we now try to go deeper into the key. On
+                // an exact match we will perform this block of code once
+                // for each byte in the key.
+                //
+                kbData = getInt(p);
+                int tail = decodeKeyBlockTail(kbData);
+                int tbData = getInt(tail);
+                int tlength = decodeTailBlockKLength(tbData) + depth + 1;
+                int qlength = tlength < klength ? tlength : klength;
+                //
+                // Walk down the key, increasing depth
+                //
+                boolean matched = true;
+                if (++depth < qlength) {
+                    int q = tail + tailHeaderSize;
+                    kb = kbytes[depth];
+                    db = _bytes[q++];
+
+                    while (kb == db && ++depth < qlength) {
                         kb = kbytes[depth];
                         db = _bytes[q++];
-
-                        while (kb == db && ++depth < qlength) {
-                            kb = kbytes[depth];
-                            db = _bytes[q++];
-                        }
-
-                        if (kb != db) {
-                            kb = kb & 0xFF;
-                            db = db & 0xFF;
-
-                            if (kb < db) {
-                                //
-                                // Key is less than tail, so we return
-                                // this keyblock
-                                //
-                                int result = p | (depth << DEPTH_SHIFT) | FIXUP_MASK;
-                                return result;
-                            }
-                            matched = false;
-                        }
                     }
 
-                    if (matched && depth == qlength) {
-                        // We matched all the way to the end of either key or
-                        // tail.
-                        //
-                        if (qlength == tlength) {
+                    if (kb != db) {
+                        kb = kb & 0xFF;
+                        db = db & 0xFF;
+
+                        if (kb < db) {
                             //
-                            // We matched all the way to the end of the tail
-                            //
-                            if (qlength == klength) {
-                                //
-                                // And the key lengths are equal so this is an
-                                // exact match.
-                                //
-                                int result = p | (depth << DEPTH_SHIFT) | EXACT_MASK;
-                                return result;
-                            }
-                        } else if (tlength > qlength) {
-                            //
-                            // Tail is longer, so the key
-                            // key is less than tail, so we return the
-                            // this keyblock since it is greater than the key
+                            // Key is less than tail, so we return
+                            // this keyblock
                             //
                             int result = p | (depth << DEPTH_SHIFT) | FIXUP_MASK;
                             return result;
                         }
-                        // Otherwise, the key is longer, so we move to the next
-                        // key block at the bottom of this loop.
+                        matched = false;
                     }
+                }
+
+                if (matched && depth == qlength) {
+                    // We matched all the way to the end of either key or
+                    // tail.
+                    //
+                    if (qlength == tlength) {
+                        //
+                        // We matched all the way to the end of the tail
+                        //
+                        if (qlength == klength) {
+                            //
+                            // And the key lengths are equal so this is an
+                            // exact match.
+                            //
+                            int result = p | (depth << DEPTH_SHIFT) | EXACT_MASK;
+                            return result;
+                        }
+                    } else if (tlength > qlength) {
+                        //
+                        // Tail is longer, so the key
+                        // key is less than tail, so we return the
+                        // this keyblock since it is greater than the key
+                        //
+                        int result = p | (depth << DEPTH_SHIFT) | FIXUP_MASK;
+                        return result;
+                    }
+                    // Otherwise, the key is longer, so we move to the next
+                    // key block at the bottom of this loop.
                 }
                 // Advance to the next keyblock
                 p += KEYBLOCK_LENGTH;
@@ -1108,44 +1102,6 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
         }
         return false;
 
-    }
-
-    boolean hasValue(Key key) throws PersistitInterruptedException {
-        int foundAt = findKey(key);
-        return ((foundAt & EXACT_MASK) != 0);
-    }
-
-    boolean hasChild(Key key) throws PersistitException {
-        if (!isDataPage()) {
-            throw new InvalidPageTypeException("type=" + _type);
-        }
-        int foundAt = findKey(key);
-        return hasChild(foundAt, key);
-    }
-
-    boolean hasChild(int foundAt, Key key) {
-        int p = foundAt & P_MASK;
-        if ((foundAt & EXACT_MASK) != 0) {
-            p += KEYBLOCK_LENGTH;
-            if (p >= _keyBlockEnd)
-                return false;
-            int kbData = getInt(p);
-            int ebc = decodeKeyBlockEbc(kbData);
-            return ebc == key.getEncodedSize();
-        } else {
-            if (p >= _keyBlockEnd)
-                return false;
-            int depth = (foundAt & DEPTH_MASK) >>> DEPTH_SHIFT;
-            return depth == key.getEncodedSize() && depth > 0;
-        }
-    }
-
-    Value fetch(Key key, Value value) throws PersistitException {
-        if (!isDataPage()) {
-            throw new InvalidPageTypeException("type=" + _type);
-        }
-        int foundAt = findKey(key);
-        return fetch(foundAt, value);
     }
 
     /**
@@ -1265,7 +1221,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
      * @param foundAt
      * @return
      */
-    private int previousKey(Key key, int foundAt) {
+    int previousKey(Key key, int foundAt) {
         int p = (foundAt & P_MASK) - KEYBLOCK_LENGTH;
         int depth = (foundAt & DEPTH_MASK) >>> DEPTH_SHIFT;
 
@@ -1283,10 +1239,12 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
         int kbData = getInt(p);
         int ebc = decodeKeyBlockEbc(kbData);
         int knownGood = ebc;
-        if (ebc2 < ebc)
+        if (ebc2 < ebc) {
             knownGood = ebc2;
-        if (depth < knownGood)
+        }
+        if (depth < knownGood) {
             knownGood = depth;
+        }
 
         int tail = decodeKeyBlockTail(kbData);
         //
@@ -1298,11 +1256,8 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
         // the unknown count becomes less than or equal to the knownGood count,
         // we are done.
         //
-        int unknown = decodeTailBlockKLength(getInt(tail)) + ebc + 1; // (+1 is
-                                                                      // for
-                                                                      // the
-                                                                      // discriminator
-                                                                      // byte)
+        // (+1 is for the discriminator byte)
+        int unknown = decodeTailBlockKLength(getInt(tail)) + ebc + 1;
         key.setEncodedSize(unknown);
 
         int result = p | (unknown << DEPTH_SHIFT) | EXACT_MASK;
@@ -1323,8 +1278,8 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                 break;
 
             p -= KEYBLOCK_LENGTH;
-            if (p < KEY_BLOCK_START)
-                break;
+            Debug.$assert1.t(p >= KEY_BLOCK_START);
+
             kbData = getInt(p);
             ebc = decodeKeyBlockEbc(kbData);
             tail = decodeKeyBlockTail(kbData);
@@ -1745,8 +1700,9 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
         for (int p = p1; p < p2; p += KEYBLOCK_LENGTH) {
             int kbData = getInt(p);
             int ebcCandidate = decodeKeyBlockEbc(kbData);
-            if (ebcCandidate < ebc)
+            if (ebcCandidate < ebc) {
                 ebc = ebcCandidate;
+            }
             int db = decodeKeyBlockDb(kbData);
             int tail = decodeKeyBlockTail(kbData);
             int tbData = getInt(tail);
@@ -2166,6 +2122,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
         // Now move all the records from the split point forward to the
         // right page and deallocate their space in the left page.
         //
+
         for (int p = splitAtPosition; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
 
             final int kbData = getInt(p);
@@ -3679,13 +3636,12 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                         } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
                             Debug.$assert1.t(false);
                         } else {
-                            if (removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey)) {
-                                p -= KEYBLOCK_LENGTH;
-                                changed = true;
-                                if (!bumped) {
-                                    bumpGeneration();
-                                    bumped = true;
-                                }
+                            Debug.$assert0.t(removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey));
+                            p -= KEYBLOCK_LENGTH;
+                            changed = true;
+                            if (!bumped) {
+                                bumpGeneration();
+                                bumped = true;
                             }
                         }
                     }
@@ -3963,7 +3919,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     long getGarbageChainRightPage() {
-        Debug.$assert0.t(isGarbagePage());
+        Debug.$assert1.t(isGarbagePage());
         if (_alloc + GARBAGE_BLOCK_SIZE > _bufferSize)
             return -1;
         else
@@ -3972,7 +3928,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
 
     long getGarbageChainLeftPage(int p) {
         long page = getLong(p + GARBAGE_BLOCK_LEFT_PAGE);
-        Debug.$assert0.t(page > 0 && page <= MAX_VALID_PAGE_ADDR && page != _page);
+        Debug.$assert1.t(page > 0 && page <= MAX_VALID_PAGE_ADDR && page != _page);
         return page;
     }
 
@@ -3980,22 +3936,16 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
         return getLong(p + GARBAGE_BLOCK_RIGHT_PAGE);
     }
 
-    boolean removeGarbageChain() {
-        Debug.$assert0.t(isGarbagePage());
-        if (_alloc + GARBAGE_BLOCK_SIZE > _bufferSize)
-            return false;
+    void removeGarbageChain() {
+        Debug.$assert1.t(isGarbagePage() && _alloc + GARBAGE_BLOCK_SIZE <= _bufferSize);
         clearBytes(_alloc, _alloc + GARBAGE_BLOCK_SIZE);
         _alloc += GARBAGE_BLOCK_SIZE;
         bumpGeneration();
-        return true;
     }
 
     void setGarbageLeftPage(long left) {
-        Debug.$assert0.t(isMine());
-        Debug.$assert0.t(left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page);
-        Debug.$assert0.t(isGarbagePage());
-        Debug.$assert0.t(_alloc + GARBAGE_BLOCK_SIZE <= _bufferSize);
-        Debug.$assert0.t(_alloc >= _keyBlockEnd);
+        Debug.$assert1.t(isMine() && isGarbagePage() && left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page
+                && _alloc + GARBAGE_BLOCK_SIZE <= _bufferSize && _alloc >= _keyBlockEnd);
         putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
         bumpGeneration();
     }
@@ -4042,29 +3992,6 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                 }
             }
         }
-    }
-
-    /**
-     * Used to sort buffers in ascending page address order by volume.
-     * 
-     * @param buffer
-     * @return -1, 0 or 1 as this <code>Buffer</code> falls before, a, or after
-     *         the supplied <code>Buffer</code> in the desired page address
-     *         order.
-     */
-    @Override
-    public int compareTo(Buffer buffer) {
-        if (buffer.getVolume() == null) {
-            return 1;
-        }
-        if (getVolume() == null) {
-            return -1;
-        }
-        if (getVolume().equals(buffer.getVolume())) {
-            return getPageAddress() > buffer.getPageAddress() ? 1 : getPageAddress() < buffer.getPageAddress() ? -1 : 0;
-        }
-        return getVolume().getId() > buffer.getVolume().getId() ? 1
-                : getVolume().getId() < buffer.getVolume().getId() ? -1 : 0;
     }
 
     /**

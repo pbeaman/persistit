@@ -15,9 +15,6 @@
 
 package com.persistit;
 
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
 import com.persistit.ValueHelper.RawValueWriter;
@@ -37,7 +34,6 @@ public class BufferTest extends PersistitUnitTestCase {
     int leftShorten;
     int rightShorten;
 
-    @Test
     public void testSimpleSplitAndJoin() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "BufferTest", true);
         final StringBuilder sb = new StringBuilder();
@@ -82,7 +78,6 @@ public class BufferTest extends PersistitUnitTestCase {
         b2.release();
     }
 
-    @Test
     public void testProblematicJoins() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "BufferTest", true);
         final Buffer b1 = ex.getBufferPool().get(ex.getVolume(), 1, true, false);
@@ -109,9 +104,8 @@ public class BufferTest extends PersistitUnitTestCase {
     }
 
     /*
-     * Note: runs for about 3 minutes.
+     * Note: runs for about 3 minutes -- ignored for now
      */
-    @Ignore
     public void manyJoins() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "BufferTest", true);
         final Buffer b1 = ex.getBufferPool().get(ex.getVolume(), 1, true, false);
@@ -209,6 +203,23 @@ public class BufferTest extends PersistitUnitTestCase {
             foundAt2 += 3;
         }
         b1.join(b2, foundAt1, foundAt2, ex.getAuxiliaryKey1(), ex.getAuxiliaryKey2(), JoinPolicy.EVEN_BIAS);
+    }
+
+    /*
+     * ----------
+     */
+
+    String keyString(char fill, int length, int prefix, int width, int k) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < prefix && i < length; i++) {
+            sb.append(fill);
+        }
+        sb.append(String.format("%0" + width + "d", k));
+        for (int i = length - sb.length(); i < length; i++) {
+            sb.append(fill);
+        }
+        sb.setLength(length);
+        return sb.toString();
     }
 
 }
