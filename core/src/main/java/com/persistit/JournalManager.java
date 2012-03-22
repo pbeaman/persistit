@@ -96,7 +96,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private long _blockSize;
 
-    private int _writeBufferSize = DEFAULT_BUFFER_SIZE;
+    private volatile int _writeBufferSize = DEFAULT_BUFFER_SIZE;
 
     private ByteBuffer _writeBuffer;
 
@@ -640,11 +640,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         bb.limit(at + payloadSize).position(at);
         readFully(bb, pn.getJournalAddress() + PA.OVERHEAD);
 
-        if (leftSize > 0) {
-            final int rightSize = payloadSize - leftSize;
-            System.arraycopy(bb.array(), leftSize + at, bb.array(), bufferSize - rightSize + at, rightSize);
-            Arrays.fill(bb.array(), leftSize + at, bufferSize - rightSize + at, (byte) 0);
-        }
+        final int rightSize = payloadSize - leftSize;
+        System.arraycopy(bb.array(), leftSize + at, bb.array(), bufferSize - rightSize + at, rightSize);
+        Arrays.fill(bb.array(), leftSize + at, bufferSize - rightSize + at, (byte) 0);
         bb.limit(bb.capacity()).position(at).limit(at + bufferSize);
         return pageAddress;
     }
@@ -894,8 +892,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 leftSize = buffer.getKeyBlockEnd();
                 rightSize = buffer.getBufferSize() - buffer.getAlloc();
             } else {
-                leftSize = buffer.getBufferSize();
-                rightSize = 0;
+                leftSize = 0;
+                rightSize = buffer.getBufferSize();
             }
 
             recordSize = PA.OVERHEAD + leftSize + rightSize;
@@ -1070,15 +1068,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         return generationToFile(_journalFilePath, address / _blockSize);
     }
 
-    long fileToAddress(final File file) {
-        long generation = fileToGeneration(file);
-        if (generation == -1) {
-            return generation;
-        } else {
-            return generation * _blockSize;
-        }
-    }
-
     long addressToOffset(final long address) {
         return address % _blockSize;
     }
@@ -1086,6 +1075,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     void stopCopier() {
         _copier.setShouldStop(true);
         _persistit.waitForIOTaskStop(_copier);
+    }
+    
+    void setWriteBufferSize(final int size) {
+        if (size < MINIMUM_BUFFER_SIZE || size > MAXIMUM_BUFFER_SIZE) {
+            throw new IllegalArgumentException("Invalid write buffer size: " + size);
+        }
+        _writeBufferSize = size;
     }
 
     public void close() throws PersistitIOException {
@@ -1253,7 +1249,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             startJournalFile();
             newJournalFile = true;
         }
-        Debug.$assert0.t(_writeBufferAddress + _writeBuffer.position() == _currentAddress);
+        Debug.$assert1.t(_writeBufferAddress + _writeBuffer.position() == _currentAddress);
         //
         // If the current journal file has room for the record, then return.
         //
@@ -1597,10 +1593,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             this._journalAddress = journalAddress;
             this._timestamp = timestamp;
         }
-        
+
         /**
-         * Construct a copy, also copying members of the linked list. Used
-         * by #queryPageMap.
+         * Construct a copy, also copying members of the linked list. Used by
+         * #queryPageMap.
          */
         PageNode(final PageNode pageNode) {
             _volumeHandle = pageNode._volumeHandle;
@@ -1742,7 +1738,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _startAddress = address;
             _lastRecordAddress = address;
         }
-        
+
         TransactionMapItem(final TransactionMapItem item) {
             _startAddress = item._startAddress;
             _startTimestamp = item._startTimestamp;
@@ -1966,6 +1962,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     // TODO
                 } else {
                     volume = _persistit.getVolume(volume.getName());
+                    handle = pageNode.getVolumeHandle();
                 }
             }
             if (volume == null || volume.isClosed()) {
@@ -2020,6 +2017,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     // TODO
                 } else {
                     volume = _persistit.getVolume(volume.getName());
+                    handle = pageNode.getVolumeHandle();
                 }
             }
 
@@ -2320,7 +2318,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     synchronized boolean unitTestTxnExistsInLiveMap(Long startTimestamp) {
         return _liveTransactionMap.containsKey(startTimestamp);
     }
-    
+
     public PageNode queryPageNode(final int volumeHandle, final long pageAddress) {
         PageNode pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
         if (pn != null) {
@@ -2329,7 +2327,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             return null;
         }
     }
-    
+
     public PageNode queryBranchNode(final int volumeHandle, final long pageAddress) {
         PageNode pn = _branchMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
         if (pn != null) {
@@ -2338,7 +2336,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             return null;
         }
     }
-    
+
     public TransactionMapItem queryTransactionMap(final long timestamp) {
         final TransactionMapItem item = _liveTransactionMap.get(timestamp);
         if (item != null) {
@@ -2347,12 +2345,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             return null;
         }
     }
-    
+
     public SortedMap<Integer, Volume> queryVolumeMap() {
         return new TreeMap<Integer, Volume>(_handleToVolumeMap);
     }
-    
+
     public SortedMap<Integer, TreeDescriptor> queryTreeMap() {
-        return new TreeMap<Integer, TreeDescriptor> (_handleToTreeMap);
+        return new TreeMap<Integer, TreeDescriptor>(_handleToTreeMap);
     }
 }

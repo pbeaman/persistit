@@ -341,17 +341,6 @@ public class BufferPool {
         return (int) (((page ^ vol.hashCode()) & Integer.MAX_VALUE) % _hashTable.length);
     }
 
-    int countDirty(Volume vol) {
-        int count = 0;
-        for (int i = 0; i < _bufferCount; i++) {
-            Buffer buffer = _buffers[i];
-            if ((vol == null || buffer.getVolume() == vol) && buffer.isDirty() && !buffer.isTemporary()) {
-                count++;
-            }
-        }
-        return count;
-    }
-
     int countInUse(Volume vol, boolean writer) {
         int count = 0;
         for (int i = 0; i < _bufferCount; i++) {
@@ -773,87 +762,73 @@ public class BufferPool {
             } finally {
                 _hashLocks[hash % HASH_LOCKS].unlock();
             }
-            if (buffer == null) {
-                _writer.kick();
-                synchronized (this) {
-                    try {
-                        wait(RETRY_SLEEP_TIME);
-                    } catch (InterruptedException e) {
-                        throw new PersistitInterruptedException(e);
-                    }
+            if (mustClaim) {
+                /*
+                 * We're here because we found the page we want, but another
+                 * thread has an incompatible claim on it. Here we wait, then
+                 * recheck to make sure the buffer still represents the same
+                 * page.
+                 */
+                if (!buffer.claim(writer)) {
+                    throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to acquire "
+                            + (writer ? "writer" : "reader") + " claim on " + buffer);
                 }
+
+                //
+                // Test whether the buffer we picked out is still valid
+                //
+                if (buffer.isValid() && buffer.getPageAddress() == page && buffer.getVolume() == vol) {
+                    //
+                    // If so, then we're done.
+                    //
+                    vol.getStatistics().bumpGetCounter();
+                    bumpHitCounter();
+                    return buffer;
+                }
+                //
+                // If not, release the claim and retry.
+                //
+                buffer.release();
+                continue;
             } else {
-
-                if (mustClaim) {
-                    /*
-                     * We're here because we found the page we want, but another
-                     * thread has an incompatible claim on it. Here we wait,
-                     * then recheck to make sure the buffer still represents the
-                     * same page.
-                     */
-                    if (!buffer.claim(writer)) {
-                        throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to acquire "
-                                + (writer ? "writer" : "reader") + " claim on " + buffer);
-                    }
-
-                    //
-                    // Test whether the buffer we picked out is still valid
-                    //
-                    if (buffer.isValid() && buffer.getPageAddress() == page && buffer.getVolume() == vol) {
-                        //
-                        // If so, then we're done.
-                        //
+                /*
+                 * We're here because the required page was not found in the
+                 * pool so we have to read it from the Volume. We have a writer
+                 * claim on the buffer, so anyone else attempting to get this
+                 * page will simply wait for us to finish reading it.
+                 * 
+                 * At this point, the Buffer has been fully set up. It is on the
+                 * hash table chain under its new page address, it is marked
+                 * valid, and this Thread has a writer claim. If the read
+                 * attempt fails, we need to mark the page INVALID so that any
+                 * Thread waiting for access to this buffer will not use it. We
+                 * also need to demote the writer claim to a reader claim unless
+                 * the caller originally asked for a writer claim.
+                 */
+                if (wantRead) {
+                    boolean loaded = false;
+                    try {
+                        Debug.$assert0.t(buffer.getPageAddress() == page && buffer.getVolume() == vol
+                                && hashIndex(buffer.getVolume(), buffer.getPageAddress()) == hash);
+                        buffer.load(vol, page);
+                        loaded = true;
                         vol.getStatistics().bumpGetCounter();
-                        bumpHitCounter();
-                        return buffer;
-                    }
-                    //
-                    // If not, release the claim and retry.
-                    //
-                    buffer.release();
-                    continue;
-                } else {
-                    /*
-                     * We're here because the required page was not found in the
-                     * pool so we have to read it from the Volume. We have a
-                     * writer claim on the buffer, so anyone else attempting to
-                     * get this page will simply wait for us to finish reading
-                     * it.
-                     * 
-                     * At this point, the Buffer has been fully set up. It is on
-                     * the hash table chain under its new page address, it is
-                     * marked valid, and this Thread has a writer claim. If the
-                     * read attempt fails, we need to mark the page INVALID so
-                     * that any Thread waiting for access to this buffer will
-                     * not use it. We also need to demote the writer claim to a
-                     * reader claim unless the caller originally asked for a
-                     * writer claim.
-                     */
-                    if (wantRead) {
-                        boolean loaded = false;
-                        try {
-                            Debug.$assert0.t(buffer.getPageAddress() == page && buffer.getVolume() == vol
-                                    && hashIndex(buffer.getVolume(), buffer.getPageAddress()) == hash);
-                            buffer.load(vol, page);
-                            loaded = true;
-                            vol.getStatistics().bumpGetCounter();
-                            bumpMissCounter();
-                        } finally {
-                            if (!loaded) {
-                                invalidate(buffer);
-                                buffer.release();
-                            }
+                        bumpMissCounter();
+                    } finally {
+                        if (!loaded) {
+                            invalidate(buffer);
+                            buffer.release();
                         }
-                    } else {
-                        buffer.clear();
-                        buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
-                        bumpNewCounter();
                     }
-                    if (!writer) {
-                        buffer.releaseWriterClaim();
-                    }
-                    return buffer; // trace(buffer);
+                } else {
+                    buffer.clear();
+                    buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
+                    bumpNewCounter();
                 }
+                if (!writer) {
+                    buffer.releaseWriterClaim();
+                }
+                return buffer;
             }
         }
     }
@@ -1342,9 +1317,6 @@ public class BufferPool {
 
         PageWriter() {
             super(BufferPool.this._persistit);
-            for (int index = 0; index < _selectedBuffers.length; index++) {
-                _selectedBuffers[index] = new BufferHolder();
-            }
         }
 
         void start() {

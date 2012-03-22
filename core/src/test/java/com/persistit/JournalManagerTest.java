@@ -338,6 +338,31 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertTrue(garbagePages > 0);
     }
     
+    @Test
+    public void testTransactionMapSpanningJournalWriteBuffer() throws Exception {
+        _persistit.getJournalManager().setWriteBufferSize(JournalManager.MINIMUM_BUFFER_SIZE);
+        Transaction txn = _persistit.getTransaction();
+        Accumulator acc = _persistit.getVolume("persistit").getTree( "JournalManagerTest", true).getAccumulator(Accumulator.Type.SUM, 0);
+        /*
+         * Load up a sizable live transaction map
+         */
+        for (int i = 0; i < 25000; i++) {
+            txn.begin();
+            acc.update(1, txn);
+            txn.commit();
+            txn.end();
+        }
+        _persistit.getJournalManager().rollover();
+        final Properties saveProperties = _persistit.getProperties();
+        _persistit.close();
+        _persistit = new Persistit();
+        _persistit.initialize(saveProperties);
+        
+        acc = _persistit.getVolume("persistit").getTree( "JournalManagerTest", true).getAccumulator(Accumulator.Type.SUM, 0);
+        assertEquals("Accumulator value is incorrect", 25000, acc.getLiveValue());
+
+    }
+    
     private int countKeys(final boolean mvcc) throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
         exchange.ignoreMVCCFetch(!mvcc);
