@@ -75,7 +75,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     final static int HALF_URGENT = 5;
     private final static long START_NANOS = System.nanoTime();
     private final static long NS_PER_MS = 1000000L;
-    private final static int IO_MEASUREMENT_CYCLES = 4;
+    private final static int IO_MEASUREMENT_CYCLES = 8;
 
     /**
      * REGEX expression that recognizes the name of a journal file.
@@ -1951,7 +1951,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
         long[] _ioTimes = new long[IO_MEASUREMENT_CYCLES];
         int _ioCycle;
-        volatile long _ioTimeAverage;
+        volatile long _expectedIoTime;
         volatile long _startTime;
         volatile long _endTime;
         volatile long _startTimestamp;
@@ -2000,7 +2000,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     startTime = _startTime;
                     endTime = _endTime;
                     if (timestamp > startTimestamp && startTimestamp > endTimestamp) {
-                        estimatedRemainingIoNanos = Math.max(startTime + _ioTimeAverage - now, 0);
+                        estimatedRemainingIoNanos = Math.max(startTime + _expectedIoTime - now, 0);
                     }
                     if (startTimestamp == _startTimestamp && endTimestamp == _endTimestamp) {
                         break;
@@ -2102,11 +2102,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     _ioTimes[_ioCycle] = elapsed;
                     _ioCycle = (_ioCycle + 1) % _ioTimes.length;
 
-                    long total = 0;
+                    long max = 0;
                     for (int index = 0; index < _ioTimes.length; index++) {
-                        total += _ioTimes[index];
+                        max = Math.max(max, _ioTimes[index]);
                     }
-                    _ioTimeAverage = total / _ioTimes.length;
+                    _expectedIoTime = max;
                     if (elapsed > _slowIoAlertThreshold) {
                         _persistit.getLogBase().longJournalIO.log(elapsed / 1000000);
                     }
