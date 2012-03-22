@@ -1147,24 +1147,7 @@ public class BufferPool {
                     if (buffer.isDirty()) {
                         final int priority = writePriority(buffer, clock, checkpointTimestamp, currentTimestamp);
                         if (priority > 0) {
-                            if (priority <= min) {
-                                if (count < priorities.length) {
-                                    priorities[count] = priority;
-                                    holders[count].set(buffer);
-                                    count++;
-                                    min = priority;
-                                }
-                            } else {
-                                count = Math.min(count, priorities.length - 1);
-                                int where;
-                                for (where = count; --where >= 0 && priorities[where] < priority;) {
-                                }
-                                System.arraycopy(priorities, where + 1, priorities, where + 2, count - where - 1);
-                                System.arraycopy(holders, where + 1, holders, where + 2, count - where - 1);
-                                priorities[where + 1] = priority;
-                                holders[where + 1].set(buffer);
-                                count++;
-                            }
+                            count = addSelectedBufferByPriority(buffer, priority, priorities, holders, count);
                             if (!buffer.isTemporary()) {
                                 timestamp = buffer.getTimestamp();
                                 if (timestamp < earliestDirtyTimestamp) {
@@ -1180,13 +1163,42 @@ public class BufferPool {
                     buffer.release();
                 }
             }
-
         }
 
         _earliestDirtyTimestamp = earliestDirtyTimestamp;
 
         if (flushed) {
             _flushTimestamp.compareAndSet(flushTimestamp, 0);
+        }
+        return count;
+    }
+    
+    int addSelectedBufferByPriority(final Buffer buffer, final int priority, final int[] priorities, final BufferHolder[] holders, final int initialCount) {
+        int count = initialCount;
+        if (priority > 0) {
+            if (count == 0 || priorities[count - 1] > priority) {
+                if (count < priorities.length) {
+                    priorities[count] = priority;
+                    holders[count].set(buffer);
+                    count++;
+                }
+            } else {
+                count = Math.min(count, priorities.length - 1);
+                int where = count; 
+                while (where > 0 && priorities[where - 1] < priority) {
+                    where--;
+                }
+                int move = count - where ;
+                if (move > 0) {
+                    BufferHolder lastHolder = holders[count];
+                    System.arraycopy(priorities, where, priorities, where + 1, move);
+                    System.arraycopy(holders, where, holders, where + 1, move);
+                    holders[where] = lastHolder;
+                }
+                priorities[where] = priority;
+                holders[where].set(buffer);
+                count++;
+            }
         }
         return count;
     }

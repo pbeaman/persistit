@@ -15,6 +15,12 @@
 
 package com.persistit;
 
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Random;
+import java.util.SortedSet;
+import java.util.TreeSet;
+
 import com.persistit.BufferPool.BufferHolder;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -73,12 +79,64 @@ public class BufferPoolTest extends PersistitUnitTestCase {
             count = pool.selectDirtyBuffers(priorities, holders);
             assertEquals("Selected buffers should fill the arrays", buffers / 2, count);
             long page = -1;
+            Arrays.sort(holders);
             for (BufferHolder holder : holders) {
                 assertTrue(holder.getPage() > page);
                 page = holder.getPage();
             }
         } finally {
             pool.setFlushTimestamp(1000);
+        }
+    }
+    
+    
+    public void testAddSelectedBuffer() throws Exception {
+        final Volume volume = _persistit.getVolume("persistit");
+        final BufferPool pool = volume.getPool();
+        
+        int total = 100;
+        final int[] priorities = new int[total];
+        BufferHolder[] holders = new BufferHolder[total];
+        for (int i = 0; i < holders.length; i++) {
+            holders[i] = new BufferHolder();
+        }
+        
+        final Random random = new Random(1);
+        final SortedSet<Integer> sorted = new TreeSet<Integer>();
+        int count = 0;
+        for (int index = 0; index < 10000; index++) {
+            int r = random.nextInt(1000000000);
+            if (sorted.contains(r)) {
+                index--;
+                continue;
+            }
+            sorted.add(r);
+            Buffer buffer = pool.get(volume, 1, false, false);
+            Buffer copy = new Buffer(buffer);
+            copy.setPageAddressAndVolume(index, volume);
+            count = pool.addSelectedBufferByPriority(copy, r, priorities, holders, count);
+            buffer.release();
+        }
+        assertEquals("Arrays should be full", total, count);
+        Integer[] sortedArray = sorted.toArray(new Integer[sorted.size()]);
+        
+        for (int i = 0; i < count; i++) {
+            int s = sortedArray[sortedArray.length - i - 1];
+            int r = priorities[i];
+            assertEquals("Priority order is wrong", s, r);
+        }
+        long page = -1;
+        Arrays.sort(holders);
+        for (BufferHolder holder : holders) {
+            assertTrue(holder.getPage() > page);
+            page = holder.getPage();
+        }
+        
+        for (int i = 0; i < count; i++) {
+            BufferHolder holder = holders[i];
+            for (int j = i+1; j < count; j++) {
+                assertTrue("Scrambled holders", holder != holders[j]);
+            }
         }
     }
 }
