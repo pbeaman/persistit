@@ -34,56 +34,58 @@ public interface JournalManagerMXBean {
     /**
      * Default size of one journal file (10^9).
      */
-    public final static long DEFAULT_BLOCK_SIZE = 1000000000L;
+    final static long DEFAULT_BLOCK_SIZE = 1000000000L;
 
     /**
      * Minimum permitted journal file size.
      */
-    public final static long MINIMUM_BLOCK_SIZE = 10000000L;
+    final static long MINIMUM_BLOCK_SIZE = 10000000L;
 
     /**
      * Maximum permitted journal file size.
      */
-    public final static long MAXIMUM_BLOCK_SIZE = 100000000000L;
+    final static long MAXIMUM_BLOCK_SIZE = 100000000000L;
 
     /**
      * Size at which a completely obsolete journal file can be eliminated.
      */
-    public final static long ROLLOVER_THRESHOLD = 4 * 1024 * 1024;
+    final static long ROLLOVER_THRESHOLD = 4 * 1024 * 1024;
 
     /**
-     * Default size of journal write buffer.
+     * Default, minimum and maximum size of journal write buffer.
      */
-    public final static int DEFAULT_BUFFER_SIZE = 16 * 1024 * 1024;
+    final static int DEFAULT_BUFFER_SIZE = 16 * 1024 * 1024;
+    final static int MINIMUM_BUFFER_SIZE = 65536;
+    final static int MAXIMUM_BUFFER_SIZE = DEFAULT_BUFFER_SIZE * 10;
 
     /**
      * Default size of journal read buffer.
      */
-    public final static int DEFAULT_COPY_BUFFER_SIZE = 16 * 1024 * 1024;
+    final static int DEFAULT_COPY_BUFFER_SIZE = 16 * 1024 * 1024;
 
     /**
      * Default time interval (in milliseconds) between calls to the
      * FileChannel.force() method.
      */
-    public final static long DEFAULT_FLUSH_INTERVAL = 100;
+    final static long DEFAULT_FLUSH_INTERVAL = 100;
 
     /**
      * Default time interval (in milliseconds) between calls to the journal
      * copier method.
      */
-    public final static long DEFAULT_COPIER_INTERVAL = 10000;
+    final static long DEFAULT_COPIER_INTERVAL = 10000;
 
     /**
      * Default value for maximum pages to be copied per cycle.
      */
-    public final static int DEFAULT_COPIES_PER_CYCLE = 1000;
+    final static int DEFAULT_COPIES_PER_CYCLE = 1000;
 
     /**
      * Default time interval (in milliseconds) for logging repetitive I/O
      * exceptions on attempts to write to the journal. Prevents excessively
      * verbose log on repeated failures.
      */
-    public final static long DEFAULT_LOG_REPEAT_INTERVAL = 60000000000L;
+    final static long DEFAULT_LOG_REPEAT_INTERVAL = 60000000000L;
 
     /**
      * Format expression defining the name of a journal file.
@@ -96,7 +98,7 @@ public interface JournalManagerMXBean {
      */
     final static int DEFAULT_PAGE_MAP_SIZE_BASE = 250000;
 
-    final static int MAX_CONCURRENT_TRANSACTIONS = 10000;
+    final static int MAXIMUM_CONCURRENT_TRANSACTIONS = 10000;
 
     int getPageMapSize();
 

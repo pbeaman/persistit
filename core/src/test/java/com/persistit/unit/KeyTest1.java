@@ -20,8 +20,6 @@ import java.math.BigInteger;
 
 import junit.framework.Assert;
 
-import org.junit.Test;
-
 import com.persistit.Key;
 import com.persistit.KeyState;
 import com.persistit.exception.MissingKeySegmentException;
@@ -37,10 +35,11 @@ public class KeyTest1 extends PersistitUnitTestCase {
     private double dv2;
 
     long[] TEST_LONGS = { 0, 1, 2, 3, 123, 126, 127, 128, 129, 130, 131, 132, 250, 251, 252, 253, 254, 255, 256, 257,
-            258, 259, 260, 4094, 4095, 4096, 4097, 4098, 16383, 16384, 16385, Integer.MAX_VALUE - 2,
-            Integer.MAX_VALUE - 1, Integer.MAX_VALUE + 0, Integer.MAX_VALUE + 1, Integer.MAX_VALUE + 2,
-            Integer.MAX_VALUE + 3, Long.MIN_VALUE, Long.MIN_VALUE + 1, Long.MIN_VALUE + 2, Long.MAX_VALUE,
-            Long.MAX_VALUE - 1, Long.MAX_VALUE - 2, };
+            258, 259, 260, 4094, 4095, 4096, 4097, 4098, 16383, 16384, 16385, 0x1FFFFEL, 0x1FFFFFL, 0x200000L,
+            0x3FFFFFFFFFEL, 0x3FFFFFFFFFFL, 0x2000000000000L, 0x1FFFFFFFFFFFFL, 0x1FFFFFFFFFFFEL,
+            Integer.MAX_VALUE - 2, Integer.MAX_VALUE - 1, Integer.MAX_VALUE + 0, Integer.MAX_VALUE + 1,
+            Integer.MAX_VALUE + 2, Integer.MAX_VALUE + 3, Long.MIN_VALUE, Long.MIN_VALUE + 1, Long.MIN_VALUE + 2,
+            Long.MAX_VALUE, Long.MAX_VALUE - 1, Long.MAX_VALUE - 2, };
 
     float[] TEST_FLOATS = { 0.0F, 1.0F, 2.0F, 12345.0F, 0.0003F, 1.2345E-10F, 1.12345E-20F, 0.0F, -1.0F, -2.0F,
             -12345.0F, -0.0003F, -1.2345E-10F, -1.12345E-20F, Float.MAX_VALUE, Float.MIN_VALUE, Float.MAX_VALUE / 2.0F,
@@ -52,32 +51,32 @@ public class KeyTest1 extends PersistitUnitTestCase {
             Double.MAX_VALUE / 3.0, Double.MAX_VALUE / 4.0, Double.MIN_VALUE / 2.0, Double.MIN_VALUE / 3.0,
             Double.MIN_VALUE / 4.0, Double.NaN, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY };
 
-    @Test
     public void test1() {
         System.out.print("test1 ");
         for (int index = 0; index < TEST_LONGS.length; index++) {
-            lv1 = TEST_LONGS[index];
-            final Key key1 = new Key(_persistit);
-            final Key key2 = new Key(_persistit);
+            for (int m = -1; m <= 1; m += 2) {
+                lv1 = TEST_LONGS[index] * m;
+                final Key key1 = new Key(_persistit);
 
-            key1.clear();
+                key1.clear();
 
-            key1.append(lv1);
-            key1.indexTo(0);
-            lv2 = key1.decodeLong();
+                key1.append(lv1);
+                key1.indexTo(0);
+                lv2 = key1.decodeLong();
 
-            assertEquals(lv1, lv2);
+                assertEquals(lv1, lv2);
 
-            lv1 = -lv1;
+                lv1 = -lv1;
 
-            key1.to(lv1);
-            key1.reset();
-            lv2 = key1.decodeLong();
+                key1.to(lv1);
+                key1.reset();
+                lv2 = key1.decodeLong();
 
-            assertEquals(lv1, lv2);
+                assertEquals(lv1, lv2);
 
-            Assert.assertNull(t1a(lv1));
-            Assert.assertNull(t1a(-lv1));
+                Assert.assertNull(t1a(lv1));
+                Assert.assertNull(t1a(-lv1));
+            }
         }
         System.out.println("- done");
     }
@@ -129,7 +128,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     }
 
-    @Test
     public void test2() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -162,7 +160,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    @Test
     public void test3() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -189,7 +186,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    @Test
     public void test4() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -236,7 +232,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         return f1 == f2;
     }
 
-    @Test
     public void test5() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -263,7 +258,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    @Test
     public void test6() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -304,7 +298,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
      * Verify key type ordering
      * 
      */
-    @Test
+
     public void test7() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -395,7 +389,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
     //
     private static final int INCREMENT = 1237;
 
-    @Test
     public void test8() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -417,7 +410,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    @Test
     public void test9() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -448,7 +440,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    @Test
     public void test10() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -484,7 +475,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    @Test
     public void test11() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -520,7 +510,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    @Test
     public void test12() {
         System.out.print("test12 ");
         final Key key = new Key(_persistit);
@@ -548,7 +537,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    @Test
     public void test13() {
         System.out.print("test13 ");
         final StringBuilder sb = new StringBuilder();
@@ -623,7 +611,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    @Test
     public void test14() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -661,12 +648,16 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertEquals("b", key1.indexTo(1).decodeString());
         assertEquals("c", key1.indexTo(2).decodeString());
         assertEquals("d", key1.indexTo(3).decodeString());
+        assertEquals(key1.getEncodedSize(), key1.indexTo(4).getIndex());
+        assertEquals(key1.getEncodedSize(), key1.indexTo(5).getIndex());
         assertEquals("d", key1.indexTo(-1).decodeString());
         assertEquals("c", key1.indexTo(-2).decodeString());
-
+        assertEquals("b", key1.indexTo(-3).decodeString());
+        assertEquals("a", key1.indexTo(-4).decodeString());
+        assertEquals("a", key1.indexTo(-5).decodeString());
+        assertEquals("a", key1.indexTo(-6).decodeString());
     }
 
-    @Test
     public void testIsNull() {
         final Key key1 = new Key(_persistit);
         final Key key2 = new Key(_persistit);
@@ -687,6 +678,25 @@ public class KeyTest1 extends PersistitUnitTestCase {
         } catch (MissingKeySegmentException e) {
             // expected
         }
+    }
+
+    public void testFirstUniqueSegmentDepth() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+        key1.append("a").append("b").append("c");
+        key2.append("a").append("b").append("d");
+        assertEquals("Incorrect depth", 2, key1.firstUniqueSegmentDepth(key2));
+        assertEquals("Incorrect depth", 2, key2.firstUniqueSegmentDepth(key1));
+        key1.cut();
+        assertEquals("Incorrect depth", 2, key1.firstUniqueSegmentDepth(key2));
+        assertEquals("Incorrect depth", 2, key2.firstUniqueSegmentDepth(key1));
+        key2.cut();
+        assertEquals("Incorrect depth", 2, key1.firstUniqueSegmentDepth(key2));
+        assertEquals("Incorrect depth", 2, key2.firstUniqueSegmentDepth(key1));
+        key2.cut();
+        assertEquals("Incorrect depth", 1, key1.firstUniqueSegmentDepth(key2));
+        assertEquals("Incorrect depth", 1, key2.firstUniqueSegmentDepth(key1));
+
     }
 
     private static boolean doubleEquals(final double f1, final double f2) {
@@ -719,8 +729,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         test13();
         test14();
     }
-
-
 
     private String floatBits(final float v) {
         final int bits = Float.floatToIntBits(v);

@@ -3306,8 +3306,6 @@ public final class Key implements Comparable<Object> {
      */
     void nudgeLeft() {
         if (_size >= 2 && _bytes[_size - 1] == 0 && _bytes[_size - 2] != 0) {
-            // _bytes[_size - 2]--;
-            // _bytes[_size - 1] = (byte) 0xFF;
             _size--;
             bumpGeneration();
         }

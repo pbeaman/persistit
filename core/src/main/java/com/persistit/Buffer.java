@@ -3636,7 +3636,8 @@ public class Buffer extends SharedResource {
                         } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
                             Debug.$assert1.t(false);
                         } else {
-                            Debug.$assert0.t(removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey));
+                            final boolean removed  = removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey);
+                            Debug.$assert0.t(removed);
                             p -= KEYBLOCK_LENGTH;
                             changed = true;
                             if (!bumped) {
