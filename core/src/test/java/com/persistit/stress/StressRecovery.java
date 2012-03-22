@@ -198,6 +198,8 @@ public class StressRecovery extends StressBase {
      */
     private void verifyTicketStream() {
         long firstFault = Long.MAX_VALUE;
+        long firstFaultTicket = 0;
+        int successAfterFailureCount = 0;
         long last = Long.MIN_VALUE;
         int faults = 0;
         for (int _count = 1;; _count++) {
@@ -228,8 +230,12 @@ public class StressRecovery extends StressBase {
                 try {
                     TransactionType tt = registry.get((int) (ticketId % registry.size()));
                     tt.verifyTransaction(ticketId);
+                    if (start + elapsed > firstFault) {
+                        successAfterFailureCount++;
+                    }
                 } catch (Exception e) {
                     firstFault = Math.min(firstFault, start + elapsed);
+                    firstFaultTicket = ticketId;
                     faults++;
                 }
             }
@@ -237,16 +243,21 @@ public class StressRecovery extends StressBase {
 
         if (faults > 0) {
             if (last - firstFault < _maxLatency) {
-                String msg = String.format("There were %,d faults. Last one occurred %,dms before crash: "
-                        + "PASS because acceptable latency setting is %,dms.", faults, (last - firstFault) / 1000000l,
-                        _maxLatency / 1000000l);
+                String msg = String
+                        .format("There were %,d faults. Last one occurred %,dms before crash: "
+                                + "PASS because acceptable latency setting is %,dms First-failed ticketId=%,d laterSuccess=%,d.",
+                                faults, (last - firstFault) / 1000000l, _maxLatency / 1000000l, firstFaultTicket,
+                                successAfterFailureCount);
                 println(msg);
                 _result = new TestResult(true, msg);
             } else {
-                _result = new TestResult(false, String.format(
-                        "There were %,d faults. Last one occurred %,dms before crash: "
-                                + "FAIL because acceptable latency setting is %,dms.", faults,
-                        (last - firstFault) / 1000000l, _maxLatency / 1000000l));
+                _result = new TestResult(
+                        false,
+                        String.format(
+                                "There were %,d faults. Last one occurred %,dms before crash: "
+                                        + "FAIL because acceptable latency setting is %,dms First-failed ticketId=%,d laterSuccess=%,d.",
+                                faults, (last - firstFault) / 1000000l, _maxLatency / 1000000l, firstFaultTicket,
+                                successAfterFailureCount));
             }
         }
     }
