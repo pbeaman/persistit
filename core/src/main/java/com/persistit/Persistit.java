@@ -224,7 +224,7 @@ public class Persistit {
      * ("soft", "hard" or "group")
      */
     public final static String TRANSACTION_COMMIT_POLICY_NAME = "txnpolicy";
-    
+
     /**
      * Property name for specifying whether Persistit should display diagnostic
      * messages. Property value must be "true" or "false".
@@ -423,9 +423,9 @@ public class Persistit {
     private volatile CommitPolicy _defaultCommitPolicy = DEFAULT_TRANSACTION_COMMIT_POLICY;
 
     private volatile long _commitLeadTime = DEFAULT_COMMIT_LEAD_TIME;
-    
+
     private volatile long _commitStallTime = DEFAULT_COMMIT_STALL_TIME;
-    
+
     /**
      * <p>
      * Initialize Persistit using properties supplied by the default properties
@@ -683,7 +683,7 @@ public class Persistit {
         } catch (IllegalArgumentException e) {
             _logBase.configurationError.log(e);
         }
-        
+
         try {
             String s = getProperty(TRANSACTION_COMMIT_POLICY_NAME);
             if (s != null) {
@@ -2131,21 +2131,37 @@ public class Persistit {
         }
     }
 
+    /**
+     * This property can be configured with the configuration property
+     * {@value #TRANSACTION_COMMIT_POLICY_NAME}.
+     * 
+     * @return The default system commit policy.
+     */
     public CommitPolicy getDefaultTransactionCommitPolicy() {
         return _defaultCommitPolicy;
     }
 
+    /**
+     * Set the current default transaction commit property. This policy is
+     * applied to transactions that call {@link Transaction#commit()}. Note that
+     * {@link Transaction#commit(CommitPolicy)} permits control on a
+     * per-transaction basis. The supplied policy value may not be
+     * <code>null</code>.
+     * 
+     * @param policy
+     *            The policy.
+     */
     public void setDefaultTransactionCommitPolicy(final CommitPolicy policy) {
         if (policy == null) {
             throw new IllegalArgumentException("CommitPolicy may not be null");
         }
         _defaultCommitPolicy = policy;
     }
-    
+
     long getTransactionCommitLeadTime() {
         return _commitLeadTime;
     }
-    
+
     void setTransactionCommitleadTime(final long time) {
         _commitLeadTime = Util.rangeCheck(time, 0, MAX_COMMIT_LEAD_TIME);
     }
@@ -2153,12 +2169,12 @@ public class Persistit {
     long getTransactionCommitStallTime() {
         return _commitStallTime;
     }
-    
+
     void setTransactionCommitStallTime(final long time) {
         _commitStallTime = Util.rangeCheck(time, 0, MAX_COMMIT_STALL_TIME);
     }
 
-    /**
+/**
      * Copy the {@link Transaction} context objects belonging to threads that
      * are currently alive to the supplied List. This method is used by
      * JOURNAL_FLUSHER to look for transactions that need to be written to the

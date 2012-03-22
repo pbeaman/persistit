@@ -585,61 +585,25 @@ public class Transaction {
 
     /**
      * <p>
-     * Commit this transaction. To so do, this method verifies that no data read
-     * within the scope of this transaction has changed, and then atomically
-     * writes all the updates associated with the transaction scope to the
-     * database. This method commits to <a href="#diskVsMemoryCommit">memory</a>
-     * so the resulting state is not guaranteed to be durable. Use
-     * {@link #commit(boolean)} to commit with durability.
+     * Commit this transaction. This method flushes the journal entries created
+     * by the transaction to the journal buffer, optionally waits for those
+     * changes to be written durably to disk according to the default configured
+     * {@link CommitPolicy}, and marks the transaction as completed so that its
+     * effects are visible to other transactions.
      * </p>
      * <p>
-     * If executed within the scope of a nested transaction, this method simply
+     * If executed within the scope of an outer transaction, this method simply
      * sets a flag indicating that the current transaction level has committed
      * without modifying any data. The commit for the outermost transaction
      * scope is responsible for actually committing the changes.
      * </p>
      * <p>
      * Once an application thread has called <code>commit</code>, no subsequent
-     * Persistit database operations are permitted until the corresponding
-     * <code>end</code> method has been called. An attempt to store, fetch or
-     * remove data after <code>commit</code> has been called throws an
+     * Persistit database operations are permitted until the <code>end</code>
+     * method has been called. An attempt to store, fetch or remove data after
+     * <code>commit</code> has been called throws an
      * <code>IllegalStateException</code>.
      * </p>
-     * 
-     * @throws PersistitException
-     * @throws RollbackException
-     * @throws PersistitInterruptedException
-     */
-    public void commit() throws PersistitException {
-        commit(_persistit.getDefaultTransactionCommitPolicy());
-    }
-
-    /**
-     * <p>
-     * Commit this transaction. To so do, this method verifies that no data read
-     * within the scope of this transaction has changed, and then atomically
-     * writes all the updates associated with the transaction scope to the
-     * database. This method optionally commits to <a
-     * href="#diskVsMemoryCommit">memory</a> or <a
-     * href="#diskVsMemoryCommit">disk</a>.
-     * </p>
-     * <p>
-     * If executed within the scope of a nested transaction, this method simply
-     * sets a flag indicating that the current transaction level has committed
-     * without modifying any data. The commit for the outermost transaction
-     * scope is responsible for actually committing the changes.
-     * </p>
-     * <p>
-     * Once an application thread has called <code>commit</code>, no subsequent
-     * Persistit database operations are permitted until the corresponding
-     * <code>end</code> method has been called. An attempt to store, fetch or
-     * remove data after <code>commit</code> has been called throws an
-     * <code>IllegalStateException</code>.
-     * </p>
-     * 
-     * @param toDisk
-     *            <code>true</code> to commit to disk, or <code>false</code> to
-     *            commit to memory.
      * 
      * @throws PersistitIOException
      *             if the transaction could not be written to the journal due to
@@ -647,16 +611,83 @@ public class Transaction {
      *             be rolled back.
      * 
      * @throws RollbackException
+     *             if the {@link #rollback()} was previously called
+     * 
      * @throws PersistitInterruptedException
+     *             if the thread was interrupted while waiting for I/O
+     *             completion
      * 
      * @throws IllegalStateException
      *             if no transaction scope is active or this transaction scope
-     *             has already called <code>commit</code>.
+     *             has already called <code>commit</code>
+     * 
+     * @throws PersistitException
+     *             if a PersistitException was caught by the JOURNAL_FLUSHER
+     *             thread after this transaction began waiting for durability
+     * 
+     * @see Persistit#getDefaultTransactionCommitPolicy()
      */
+    public void commit() throws PersistitException {
+        commit(_persistit.getDefaultTransactionCommitPolicy());
+    }
+
+    /**
+     * Commit to disk with {@link CommitPolicy} determined by the supplied boolean
+     * value. This method is obsolete and will be removed shortly.
+     */
+    @Deprecated
     public void commit(boolean toDisk) throws PersistitException {
         commit(toDisk ? CommitPolicy.HARD : CommitPolicy.SOFT);
     }
 
+    /**
+     * <p>
+     * Commit this transaction. This method flushes the journal entries created
+     * by the transaction to the journal buffer, optionally waits for those
+     * changes to be written durably to disk according to the supplied
+     * {@link CommitPolicy}, and marks the transaction as completed so that its
+     * effects are visible to other transactions.
+     * </p>
+     * <p>
+     * If executed within the scope of an outer transaction, this method simply
+     * sets a flag indicating that the current transaction level has committed
+     * without modifying any data. The commit for the outermost transaction
+     * scope is responsible for actually committing the changes.
+     * </p>
+     * <p>
+     * Once an application thread has called <code>commit</code>, no subsequent
+     * Persistit database operations are permitted until the <code>end</code>
+     * method has been called. An attempt to store, fetch or remove data after
+     * <code>commit</code> has been called throws an
+     * <code>IllegalStateException</code>.
+     * </p>
+     * 
+     * @param policy
+     *            Determines whether the commit method waits until the
+     *            transaction has been written to durable storage before
+     *            returning to the caller.
+     * 
+     * @throws PersistitIOException
+     *             if the transaction could not be written to the journal due to
+     *             an IOException. This exception also causes the transaction to
+     *             be rolled back.
+     * 
+     * @throws RollbackException
+     *             if the {@link #rollback()} was previously called
+     * 
+     * @throws PersistitInterruptedException
+     *             if the thread was interrupted while waiting for I/O
+     *             completion
+     * 
+     * @throws IllegalStateException
+     *             if no transaction scope is active or this transaction scope
+     *             has already called <code>commit</code>
+     * 
+     * @throws PersistitException
+     *             if a PersistitException was caught by the JOURNAL_FLUSHER
+     *             thread after this transaction began waiting for durability
+     * 
+     */
     public void commit(CommitPolicy policy) throws PersistitException {
         if (_nestedDepth < 1) {
             throw new IllegalStateException("No transaction scope: begin() not called in " + this);
@@ -863,15 +894,14 @@ public class Transaction {
     /**
      * @return the internal start timestamp of this transaction.
      */
-    long getStartTimestamp() {
+    public long getStartTimestamp() {
         return _startTimestamp;
     }
 
     /**
-     * @return the commit timestamp - is zero during a currently executing
-     *         transaction.
+     * @return the internal timestamp at which transaction committed.
      */
-    long getCommitTimestamp() {
+    public long getCommitTimestamp() {
         return _commitTimestamp;
     }
 

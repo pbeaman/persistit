@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Transaction;
+import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -79,7 +80,7 @@ public class Bug882219Test extends PersistitUnitTestCase {
                     for (int i = 0; i < 10000; i++) {
                         ex.to(i).store();
                     }
-                    txn.commit(true); // force disk I/O
+                    txn.commit(CommitPolicy.HARD); // force disk I/O
                     commits++;
                 } catch (PersistitInterruptedException e) {
                     // clear interrupted flag and ignore

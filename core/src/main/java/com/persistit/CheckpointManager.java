@@ -19,6 +19,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
@@ -206,7 +207,7 @@ class CheckpointManager extends IOTaskRunnable {
                 List<Accumulator> accumulators = _persistit.getCheckpointAccumulators();
                 _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp(), accumulators);
                 Accumulator.saveAccumulatorCheckpointValues(accumulators);
-                txn.commit(true);
+                txn.commit(CommitPolicy.HARD);
                 _currentCheckpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
                 _persistit.getLogBase().checkpointProposed.log(_currentCheckpoint);
                 return _currentCheckpoint;
