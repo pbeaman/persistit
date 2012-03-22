@@ -124,7 +124,7 @@ class CheckpointManager extends IOTaskRunnable {
         _closed.set(true);
     }
 
-    public Checkpoint getCurrentCheckpoint() throws PersistitInterruptedException {
+    public Checkpoint getCurrentCheckpoint() {
         return _currentCheckpoint;
     }
 

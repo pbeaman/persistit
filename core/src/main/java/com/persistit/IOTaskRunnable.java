@@ -38,7 +38,7 @@ abstract class IOTaskRunnable implements Runnable {
     private long _pollInterval;
 
     private int _exceptionCount = 0;
-    
+
     private Exception _lastException;
 
     protected IOTaskRunnable(final Persistit persistit) {
@@ -74,13 +74,13 @@ abstract class IOTaskRunnable implements Runnable {
     public synchronized Exception getLastException() {
         return _lastException;
     }
-    
+
     public synchronized int getExceptionCount() {
         return _exceptionCount;
     }
 
     synchronized boolean lastException(Exception exception) {
-        _exceptionCount ++;
+        _exceptionCount++;
         if (_lastException == null || exception == null || !_lastException.getClass().equals(exception.getClass())) {
             _lastException = exception;
             return true;
@@ -111,7 +111,7 @@ abstract class IOTaskRunnable implements Runnable {
     // Use only for tests.
     protected void crash() {
         final Thread thread = _thread;
-        for (int count = 0;  (thread != null && thread.isAlive()); count++) {
+        for (int count = 0; (thread != null && thread.isAlive()); count++) {
             if (count > 0) {
                 _persistit.getLogBase().crashRetry.log(count, _thread.getName());
             }
@@ -146,8 +146,19 @@ abstract class IOTaskRunnable implements Runnable {
                     kick();
                     break;
                 }
-                long waitTime;
-                while (!_notified && (waitTime = lastCycleTime + pollInterval() - System.currentTimeMillis()) > 0) {
+
+                while (true) {
+                    long pollInterval = pollInterval();
+                    if (_notified && pollInterval >= 0) {
+                        break;
+                    }
+                    long waitTime = pollInterval < 0 ? Persistit.SHORT_DELAY : lastCycleTime + pollInterval
+                            - System.currentTimeMillis();
+                    
+                    if (waitTime <= 0) {
+                        break;
+                    }
+                    
                     try {
                         wait(waitTime);
                     } catch (InterruptedException ie) {
@@ -162,7 +173,6 @@ abstract class IOTaskRunnable implements Runnable {
         } catch (PersistitException e) {
             _persistit.getLogBase().exception.log(e);
         }
-
     }
 
     static void crash(final IOTaskRunnable task) {
