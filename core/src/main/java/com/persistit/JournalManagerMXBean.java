@@ -85,7 +85,16 @@ public interface JournalManagerMXBean {
      * verbose log on repeated failures.
      */
     final static long DEFAULT_LOG_REPEAT_INTERVAL = 60000L;
-
+    final static long MINIMUM_LOG_REPEAT_INTERVAL = 1000L;
+    final static long MAXIMUM_LOG_REPEAT_INTERVAL = Long.MAX_VALUE;
+    /**
+     * Default threshold time in milliseconds for JournalManager
+     * flush operations. If a flush operation takes longer than
+     * this time, a WARNING message is written to the log.
+     */
+    final static long DEFAULT_SLOW_IO_ALERT_THRESHOLD = 2000L;
+    final static long MINIMUM_SLOW_ALERT_THRESHOLD = 100L;
+    final static long MAXIMUM_SLOW_ALERT_THRESHOLD = Long.MAX_VALUE;
     /**
      * Format expression defining the name of a journal file.
      */

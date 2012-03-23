@@ -185,9 +185,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private volatile long _copierTimestampLimit = Long.MAX_VALUE;
 
     private volatile long _logRepeatInterval = DEFAULT_LOG_REPEAT_INTERVAL;
-    
-    private volatile long _slowIoAlertThreshold = 1000L;
-    
+
+    private volatile long _slowIoAlertThreshold = DEFAULT_SLOW_IO_ALERT_THRESHOLD;
+
     private TransactionPlayer _player = new TransactionPlayer(new JournalTransactionPlayerSupport());
 
     private TransactionPlayerListener _listener = new ProactiveRollbackListener();
@@ -452,6 +452,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     @Override
     public void setLogRepeatInterval(long logRepeatInterval) {
+        Util.rangeCheck(logRepeatInterval, MINIMUM_LOG_REPEAT_INTERVAL, MAXIMUM_LOG_REPEAT_INTERVAL);
         _logRepeatInterval = logRepeatInterval;
     }
 
@@ -462,6 +463,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     @Override
     public void setSlowIoAlertThreshold(long slowIoAlertThreshold) {
+        Util.rangeCheck(slowIoAlertThreshold, MINIMUM_SLOW_ALERT_THRESHOLD, MAXIMUM_SLOW_ALERT_THRESHOLD);
         _slowIoAlertThreshold = slowIoAlertThreshold;
     }
 
@@ -1112,7 +1114,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         _copier.setShouldStop(true);
         _persistit.waitForIOTaskStop(_copier);
     }
-    
+
     void setWriteBufferSize(final int size) {
         if (size < MINIMUM_BUFFER_SIZE || size > MAXIMUM_BUFFER_SIZE) {
             throw new IllegalArgumentException("Invalid write buffer size: " + size);
@@ -2027,16 +2029,16 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
                 if (leadTime * NS_PER_MS >= estimatedNanosToFinish) {
                     /*
-                     * If the caller specified an leadTime interval larger
-                     * than the estimated time remaining in the cycle, then
-                     * return immediately. This handles the "soft" commit case.
+                     * If the caller specified an leadTime interval larger than
+                     * the estimated time remaining in the cycle, then return
+                     * immediately. This handles the "soft" commit case.
                      */
                     break;
                 } else if (estimatedRemainingIoNanos == -1) {
                     /*
                      * If there is no I/O in progress, then wait as long as
-                     * possible (determined by stallTime) before kicking
-                     * the JOURNAL_FLUSHER to write the caller's transaction.
+                     * possible (determined by stallTime) before kicking the
+                     * JOURNAL_FLUSHER to write the caller's transaction.
                      */
                     long delay = stallTime * NS_PER_MS - estimatedNanosToFinish;
                     if (delay > 0) {
