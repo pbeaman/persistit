@@ -247,6 +247,10 @@ public class TransactionStatus {
     boolean isLocked() {
         return _wwLock.isLocked();
     }
+    
+    boolean isHeldByCurrentThread() {
+        return _wwLock.isHeldByCurrentThread();
+    }
 
     Delta getDelta() {
         return _delta;

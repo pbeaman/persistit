@@ -73,7 +73,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;
     final static int HALF_URGENT = 5;
-    private final static long START_NANOS = System.nanoTime();
     private final static long NS_PER_MS = 1000000L;
     private final static int IO_MEASUREMENT_CYCLES = 8;
 
@@ -169,20 +168,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private AtomicLong _totalFlushIoTime = new AtomicLong();
 
-    /**
-     * Tunable parameters that determine how vigorously the copyBack thread
-     * performs I/O. Hopefully we can set good defaults and not expose these as
-     * knobs.
-     */
     private volatile long _flushInterval = DEFAULT_FLUSH_INTERVAL;
-
-    private volatile long _copierInterval = DEFAULT_COPIER_INTERVAL;
-
-    private volatile int _copiesPerCycle = DEFAULT_COPIES_PER_CYCLE;
-
-    private volatile int _pageMapSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
-
-    private volatile long _copierTimestampLimit = Long.MAX_VALUE;
 
     private volatile long _logRepeatInterval = DEFAULT_LOG_REPEAT_INTERVAL;
 
@@ -194,6 +180,18 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private AtomicBoolean _rollbackPruning = new AtomicBoolean(true);
 
+    /*
+     * Tunable parameters that determine how vigorously the copyBack thread
+     * performs I/O. Hopefully we can set good defaults and not expose these as
+     * knobs.
+     */
+    private volatile long _copierInterval = DEFAULT_COPIER_INTERVAL;
+
+    private volatile int _copiesPerCycle = DEFAULT_COPIES_PER_CYCLE;
+
+    private volatile int _pageMapSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
+
+    private volatile long _copierTimestampLimit = Long.MAX_VALUE;
     /**
      * <p>
      * Initialize the new journal. This method takes its information from the
@@ -436,12 +434,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     @Override
-    public long getCheckpointIntervalNanos() {
-        return _persistit.getCheckpointIntervalNanos();
+    public long getCheckpointInterval() {
+        return _persistit.getCheckpointIntervalNanos() / NS_PER_MS;
     }
 
     @Override
-    public long getLastValidCheckpointTimestampMillis() {
+    public long getLastValidCheckpointTimeMillis() {
         return _lastValidCheckpoint.getSystemTimeMillis();
     }
 
@@ -459,6 +457,21 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     @Override
     public long getSlowIoAlertThreshold() {
         return _slowIoAlertThreshold;
+    }
+    
+    @Override
+    public long getTotalCompletedCommits() {
+        return _totalCommits.get();
+    }
+    
+    @Override
+    public long getCommitCompletionWaitTime() {
+        return _totalCommitWaitTime.get() / NS_PER_MS;
+    }
+    
+    @Override
+    public long getCurrentTimestamp() {
+        return _persistit.getCurrentTimestamp();
     }
 
     @Override
@@ -1979,7 +1992,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
              * posted a timestamp value to _endTimestamp larger than this.
              */
             final long timestamp = _persistit.getTimestampAllocator().getCurrentTimestamp();
-            final long now = System.nanoTime() - START_NANOS;
+            final long now = System.nanoTime();
 
             while (true) {
                 /*
@@ -2011,9 +2024,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 }
 
                 /*
-                 * Done - commit is durable
+                 * Done - commit is fully durable
                  */
-                if (endTimestamp > timestamp) {
+                if (endTimestamp > timestamp && startTimestamp > timestamp) {
                     break;
                 }
 
@@ -2088,14 +2101,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     _lock.writeLock().lock();
                     try {
                         _startTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                        _startTime = System.nanoTime() - START_NANOS;
+                        _startTime = System.nanoTime();
                         /*
                          * Flush the write buffer and call FileChannel.force().
                          */
                         force();
 
                     } finally {
-                        _endTime = System.nanoTime() - START_NANOS;
+                        _endTime = System.nanoTime();
                         _endTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
                         _lock.writeLock().unlock();
                     }
@@ -2111,8 +2124,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                         max = Math.max(max, _ioTimes[index]);
                     }
                     _expectedIoTime = max;
-                    if (elapsed > _slowIoAlertThreshold * 1000000) {
-                        _persistit.getLogBase().longJournalIO.log(elapsed / 1000000);
+                    if (elapsed > _slowIoAlertThreshold * NS_PER_MS) {
+                        _persistit.getLogBase().longJournalIO.log(elapsed / NS_PER_MS);
                     }
 
                 } catch (Exception e) {
@@ -2120,7 +2133,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                         _closed.set(true);
                     }
                     if (_lastException == null || !e.getClass().equals(_lastException.getClass())
-                            || now - _lastLogMessageTime > -_logRepeatInterval * 1000000) {
+                            || now - _lastLogMessageTime > -_logRepeatInterval * NS_PER_MS) {
                         _lastException = e;
                         _lastLogMessageTime = now;
                         _lastExceptionTimestamp = _endTimestamp;
