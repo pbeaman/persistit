@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import com.persistit.AbstractAlertMonitor.Level;
 import com.persistit.logging.PersistitLevel;
 import com.persistit.logging.PersistitLogMessage.LogItem;
 
@@ -32,7 +33,73 @@ import com.persistit.logging.PersistitLogMessage.LogItem;
  * @author peter
  * 
  */
-public abstract class AbstractAlertMonitor {
+
+interface AlertMonitor {
+    /**
+     * @return the name of this AlertMonitor
+     */
+    String getName();
+
+    /**
+     * @return the current alert level of this monitor
+     */
+    Level getLevel();
+
+    /**
+     * Restore this alert monitor to its initial state at level
+     * {@link Level#NORMAL} with no history.
+     */
+    void reset();
+
+    /**
+     * @return the interval in milliseconds between successive log entries for
+     *         this monitor when its {@link Level#WARN}.
+     */
+    long getWarnLogTimeInterval();
+
+    /**
+     * Set the interval between successive log entries for this monitor when its
+     * {@link Level#WARN}.
+     * 
+     * @param warnLogTimeInterval
+     *            the interval in milliseconds
+     */
+    void setWarnLogTimeInterval(long warnLogTimeInterval);
+
+    /**
+     * @return the interval in milliseconds between successive log entries for
+     *         this monitor when its {@link Level#ERROR}.
+     */
+    long getErrorLogTimeInterval();
+
+    /**
+     * Set the interval between successive log entries for this monitor when its
+     * {@link Level#ERROR}.
+     * 
+     * @param _warnLogTimeInterval
+     *            the interval in milliseconds
+     */
+    void setErrorLogTimeInterval(long errorLogTimeInterval);
+
+    /**
+     * @return the number of events per category on which to keep a complete
+     *         history.
+     */
+    long getHistoryLength();
+
+    /**
+     * Set the number of events per category on which to keep a complete
+     * history. Once the number of events exceeds this count, the events
+     * aggregated.
+     * 
+     * @param historyLength
+     *            the historyLength to set
+     */
+    void setHistoryLength(int historyLength);
+
+}
+
+public abstract class AbstractAlertMonitor implements AlertMonitor {
 
     enum Level {
         /*
@@ -302,12 +369,13 @@ public abstract class AbstractAlertMonitor {
     }
 
     protected Object[] logArguments(final Level level, final Object event, final History history, final long time) {
-        return new Object[]{event};
+        return new Object[] { event };
     }
 
     /**
      * @return the name of this AlertMonitor
      */
+    @Override
     public String getName() {
         return _name;
     }
@@ -315,6 +383,7 @@ public abstract class AbstractAlertMonitor {
     /**
      * @return the current alert level of this monitor
      */
+    @Override
     public synchronized Level getLevel() {
         return _level;
     }
@@ -323,6 +392,7 @@ public abstract class AbstractAlertMonitor {
      * Restore this alert monitor to its initial state at level
      * {@link Level#NORMAL} with no history.
      */
+    @Override
     public synchronized void reset() {
         _level = Level.NORMAL;
     }
@@ -331,6 +401,7 @@ public abstract class AbstractAlertMonitor {
      * @return the interval in milliseconds between successive log entries for
      *         this monitor when its {@link Level#WARN}.
      */
+    @Override
     public long getWarnLogTimeInterval() {
         return _warnLogTimeInterval;
     }
@@ -342,6 +413,7 @@ public abstract class AbstractAlertMonitor {
      * @param warnLogTimeInterval
      *            the interval in milliseconds
      */
+    @Override
     public void setWarnLogTimeInterval(long warnLogTimeInterval) {
         _warnLogTimeInterval = warnLogTimeInterval;
     }
@@ -350,6 +422,7 @@ public abstract class AbstractAlertMonitor {
      * @return the interval in milliseconds between successive log entries for
      *         this monitor when its {@link Level#ERROR}.
      */
+    @Override
     public long getErrorLogTimeInterval() {
         return _errorLogTimeInterval;
     }
@@ -361,6 +434,7 @@ public abstract class AbstractAlertMonitor {
      * @param _warnLogTimeInterval
      *            the interval in milliseconds
      */
+    @Override
     public void setErrorLogTimeInterval(long errorLogTimeInterval) {
         _errorLogTimeInterval = errorLogTimeInterval;
     }
@@ -369,6 +443,7 @@ public abstract class AbstractAlertMonitor {
      * @return the number of events per category on which to keep a complete
      *         history.
      */
+    @Override
     public long getHistoryLength() {
         return _historyLength;
     }
@@ -381,6 +456,7 @@ public abstract class AbstractAlertMonitor {
      * @param historyLength
      *            the historyLength to set
      */
+    @Override
     public void setHistoryLength(int historyLength) {
         _historyLength = historyLength;
     }

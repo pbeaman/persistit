@@ -2158,6 +2158,23 @@ public class Persistit {
         _defaultCommitPolicy = policy;
     }
 
+    /**
+     * Set the current default transaction commit property by name. See
+     * {@link #setDefaultTransactionCommitPolicy(CommitPolicy)}.
+     * 
+     * @param policyName
+     *            The policy name: "SOFT", "HARD" or "GROUP"
+     */
+    public void setDefaultTransactionCommitPolicy(final String policyName) {
+        CommitPolicy policy;
+        try {
+            policy = CommitPolicy.valueOf(policyName.toUpperCase());
+            setDefaultTransactionCommitPolicy(policy);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid CommitPolicy name: " + policyName);
+        }
+    }
+
     long getTransactionCommitLeadTime() {
         return _commitLeadTime;
     }

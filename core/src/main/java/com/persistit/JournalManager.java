@@ -2017,17 +2017,19 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     break;
                 }
 
-                long remainingSleepNanos = -1;
+                long remainingSleepNanos;
                 if (estimatedRemainingIoNanos == -1) {
                     remainingSleepNanos = Math.max(0, _flushInterval - (now - endTime));
+                } else {
+                    remainingSleepNanos = _flushInterval;
                 }
 
                 long estimatedNanosToFinish = Math.max(estimatedRemainingIoNanos, 0);
                 if (startTimestamp < timestamp) {
-                    estimatedNanosToFinish += remainingSleepNanos + estimatedRemainingIoNanos;
+                    estimatedNanosToFinish += remainingSleepNanos + _expectedIoTime;
                 }
 
-                if (leadTime * NS_PER_MS >= estimatedNanosToFinish) {
+                if (leadTime > 0 && leadTime * NS_PER_MS >= estimatedNanosToFinish) {
                     /*
                      * If the caller specified an leadTime interval larger than
                      * the estimated time remaining in the cycle, then return
