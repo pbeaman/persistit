@@ -162,9 +162,13 @@ public interface JournalManagerMXBean {
 
     String getLastFlusherException();
 
-    long getCheckpointIntervalNanos();
+    long getCheckpointInterval();
 
-    long getLastValidCheckpointTimestampMillis();
+    long getLastValidCheckpointTimeMillis();
+    
+    long getTotalCompletedCommits();
+    
+    long getCommitCompletionWaitTime();
 
     long getLogRepeatInterval();
 
