@@ -147,6 +147,8 @@ public interface JournalManagerMXBean {
     long getJournalCreatedTime();
 
     long getLastValidCheckpointTimestamp();
+    
+    long getCurrentTimestamp();
 
     void setRollbackPruningEnabled(boolean rollbackPruning);
 

@@ -469,6 +469,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     public long getCommitCompletionWaitTime() {
         return _totalCommitWaitTime.get() / NS_PER_MS;
     }
+    
+    @Override
+    public long getCurrentTimestamp() {
+        return _persistit.getCurrentTimestamp();
+    }
 
     @Override
     public void setSlowIoAlertThreshold(long slowIoAlertThreshold) {

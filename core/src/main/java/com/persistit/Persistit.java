@@ -333,7 +333,7 @@ public class Persistit {
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
     private final static CommitPolicy DEFAULT_TRANSACTION_COMMIT_POLICY = CommitPolicy.SOFT;
     private final static long DEFAULT_COMMIT_LEAD_TIME = 100;
-    private final static long DEFAULT_COMMIT_STALL_TIME = 10;
+    private final static long DEFAULT_COMMIT_STALL_TIME = 1;
     private final static long MAX_COMMIT_LEAD_TIME = 5000;
     private final static long MAX_COMMIT_STALL_TIME = 5000;
 
