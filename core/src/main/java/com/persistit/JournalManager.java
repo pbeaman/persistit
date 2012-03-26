@@ -73,7 +73,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;
     final static int HALF_URGENT = 5;
-    private final static long START_NANOS = System.nanoTime();
     private final static long NS_PER_MS = 1000000L;
     private final static int IO_MEASUREMENT_CYCLES = 8;
 
@@ -1993,7 +1992,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
              * posted a timestamp value to _endTimestamp larger than this.
              */
             final long timestamp = _persistit.getTimestampAllocator().getCurrentTimestamp();
-            final long now = System.nanoTime() - START_NANOS;
+            final long now = System.nanoTime();
 
             while (true) {
                 /*
@@ -2102,14 +2101,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     _lock.writeLock().lock();
                     try {
                         _startTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                        _startTime = System.nanoTime() - START_NANOS;
+                        _startTime = System.nanoTime();
                         /*
                          * Flush the write buffer and call FileChannel.force().
                          */
                         force();
 
                     } finally {
-                        _endTime = System.nanoTime() - START_NANOS;
+                        _endTime = System.nanoTime();
                         _endTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
                         _lock.writeLock().unlock();
                     }

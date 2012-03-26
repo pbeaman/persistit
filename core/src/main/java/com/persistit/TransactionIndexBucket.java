@@ -616,11 +616,10 @@ public class TransactionIndexBucket {
 
     private void free(final TransactionStatus status) {
         assert _lock.isHeldByCurrentThread();
-        if (status.isLocked()) {
-            String s = status.toString();
-            System.out.println(s);
-        }
-        assert !status.isLocked();
+        /*
+         * May be held by another thread briefly while status being checked
+         */
+        assert !status.isHeldByCurrentThread();
         if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
             status.setNext(_free);
             _free = status;
@@ -632,7 +631,7 @@ public class TransactionIndexBucket {
 
     private Delta freeDelta(final Delta delta) {
         final Delta next = delta.getNext();
-        /**
+        /*
          * If the free Delta list is already full then simply drop this one and
          * let it be garbage collected
          */
