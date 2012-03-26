@@ -37,7 +37,7 @@
                 <version>1.10.b1</version>
                 <configuration>
                     <!-- Note plugin WARNs header wasn't specified but still works as desired (multi-module bug?) -->
-                    <header>LICENSE.txt</header>
+                    <header>AGPL.txt</header>
                     <headerSections>
                         <headerSection>
                             <key>__YEAR_SECTION__</key>
@@ -49,6 +49,7 @@
                     <strictCheck>true</strictCheck>
                     <failIfMissing>true</failIfMissing>
                     <excludes>
+                        <exclude>LICENSE.txt</exclude>
                         <!-- Non-distributed benchmark code -->
                         <exclude>bench/**</exclude>
                         <!-- Docs -->
