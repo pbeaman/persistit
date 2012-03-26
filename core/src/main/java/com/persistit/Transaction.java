@@ -302,7 +302,7 @@ public class Transaction {
         /**
          * Committed transactions are flushed to durable within a fraction of a
          * second but the Transaction#commit method returns before this is done.
-         * This policy is a compromise that offers much better throughput does
+         * This policy is a compromise that offers much better throughput but does
          * not provide durability for every committed transactions; some
          * recently committed transactions may be lost after a crash/recovery
          * cycle.
