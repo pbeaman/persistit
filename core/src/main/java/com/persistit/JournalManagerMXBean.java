@@ -31,7 +31,7 @@ public interface JournalManagerMXBean {
     final static int VERSION = 2;
 
     /**
-     * Default size of one journal file (10^9).
+     * Default size of one journal file (10E9).
      */
     final static long DEFAULT_BLOCK_SIZE = 1000000000L;
 

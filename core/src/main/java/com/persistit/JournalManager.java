@@ -1222,7 +1222,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                         /*
                          * Note: contract for FileChannel requires write to
                          * return normally only when all bytes have been
-                         * written. (See java.nio.channels.ScatteringByteChannel
+                         * written. (See java.nio.channels.WritableByteChannel
                          * #write(ByteBuffer), statement
                          * "Unless otherwise specified...")
                          */
@@ -2023,10 +2023,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     Util.spinSleep();
                 }
 
-                /*
-                 * Done - commit is fully durable
-                 */
                 if (endTimestamp > timestamp && startTimestamp > timestamp) {
+                    /*
+                     * Done - commit is fully durable
+                     */
                     break;
                 }
 
@@ -2062,10 +2062,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     kick();
                 } else {
                     /*
-                     * Otherwise, wait until the I/O is done (or nearly done if
-                     * leadTime > 0).
+                     * Otherwise, wait until the I/O is about half done and then retry.
                      */
-                    long delay = estimatedNanosToFinish - leadTime * NS_PER_MS;
+                    long delay = (estimatedNanosToFinish - leadTime * NS_PER_MS) / 2;
                     try {
                         if (delay > 0 && _lock.readLock().tryLock(delay, TimeUnit.NANOSECONDS)) {
                             _lock.readLock().unlock();
