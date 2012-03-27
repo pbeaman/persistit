@@ -37,19 +37,11 @@
                 <version>1.10.b1</version>
                 <configuration>
                     <!-- Note plugin WARNs header wasn't specified but still works as desired (multi-module bug?) -->
-                    <header>AGPL.txt</header>
-                    <headerSections>
-                        <headerSection>
-                            <key>__YEAR_SECTION__</key>
-                            <defaultValue>2012</defaultValue>
-                            <ensureMatch>2011|2012|2011-2012</ensureMatch>
-                        </headerSection>
-                    </headerSections>
+                    <header>HEADER.txt</header>
                     <aggregate>true</aggregate>
                     <strictCheck>true</strictCheck>
                     <failIfMissing>true</failIfMissing>
                     <excludes>
-                        <exclude>LICENSE.txt</exclude>
                         <!-- Non-distributed benchmark code -->
                         <exclude>bench/**</exclude>
                         <!-- Docs -->
