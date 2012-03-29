@@ -35,6 +35,7 @@ import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
+import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -50,9 +51,11 @@ public class TransactionTest2 extends PersistitUnitTestCase {
 
     final static Object LOCK = new Object();
 
+    final static CommitPolicy policy = CommitPolicy.SOFT;
+    
     static int _threads = 5;
-    static int _iterationsPerThread = 50000;
-    static int _accounts = 1000;
+    static int _iterationsPerThread = 25000;
+    static int _accounts = 5000;
 
     static int _retriedTransactionCount = 0;
     static int _completedTransactionCount = 0;
@@ -223,7 +226,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 //
                 // Commit the transaction
                 //
-                txn.commit();
+                txn.commit(policy);
                 //
                 // Done.
                 //
@@ -329,7 +332,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 // txn.commit(true)
                 // to force transaction updates to volume files.
                 //
-                txn.commit();
+                txn.commit(policy);
                 //
                 // Done.
                 //

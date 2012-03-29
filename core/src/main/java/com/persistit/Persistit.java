@@ -62,6 +62,7 @@ import javax.management.ObjectName;
 
 import com.persistit.Accumulator.AccumulatorRef;
 import com.persistit.CheckpointManager.Checkpoint;
+import com.persistit.Transaction.CommitPolicy;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
@@ -122,7 +123,7 @@ public class Persistit {
     /**
      * The copyright notice
      */
-    public final static String COPYRIGHT = "Copyright (c) 2011 Akiban Technologies Inc.";
+    public final static String COPYRIGHT = "Copyright (c) 2012 Akiban Technologies Inc.";
 
     /**
      * Determines whether multi-byte integers will be written in little- or
@@ -230,9 +231,10 @@ public class Persistit {
     public final static String TEMPORARY_VOLUME_MAX_SIZE = "tmpvolmaxsize";
 
     /**
-     * Property name for specifying a transaction volume
+     * Property name for specifying the default {@link Transaction.CommitPolicy}
+     * ("soft", "hard" or "group")
      */
-    public final static String TXN_VOLUME_NAME_PROPERTY = "txnvolume";
+    public final static String TRANSACTION_COMMIT_POLICY_NAME = "txnpolicy";
 
     /**
      * Property name for specifying whether Persistit should display diagnostic
@@ -310,8 +312,14 @@ public class Persistit {
      */
     public final static String APPEND_ONLY_PROPERTY = "appendonly";
 
+    /**
+     * Property name to specify the default {@link SplitPolicy}.
+     */
     public final static String SPLIT_POLICY_PROPERTY = "splitpolicy";
 
+    /**
+     * Property name to specify the default {@link JoinPolicy}.
+     */
     public final static String JOIN_POLICY_PROPERTY = "joinpolicy";
 
     /**
@@ -334,6 +342,11 @@ public class Persistit {
 
     private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
+    private final static CommitPolicy DEFAULT_TRANSACTION_COMMIT_POLICY = CommitPolicy.SOFT;
+    private final static long DEFAULT_COMMIT_LEAD_TIME = 100;
+    private final static long DEFAULT_COMMIT_STALL_TIME = 1;
+    private final static long MAX_COMMIT_LEAD_TIME = 5000;
+    private final static long MAX_COMMIT_STALL_TIME = 5000;
 
     private final static int MAX_FATAL_ERROR_MESSAGES = 10;
 
@@ -412,11 +425,17 @@ public class Persistit {
 
     private final WeakHashMap<SessionId, CLI> _cliSessionMap = new WeakHashMap<SessionId, CLI>();
 
-    private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
+    private volatile SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
-    private JoinPolicy _defaultJoinPolicy = DEFAULT_JOIN_POLICY;
+    private volatile JoinPolicy _defaultJoinPolicy = DEFAULT_JOIN_POLICY;
 
-    private List<FatalErrorException> _fatalErrors = new ArrayList<FatalErrorException>();
+    private volatile List<FatalErrorException> _fatalErrors = new ArrayList<FatalErrorException>();
+
+    private volatile CommitPolicy _defaultCommitPolicy = DEFAULT_TRANSACTION_COMMIT_POLICY;
+
+    private volatile long _commitLeadTime = DEFAULT_COMMIT_LEAD_TIME;
+
+    private volatile long _commitStallTime = DEFAULT_COMMIT_STALL_TIME;
 
     /**
      * <p>
@@ -673,6 +692,15 @@ public class Persistit {
         try {
             _defaultJoinPolicy = JoinPolicy.forName(getProperty(JOIN_POLICY_PROPERTY, DEFAULT_JOIN_POLICY.toString()));
         } catch (IllegalArgumentException e) {
+            _logBase.configurationError.log(e);
+        }
+
+        try {
+            String s = getProperty(TRANSACTION_COMMIT_POLICY_NAME);
+            if (s != null) {
+                _defaultCommitPolicy = CommitPolicy.valueOf(s.toUpperCase());
+            }
+        } catch (Exception e) {
             _logBase.configurationError.log(e);
         }
     }
@@ -2114,6 +2142,49 @@ public class Persistit {
         }
     }
 
+    /**
+     * This property can be configured with the configuration property
+     * {@value #TRANSACTION_COMMIT_POLICY_NAME}.
+     * 
+     * @return The default system commit policy.
+     */
+    public CommitPolicy getDefaultTransactionCommitPolicy() {
+        return _defaultCommitPolicy;
+    }
+
+    /**
+     * Set the current default transaction commit property. This policy is
+     * applied to transactions that call {@link Transaction#commit()}. Note that
+     * {@link Transaction#commit(CommitPolicy)} permits control on a
+     * per-transaction basis. The supplied policy value may not be
+     * <code>null</code>.
+     * 
+     * @param policy
+     *            The policy.
+     */
+    public void setDefaultTransactionCommitPolicy(final CommitPolicy policy) {
+        if (policy == null) {
+            throw new IllegalArgumentException("CommitPolicy may not be null");
+        }
+        _defaultCommitPolicy = policy;
+    }
+
+    long getTransactionCommitLeadTime() {
+        return _commitLeadTime;
+    }
+
+    void setTransactionCommitleadTime(final long time) {
+        _commitLeadTime = Util.rangeCheck(time, 0, MAX_COMMIT_LEAD_TIME);
+    }
+
+    long getTransactionCommitStallTime() {
+        return _commitStallTime;
+    }
+
+    void setTransactionCommitStallTime(final long time) {
+        _commitStallTime = Util.rangeCheck(time, 0, MAX_COMMIT_STALL_TIME);
+    }
+
 /**
      * Copy the {@link Transaction} context objects belonging to threads that
      * are currently alive to the supplied List. This method is used by
@@ -2364,7 +2435,6 @@ public class Persistit {
             }
         }
         String sstr = str;
-        boolean invalid = false;
         if (multiplier > 1) {
             sstr = str.substring(0, str.length() - 1);
         }
@@ -2374,12 +2444,9 @@ public class Persistit {
         }
 
         catch (NumberFormatException nfe) {
-            invalid = true;
+            throw new IllegalArgumentException("Not a valid number: '" + str + "'");
         }
-        if (result < min || result > max || invalid) {
-            throw new IllegalArgumentException("Value '" + str + "' of property " + propName + " is invalid");
-        }
-        return result;
+        return Util.rangeCheck(result, min, max);
     }
 
     /**

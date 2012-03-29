@@ -528,7 +528,7 @@ public class Util {
         }
         return true;
     }
-    
+
     public static void sleep(final long millis) throws PersistitInterruptedException {
         try {
             Thread.sleep(millis);
@@ -536,12 +536,46 @@ public class Util {
             throw new PersistitInterruptedException(ie);
         }
     }
-    
+
     public static void spinSleep() throws PersistitInterruptedException {
         sleep(1);
     }
 
     public static String toString(Object object) {
         return object == null ? null : object.toString();
+    }
+
+    public static long rangeCheck(final int value, final int min, final int max) {
+        if (value >= min && value <= max) {
+            return value;
+        }
+        if (min == Integer.MIN_VALUE) {
+            throw new IllegalArgumentException(String.format("Value must be less than or equals to %,d: %,d", max,
+                    value));
+        }
+        if (max == Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(String.format("Value must be greater than or equal to %,d: %,d", min,
+                    value));
+        } else {
+            throw new IllegalArgumentException(String.format("Value must be between %d and %d, inclusive: ", min, max,
+                    value));
+        }
+    }
+
+    public static long rangeCheck(final long value, final long min, final long max) {
+        if (value >= min && value <= max) {
+            return value;
+        }
+        if (min == Long.MIN_VALUE) {
+            throw new IllegalArgumentException(String.format("Value must be less than or equals to %,d: %,d", max,
+                    value));
+        }
+        if (max == Long.MAX_VALUE) {
+            throw new IllegalArgumentException(String.format("Value must be greater than or equal to %,d: %,d", min,
+                    value));
+        } else {
+            throw new IllegalArgumentException(String.format("Value must be between %d and %d, inclusive: ", min, max,
+                    value));
+        }
     }
 }

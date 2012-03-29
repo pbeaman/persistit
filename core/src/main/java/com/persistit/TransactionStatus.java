@@ -258,6 +258,10 @@ public class TransactionStatus {
     boolean isLocked() {
         return _wwLock.isLocked();
     }
+    
+    boolean isHeldByCurrentThread() {
+        return _wwLock.isHeldByCurrentThread();
+    }
 
     Delta getDelta() {
         return _delta;
@@ -395,7 +399,7 @@ public class TransactionStatus {
 
     @Override
     public String toString() {
-        return String.format("<ts=%,d tc=%s mvv=%,d>", _ts, tcString(_tc), _mvvCount.get());
+        return String.format("<ts=%,d tc=%s mvv=%,d %s>", _ts, tcString(_tc), _mvvCount.get(), _wwLock);
     }
 
     static String versionString(final long version) {

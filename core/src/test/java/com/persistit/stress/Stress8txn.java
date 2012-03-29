@@ -38,6 +38,7 @@ import com.persistit.Key;
 import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
+import com.persistit.Transaction.CommitPolicy;
 import com.persistit.Value.Version;
 import com.persistit.exception.PersistitException;
 import com.persistit.test.TestResult;
@@ -163,7 +164,7 @@ public class Stress8txn extends StressBase {
                     final int acct1 = random(0, _size);
                     final int acct2 = random(0, _size);
                     op.setup(acct1, acct2);
-                    final int passes = txn.run(op, 100, 5, false);
+                    final int passes = txn.run(op, 100, 5,  CommitPolicy.SOFT);
                     if (passes > 10) {
                         verboseln("pass count=" + passes);
                     }

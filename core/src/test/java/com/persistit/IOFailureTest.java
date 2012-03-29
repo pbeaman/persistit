@@ -34,6 +34,7 @@ import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -84,7 +85,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
                 txn.begin();
                 try {
                     store1(at);
-                    txn.commit(true);
+                    txn.commit(CommitPolicy.HARD);
                 } finally {
                     txn.end();
                 }
@@ -105,7 +106,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         txn.begin();
         try {
             store1(at);
-            txn.commit(true);
+            txn.commit(CommitPolicy.HARD);
         } finally {
             txn.end();
         }

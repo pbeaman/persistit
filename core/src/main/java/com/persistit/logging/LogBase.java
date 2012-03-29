@@ -222,6 +222,11 @@ public class LogBase {
     @Message ("WARNING|Crash retried %,d times on %s")
     public final LogItem crashRetry = PersistitLogMessage.empty();
     
+    @Message ("WARNING|Journal flush operation took %,dms")
+    public final LogItem longJournalIO = PersistitLogMessage.empty();
+    
+    
+    
     public void configure(final PersistitLogger logger) {
         for (final Field field : this.getClass().getDeclaredFields()) {
             final Message annotation = field.getAnnotation(Message.class);
