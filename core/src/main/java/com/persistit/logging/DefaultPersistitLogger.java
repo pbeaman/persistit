@@ -41,38 +41,9 @@ import com.persistit.util.Util;
  */
 public class DefaultPersistitLogger implements PersistitLogger {
 
-    private final static String DEFAULT_LOG_FILE_NAME = "./persistit.log";
-    private final static long FLUSH_DELAY_INTERVAL = 5000;
-
-    private PrintWriter _logWriter;
+    private volatile PrintWriter _logWriter;
     private String _logFileName;
-    private DefaultPersistitLogFlusher _logFlusher;
     private PersistitLevel _level = PersistitLevel.INFO;
-
-    /**
-     * Background thread that periodically flushes the log file buffers so that
-     * we actually have log information in the event of a failure.
-     */
-    private class DefaultPersistitLogFlusher extends Thread {
-        boolean _stop;
-
-        DefaultPersistitLogFlusher() {
-            setDaemon(true);
-            setName("LogFlusher");
-        }
-
-        @Override
-        public void run() {
-            while (!_stop) {
-                try {
-                    Util.sleep(FLUSH_DELAY_INTERVAL);
-                } catch (PersistitInterruptedException ie) {
-                    break;
-                }
-                flush();
-            }
-        }
-    }
 
     /**
      * Construct a logger that logs messages at WARNING level or above to the
@@ -122,12 +93,13 @@ public class DefaultPersistitLogger implements PersistitLogger {
      */
     @Override
     public void log(PersistitLevel level, String message) {
-        if (_logWriter == null && level.compareTo(PersistitLevel.WARNING) >= 0
+        final PrintWriter logWriter = _logWriter;
+        if (logWriter == null && level.compareTo(PersistitLevel.WARNING) >= 0
                 || level.compareTo(PersistitLevel.WARNING) >= 0) {
             System.err.println(message);
         }
-        if (_logWriter != null) {
-            _logWriter.println(message);
+        if (logWriter != null) {
+            logWriter.println(message);
         }
 
     }
@@ -148,8 +120,6 @@ public class DefaultPersistitLogger implements PersistitLogger {
         if (_logFileName != null) {
             _logWriter = new PrintWriter(new BufferedWriter(new FileWriter(_logFileName)));
         }
-        _logFlusher = new DefaultPersistitLogFlusher();
-        _logFlusher.start();
     }
 
     /**
@@ -158,17 +128,12 @@ public class DefaultPersistitLogger implements PersistitLogger {
      * @throws InterruptedException
      */
     public void close() throws InterruptedException {
-        if (_logWriter != null) {
-            _logWriter.close();
-            _logWriter = null;
+        flush();
+        final PrintWriter logWriter = _logWriter;
+        if (logWriter != null) {
+            logWriter.close();
         }
-
-        if (_logFlusher != null) {
-            _logFlusher._stop = true;
-            _logFlusher.interrupt();
-            _logFlusher.join();
-            _logFlusher = null;
-        }
+        _logWriter = null;
     }
 
     /**
@@ -182,8 +147,9 @@ public class DefaultPersistitLogger implements PersistitLogger {
      * exits abruptly.
      */
     public void flush() {
-        if (_logWriter != null) {
-            _logWriter.flush();
+        final PrintWriter logWriter = _logWriter;
+        if (logWriter != null) {
+            logWriter.flush();
         }
     }
 

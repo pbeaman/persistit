@@ -52,6 +52,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -347,6 +348,7 @@ public class Persistit {
     private final static long DEFAULT_COMMIT_STALL_TIME = 1;
     private final static long MAX_COMMIT_LEAD_TIME = 5000;
     private final static long MAX_COMMIT_STALL_TIME = 5000;
+    private final static long FLUSH_DELAY_INTERVAL = 5000;
 
     private final static int MAX_FATAL_ERROR_MESSAGES = 10;
 
@@ -360,9 +362,39 @@ public class Persistit {
         }
     }
 
+    /**
+     * Background thread that periodically flushes the log file buffers so that
+     * we actually have log information in the event of a failure.
+     */
+    private class LogFlusher extends Thread {
+        boolean _stop;
+
+        LogFlusher() {
+            setDaemon(true);
+            setName("LOG_FLUSHER");
+        }
+
+        @Override
+        public void run() {
+            while (!_stop) {
+                try {
+                    Util.sleep(FLUSH_DELAY_INTERVAL);
+                } catch (PersistitInterruptedException ie) {
+                    break;
+                }
+                pollAlertMonitors(false);
+                PersistitLogger logger = _logger;
+                if (logger != null) {
+                    logger.flush();
+                }
+            }
+        }
+    }
+
     private final long _availableHeap = availableHeap();
 
-    private PersistitLogger _logger;
+    private volatile PersistitLogger _logger;
+    private LogFlusher _logFlusher;
 
     /**
      * Start time
@@ -412,20 +444,24 @@ public class Persistit {
     private final CleanupManager _cleanupManager = new CleanupManager(this);
 
     private final IOMeter _ioMeter = new IOMeter();
-    
-    private IOAlertMonitor _ioAlertMonitor = new IOAlertMonitor(this);
 
-    private TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
+    private final IOAlertMonitor _ioAlertMonitor = new IOAlertMonitor();
 
-    private Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
+    private final TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
 
-    private boolean _readRetryEnabled;
+    private final Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
 
-    private long _defaultTimeout;
+    private final Map<ObjectName, Object> _mxbeans = new TreeMap<ObjectName, Object>();
+
+    private final List<AlertMonitor> _alertMonitors = Collections.synchronizedList(new ArrayList<AlertMonitor>());
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
     private final WeakHashMap<SessionId, CLI> _cliSessionMap = new WeakHashMap<SessionId, CLI>();
+
+    private boolean _readRetryEnabled;
+
+    private long _defaultTimeout;
 
     private volatile SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
@@ -571,6 +607,9 @@ public class Persistit {
 
     void initializeLogging() throws PersistitException {
         try {
+            _logFlusher = new LogFlusher();
+            _logFlusher.start();
+
             getPersistitLogger().open();
             String logLevel = getProperty(LOGGING_PROPERTIES);
             if (logLevel != null && getPersistitLogger() instanceof DefaultPersistitLogger) {
@@ -775,45 +814,24 @@ public class Persistit {
         ObjectName on = new ObjectName(name);
         server.registerMBean(mbean, on);
         _logBase.mbeanRegistered.log(on);
+        _mxbeans.put(on, mbean);
+        if (mbean instanceof AlertMonitor) {
+            _alertMonitors.add((AlertMonitor) mbean);
+        }
     }
 
     private void unregisterMXBeans() {
-        try {
-            unregisterMBean(RecoveryManagerMXBean.MXBEAN_NAME);
-            unregisterMBean(JournalManagerMXBean.MXBEAN_NAME);
-            unregisterMBean(TransactionIndexMXBean.MXBEAN_NAME);
-            unregisterMBean(CleanupManagerMXBean.MXBEAN_NAME);
-            unregisterMBean(IOMeterMXBean.MXBEAN_NAME);
-            unregisterMBean(ManagementMXBean.MXBEAN_NAME);
-            for (int size = Buffer.MIN_BUFFER_SIZE; size <= Buffer.MAX_BUFFER_SIZE; size *= 2) {
-                if (_bufferPoolTable.get(size) != null) {
-                    unregisterBufferPoolMXBean(size);
-                }
-            }
-
-        } catch (InstanceNotFoundException exception) {
-            // ignore
-        } catch (Exception exception) {
-            _logBase.mbeanException.log(exception);
-        }
-    }
-
-    private void unregisterBufferPoolMXBean(final int bufferSize) {
-        try {
-            unregisterMBean(BufferPoolMXBeanImpl.mbeanName(bufferSize));
-        } catch (InstanceNotFoundException exception) {
-            // ignore
-        } catch (Exception exception) {
-            _logBase.mbeanException.log(exception);
-        }
-    }
-
-    private void unregisterMBean(final String name) throws Exception {
         MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
-        ObjectName on = new ObjectName(name);
-        server.unregisterMBean(on);
-        _logBase.mbeanUnregistered.log(on);
-
+        for (final ObjectName on : _mxbeans.keySet()) {
+            try {
+                server.unregisterMBean(on);
+                _logBase.mbeanUnregistered.log(on);
+            } catch (InstanceNotFoundException exception) {
+                // ignore
+            } catch (Exception exception) {
+                _logBase.mbeanException.log(exception);
+            }
+        }
     }
 
     synchronized void addVolume(Volume volume) throws VolumeAlreadyExistsException {
@@ -1867,6 +1885,7 @@ public class Persistit {
                     }
                 }
             }
+            pollAlertMonitors(true);
         }
         releaseAllResources();
     }
@@ -1902,7 +1921,6 @@ public class Persistit {
         final Map<Integer, BufferPool> buffers = _bufferPoolTable;
         if (buffers != null) {
             for (final BufferPool pool : buffers.values()) {
-                unregisterBufferPoolMXBean(pool.getBufferSize());
                 pool.crash();
             }
         }
@@ -1938,24 +1956,7 @@ public class Persistit {
 
     private void releaseAllResources() {
 
-        _accumulators.clear();
-        _volumes.clear();
-        _exchangePoolMap.clear();
-        _cleanupManager.clear();
-        _transactionSessionMap.clear();
-        _cliSessionMap.clear();
-        _sessionIdThreadLocal.remove();
-        _fatalErrors.clear();
-
         unregisterMXBeans();
-
-        _bufferPoolTable.clear();
-
-        if (_management != null) {
-            _management.unregister();
-            _management = null;
-        }
-
         try {
             if (_logger != null) {
                 _logBase.end.log(System.currentTimeMillis());
@@ -1964,6 +1965,22 @@ public class Persistit {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        if (_management != null) {
+            _management.unregister();
+            _management = null;
+        }
+        _logFlusher.interrupt();
+        _logFlusher = null;
+        _accumulators.clear();
+        _volumes.clear();
+        _exchangePoolMap.clear();
+        _cleanupManager.clear();
+        _transactionSessionMap.clear();
+        _cliSessionMap.clear();
+        _sessionIdThreadLocal.remove();
+        _fatalErrors.clear();
+        _alertMonitors.clear();
+        _bufferPoolTable.clear();
     }
 
     /**
@@ -2334,7 +2351,7 @@ public class Persistit {
     IOMeter getIOMeter() {
         return _ioMeter;
     }
-    
+
     IOAlertMonitor getIOAlertMonitor() {
         return _ioAlertMonitor;
     }
@@ -2367,6 +2384,20 @@ public class Persistit {
         if (_logger == null)
             _logger = new DefaultPersistitLogger(getProperty(LOGFILE_PROPERTY));
         return _logger;
+    }
+
+    /**
+     * Called periodically by the LogFlusher thread to emit pending
+     * {@link AlertMonitor} messages to the log.
+     */
+    void pollAlertMonitors(boolean force) {
+        for (final AlertMonitor monitor : _alertMonitors) {
+            try {
+                monitor.poll(force);
+            } catch (Exception e) {
+                _logBase.exception.log(e);
+            }
+        }
     }
 
     /**

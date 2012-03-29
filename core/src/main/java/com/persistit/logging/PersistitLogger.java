@@ -58,12 +58,17 @@ public interface PersistitLogger {
      * 
      * @throws Exception
      */
-    public void open() throws Exception;
+    void open() throws Exception;
 
     /**
      * Called when Persistit stos using the log.
      * 
      * @throws Exception
      */
-    public void close() throws Exception;
+    void close() throws Exception;
+
+    /**
+     * Flush pending ouput
+     */
+    void flush();
 }

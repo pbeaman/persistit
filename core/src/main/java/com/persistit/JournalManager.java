@@ -2063,7 +2063,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     kick();
                 } else {
                     /*
-                     * Otherwise, wait until the I/O is about half done and then retry.
+                     * Otherwise, wait until the I/O is about half done and then
+                     * retry.
                      */
                     long delay = (estimatedNanosToFinish - leadTime * NS_PER_MS) / 2;
                     try {
@@ -2131,10 +2132,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 } catch (Exception e) {
                     if (e instanceof InterruptedException || e instanceof FatalErrorException) {
                         _closed.set(true);
-                    } else if (e instanceof IOException) {
+                    } else if (e instanceof PersistitIOException) {
                         _persistit.getIOAlertMonitor().post(
-                                new Event(_persistit.getLogBase().journalWriteError, "JournalFlush", e, addressToFile(_writeBufferAddress), addressToOffset(_writeBufferAddress)),
-                                AlertLevel.ERROR);
+                                new Event(_persistit.getLogBase().journalWriteError, e,
+                                        addressToFile(_writeBufferAddress), addressToOffset(_writeBufferAddress)),
+                                IOAlertMonitor.JOURNAL_CATEGORY, AlertLevel.ERROR);
                     } else {
                         _persistit.getLogBase().journalWriteError.log(e, addressToFile(_writeBufferAddress),
                                 addressToOffset(_writeBufferAddress));

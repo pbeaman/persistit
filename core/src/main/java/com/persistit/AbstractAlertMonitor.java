@@ -1,16 +1,27 @@
 /**
- * Copyright (C) 2012 Akiban Technologies Inc.
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
+ * END USER LICENSE AGREEMENT (“EULA”)
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * READ THIS AGREEMENT CAREFULLY (date: 9/13/2011):
+ * http://www.akiban.com/licensing/20110913
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
+ * BY INSTALLING OR USING ALL OR ANY PORTION OF THE SOFTWARE, YOU ARE ACCEPTING
+ * ALL OF THE TERMS AND CONDITIONS OF THIS AGREEMENT. YOU AGREE THAT THIS
+ * AGREEMENT IS ENFORCEABLE LIKE ANY WRITTEN AGREEMENT SIGNED BY YOU.
+ *
+ * IF YOU HAVE PAID A LICENSE FEE FOR USE OF THE SOFTWARE AND DO NOT AGREE TO
+ * THESE TERMS, YOU MAY RETURN THE SOFTWARE FOR A FULL REFUND PROVIDED YOU (A) DO
+ * NOT USE THE SOFTWARE AND (B) RETURN THE SOFTWARE WITHIN THIRTY (30) DAYS OF
+ * YOUR INITIAL PURCHASE.
+ *
+ * IF YOU WISH TO USE THE SOFTWARE AS AN EMPLOYEE, CONTRACTOR, OR AGENT OF A
+ * CORPORATION, PARTNERSHIP OR SIMILAR ENTITY, THEN YOU MUST BE AUTHORIZED TO SIGN
+ * FOR AND BIND THE ENTITY IN ORDER TO ACCEPT THE TERMS OF THIS AGREEMENT. THE
+ * LICENSES GRANTED UNDER THIS AGREEMENT ARE EXPRESSLY CONDITIONED UPON ACCEPTANCE
+ * BY SUCH AUTHORIZED PERSONNEL.
+ *
+ * IF YOU HAVE ENTERED INTO A SEPARATE WRITTEN LICENSE AGREEMENT WITH AKIBAN FOR
+ * USE OF THE SOFTWARE, THE TERMS AND CONDITIONS OF SUCH OTHER AGREEMENT SHALL
+ * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
 package com.persistit;
@@ -26,16 +37,10 @@ import com.persistit.logging.PersistitLogMessage.LogItem;
 import com.persistit.util.Util;
 
 /**
- * Manage the process of accumulating and logging of abnormal events such as
- * IOExceptions and measurements outside of expected thresholds. Concrete
- * AbstractAlertMonitor implementations are set up and registered as MXBeans
- * during Persistit initialization, and their behavior can be modified through
- * the MXBean interface.
- * 
- * @author peter
- * 
+ * Methods of {@link AbstractAlertMonitor that should be exposed in an MXBean.
+ * This interface should be extended by the MXBean interface for a concrete
+ * implementation such as {@link IOAlertMonitorMXBean}.
  */
-
 interface AlertMonitor {
     /**
      * @return the name of this AlertMonitor
@@ -87,7 +92,7 @@ interface AlertMonitor {
      * @return the number of events per category on which to keep a complete
      *         history.
      */
-    long getHistoryLength();
+    int getHistoryLength();
 
     /**
      * Set the number of events per category on which to keep a complete
@@ -110,8 +115,23 @@ interface AlertMonitor {
      * @return the detailed report
      */
     String getDetailedHistory(final String category);
+
+    /**
+     * Call periodically to emit log messages
+     */
+    void poll(final boolean force);
 }
 
+/**
+ * Manage the process of accumulating and logging of abnormal events such as
+ * IOExceptions and measurements outside of expected thresholds. Concrete
+ * AbstractAlertMonitor implementations are set up and registered as MXBeans
+ * during Persistit initialization, and their behavior can be modified through
+ * the MXBean interface.
+ * 
+ * @author peter
+ * 
+ */
 public abstract class AbstractAlertMonitor implements AlertMonitor {
 
     enum AlertLevel {
@@ -137,14 +157,19 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
     protected final static String EXTRA_FORMAT = "Extra=%s";
 
     public class History {
-        volatile long _earliestTime;
-        volatile Event _firstEvent;
-        List<Event> _eventList;
-        volatile int _count;
-        volatile long _minimum;
-        volatile long _maximum;
-        volatile long _total;
-        volatile Object _extra;
+        private volatile long _firstEventTime = Long.MAX_VALUE;
+        private volatile long _lastWarnLogTime = Long.MIN_VALUE;
+        private volatile long _lastErrorLogTime = Long.MIN_VALUE;
+
+        private volatile Event _firstEvent;
+        private List<Event> _eventList = new ArrayList<Event>();
+        private volatile int _count;
+        private volatile int _lastReportedCount;
+        private volatile long _lastReportedTime;
+        private volatile long _minimum;
+        private volatile long _maximum;
+        private volatile long _total;
+        private volatile Object _extra;
 
         @Override
         public String toString() {
@@ -245,14 +270,14 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
         /**
          * @return time of the first event
          */
-        public long getEarliestTime() {
-            return _earliestTime;
+        public long getFirstEventTime() {
+            return _firstEventTime;
         }
 
         /**
          * @return time of the last event
          */
-        public long getLatestTime() {
+        public long getLastEventTime() {
             synchronized (AbstractAlertMonitor.this) {
                 if (_eventList.size() > 0) {
                     return _eventList.get(_eventList.size() - 1)._time;
@@ -260,6 +285,17 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
                     return Long.MIN_VALUE;
                 }
             }
+        }
+
+        /**
+         * @return interval between first and last recorded event, in seconds
+         */
+        public long getDuration() {
+            final long latest = getLastEventTime();
+            if (latest == Long.MIN_VALUE) {
+                return 0;
+            }
+            return (latest - _firstEventTime) / 1000;
         }
 
         /**
@@ -272,18 +308,79 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
         }
 
         /**
+         * @return The first event added to this history, or <code>null</code>
+         *         if there have been no events.
+         */
+        public Event getFirstEvent() {
+            return _firstEvent;
+        }
+
+        /**
+         * @return The last event added to this history, or <code>null</code> if
+         *         there have been no events.
+         */
+        public Event getLastEvent() {
+            if (_eventList.isEmpty()) {
+                return null;
+            } else {
+                return _eventList.get(_eventList.size() - 1);
+            }
+        }
+
+        /**
          * @return the count of events posted to this history
          */
         public int getCount() {
             return _count;
         }
 
+        /**
+         * Emit a log message to signify an ongoing condition. This method is
+         * called periodically. It keeps track of when the last message was
+         * added to the log and writes a new recurring message only as
+         * frequently as allowed by
+         * {@link AbstractAlertMonitor#getErrorLogTimeInterval()} or
+         * {@link AbstractAlertMonitor#getWarnLogTimeInterval()}.
+         */
+        public void poll(final long now, final boolean force) {
+
+            switch (_level) {
+            case ERROR:
+                if (force || now > _lastErrorLogTime + _errorLogTimeInterval) {
+                    _lastErrorLogTime = now;
+                    log(this);
+                }
+                break;
+            case WARN:
+                if (force || now > _lastWarnLogTime + _warnLogTimeInterval) {
+                    _lastWarnLogTime = now;
+                    log(this);
+                }
+                break;
+
+            default:
+                // Ignore the NORMAL case
+            }
+        }
+
+        void addEvent(final Event event) {
+            int size = Math.min(_historyLength, 1);
+            while (_eventList.size() >= size) {
+                _eventList.remove(0);
+            }
+            _eventList.add(event);
+            _count++;
+            if (event.getTime() < _firstEventTime) {
+                _firstEventTime = event.getTime();
+                _firstEvent = event;
+            }
+
+        }
     }
 
     /**
-     * Dyad containing the event arguments and the time the event was posted.
-     * 
-     * @author peter
+     * Holder for event data including the event arguments and the time the
+     * event was posted.
      * 
      */
     public static class Event {
@@ -292,9 +389,17 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
         private final long _time;
 
         public Event(LogItem logItem, Object... args) {
+            this(System.currentTimeMillis(), logItem, args);
+        }
+
+        public Event(long time, LogItem logItem, Object... args) {
             _logItem = logItem;
             _args = args;
-            _time = System.currentTimeMillis();
+            _time = time;
+        }
+
+        public LogItem getLogItem() {
+            return _logItem;
         }
 
         public long getTime() {
@@ -305,14 +410,10 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
             return _args;
         }
 
-        public Object getLead() {
-            if (_args != null && _args.length > 0) {
-                return _args[0];
-            } else {
-                return null;
-            }
+        public Object getFirstArg() {
+            return _args.length > 0 ? _args[0] : null;
         }
-        
+
         @Override
         public String toString() {
             return Util.date(_time) + " " + _logItem.logMessage(_args);
@@ -320,8 +421,8 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
     }
 
     private final static int DEFAULT_HISTORY_LENGTH = 10;
-    private final static int MINIMUM_HISTORY_LENGTH = 10;
-    private final static int MAXIMUM_HISTORY_LENGTH = 10;
+    private final static int MINIMUM_HISTORY_LENGTH = 1;
+    private final static int MAXIMUM_HISTORY_LENGTH = 1000;
 
     private final static long DEFAULT_WARN_INTERVAL = 600000;
     private final static long MINIMUM_WARN_INTERVAL = 1000;
@@ -339,8 +440,6 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
     private volatile long _warnLogTimeInterval = DEFAULT_WARN_INTERVAL;
     private volatile long _errorLogTimeInterval = DEFAULT_ERROR_INTERVAL;
     private volatile int _historyLength = DEFAULT_HISTORY_LENGTH;
-    private volatile long _lastWarnLogTime = Long.MIN_VALUE;
-    private volatile long _lastErrorLogTime = Long.MIN_VALUE;
 
     protected AbstractAlertMonitor(final String name) {
         _name = name;
@@ -348,7 +447,7 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
 
     /**
      * Post an event. The event can describe an Exception, a String, or other
-     * kind of object understood by the {@link #categorize(Object, AlertLevel)}
+     * kind of object understood by the {@link #translateCategory(Object, AlertLevel)}
      * method. Does nothing if <code>level</code> is {@link AlertLevel#NORMAL}.
      * 
      * @param event
@@ -358,51 +457,21 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
      * @param time
      *            at which event occurred
      */
-    protected final void post(Event event, AlertLevel level) {
-        final String category = categorize(event);
-        final long time = event._time;
-        History history = _historyMap.get(category);
+    protected synchronized final void post(Event event, final String category, AlertLevel level) {
+        final String translatedCategory = translateCategory(event, category);
+        History history = _historyMap.get(translatedCategory);
         if (history == null) {
             history = new History();
-            _historyMap.put(category, history);
+            _historyMap.put(translatedCategory, history);
         }
-        final AlertLevel translatedLevel = translateLevel(category, event, level, history, time);
-        boolean logEvent = false;
+        final AlertLevel translatedLevel = translateLevel(translatedCategory, event, level, history);
+        aggregate(event, history, level);
+
         if (translatedLevel.compareTo(_level) > 0) {
             _level = translatedLevel;
-            logEvent = true;
         }
-        int size = Math.min(_historyLength, 1);
-        while (history._eventList.size() >= size) {
-            history._eventList.remove(0);
-        }
-        history._eventList.add(event);
-        history._count++;
-        history._earliestTime = Math.min(history._earliestTime, time);
-        aggregate(event, history, level, time);
-
-        final long now = System.currentTimeMillis();
-
-        switch (_level) {
-        case ERROR:
-            if (now > _lastErrorLogTime + _errorLogTimeInterval) {
-                _errorLogTimeInterval = now;
-                logEvent = true;
-            }
-            break;
-        case WARN:
-            if (now > _lastWarnLogTime + _warnLogTimeInterval) {
-                _lastWarnLogTime = now;
-                logEvent = true;
-            }
-            break;
-
-        default:
-            // Ignore the NORMAL case
-        }
-        if (logEvent) {
-            log(translatedLevel, category, event, history, time);
-        }
+        history.addEvent(event);
+        history.poll(event.getTime(), false);
 
     }
 
@@ -410,13 +479,9 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
      * Override this method emit a log message. By default this method does
      * nothing.
      * 
-     * @param loglevel
-     * @param translatedLevel
-     * @param event
      * @param history
-     * @param time
      */
-    protected void log(AlertLevel level, String category, Event event, History history, long time) {
+    protected void log(History history) {
         // Default: do nothing
     }
 
@@ -455,26 +520,10 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
      *            the original <code>Level</code>
      * @param history
      *            the <code>History</code> for this category
-     * @param time
-     *            system time at which this event occurred.
      * @return translated Level
      */
-    protected AlertLevel translateLevel(String category, Event event, AlertLevel level, History history, long time) {
+    protected AlertLevel translateLevel(String category, Event event, AlertLevel level, History history) {
         return level;
-    }
-
-    /**
-     * Perform extended aggregation of the history. For example, a subclass may
-     * extend this method the maintain the minimum, maximum and total fields of
-     * the History object. By default this method does nothing.
-     * 
-     * @param event
-     * @param history
-     * @param level
-     * @param time
-     */
-    protected void aggregate(Event event, History history, AlertLevel level, long time) {
-        // Default: do nothing
     }
 
     /**
@@ -487,8 +536,21 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
      * @param level
      * @return
      */
-    protected String categorize(final Event event) {
-        return _name;
+    protected String translateCategory(final Event event, String category) {
+        return category;
+    }
+
+    /**
+     * Perform extended aggregation of the history. For example, a subclass may
+     * extend this method the maintain the minimum, maximum and total fields of
+     * the History object. By default this method does nothing.
+     * 
+     * @param event
+     * @param history
+     * @param level
+     */
+    protected void aggregate(Event event, History history, AlertLevel level) {
+        // Default: do nothing
     }
 
     protected PersistitLevel logLevel(final AlertLevel level) {
@@ -519,8 +581,8 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
     }
 
     /**
-     * Restore this alert monitor to level {@link AlertLevel#NORMAL} with no history.
-     * The logging time intervals and history length are not changed.
+     * Restore this alert monitor to level {@link AlertLevel#NORMAL} with no
+     * history. The logging time intervals and history length are not changed.
      */
     @Override
     public synchronized void reset() {
@@ -577,7 +639,7 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
      *         history.
      */
     @Override
-    public long getHistoryLength() {
+    public int getHistoryLength() {
         return _historyLength;
     }
 
@@ -611,6 +673,16 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
         _historyLength = historyLength;
     }
 
+    /**
+     * Called periodically to emit any pending log messages
+     */
+    @Override
+    public synchronized void poll(final boolean force) {
+        for (final History history : _historyMap.values()) {
+            history.poll(System.currentTimeMillis(), force);
+        }
+    }
+
     @Override
     public synchronized String toString() {
         StringBuilder sb = new StringBuilder(getName());
@@ -625,6 +697,11 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
         return sb.toString();
     }
 
+    /**
+     * @return a detailed history report for the specified category
+     * @param category
+     *            The category name
+     */
     @Override
     public synchronized String getDetailedHistory(final String category) {
         final History history = getHistory(category);

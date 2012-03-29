@@ -77,7 +77,6 @@ class VolumeStorageT2 extends VolumeStorage {
         return _path;
     }
 
-
     /**
      * Indicate whether this <code>Volume</code> prohibits updates.
      * 
@@ -289,7 +288,9 @@ class VolumeStorageT2 extends VolumeStorage {
                         buffer.getBufferSize(), buffer.getIndex());
                 _volume.getStatistics().bumpReadCounter();
             } catch (IOException ioe) {
-                _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().readException, "ReadPage", ioe), AlertLevel.ERROR);
+                _persistit.getIOAlertMonitor().post(
+                        new Event(_persistit.getLogBase().readException, ioe, _volume, page, buffer.getIndex()),
+                        IOAlertMonitor.READ_PAGE_CATEGORY, AlertLevel.ERROR);
                 throw new PersistitIOException(ioe);
             }
         } finally {
@@ -324,7 +325,9 @@ class VolumeStorageT2 extends VolumeStorage {
                 getChannel().write(bb, (page - 1) * pageSize);
 
             } catch (IOException ioe) {
-                _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().writeException, "WritePage", ioe), AlertLevel.ERROR);
+                _persistit.getIOAlertMonitor().post(
+                        new Event(_persistit.getLogBase().writeException, ioe, _volume, page),
+                        IOAlertMonitor.WRITE_PAGE_CATEGORY, AlertLevel.ERROR);
                 throw new PersistitIOException(ioe);
             }
         } finally {

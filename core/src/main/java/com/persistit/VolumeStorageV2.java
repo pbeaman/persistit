@@ -454,8 +454,8 @@ class VolumeStorageV2 extends VolumeStorage {
                 _volume.getStatistics().bumpReadCounter();
 
             } catch (IOException ioe) {
-                _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().readException, "ReadPage", ioe),
-                        AlertLevel.ERROR);
+                _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().readException, ioe, _volume, page, buffer.getIndex()),
+                        IOAlertMonitor.READ_PAGE_CATEGORY, AlertLevel.ERROR);
                 throw new PersistitIOException(ioe);
             }
         } finally {
@@ -493,8 +493,8 @@ class VolumeStorageV2 extends VolumeStorage {
         try {
             _channel.write(bb, page * _volume.getStructure().getPageSize());
         } catch (IOException ioe) {
-            _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().readException, "WritePage", ioe),
-                    AlertLevel.ERROR);
+            _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().writeException, ioe, _volume, page),
+                    IOAlertMonitor.WRITE_PAGE_CATEGORY, AlertLevel.ERROR);
             throw new PersistitIOException(ioe);
         }
     }
@@ -628,8 +628,8 @@ class VolumeStorageV2 extends VolumeStorage {
             _volume.getStatistics().setLastExtensionTime(System.currentTimeMillis());
             _extendedPageCount = pageCount;
         } catch (IOException ioe) {
-            _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().extendException, "Extend", ioe),
-                    AlertLevel.ERROR);
+            _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().extendException, ioe, currentSize, newSize),
+                    IOAlertMonitor.EXTEND_VOLUME_CATEGORY, AlertLevel.ERROR);
             throw new PersistitIOException(ioe);
         }
     }

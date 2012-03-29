@@ -1,23 +1,30 @@
 /**
- * Copyright (C) 2011 Akiban Technologies Inc.
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
+ * END USER LICENSE AGREEMENT (“EULA”)
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * READ THIS AGREEMENT CAREFULLY (date: 9/13/2011):
+ * http://www.akiban.com/licensing/20110913
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
+ * BY INSTALLING OR USING ALL OR ANY PORTION OF THE SOFTWARE, YOU ARE ACCEPTING
+ * ALL OF THE TERMS AND CONDITIONS OF THIS AGREEMENT. YOU AGREE THAT THIS
+ * AGREEMENT IS ENFORCEABLE LIKE ANY WRITTEN AGREEMENT SIGNED BY YOU.
+ *
+ * IF YOU HAVE PAID A LICENSE FEE FOR USE OF THE SOFTWARE AND DO NOT AGREE TO
+ * THESE TERMS, YOU MAY RETURN THE SOFTWARE FOR A FULL REFUND PROVIDED YOU (A) DO
+ * NOT USE THE SOFTWARE AND (B) RETURN THE SOFTWARE WITHIN THIRTY (30) DAYS OF
+ * YOUR INITIAL PURCHASE.
+ *
+ * IF YOU WISH TO USE THE SOFTWARE AS AN EMPLOYEE, CONTRACTOR, OR AGENT OF A
+ * CORPORATION, PARTNERSHIP OR SIMILAR ENTITY, THEN YOU MUST BE AUTHORIZED TO SIGN
+ * FOR AND BIND THE ENTITY IN ORDER TO ACCEPT THE TERMS OF THIS AGREEMENT. THE
+ * LICENSES GRANTED UNDER THIS AGREEMENT ARE EXPRESSLY CONDITIONED UPON ACCEPTANCE
+ * BY SUCH AUTHORIZED PERSONNEL.
+ *
+ * IF YOU HAVE ENTERED INTO A SEPARATE WRITTEN LICENSE AGREEMENT WITH AKIBAN FOR
+ * USE OF THE SOFTWARE, THE TERMS AND CONDITIONS OF SUCH OTHER AGREEMENT SHALL
+ * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
 package com.persistit;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 
 
 /**
@@ -30,34 +37,27 @@ import java.util.List;
  * @author peter
  */
 public final class IOAlertMonitor extends AbstractAlertMonitor implements IOAlertMonitorMXBean {
+    
+    final static String JOURNAL_CATEGORY = "Journal";
+    final static String WRITE_PAGE_CATEGORY = "WritePage";
+    final static String READ_PAGE_CATEGORY = "ReadPage";
+    final static String EXTEND_VOLUME_CATEGORY = "ExtendVolume";
+    
     private final static String NAME = "IOAlertMonitor";
-    
 
-    private final Persistit _persistit;
-
-    public IOAlertMonitor(final Persistit persistit) {
+    public IOAlertMonitor() {
         super(NAME);
-        _persistit = persistit;
-    }
-    
-    @Override
-    protected String categorize(Event event) {
-        if (event.getLead() instanceof IOException) {
-            return ((IOException)event.getLead()).getMessage();
-        } else {
-            return super.categorize(event);
-        }
     }
 
     @Override
-    protected void log(AlertLevel level, String category, Event event, History history, long time) {
-        if (history.getCount() == 1) {
-            _persistit.getLogBase().journalWriteError.log(event.getArgs());
-        } else {
-            List<Object> args = Arrays.asList(event.getArgs());
-            args.add(history.getCount());
-            _persistit.getLogBase().recurringJournalWriteError.log(args.toArray());
+    protected void log(History history) {
+        final Event event = history.getLastEvent();
+        if (event != null) {
+            if (history.getCount() == 1) {
+                event.getLogItem().log(event.getArgs());
+            } else {
+                event.getLogItem().logRecurring(history.getCount(), history.getDuration(), event.getArgs());
+            }
         }
     }
-    
 }

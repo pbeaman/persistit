@@ -39,6 +39,8 @@ import com.persistit.logging.PersistitLogMessage.LogItem;
  */
 public class LogBase {
 
+    public final static String RECURRING = "%s (%,d similar occurrences in %,d seconds)";
+    
     /**
      * Annotation for basic English log messages
      */
@@ -225,6 +227,9 @@ public class LogBase {
     @Message("ERROR|Recurring journal write failure %s in %s at offset %,d has occurred %,d times")
     public final LogItem recurringJournalWriteError = PersistitLogMessage.empty();
 
+    public static String recurring(final String message, final int count, final long duration) {
+        return String.format(RECURRING, message, count, duration);
+    }
   
     public void configure(final PersistitLogger logger) {
         for (final Field field : this.getClass().getDeclaredFields()) {
@@ -242,4 +247,5 @@ public class LogBase {
             }
         }
     }
+ 
 }
