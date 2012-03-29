@@ -52,6 +52,8 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 
+import com.persistit.AbstractAlertMonitor.Event;
+import com.persistit.AbstractAlertMonitor.AlertLevel;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
@@ -81,7 +83,6 @@ class VolumeStorageV2 extends VolumeStorage {
     private volatile long _extendedPageCount;
     private volatile boolean _opened;
     private volatile boolean _closed;
-    private volatile IOException _lastIOException;
 
     /**
      * Generate a random positive (non-zero) long value to be used as a
@@ -101,29 +102,6 @@ class VolumeStorageV2 extends VolumeStorage {
      */
     String getPath() {
         return _volume.getSpecification().getPath();
-    }
-
-    /**
-     * Returns the last <code>IOException</code> that was encountered while
-     * reading, writing, extending or closing the underlying volume file.
-     * Returns <code>null</code> if there have been no <code>IOException</code>s
-     * since the volume was opened. If <code>reset</code> is <code>true</code>,
-     * the lastException field is cleared so that a subsequent call to this
-     * method will return <code>null</code> unless another
-     * <code>IOException</code> has occurred.
-     * 
-     * @param reset
-     *            If <code>true</code> then this method clears the last
-     *            exception field
-     * 
-     * @return The most recently encountered <code>IOException</code>, or
-     *         <code>null</code> if there has been none.
-     */
-    IOException lastException(boolean reset) {
-        IOException ioe = _lastIOException;
-        if (reset)
-            _lastIOException = null;
-        return ioe;
     }
 
     /**
@@ -462,10 +440,10 @@ class VolumeStorageV2 extends VolumeStorage {
                 _persistit.getIOMeter().chargeReadPageFromVolume(this._volume, buffer.getPageAddress(),
                         buffer.getBufferSize(), buffer.getIndex());
                 _volume.getStatistics().bumpReadCounter();
-                _persistit.getLogBase().readOk.log(this, page, buffer.getIndex());
+
             } catch (IOException ioe) {
-                _persistit.getLogBase().readException.log(ioe, this, page, buffer.getIndex());
-                _lastIOException = ioe;
+                _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().readException, "ReadPage", ioe),
+                        AlertLevel.ERROR);
                 throw new PersistitIOException(ioe);
             }
         } finally {
@@ -503,11 +481,10 @@ class VolumeStorageV2 extends VolumeStorage {
         try {
             _channel.write(bb, page * _volume.getStructure().getPageSize());
         } catch (IOException ioe) {
-            _persistit.getLogBase().writeException.log(ioe, this, page);
-            _lastIOException = ioe;
+            _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().readException, "WritePage", ioe),
+                    AlertLevel.ERROR);
             throw new PersistitIOException(ioe);
         }
-
     }
 
     long allocNewPage() throws PersistitException {
@@ -639,8 +616,8 @@ class VolumeStorageV2 extends VolumeStorage {
             _volume.getStatistics().setLastExtensionTime(System.currentTimeMillis());
             _extendedPageCount = pageCount;
         } catch (IOException ioe) {
-            _lastIOException = ioe;
-            _persistit.getLogBase().extendException.log(ioe, this, currentSize, newSize);
+            _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().extendException, "Extend", ioe),
+                    AlertLevel.ERROR);
             throw new PersistitIOException(ioe);
         }
     }

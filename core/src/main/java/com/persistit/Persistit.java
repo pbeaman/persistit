@@ -401,6 +401,8 @@ public class Persistit {
     private final CleanupManager _cleanupManager = new CleanupManager(this);
 
     private final IOMeter _ioMeter = new IOMeter();
+    
+    private IOAlertMonitor _ioAlertMonitor = new IOAlertMonitor(this);
 
     private TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
 
@@ -742,6 +744,7 @@ public class Persistit {
             registerMBean(_transactionIndex, TransactionIndexMXBean.MXBEAN_NAME);
             registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
             registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
+            registerMBean(_ioAlertMonitor, IOAlertMonitorMXBean.MXBEAN_NAME);
         } catch (Exception exception) {
             _logBase.mbeanException.log(exception);
         }
@@ -2319,6 +2322,10 @@ public class Persistit {
 
     IOMeter getIOMeter() {
         return _ioMeter;
+    }
+    
+    IOAlertMonitor getIOAlertMonitor() {
+        return _ioAlertMonitor;
     }
 
     TransactionIndex getTransactionIndex() {

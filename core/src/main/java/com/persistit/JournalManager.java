@@ -41,6 +41,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.persistit.AbstractAlertMonitor.Event;
+import com.persistit.AbstractAlertMonitor.AlertLevel;
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.IT;
@@ -170,8 +172,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private volatile long _flushInterval = DEFAULT_FLUSH_INTERVAL;
 
-    private volatile long _logRepeatInterval = DEFAULT_LOG_REPEAT_INTERVAL;
-
     private volatile long _slowIoAlertThreshold = DEFAULT_SLOW_IO_ALERT_THRESHOLD;
 
     private TransactionPlayer _player = new TransactionPlayer(new JournalTransactionPlayerSupport());
@@ -192,6 +192,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private volatile int _pageMapSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
 
     private volatile long _copierTimestampLimit = Long.MAX_VALUE;
+
     /**
      * <p>
      * Initialize the new journal. This method takes its information from the
@@ -444,31 +445,20 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     @Override
-    public long getLogRepeatInterval() {
-        return _logRepeatInterval;
-    }
-
-    @Override
-    public void setLogRepeatInterval(long logRepeatInterval) {
-        Util.rangeCheck(logRepeatInterval, MINIMUM_LOG_REPEAT_INTERVAL, MAXIMUM_LOG_REPEAT_INTERVAL);
-        _logRepeatInterval = logRepeatInterval;
-    }
-
-    @Override
     public long getSlowIoAlertThreshold() {
         return _slowIoAlertThreshold;
     }
-    
+
     @Override
     public long getTotalCompletedCommits() {
         return _totalCommits.get();
     }
-    
+
     @Override
     public long getCommitCompletionWaitTime() {
         return _totalCommitWaitTime.get() / NS_PER_MS;
     }
-    
+
     @Override
     public long getCurrentTimestamp() {
         return _persistit.getCurrentTimestamp();
@@ -1222,7 +1212,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                         /*
                          * Note: contract for FileChannel requires write to
                          * return normally only when all bytes have been
-                         * written. (See java.nio.channels.ScatteringByteChannel
+                         * written. (See java.nio.channels.ByteChannel
                          * #write(ByteBuffer), statement
                          * "Unless otherwise specified...")
                          */
@@ -2131,13 +2121,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 } catch (Exception e) {
                     if (e instanceof InterruptedException || e instanceof FatalErrorException) {
                         _closed.set(true);
-                    }
-                    if (_lastException == null || !e.getClass().equals(_lastException.getClass())
-                            || now - _lastLogMessageTime > -_logRepeatInterval * NS_PER_MS) {
-                        _lastException = e;
-                        _lastLogMessageTime = now;
-                        _lastExceptionTimestamp = _endTimestamp;
-                        _persistit.getLogBase().journalWriteError.log(e, addressToFile(_writeBufferAddress));
+                    } else if (e instanceof IOException) {
+                        _persistit.getIOAlertMonitor().post(
+                                new Event(_persistit.getLogBase().journalWriteError, "JournalFlush", e, addressToFile(_writeBufferAddress), addressToOffset(_writeBufferAddress)),
+                                AlertLevel.ERROR);
+                    } else {
+                        _persistit.getLogBase().journalWriteError.log(e, addressToFile(_writeBufferAddress),
+                                addressToOffset(_writeBufferAddress));
                     }
                 }
             } finally {

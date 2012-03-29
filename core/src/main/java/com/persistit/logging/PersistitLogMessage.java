@@ -49,7 +49,7 @@ public class PersistitLogMessage {
 
         /**
          * Construct a log message consisting of this LogItem's template
-         * combined with values in thes supplied argument list.
+         * combined with values in the supplied argument list.
          * 
          * @param args
          *            array of argument values that will be substituted into the

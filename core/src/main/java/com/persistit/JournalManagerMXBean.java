@@ -172,10 +172,6 @@ public interface JournalManagerMXBean {
     
     long getCommitCompletionWaitTime();
 
-    long getLogRepeatInterval();
-
-    void setLogRepeatInterval(long logRepeatInterval);
-
     long getSlowIoAlertThreshold();
 
     void setSlowIoAlertThreshold(long slowIoAlertThreshold);

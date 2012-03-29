@@ -58,7 +58,7 @@ public class LogBase {
     @Message("INFO|Opening volume %s")
     public final LogItem openVolume = PersistitLogMessage.empty();
 
-    @Message("ERROR|Journal write failure %s in %s")
+    @Message("ERROR|Journal write failure %s in %s at offset %,d")
     public final LogItem journalWriteError = PersistitLogMessage.empty();
 
     @Message("INFO|Recovery done: %,d recovered pages, %,d committed transactions, %,d errors")
@@ -145,9 +145,6 @@ public class LogBase {
     @Message("TRACE|Updating garbage chain %s new leftPage=%,d, rightPage=%,d")
     public final LogItem garbageChainUpdate = PersistitLogMessage.empty();
 
-    @Message("TRACE|Read volume %s page %,d into buffer # %,d")
-    public final LogItem readOk = PersistitLogMessage.empty();
-
     @Message("ERROR|IOException %s while reading volume %s page %,d into buffer # %,d")
     public final LogItem readException = PersistitLogMessage.empty();
 
@@ -214,8 +211,10 @@ public class LogBase {
     @Message ("WARNING|Journal flush operation took %,dms")
     public final LogItem longJournalIO = PersistitLogMessage.empty();
     
-    
-    
+    @Message("ERROR|Recurring journal write failure %s in %s at offset %,d has occurred %,d times")
+    public final LogItem recurringJournalWriteError = PersistitLogMessage.empty();
+
+  
     public void configure(final PersistitLogger logger) {
         for (final Field field : this.getClass().getDeclaredFields()) {
             final Message annotation = field.getAnnotation(Message.class);

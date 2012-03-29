@@ -62,24 +62,6 @@ abstract class VolumeStorage extends SharedResource {
     }
 
     /**
-     * Returns the last <code>IOException</code> that was encountered while
-     * reading, writing, extending or closing the underlying volume file.
-     * Returns <code>null</code> if there have been no <code>IOException</code>s
-     * since the volume was opened. If <code>reset</code> is <code>true</code>,
-     * the lastException field is cleared so that a subsequent call to this
-     * method will return <code>null</code> unless another
-     * <code>IOException</code> has occurred.
-     * 
-     * @param reset
-     *            If <code>true</code> then this method clears the last
-     *            exception field
-     * 
-     * @return The most recently encountered <code>IOException</code>, or
-     *         <code>null</code> if there has been none.
-     */
-    abstract IOException lastException(boolean reset);
-
-    /**
      * Indicate whether this <code>Volume</code> prohibits updates.
      * 
      * @return <code>true</code> if this Volume prohibits updates.
