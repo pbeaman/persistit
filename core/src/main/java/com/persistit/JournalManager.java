@@ -169,6 +169,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private long _deleteBoundaryAddress = 0;
 
+    private int _lastReportedJournalFileCount = 0;
+
     private boolean _isNewEpoch = true;
 
     private volatile long _writePageCount = 0;
@@ -2413,20 +2415,30 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         if (deleted) {
             _deleteBoundaryAddress = deleteBoundary;
         }
+        reportJournalFileCount();
+    }
 
+    private void reportJournalFileCount() {
+        /*
+         * Does not need synchronization since only the JOURNAL_COPIER thread
+         * calls this
+         */
         int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress / _blockSize);
-
-        if (journalFileCount > TOO_MANY_ERROR_THRESHOLD) {
-            _persistit.getLoadAlertMonitor().post(
-                    new Event(_persistit.getLogBase().tooManyJournalFilesError, journalFileCount),
-                    LoadAlertMonitor.MANY_JOURNAL_FILES, AlertLevel.ERROR);
-        } else if (journalFileCount > TOO_MANY_WARN_THRESHOLD) {
-            _persistit.getLoadAlertMonitor().post(
-                    new Event(_persistit.getLogBase().tooManyJournalFilesWarning, journalFileCount),
-                    LoadAlertMonitor.MANY_JOURNAL_FILES, AlertLevel.WARN);
-        } else {
-            _persistit.getLoadAlertMonitor().post(new Event(_persistit.getLogBase().normalJournalFileCount, journalFileCount), LoadAlertMonitor.MANY_JOURNAL_FILES,
-                    AlertLevel.NORMAL);
+        if (journalFileCount != _lastReportedJournalFileCount) {
+            if (journalFileCount > TOO_MANY_ERROR_THRESHOLD) {
+                _persistit.getLoadAlertMonitor().post(
+                        new Event(_persistit.getLogBase().tooManyJournalFilesError, journalFileCount),
+                        LoadAlertMonitor.MANY_JOURNAL_FILES, AlertLevel.ERROR);
+            } else if (journalFileCount > TOO_MANY_WARN_THRESHOLD) {
+                _persistit.getLoadAlertMonitor().post(
+                        new Event(_persistit.getLogBase().tooManyJournalFilesWarning, journalFileCount),
+                        LoadAlertMonitor.MANY_JOURNAL_FILES, AlertLevel.WARN);
+            } else {
+                _persistit.getLoadAlertMonitor().post(
+                        new Event(_persistit.getLogBase().normalJournalFileCount, journalFileCount),
+                        LoadAlertMonitor.MANY_JOURNAL_FILES, AlertLevel.NORMAL);
+            }
+            _lastReportedJournalFileCount = journalFileCount;
         }
     }
 
