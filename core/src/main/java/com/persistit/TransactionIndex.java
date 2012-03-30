@@ -41,6 +41,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.persistit.Accumulator.Delta;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.mxbeans.TransactionIndexMXBean;
 import com.persistit.util.Debug;
 
 /**

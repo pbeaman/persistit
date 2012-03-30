@@ -26,48 +26,24 @@
 
 package com.persistit;
 
-import javax.management.MXBean;
+import com.persistit.mxbeans.LoadAlertMonitorMXBean;
 
-@MXBean
-public interface RecoveryManagerMXBean {
 
-    public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=RecoveryManager";
+/**
+ * Accumulates and reports IOExceptions occurring in background threads. This
+ * class attempts to distinguish between Disk Full and other types of
+ * IOExceptions. Unfortunately there is no standard way to determine the
+ * underlying cause of the IOException so the message is interpreted as a
+ * category.
+ * 
+ * @author peter
+ */
+public final class LoadAlertMonitor extends AbstractAlertMonitor implements LoadAlertMonitorMXBean {
 
-    public final static int DEFAULT_BUFFER_SIZE = 1 * 1024 * 1024;
-
-    /**
-     * Number of transactions to apply per progress log message
-     */
-    final static int APPLY_TRANSACTION_LOG_COUNT = 1000;
-
-    public String getJournalFilePath();
-
-    public int getCommittedCount();
-
-    public int getUncommittedCount();
-
-    public int getAppliedTransactionCount();
-
-    public int getErrorCount();
-
-    public long getLastValidCheckpointTimestamp();
-
-    public long getLastValidCheckpointAddress();
-
-    public String getRecoveryEndedException();
-
-    public long getRecoveryEndedAddress();
-
-    public long getKeystoneAddress();
-
-    public long getBaseAddress();
-
-    public long getBlockSize();
-
-    public long getJournalCreatedTime();
-
-    public int getTransactionMapSize();
-
-    public int getPageMapSize();
+    final static String MANY_JOURNAL_FILES = "JournalFiles";
+    
+    public LoadAlertMonitor() {
+        super(NAME);
+    }
 
 }

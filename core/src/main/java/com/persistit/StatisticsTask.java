@@ -39,6 +39,7 @@ import com.persistit.CLI.Cmd;
 import com.persistit.Management.BufferPoolInfo;
 import com.persistit.Management.JournalInfo;
 import com.persistit.Management.TransactionInfo;
+import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.util.Util;
 
 /**

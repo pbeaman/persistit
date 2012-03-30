@@ -71,6 +71,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RebalanceException;
+import com.persistit.mxbeans.JournalManagerMXBean;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -88,6 +89,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     final static int HALF_URGENT = 5;
     private final static long NS_PER_MS = 1000000L;
     private final static int IO_MEASUREMENT_CYCLES = 8;
+
+    private final static int TOO_MANY_WARN_THRESHOLD = 15;
+    private final static int TOO_MANY_ERROR_THRESHOLD = 20;
 
     /**
      * REGEX expression that recognizes the name of a journal file.
@@ -2408,6 +2412,21 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
         if (deleted) {
             _deleteBoundaryAddress = deleteBoundary;
+        }
+
+        int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress / _blockSize);
+
+        if (journalFileCount > TOO_MANY_ERROR_THRESHOLD) {
+            _persistit.getLoadAlertMonitor().post(
+                    new Event(_persistit.getLogBase().tooManyJournalFilesError, journalFileCount),
+                    LoadAlertMonitor.MANY_JOURNAL_FILES, AlertLevel.ERROR);
+        } else if (journalFileCount > TOO_MANY_WARN_THRESHOLD) {
+            _persistit.getLoadAlertMonitor().post(
+                    new Event(_persistit.getLogBase().tooManyJournalFilesWarning, journalFileCount),
+                    LoadAlertMonitor.MANY_JOURNAL_FILES, AlertLevel.WARN);
+        } else {
+            _persistit.getLoadAlertMonitor().post(new Event(_persistit.getLogBase().normalJournalFileCount, journalFileCount), LoadAlertMonitor.MANY_JOURNAL_FILES,
+                    AlertLevel.NORMAL);
         }
     }
 

@@ -64,6 +64,7 @@ import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.mxbeans.JournalManagerMXBean;
 import com.persistit.util.ArgParser;
 
 /**

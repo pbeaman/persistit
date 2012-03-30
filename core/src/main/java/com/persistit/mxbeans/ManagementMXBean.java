@@ -24,9 +24,13 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
+package com.persistit.mxbeans;
 
 import java.rmi.RemoteException;
+
+import com.persistit.Management;
+import com.persistit.Persistit;
+import com.persistit.Management.VolumeInfo;
 
 /**
  * Interface for a service object that exposes information about the Persistit

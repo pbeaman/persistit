@@ -78,6 +78,14 @@ import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
 import com.persistit.logging.LogBase;
 import com.persistit.logging.PersistitLogger;
+import com.persistit.mxbeans.BufferPoolMXBean;
+import com.persistit.mxbeans.IOAlertMonitorMXBean;
+import com.persistit.mxbeans.IOMeterMXBean;
+import com.persistit.mxbeans.JournalManagerMXBean;
+import com.persistit.mxbeans.LoadAlertMonitorMXBean;
+import com.persistit.mxbeans.ManagementMXBean;
+import com.persistit.mxbeans.RecoveryManagerMXBean;
+import com.persistit.mxbeans.TransactionIndexMXBean;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.util.ArgParser;
@@ -446,6 +454,8 @@ public class Persistit {
     private final IOMeter _ioMeter = new IOMeter();
 
     private final IOAlertMonitor _ioAlertMonitor = new IOAlertMonitor();
+    
+    private final LoadAlertMonitor _loadAlertMonitor = new LoadAlertMonitor();
 
     private final TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
 
@@ -795,6 +805,7 @@ public class Persistit {
             registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
             registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
             registerMBean(_ioAlertMonitor, IOAlertMonitorMXBean.MXBEAN_NAME);
+            registerMBean(_loadAlertMonitor, LoadAlertMonitorMXBean.MXBEAN_NAME);
         } catch (Exception exception) {
             _logBase.mbeanException.log(exception);
         }
@@ -2354,6 +2365,10 @@ public class Persistit {
 
     IOAlertMonitor getIOAlertMonitor() {
         return _ioAlertMonitor;
+    }
+
+    LoadAlertMonitor getLoadAlertMonitor() {
+        return _loadAlertMonitor;
     }
 
     TransactionIndex getTransactionIndex() {

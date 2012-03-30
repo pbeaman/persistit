@@ -30,97 +30,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
-import com.persistit.AbstractAlertMonitor.AlertLevel;
 import com.persistit.logging.PersistitLevel;
 import com.persistit.logging.PersistitLogMessage.LogItem;
 import com.persistit.util.Util;
-
-/**
- * Methods of {@link AbstractAlertMonitor that should be exposed in an MXBean.
- * This interface should be extended by the MXBean interface for a concrete
- * implementation such as {@link IOAlertMonitorMXBean}.
- */
-interface AlertMonitor {
-    /**
-     * @return the name of this AlertMonitor
-     */
-    String getName();
-
-    /**
-     * @return the current alert level of this monitor
-     */
-    AlertLevel getLevel();
-
-    /**
-     * Restore this alert monitor to its initial state at level
-     * {@link AlertLevel#NORMAL} with no history.
-     */
-    void reset();
-
-    /**
-     * @return the interval in milliseconds between successive log entries for
-     *         this monitor when its {@link AlertLevel#WARN}.
-     */
-    long getWarnLogTimeInterval();
-
-    /**
-     * Set the interval between successive log entries for this monitor when its
-     * {@link AlertLevel#WARN}.
-     * 
-     * @param warnLogTimeInterval
-     *            the interval in milliseconds
-     */
-    void setWarnLogTimeInterval(long warnLogTimeInterval);
-
-    /**
-     * @return the interval in milliseconds between successive log entries for
-     *         this monitor when its {@link AlertLevel#ERROR}.
-     */
-    long getErrorLogTimeInterval();
-
-    /**
-     * Set the interval between successive log entries for this monitor when its
-     * {@link AlertLevel#ERROR}.
-     * 
-     * @param _warnLogTimeInterval
-     *            the interval in milliseconds
-     */
-    void setErrorLogTimeInterval(long errorLogTimeInterval);
-
-    /**
-     * @return the number of events per category on which to keep a complete
-     *         history.
-     */
-    int getHistoryLength();
-
-    /**
-     * Set the number of events per category on which to keep a complete
-     * history. Once the number of events exceeds this count, the events
-     * aggregated.
-     * 
-     * @param historyLength
-     *            the historyLength to set
-     */
-    void setHistoryLength(int historyLength);
-
-    /**
-     * Return a detailed description, including first and recent occurrences of
-     * events within the History for the specified category. If there is no
-     * history for the specified category, this method returns <code>null</code>
-     * .
-     * 
-     * @param category
-     *            the category name
-     * @return the detailed report
-     */
-    String getDetailedHistory(final String category);
-
-    /**
-     * Call periodically to emit log messages
-     */
-    void poll(final boolean force);
-}
 
 /**
  * Manage the process of accumulating and logging of abnormal events such as
@@ -132,9 +46,9 @@ interface AlertMonitor {
  * @author peter
  * 
  */
-public abstract class AbstractAlertMonitor implements AlertMonitor {
+public class AbstractAlertMonitor implements AlertMonitor {
 
-    enum AlertLevel {
+    public enum AlertLevel {
         /*
          * Normal state
          */
@@ -152,20 +66,19 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
         ERROR,
     }
 
-    protected final static String EVENT_FORMAT = "Event %,5d at %s";
+    protected final static String EVENT_FORMAT = "event %,5d: %s";
     protected final static String AGGREGATION_FORMAT = "Minimum=%,d Maximum=%,d Total=%,d";
     protected final static String EXTRA_FORMAT = "Extra=%s";
 
     public class History {
+        private AlertLevel _level = AlertLevel.NORMAL;
+        private List<Event> _eventList = new ArrayList<Event>();
         private volatile long _firstEventTime = Long.MAX_VALUE;
         private volatile long _lastWarnLogTime = Long.MIN_VALUE;
         private volatile long _lastErrorLogTime = Long.MIN_VALUE;
-
+        private volatile int _reportedCount;
         private volatile Event _firstEvent;
-        private List<Event> _eventList = new ArrayList<Event>();
         private volatile int _count;
-        private volatile int _lastReportedCount;
-        private volatile long _lastReportedTime;
         private volatile long _minimum;
         private volatile long _maximum;
         private volatile long _total;
@@ -173,38 +86,50 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
 
         @Override
         public String toString() {
-            StringBuilder sb = new StringBuilder();
-            if (_count > 0) {
-                sb.append(String.format(EVENT_FORMAT, _count, _eventList.isEmpty() ? "missing" : format(_eventList
-                        .get(_eventList.size() - 1))));
+            final StringBuilder sb = new StringBuilder();
+            synchronized (AbstractAlertMonitor.this) {
+                final Event event = getLastEvent();
+                if (_count > 0) {
+                    sb.append(String.format(EVENT_FORMAT, _count, event == null ? "missing" : format(event)));
+                }
             }
             return sb.toString();
         }
 
         public String getDetailedHistory() {
-            StringBuilder sb = new StringBuilder();
-            if (_count > 0) {
-                sb.append(String.format(EVENT_FORMAT, 1, format(_firstEvent)));
-                for (int index = _count > _eventList.size() ? 0 : 1; index < _eventList.size(); index++) {
-                    if (sb.length() > 0) {
-                        sb.append(Util.NEW_LINE);
+            final StringBuilder sb = new StringBuilder();
+            synchronized (AbstractAlertMonitor.this) {
+                int size = _eventList.size();
+                if (_count > 0) {
+                    sb.append(String.format(EVENT_FORMAT, 1, format(_firstEvent)));
+                    for (int index = _count > size ? 0 : 1; index < size; index++) {
+                        if (sb.length() > 0) {
+                            sb.append(Util.NEW_LINE);
+                        }
+                        sb.append(String.format(EVENT_FORMAT, _count - size + index + 1, format(_eventList.get(index))));
                     }
-                    sb.append(String.format(EVENT_FORMAT, _count, format(_eventList.get(index))));
-                }
-                if (_minimum != 0 || _maximum != 0 || _total != 0) {
-                    if (sb.length() > 0) {
-                        sb.append(Util.NEW_LINE);
+                    if (_minimum != 0 || _maximum != 0 || _total != 0) {
+                        if (sb.length() > 0) {
+                            sb.append(Util.NEW_LINE);
+                        }
+                        sb.append(String.format(AGGREGATION_FORMAT, _minimum, _maximum, _total));
                     }
-                    sb.append(String.format(AGGREGATION_FORMAT, _minimum, _maximum, _total));
-                }
-                if (_extra != null) {
-                    if (sb.length() > 0) {
-                        sb.append(Util.NEW_LINE);
+                    if (_extra != null) {
+                        if (sb.length() > 0) {
+                            sb.append(Util.NEW_LINE);
+                        }
+                        sb.append(String.format(EXTRA_FORMAT, _extra));
                     }
-                    sb.append(String.format(EXTRA_FORMAT, _extra));
                 }
             }
             return sb.toString();
+        }
+
+        /**
+         * @return the current alert level of this monitor
+         */
+        public AlertLevel getLevel() {
+            return _level;
         }
 
         /**
@@ -320,10 +245,12 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
          *         there have been no events.
          */
         public Event getLastEvent() {
-            if (_eventList.isEmpty()) {
-                return null;
-            } else {
-                return _eventList.get(_eventList.size() - 1);
+            synchronized (AbstractAlertMonitor.this) {
+                if (_eventList.isEmpty()) {
+                    return null;
+                } else {
+                    return _eventList.get(_eventList.size() - 1);
+                }
             }
         }
 
@@ -343,28 +270,32 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
          * {@link AbstractAlertMonitor#getWarnLogTimeInterval()}.
          */
         public void poll(final long now, final boolean force) {
+            int count = getCount();
+            if (count > _reportedCount) {
+                switch (_level) {
+                case ERROR:
+                    if (force || now > _lastErrorLogTime + _errorLogTimeInterval) {
+                        _lastErrorLogTime = now;
+                        log(this);
+                        _reportedCount = count;
+                    }
+                    break;
+                case WARN:
+                    if (force || now > _lastWarnLogTime + _warnLogTimeInterval) {
+                        _lastWarnLogTime = now;
+                        log(this);
+                        _reportedCount = count;
+                    }
+                    break;
 
-            switch (_level) {
-            case ERROR:
-                if (force || now > _lastErrorLogTime + _errorLogTimeInterval) {
-                    _lastErrorLogTime = now;
-                    log(this);
+                default:
+                    // Ignore the NORMAL case
                 }
-                break;
-            case WARN:
-                if (force || now > _lastWarnLogTime + _warnLogTimeInterval) {
-                    _lastWarnLogTime = now;
-                    log(this);
-                }
-                break;
-
-            default:
-                // Ignore the NORMAL case
             }
         }
 
-        void addEvent(final Event event) {
-            int size = Math.min(_historyLength, 1);
+        private void addEvent(final Event event, final AlertLevel level) {
+            int size = Math.max(_historyLength, 1);
             while (_eventList.size() >= size) {
                 _eventList.remove(0);
             }
@@ -374,6 +305,7 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
                 _firstEventTime = event.getTime();
                 _firstEvent = event;
             }
+            _level = translateLevel(event, level, this);
 
         }
     }
@@ -436,7 +368,6 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
 
     private final Map<String, History> _historyMap = new TreeMap<String, History>();
 
-    private volatile AlertLevel _level = AlertLevel.NORMAL;
     private volatile long _warnLogTimeInterval = DEFAULT_WARN_INTERVAL;
     private volatile long _errorLogTimeInterval = DEFAULT_ERROR_INTERVAL;
     private volatile int _historyLength = DEFAULT_HISTORY_LENGTH;
@@ -447,8 +378,9 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
 
     /**
      * Post an event. The event can describe an Exception, a String, or other
-     * kind of object understood by the {@link #translateCategory(Object, AlertLevel)}
-     * method. Does nothing if <code>level</code> is {@link AlertLevel#NORMAL}.
+     * kind of object understood by the
+     * {@link #translateCategory(Object, AlertLevel)} method. Does nothing if
+     * <code>level</code> is {@link AlertLevel#NORMAL}.
      * 
      * @param event
      *            A Event object describing what happened
@@ -457,87 +389,18 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
      * @param time
      *            at which event occurred
      */
-    protected synchronized final void post(Event event, final String category, AlertLevel level) {
+    public synchronized final void post(Event event, final String category, AlertLevel level) {
         final String translatedCategory = translateCategory(event, category);
         History history = _historyMap.get(translatedCategory);
         if (history == null) {
             history = new History();
             _historyMap.put(translatedCategory, history);
         }
-        final AlertLevel translatedLevel = translateLevel(translatedCategory, event, level, history);
         aggregate(event, history, level);
 
-        if (translatedLevel.compareTo(_level) > 0) {
-            _level = translatedLevel;
-        }
-        history.addEvent(event);
+        history.addEvent(event, level);
         history.poll(event.getTime(), false);
 
-    }
-
-    /**
-     * Override this method emit a log message. By default this method does
-     * nothing.
-     * 
-     * @param history
-     */
-    protected void log(History history) {
-        // Default: do nothing
-    }
-
-    /**
-     * <p>
-     * Format an event object as a String. By default this method returns a
-     * String containing the time of the event formatted as a compact Date/Time
-     * conversion followed by the event arguments concatenated in a
-     * comma-limited list. For example, <code><pre>
-     *    20120113-165205 SomeException, SomeInfo1, SomeInfo2
-     * </pre></code> for an event that happened on March 13, 2012 at 4:25:05pm
-     * for which there were three argument elements.
-     * </p>
-     * <p>
-     * A subclass may override this method to provide a more readable version.
-     * </p>
-     * 
-     * @param event
-     * @return
-     */
-    protected String format(Event event) {
-        return event == null ? "null" : event.toString();
-    }
-
-    /**
-     * Return the context-sensitive level of the event. By default this method
-     * returns the level supplied when the event was posted. A subclass can
-     * override this method to compute a different level based on context; for
-     * example, a result determined by an aggregated history.
-     * 
-     * @param category
-     *            category returned by {@link #categorize(Event)}
-     * @param event
-     *            the event being posted
-     * @param level
-     *            the original <code>Level</code>
-     * @param history
-     *            the <code>History</code> for this category
-     * @return translated Level
-     */
-    protected AlertLevel translateLevel(String category, Event event, AlertLevel level, History history) {
-        return level;
-    }
-
-    /**
-     * Return a category name for the event. By default this is simply the name
-     * of the alert. A subclass can override this method to build separate
-     * histories for different event categories, e.g., different kinds of
-     * Exceptions.
-     * 
-     * @param event
-     * @param level
-     * @return
-     */
-    protected String translateCategory(final Event event, String category) {
-        return category;
     }
 
     /**
@@ -553,17 +416,6 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
         // Default: do nothing
     }
 
-    protected PersistitLevel logLevel(final AlertLevel level) {
-        switch (level) {
-        case ERROR:
-            return PersistitLevel.ERROR;
-        case WARN:
-            return PersistitLevel.WARNING;
-        default:
-            return PersistitLevel.NONE;
-        }
-    }
-
     /**
      * @return the name of this AlertMonitor
      */
@@ -573,20 +425,11 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
     }
 
     /**
-     * @return the current alert level of this monitor
-     */
-    @Override
-    public synchronized AlertLevel getLevel() {
-        return _level;
-    }
-
-    /**
      * Restore this alert monitor to level {@link AlertLevel#NORMAL} with no
      * history. The logging time intervals and history length are not changed.
      */
     @Override
     public synchronized void reset() {
-        _level = AlertLevel.NORMAL;
         _historyMap.clear();
     }
 
@@ -648,15 +491,8 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
      *            Category name
      * @return the History for that category
      */
-    synchronized History getHistory(String name) {
+    public synchronized History getHistory(String name) {
         return _historyMap.get(name);
-    }
-
-    /**
-     * @return Map of all History instances by category name
-     */
-    synchronized Map<String, History> getHistoryMap() {
-        return new TreeMap<String, History>(_historyMap);
     }
 
     /**
@@ -685,30 +521,130 @@ public abstract class AbstractAlertMonitor implements AlertMonitor {
 
     @Override
     public synchronized String toString() {
-        StringBuilder sb = new StringBuilder(getName());
-        if (_historyMap.isEmpty()) {
-            sb.append(" - clear");
-        } else {
-            for (final Map.Entry<String, History> entry : _historyMap.entrySet()) {
-                sb.append(Util.NEW_LINE);
-                sb.append(entry.getValue());
-            }
+        StringBuilder sb = new StringBuilder();
+        for (final Map.Entry<String, History> entry : _historyMap.entrySet()) {
+            sb.append(String.format("%12s: %s\n", entry.getKey(), entry.getValue()));
         }
         return sb.toString();
     }
 
+    @Override
+    public String getSummary() {
+        return toString();
+    }
+
     /**
      * @return a detailed history report for the specified category
-     * @param category
-     *            The category name
+     * @param select
+     *            The category name to include, optionally with wildcards '*'
+     *            and '?'
      */
     @Override
-    public synchronized String getDetailedHistory(final String category) {
-        final History history = getHistory(category);
-        if (history == null) {
-            return null;
-        } else {
-            return history.getDetailedHistory();
+    public synchronized String getDetailedHistory(final String select) {
+        Pattern pattern = Util.pattern(select, true);
+        StringBuilder sb = new StringBuilder();
+        for (final Map.Entry<String, History> entry : _historyMap.entrySet()) {
+            if (pattern.matcher(entry.getKey()).matches()) {
+                sb.append(String.format("%s:\n", entry.getKey()));
+                sb.append(entry.getValue().getDetailedHistory());
+            }
+        }
+        return sb.toString();
+    }
+    
+    @Override
+    public synchronized String getAlertLevel() {
+        AlertLevel level = AlertLevel.NORMAL;
+        for (final Map.Entry<String, History> entry : _historyMap.entrySet()) {
+            if (entry.getValue().getLevel().compareTo(level) > 0) {
+                level = entry.getValue().getLevel();
+            }
+        }
+        return level.toString();
+    }
+
+    /**
+     * Emits a log message. If there has been only one Event, log it as a
+     * standard log message. If there have been multiple Events, emit a
+     * recurring event message.
+     * 
+     * @param history
+     */
+    protected void log(History history) {
+        final Event event = history.getLastEvent();
+        if (event != null && event.getLogItem().isEnabled()) {
+            if (history.getCount() == 1) {
+                event.getLogItem().log(event.getArgs());
+            } else {
+                event.getLogItem().logRecurring(history.getCount(), history.getDuration(), event.getArgs());
+            }
         }
     }
+
+    /**
+     * <p>
+     * Format an event object as a String. By default this method returns a
+     * String containing the time of the event formatted as a compact Date/Time
+     * conversion followed by the event arguments concatenated in a
+     * comma-limited list. For example,
+     * 
+     * <code><pre>
+     *    2012-01-13 16:52:05 SomeException, SomeInfo1, SomeInfo2
+     * </pre></code>
+     * 
+     * for an event that happened on March 13, 2012 at 4:25:05pm for which there
+     * were three argument elements.
+     * </p>
+     * <p>
+     * A subclass may override this method to provide a more readable version.
+     * </p>
+     * 
+     * @param event
+     * @return
+     */
+    protected String format(Event event) {
+        return event == null ? "null" : event.toString();
+    }
+
+    /**
+     * Return the context-sensitive level of the event. By default this method
+     * returns the level supplied when the event was posted. A subclass can
+     * override this method to compute a different level based on context; for
+     * example, a result determined by an aggregated history.
+     * 
+     * @param category
+     *            category returned by {@link #categorize(Event)}
+     * @param event
+     *            the event being posted
+     * @param level
+     *            the original <code>Level</code>
+     * @param history
+     *            the <code>History</code> for this category
+     * @return translated Level
+     */
+    protected AlertLevel translateLevel(Event event, AlertLevel level, History history) {
+        return level;
+    }
+
+    /**
+     * Return a category name for the event. By default this is simply the name
+     * of the alert. A subclass can override this method to build separate
+     * histories for different event categories, e.g., different kinds of
+     * Exceptions.
+     * 
+     * @param event
+     * @param level
+     * @return
+     */
+    protected String translateCategory(final Event event, String category) {
+        return category;
+    }
+
+    /**
+     * @return Map of all History instances by category name
+     */
+    protected synchronized Map<String, History> getHistoryMap() {
+        return new TreeMap<String, History>(_historyMap);
+    }
+
 }

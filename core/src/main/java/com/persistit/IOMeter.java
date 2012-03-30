@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.util.ArgParser;
 
 /**

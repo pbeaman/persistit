@@ -26,6 +26,8 @@
 
 package com.persistit;
 
+import com.persistit.mxbeans.IOAlertMonitorMXBean;
+
 
 /**
  * Accumulates and reports IOExceptions occurring in background threads. This
@@ -43,21 +45,8 @@ public final class IOAlertMonitor extends AbstractAlertMonitor implements IOAler
     final static String READ_PAGE_CATEGORY = "ReadPage";
     final static String EXTEND_VOLUME_CATEGORY = "ExtendVolume";
     
-    private final static String NAME = "IOAlertMonitor";
-
     public IOAlertMonitor() {
         super(NAME);
     }
 
-    @Override
-    protected void log(History history) {
-        final Event event = history.getLastEvent();
-        if (event != null) {
-            if (history.getCount() == 1) {
-                event.getLogItem().log(event.getArgs());
-            } else {
-                event.getLogItem().logRecurring(history.getCount(), history.getDuration(), event.getArgs());
-            }
-        }
-    }
 }

@@ -24,7 +24,9 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
+package com.persistit.mxbeans;
+
+import com.persistit.TransactionIndexBucket;
 
 public interface TransactionIndexMXBean {
 
