@@ -36,7 +36,7 @@ import com.persistit.logging.PersistitLogMessage.LogItem;
 import com.persistit.util.Util;
 
 /**
- * Manage the process of accumulating and logging abnormal events such as
+ * Manage the process of accumulating and loggingabnormal events such as
  * IOExceptions and measurements outside of expected thresholds. Concrete
  * AbstractAlertMonitor implementations are set up and registered as MXBeans
  * during Persistit initialization, and their behavior can be modified through
