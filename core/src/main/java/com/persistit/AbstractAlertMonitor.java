@@ -32,12 +32,11 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
-import com.persistit.logging.PersistitLevel;
 import com.persistit.logging.PersistitLogMessage.LogItem;
 import com.persistit.util.Util;
 
 /**
- * Manage the process of accumulating and logging of abnormal events such as
+ * Manage the process of accumulating and logging abnormal events such as
  * IOExceptions and measurements outside of expected thresholds. Concrete
  * AbstractAlertMonitor implementations are set up and registered as MXBeans
  * during Persistit initialization, and their behavior can be modified through
@@ -47,6 +46,18 @@ import com.persistit.util.Util;
  * 
  */
 public class AbstractAlertMonitor implements AlertMonitor {
+
+    private final static int DEFAULT_HISTORY_LENGTH = 10;
+    private final static int MINIMUM_HISTORY_LENGTH = 1;
+    private final static int MAXIMUM_HISTORY_LENGTH = 1000;
+
+    private final static long DEFAULT_WARN_INTERVAL = 600000;
+    private final static long MINIMUM_WARN_INTERVAL = 1000;
+    private final static long MAXIMUM_WARN_INTERVAL = 86400000;
+
+    private final static long DEFAULT_ERROR_INTERVAL = 15000; 
+    private final static long MINIMUM_ERROR_INTERVAL = 1000;
+    private final static long MAXIMUM_ERROR_INTERVAL = 86400000;
 
     public enum AlertLevel {
         /*
@@ -351,19 +362,6 @@ public class AbstractAlertMonitor implements AlertMonitor {
             return Util.date(_time) + " " + _logItem.logMessage(_args);
         }
     }
-
-    private final static int DEFAULT_HISTORY_LENGTH = 10;
-    private final static int MINIMUM_HISTORY_LENGTH = 1;
-    private final static int MAXIMUM_HISTORY_LENGTH = 1000;
-
-    private final static long DEFAULT_WARN_INTERVAL = 600000;
-    private final static long MINIMUM_WARN_INTERVAL = 1000;
-    private final static long MAXIMUM_WARN_INTERVAL = 86400000;
-
-    private final static long DEFAULT_ERROR_INTERVAL = 60000;
-    private final static long MINIMUM_ERROR_INTERVAL = 1000;
-    private final static long MAXIMUM_ERROR_INTERVAL = 86400000;
-
     private final String _name;
 
     private final Map<String, History> _historyMap = new TreeMap<String, History>();
