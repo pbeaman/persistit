@@ -1980,7 +1980,9 @@ public class Persistit {
             _management.unregister();
             _management = null;
         }
-        _logFlusher.interrupt();
+        if (_logFlusher != null) {
+            _logFlusher.interrupt();
+        }
         _logFlusher = null;
         _accumulators.clear();
         _volumes.clear();
