@@ -25,7 +25,8 @@ prop rmiport=8081
 prop appendonly=true
 
 init
-test com.persistit.stress.StressRecovery verify=$datapath$/recovery.log latency=1000
+test com.persistit.stress.StressRecovery verify=stdin latency=1000
 
 icheck persistit
 close
+
