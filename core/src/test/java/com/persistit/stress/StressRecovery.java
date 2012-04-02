@@ -232,7 +232,7 @@ public class StressRecovery extends StressBase {
                     continue;
                 }
                 final String[] s = line.split(",");
-                if (s.length != 3) {
+                if (s.length < 3) {
                     continue;
                 }
                 ticketId = Long.parseLong(s[0]);

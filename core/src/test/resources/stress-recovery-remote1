@@ -28,7 +28,7 @@ remote_datapath="~/persistit_test_data"
 scriptpath="core/src/test/resources/tscripts"
 jvm_options="-Xmx2G -Xrunjdwp:transport=dt_socket,address=8000,suspend=n,server=y"
 
-testrunner_command='cd recovery_test ; java $jvm_options -cp `find . -name akiban-persistit-core*with-dependencies*.jar` com.persistit.test.TestRunner '
+testrunner_command="cd recovery_test ; java $jvm_options -cp \`find . -name akiban-persistit-core\*with-dependencies\*.jar\` com.persistit.test.TestRunner "
 
 command="ssh $1 $testrunner_command script=$scriptpath/recovery_1.plan datapath=$remote_datapath > $local_datapath/recovery.log"
 
