@@ -16,10 +16,12 @@
 #-----------------------------
 # This is a working template for a simple script to perform crash
 # recovery testing in Persistit.  This script should be run from the
-# root directory of the Persistit project. As configured, this
-# script runs the recovery_1.plan stress test for 60 seconds, 
-# kills the JVM and then runs the recovery_2.plan to verify
-# consistency.
+# root directory of the Persistit project.
+#
+# This script is the second half of a test start started by
+# stress-recovery-remote1. This half checks the validity of the
+# recovered database after the remote target machine has been
+# manually crashed and restarted.
 #-----------------------------
 
 

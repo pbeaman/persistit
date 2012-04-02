@@ -6,8 +6,8 @@ logpath $datapath$/result_$timestamp$.log
 // This second phase tests whether each completed transaction
 // is actually present in the recovered database.
 //
-// This plan assumes that completed tickets were piped to
-// file $datapath$/recovery.log
+// This plan assumes that completed will be piped to the process via
+// stdin.
 //
 //
 // To run this:
