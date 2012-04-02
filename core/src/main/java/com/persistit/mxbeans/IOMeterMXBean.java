@@ -58,7 +58,7 @@ public interface IOMeterMXBean {
      * <dd>Delete Tree</dd>
      * <dt>XX</dt>
      * <dd>Other</dd>
-     * <dt>EV</dt>
+     * <dt>EV</dt>D
      * <dd>Evict page from pool</dd>
      * <dt>FJ</dt>
      * <dd>Flush journal</dd>
@@ -71,43 +71,24 @@ public interface IOMeterMXBean {
     public final static String[] SUMMARY_ITEMS = { "CC", "RV", "RJ", "WJ", "EV", "FJ" };
 
     /**
-     * @return the writePageSleepInterval
-     */
-    public long getWritePageSleepInterval();
-
-    /**
-     * @param writePageSleepInterval
-     *            the writePageSleepInterval to set
-     */
-    public void setWritePageSleepInterval(long writePageSleepInterval);
-
-    /**
-     * Time interval in milliseconds between page copy operations.
-     * 
-     * @return the CopySleepInterval
-     */
-    public long getCopyPageSleepInterval();
-
-    /**
-     * @param copyPageSleepInterval
-     *            the copySleepInterval to set
-     */
-    public void setCopyPageSleepInterval(long copyPageSleepInterval);
-
-    /**
      * @return the quiescentIOthreshold
      */
+    @Description("Disk I/O scheduling parameter in bytes per second specifying threshold "
+            + "between \"quiescent\" and \"busy\" states")
     public long getQuiescentIOthreshold();
 
     /**
      * @param quiescentIOthreshold
      *            the quiescentIOthreshold to set
      */
+    @Description("Disk I/O scheduling parameter in bytes per second specifying threshold "
+            + "between \"quiescent\" and \"busy\" states")
     public void setQuiescentIOthreshold(long quiescentIO);
 
     /**
      * @return the ioRate
      */
+    @Description("Approximate I/O rate in bytes per second")
     public long getIoRate();
 
     /**
@@ -117,6 +98,7 @@ public interface IOMeterMXBean {
      * @param toFile
      * @throws IOException
      */
+    @Description("Path for diagnostic I/O log file - normally null")
     public void setLogFile(final String toFile) throws IOException;
 
     /**
@@ -125,6 +107,7 @@ public interface IOMeterMXBean {
      * 
      * @return
      */
+    @Description("Path for diagnostic I/O log file - normally null")
     public String getLogFile();
 
     /**
@@ -134,7 +117,8 @@ public interface IOMeterMXBean {
      * @return Sum of size of all I/O operations of the specified operation
      *         type.
      */
-    public long getSum(final String operation);
+    @Description("Total bytes moved by one operation type (see IOMeterMXBeans.OPERATIONS)")
+    public long totalBytes(final String operation);
 
     /**
      * @param operation
@@ -143,5 +127,6 @@ public interface IOMeterMXBean {
      * @return Count of size of all I/O operations of the specified operation
      *         type.
      */
-    public long getCount(final String operation);
+    @Description("Total number of operations performed for a specified type (see IOMeterMXBeans.OPERATIONS)")
+    public long totalOperations(final String operation);
 }

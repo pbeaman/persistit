@@ -30,70 +30,81 @@ import javax.management.MXBean;
 
 import com.persistit.AbstractAlertMonitor.AlertLevel;
 
-
 @MXBean
-public interface IOAlertMonitorMXBean  {
+public interface IOAlertMonitorMXBean {
 
     public final static String NAME = "IOAlertMonitor";
 
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=IOAlertMonitor";
-    
+
     /*
-     * Note: the following methods are copied from AlertMonitor because the default MXBean
-     * mechanism only exposes methods declared in this class.
+     * Note: the following methods are copied from AlertMonitor because the
+     * default MXBean mechanism only exposes methods declared in this class.
      */
-    
+
     /**
      * @return the name of this AlertMonitor
      */
+    @Description("The name of this AlertMonitor.")
     String getName();
 
     /**
      * @return Current maximum AlertLevel in this monitor as a String: one of
      *         NORMAL, WARN or ERROR
      */
+    @Description("Current maximum AlertLevel in this monitor as a String: one of NORMAL, WARN or ERROR.")
     String getAlertLevel();
 
     /**
      * Restore this alert monitor to its initial state at level
      * {@link AlertLevel#NORMAL} with no history.
      */
+    @Description("Restore this alert monitor to its initial state.")
     void reset();
 
     /**
-     * @return the interval in milliseconds between successive log entries for
-     *         this monitor when its {@link AlertLevel#WARN}.
+     * @return the interval in milliseconds between successive notifications for
+     *         this monitor when its level is {@link AlertLevel#WARN}.
      */
+    @Description("The interval in milliseconds between successive notifications"
+            + " for this monitor when its level is WARN.")
     long getWarnLogTimeInterval();
 
     /**
-     * Set the interval between successive log entries for this monitor when its
+     * Set the interval between successive notifications for this monitor when its
      * {@link AlertLevel#WARN}.
      * 
      * @param warnLogTimeInterval
      *            the interval in milliseconds
      */
+    @Description("The interval in milliseconds between successive notifications"
+            + " for this monitor when its level is WARN.")
     void setWarnLogTimeInterval(long warnLogTimeInterval);
 
     /**
-     * @return the interval in milliseconds between successive log entries for
+     * @return the interval in milliseconds between successive notifications for
      *         this monitor when its {@link AlertLevel#ERROR}.
      */
+    @Description("The interval in milliseconds between successive notifications"
+            + " for this monitor when its level is ERROR.")
     long getErrorLogTimeInterval();
 
     /**
-     * Set the interval between successive log entries for this monitor when its
+     * Set the interval between successive notifications for this monitor when its
      * {@link AlertLevel#ERROR}.
      * 
      * @param _warnLogTimeInterval
      *            the interval in milliseconds
      */
+    @Description("The interval in milliseconds between successive notifications"
+            + " for this monitor when its level is ERROR.")
     void setErrorLogTimeInterval(long errorLogTimeInterval);
 
     /**
-     * @return the number of events per category on which to keep a complete
-     *         history.
+     * @return The number of events per category for which to keep individual
+     *         Events.
      */
+    @Description("The number of events per category for which to keep individual Events.")
     int getHistoryLength();
 
     /**
@@ -104,6 +115,7 @@ public interface IOAlertMonitorMXBean  {
      * @param historyLength
      *            the historyLength to set
      */
+    @Description("The number of events per category for which to keep individual Events.")
     void setHistoryLength(int historyLength);
 
     /**
@@ -111,8 +123,9 @@ public interface IOAlertMonitorMXBean  {
      * 
      * @return a summary report
      */
+    @Description("A summary of this AlertMonitor's current state")
     String getSummary();
-    
+
     /**
      * Return a detailed description, including first and recent occurrences of
      * events within the History for the specified category. If there is no
@@ -123,11 +136,14 @@ public interface IOAlertMonitorMXBean  {
      *            the category name
      * @return the detailed report
      */
+    @Description("A detailed description, including first and recent occurrences of"
+            + " events within the History for the specified category")
     String getDetailedHistory(final String category);
 
     /**
-     * Call periodically to emit log messages
+     * Called periodically to emit log messages
      */
+    @Description("Operation called periodically to emit notifications and log messages.")
     void poll(final boolean force);
 
 }

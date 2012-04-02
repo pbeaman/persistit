@@ -44,6 +44,8 @@ public final class IOAlertMonitor extends AbstractAlertMonitor implements IOAler
     final static String WRITE_PAGE_CATEGORY = "WritePage";
     final static String READ_PAGE_CATEGORY = "ReadPage";
     final static String EXTEND_VOLUME_CATEGORY = "ExtendVolume";
+    final static String FLUSH_STATISTICS_CATEGORY = "FlushStatistics";
+    final static String CLEANUP_CATEGORY = "Cleanup";
     
     public IOAlertMonitor() {
         super(NAME);

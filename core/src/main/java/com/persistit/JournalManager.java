@@ -1966,7 +1966,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private class JournalFlusher extends IOTaskRunnable {
 
         final ReentrantReadWriteLock _lock = new ReentrantReadWriteLock();
-        long _lastLogMessageTime = 0;
 
         volatile long _lastExceptionTimestamp = 0;
         volatile Exception _lastException = null;
@@ -2097,7 +2096,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         @Override
         protected void runTask() {
             _flushing.set(true);
-            final long now = System.nanoTime();
             try {
                 try {
                     /*

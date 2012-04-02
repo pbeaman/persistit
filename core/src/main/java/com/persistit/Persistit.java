@@ -79,6 +79,7 @@ import com.persistit.logging.DefaultPersistitLogger;
 import com.persistit.logging.LogBase;
 import com.persistit.logging.PersistitLogger;
 import com.persistit.mxbeans.BufferPoolMXBean;
+import com.persistit.mxbeans.MXBeanWrapper;
 import com.persistit.mxbeans.IOAlertMonitorMXBean;
 import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.mxbeans.JournalManagerMXBean;
@@ -454,7 +455,7 @@ public class Persistit {
     private final IOMeter _ioMeter = new IOMeter();
 
     private final IOAlertMonitor _ioAlertMonitor = new IOAlertMonitor();
-    
+
     private final LoadAlertMonitor _loadAlertMonitor = new LoadAlertMonitor();
 
     private final TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
@@ -798,14 +799,21 @@ public class Persistit {
      */
     private void registerMXBeans() {
         try {
-            registerMBean(getManagement(), ManagementMXBean.MXBEAN_NAME);
-            registerMBean(_ioMeter, IOMeterMXBean.MXBEAN_NAME);
-            registerMBean(_cleanupManager, CleanupManagerMXBean.MXBEAN_NAME);
-            registerMBean(_transactionIndex, TransactionIndexMXBean.MXBEAN_NAME);
-            registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
-            registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
-            registerMBean(_ioAlertMonitor, IOAlertMonitorMXBean.MXBEAN_NAME);
-            registerMBean(_loadAlertMonitor, LoadAlertMonitorMXBean.MXBEAN_NAME);
+            registerMBean(new MXBeanWrapper<ManagementMXBean>(getManagement(), ManagementMXBean.class),
+                    ManagementMXBean.MXBEAN_NAME);
+            registerMBean(new MXBeanWrapper<IOMeterMXBean>(_ioMeter, IOMeterMXBean.class), IOMeterMXBean.MXBEAN_NAME);
+            registerMBean(new MXBeanWrapper<CleanupManagerMXBean>(_cleanupManager, CleanupManagerMXBean.class),
+                    CleanupManagerMXBean.MXBEAN_NAME);
+            registerMBean(new MXBeanWrapper<TransactionIndexMXBean>(_transactionIndex, TransactionIndexMXBean.class),
+                    TransactionIndexMXBean.MXBEAN_NAME);
+            registerMBean(new MXBeanWrapper<JournalManagerMXBean>(_journalManager, JournalManagerMXBean.class),
+                    JournalManagerMXBean.MXBEAN_NAME);
+            registerMBean(new MXBeanWrapper<RecoveryManagerMXBean>(_recoveryManager, RecoveryManagerMXBean.class),
+                    RecoveryManagerMXBean.MXBEAN_NAME);
+            registerMBean(new MXBeanWrapper<IOAlertMonitorMXBean>(_ioAlertMonitor, IOAlertMonitorMXBean.class),
+                    IOAlertMonitorMXBean.MXBEAN_NAME);
+            registerMBean(new MXBeanWrapper<LoadAlertMonitorMXBean>(_loadAlertMonitor, LoadAlertMonitorMXBean.class),
+                    LoadAlertMonitorMXBean.MXBEAN_NAME);
         } catch (Exception exception) {
             _logBase.mbeanException.log(exception);
         }
@@ -814,7 +822,8 @@ public class Persistit {
     private void registerBufferPoolMXBean(final int bufferSize) {
         try {
             BufferPoolMXBean bean = new BufferPoolMXBeanImpl(this, bufferSize);
-            registerMBean(bean, BufferPoolMXBeanImpl.mbeanName(bufferSize));
+            registerMBean(new MXBeanWrapper<BufferPoolMXBean>(bean, BufferPoolMXBean.class), BufferPoolMXBeanImpl
+                    .mbeanName(bufferSize));
         } catch (Exception exception) {
             _logBase.mbeanException.log(exception);
         }

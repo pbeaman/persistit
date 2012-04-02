@@ -41,6 +41,9 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javax.management.NotCompliantMBeanException;
+import javax.management.StandardMBean;
+
 import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.util.ArgParser;
 
@@ -69,8 +72,6 @@ class IOMeter implements IOMeterMXBean {
     private final static int DUMP_RECORD_LENGTH = 37;
 
     private final static int DEFAULT_QUIESCENT_IO_THRESHOLD = 100000;
-    private final static long DEFAULT_COPY_PAGE_SLEEP_INTERVAL = 10000;
-    private final static long DEFAULT_WRITE_PAGE_SLEEP_INTERVAL = 0;
 
     private final static int READ_PAGE_FROM_VOLUME = 1;
     private final static int READ_PAGE_FROM_JOURNAL = 2;
@@ -87,10 +88,6 @@ class IOMeter implements IOMeterMXBean {
     private final static int GET_PAGE = 13;
 
     private final static int ITEM_COUNT = 14;
-
-    private long _copyPageSleepInterval = DEFAULT_COPY_PAGE_SLEEP_INTERVAL;
-
-    private long _writePageSleepInterval = DEFAULT_WRITE_PAGE_SLEEP_INTERVAL;
 
     private long _quiescentIOthreshold = DEFAULT_QUIESCENT_IO_THRESHOLD;
 
@@ -164,42 +161,6 @@ class IOMeter implements IOMeterMXBean {
             }
             _currentBucket = bucket;
         }
-    }
-
-    /**
-     * @return the writePageSleepInterval
-     */
-    @Override
-    public synchronized long getWritePageSleepInterval() {
-        return _writePageSleepInterval;
-    }
-
-    /**
-     * @param writePageSleepInterval
-     *            the writePageSleepInterval to set
-     */
-    @Override
-    public synchronized void setWritePageSleepInterval(long writePageSleepInterval) {
-        _writePageSleepInterval = writePageSleepInterval;
-    }
-
-    /**
-     * Time interval in milliseconds between page copy operations.
-     * 
-     * @return the CopySleepInterval
-     */
-    @Override
-    public synchronized long getCopyPageSleepInterval() {
-        return _copyPageSleepInterval;
-    }
-
-    /**
-     * @param copyPageSleepInterval
-     *            the copySleepInterval to set
-     */
-    @Override
-    public synchronized void setCopyPageSleepInterval(long copyPageSleepInterval) {
-        _copyPageSleepInterval = copyPageSleepInterval;
     }
 
     /**
@@ -413,11 +374,11 @@ class IOMeter implements IOMeterMXBean {
     }
 
     @Override
-    public long getCount(final String opName) {
-        return getCount(op(opName));
+    public long totalOperations(final String opName) {
+        return totalOperations(op(opName));
     }
 
-    public long getCount(final int op) {
+    public long totalOperations(final int op) {
         if (op > 0 && op < ITEM_COUNT) {
             long count = _totalCounts[op].get();
             for (int bucket = 0; bucket < BUCKETS; bucket++) {
@@ -430,11 +391,11 @@ class IOMeter implements IOMeterMXBean {
     }
 
     @Override
-    public long getSum(final String opName) {
-        return getSum(op(opName));
+    public long totalBytes(final String opName) {
+        return totalBytes(op(opName));
     }
 
-    public long getSum(final int op) {
+    public long totalBytes(final int op) {
         if (op > 0 && op < ITEM_COUNT) {
             long sum = _totalSums[op].get();
             for (int bucket = 0; bucket < BUCKETS; bucket++) {
