@@ -35,8 +35,16 @@ import com.persistit.mxbeans.IOAlertMonitorMXBean;
  * This interface should be extended by the MXBean interface for a concrete
  * implementation such as {@link IOAlertMonitorMXBean}.
  */
-interface AlertMonitor {
-
+interface AlertMonitorMXBean {
+    
+    final static String MANY_JOURNAL_FILES = "JournalFiles";
+    final static String JOURNAL_CATEGORY = "Journal";
+    final static String WRITE_PAGE_CATEGORY = "WritePage";
+    final static String READ_PAGE_CATEGORY = "ReadPage";
+    final static String EXTEND_VOLUME_CATEGORY = "ExtendVolume";
+    final static String FLUSH_STATISTICS_CATEGORY = "FlushStatistics";
+    final static String CLEANUP_CATEGORY = "Cleanup";
+    
     /**
      * @return the name of this AlertMonitor
      */

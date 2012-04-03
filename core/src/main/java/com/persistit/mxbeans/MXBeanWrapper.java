@@ -27,16 +27,23 @@
 package com.persistit.mxbeans;
 
 import javax.management.Descriptor;
+import javax.management.ListenerNotFoundException;
 import javax.management.MBeanAttributeInfo;
+import javax.management.MBeanNotificationInfo;
 import javax.management.MBeanOperationInfo;
 import javax.management.MBeanParameterInfo;
 import javax.management.NotCompliantMBeanException;
+import javax.management.NotificationEmitter;
+import javax.management.NotificationFilter;
+import javax.management.NotificationListener;
 import javax.management.StandardMBean;
 
-public class MXBeanWrapper<T> extends StandardMBean {
-
-    public MXBeanWrapper(T mbeanInterface, Class<T> implementation) throws NotCompliantMBeanException {
+public class MXBeanWrapper<T> extends StandardMBean implements NotificationEmitter {
+    private NotificationEmitter _emitter;
+    
+    public MXBeanWrapper(T mbeanInterface, Class<T> implementation, final NotificationEmitter emitter) throws NotCompliantMBeanException {
         super(mbeanInterface, implementation, true);
+        _emitter = emitter;
     }
     
     public String getDescription(final MBeanAttributeInfo info) {
@@ -65,4 +72,38 @@ public class MXBeanWrapper<T> extends StandardMBean {
             return info.getDescription();
         }
     }
+
+    @Override
+    public void addNotificationListener(NotificationListener listener, NotificationFilter filter, Object handback)
+            throws IllegalArgumentException {
+        if (_emitter != null) {
+            _emitter.addNotificationListener(listener, filter, handback);
+        }
+    }
+
+    @Override
+    public void removeNotificationListener(NotificationListener listener) throws ListenerNotFoundException {
+       if (_emitter != null) {
+           _emitter.removeNotificationListener(listener);
+       }
+    }
+
+    @Override
+    public void removeNotificationListener(NotificationListener listener, NotificationFilter filter, Object handback)
+            throws ListenerNotFoundException {
+        if (_emitter != null) {
+            _emitter.removeNotificationListener(listener, filter, handback);
+        }
+    }
+    
+
+    @Override
+    public MBeanNotificationInfo[] getNotificationInfo() {
+        if (_emitter != null) {
+            return _emitter.getNotificationInfo();
+        } else {
+            return new MBeanNotificationInfo[]{};
+        }
+    }
+
 }

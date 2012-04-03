@@ -212,7 +212,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
         @Override
         public String toString() {
-            return String.format("%s on page %,d tree handle [%,d]", _page, _treeHandle);
+            return String.format("%s on page %,d tree handle [%,d]", getClass().getSimpleName(), _page, _treeHandle);
         }
 
         protected Exchange getExchange(final Persistit persistit) throws PersistitException {

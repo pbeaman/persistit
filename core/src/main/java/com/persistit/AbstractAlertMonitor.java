@@ -30,13 +30,22 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
+import javax.management.AttributeChangeNotification;
+import javax.management.MBeanNotificationInfo;
+import javax.management.Notification;
+import javax.management.NotificationBroadcasterSupport;
+import javax.management.ObjectName;
+
+import com.persistit.AbstractAlertMonitor.Event;
+import com.persistit.logging.LogBase;
 import com.persistit.logging.PersistitLogMessage.LogItem;
 import com.persistit.util.Util;
 
 /**
- * Manage the process of accumulating and loggingabnormal events such as
+ * Manage the process of accumulating and logging abnormal events such as
  * IOExceptions and measurements outside of expected thresholds. Concrete
  * AbstractAlertMonitor implementations are set up and registered as MXBeans
  * during Persistit initialization, and their behavior can be modified through
@@ -45,7 +54,7 @@ import com.persistit.util.Util;
  * @author peter
  * 
  */
-public class AbstractAlertMonitor implements AlertMonitor {
+public class AbstractAlertMonitor extends NotificationBroadcasterSupport implements AlertMonitorMXBean {
 
     private final static int DEFAULT_HISTORY_LENGTH = 10;
     private final static int MINIMUM_HISTORY_LENGTH = 1;
@@ -55,7 +64,7 @@ public class AbstractAlertMonitor implements AlertMonitor {
     private final static long MINIMUM_WARN_INTERVAL = 1000;
     private final static long MAXIMUM_WARN_INTERVAL = 86400000;
 
-    private final static long DEFAULT_ERROR_INTERVAL = 15000; 
+    private final static long DEFAULT_ERROR_INTERVAL = 15000;
     private final static long MINIMUM_ERROR_INTERVAL = 1000;
     private final static long MAXIMUM_ERROR_INTERVAL = 86400000;
 
@@ -288,6 +297,7 @@ public class AbstractAlertMonitor implements AlertMonitor {
                     if (force || now > _lastErrorLogTime + _errorLogTimeInterval) {
                         _lastErrorLogTime = now;
                         log(this);
+                        sendNotification(this);
                         _reportedCount = count;
                     }
                     break;
@@ -295,6 +305,7 @@ public class AbstractAlertMonitor implements AlertMonitor {
                     if (force || now > _lastWarnLogTime + _warnLogTimeInterval) {
                         _lastWarnLogTime = now;
                         log(this);
+                        sendNotification(this);
                         _reportedCount = count;
                     }
                     break;
@@ -362,6 +373,9 @@ public class AbstractAlertMonitor implements AlertMonitor {
             return Util.date(_time) + " " + _logItem.logMessage(_args);
         }
     }
+
+    final static String NOTIFICATION_TYPE = "com.persistit.AlertMonitor";
+
     private final String _name;
 
     private final Map<String, History> _historyMap = new TreeMap<String, History>();
@@ -370,8 +384,20 @@ public class AbstractAlertMonitor implements AlertMonitor {
     private volatile long _errorLogTimeInterval = DEFAULT_ERROR_INTERVAL;
     private volatile int _historyLength = DEFAULT_HISTORY_LENGTH;
 
+    private AtomicLong _notificationSequence = new AtomicLong();
+    private volatile ObjectName _objectName;
+
     protected AbstractAlertMonitor(final String name) {
+        super(/*Executors.newCachedThreadPool()*/);
         _name = name;
+    }
+    
+    void setObjectName(final ObjectName on) {
+        _objectName = on;
+    }
+    
+    ObjectName getObjectName() {
+        return _objectName;
     }
 
     /**
@@ -549,7 +575,7 @@ public class AbstractAlertMonitor implements AlertMonitor {
         }
         return sb.toString();
     }
-    
+
     @Override
     public synchronized String getAlertLevel() {
         AlertLevel level = AlertLevel.NORMAL;
@@ -561,10 +587,19 @@ public class AbstractAlertMonitor implements AlertMonitor {
         return level.toString();
     }
 
+    @Override
+    public MBeanNotificationInfo[] getNotificationInfo() {
+        String[] types = new String[] { NOTIFICATION_TYPE };
+        String name = Notification.class.getName();
+        String description = "Alert raised by Akiban PersistIT";
+        MBeanNotificationInfo info = new MBeanNotificationInfo(types, name, description);
+        return new MBeanNotificationInfo[] { info };
+    }
+
     /**
      * Emits a log message. If there has been only one Event, log it as a
      * standard log message. If there have been multiple Events, emit a
-     * recurring event message.
+     * recurring event message. Subclasses may replace this implementation.
      * 
      * @param history
      */
@@ -576,6 +611,23 @@ public class AbstractAlertMonitor implements AlertMonitor {
             } else {
                 event.getLogItem().logRecurring(history.getCount(), history.getDuration(), event.getArgs());
             }
+        }
+    }
+
+    /**
+     * Broadcasts a JMX Notification. Subclasses may replace this
+     * implementation.
+     * 
+     * @param history
+     */
+    protected void sendNotification(History history) {
+        final Event event = history.getLastEvent();
+        if (event != null && event.getLogItem().isEnabled()) {
+            final String description = LogBase.recurring(event.getLogItem().logMessage(event.getArgs()), history
+                    .getCount(), history.getDuration());
+            Notification notification = new Notification(NOTIFICATION_TYPE, getClass().getName(), _notificationSequence.incrementAndGet(),
+                    description);
+            sendNotification(notification);
         }
     }
 
