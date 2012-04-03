@@ -1,23 +1,33 @@
 /**
- * Copyright (C) 2011 Akiban Technologies Inc.
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
+ * END USER LICENSE AGREEMENT (“EULA”)
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * READ THIS AGREEMENT CAREFULLY (date: 9/13/2011):
+ * http://www.akiban.com/licensing/20110913
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
+ * BY INSTALLING OR USING ALL OR ANY PORTION OF THE SOFTWARE, YOU ARE ACCEPTING
+ * ALL OF THE TERMS AND CONDITIONS OF THIS AGREEMENT. YOU AGREE THAT THIS
+ * AGREEMENT IS ENFORCEABLE LIKE ANY WRITTEN AGREEMENT SIGNED BY YOU.
+ *
+ * IF YOU HAVE PAID A LICENSE FEE FOR USE OF THE SOFTWARE AND DO NOT AGREE TO
+ * THESE TERMS, YOU MAY RETURN THE SOFTWARE FOR A FULL REFUND PROVIDED YOU (A) DO
+ * NOT USE THE SOFTWARE AND (B) RETURN THE SOFTWARE WITHIN THIRTY (30) DAYS OF
+ * YOUR INITIAL PURCHASE.
+ *
+ * IF YOU WISH TO USE THE SOFTWARE AS AN EMPLOYEE, CONTRACTOR, OR AGENT OF A
+ * CORPORATION, PARTNERSHIP OR SIMILAR ENTITY, THEN YOU MUST BE AUTHORIZED TO SIGN
+ * FOR AND BIND THE ENTITY IN ORDER TO ACCEPT THE TERMS OF THIS AGREEMENT. THE
+ * LICENSES GRANTED UNDER THIS AGREEMENT ARE EXPRESSLY CONDITIONED UPON ACCEPTANCE
+ * BY SUCH AUTHORIZED PERSONNEL.
+ *
+ * IF YOU HAVE ENTERED INTO A SEPARATE WRITTEN LICENSE AGREEMENT WITH AKIBAN FOR
+ * USE OF THE SOFTWARE, THE TERMS AND CONDITIONS OF SUCH OTHER AGREEMENT SHALL
+ * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
 package com.persistit;
 
 import javax.management.MXBean;
 
-import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 
 @MXBean
@@ -32,7 +42,7 @@ public interface JournalManagerMXBean {
     final static int VERSION = 2;
 
     /**
-     * Default size of one journal file (10^9).
+     * Default size of one journal file (10E9).
      */
     final static long DEFAULT_BLOCK_SIZE = 1000000000L;
 
@@ -85,8 +95,17 @@ public interface JournalManagerMXBean {
      * exceptions on attempts to write to the journal. Prevents excessively
      * verbose log on repeated failures.
      */
-    final static long DEFAULT_LOG_REPEAT_INTERVAL = 60000000000L;
-
+    final static long DEFAULT_LOG_REPEAT_INTERVAL = 60000L;
+    final static long MINIMUM_LOG_REPEAT_INTERVAL = 1000L;
+    final static long MAXIMUM_LOG_REPEAT_INTERVAL = Long.MAX_VALUE;
+    /**
+     * Default threshold time in milliseconds for JournalManager
+     * flush operations. If a flush operation takes longer than
+     * this time, a WARNING message is written to the log.
+     */
+    final static long DEFAULT_SLOW_IO_ALERT_THRESHOLD = 2000L;
+    final static long MINIMUM_SLOW_ALERT_THRESHOLD = 100L;
+    final static long MAXIMUM_SLOW_ALERT_THRESHOLD = Long.MAX_VALUE;
     /**
      * Format expression defining the name of a journal file.
      */
@@ -140,8 +159,10 @@ public interface JournalManagerMXBean {
 
     long getLastValidCheckpointTimestamp();
     
+    long getCurrentTimestamp();
+
     void setRollbackPruningEnabled(boolean rollbackPruning);
-    
+
     boolean isRollbackPruningEnabled();
 
     int urgency();
@@ -154,7 +175,20 @@ public interface JournalManagerMXBean {
 
     String getLastFlusherException();
 
-    long getCheckpointIntervalNanos();
+    long getCheckpointInterval();
 
-    long getLastValidCheckpointTimestampMillis();
+    long getLastValidCheckpointTimeMillis();
+    
+    long getTotalCompletedCommits();
+    
+    long getCommitCompletionWaitTime();
+
+    long getLogRepeatInterval();
+
+    void setLogRepeatInterval(long logRepeatInterval);
+
+    long getSlowIoAlertThreshold();
+
+    void setSlowIoAlertThreshold(long slowIoAlertThreshold);
+
 }

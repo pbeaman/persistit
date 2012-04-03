@@ -36,16 +36,13 @@ $command > $datapath/recovery.log &
 echo "Sleeping for $sleep_time seconds"
 sleep $sleep_time
 
-background_pid=`pgrep -f "stress_recovery_test_signature=1"`
-echo "kill -9 $background_pid"
-kill -9 $background_pid
-sleep 1
-echo "kill -9 $background_pid"
-kill -9 $background_pid
-sleep 1
-echo "kill -9 $background_pid"
-kill -9 $background_pid
-sleep 1
+while background_pid=`pgrep -f "stress_recovery_test_signature=1"`
+do
+  echo "kill -9 $background_pid"
+  kill -9 $background_pid
+  sleep 1
+done
+
 echo -----
 
 command="$testrunner_command script=$scriptpath/recovery_2.plan datapath=$datapath"

@@ -1,16 +1,27 @@
 /**
- * Copyright (C) 2011 Akiban Technologies Inc.
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
+ * END USER LICENSE AGREEMENT (“EULA”)
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * READ THIS AGREEMENT CAREFULLY (date: 9/13/2011):
+ * http://www.akiban.com/licensing/20110913
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
+ * BY INSTALLING OR USING ALL OR ANY PORTION OF THE SOFTWARE, YOU ARE ACCEPTING
+ * ALL OF THE TERMS AND CONDITIONS OF THIS AGREEMENT. YOU AGREE THAT THIS
+ * AGREEMENT IS ENFORCEABLE LIKE ANY WRITTEN AGREEMENT SIGNED BY YOU.
+ *
+ * IF YOU HAVE PAID A LICENSE FEE FOR USE OF THE SOFTWARE AND DO NOT AGREE TO
+ * THESE TERMS, YOU MAY RETURN THE SOFTWARE FOR A FULL REFUND PROVIDED YOU (A) DO
+ * NOT USE THE SOFTWARE AND (B) RETURN THE SOFTWARE WITHIN THIRTY (30) DAYS OF
+ * YOUR INITIAL PURCHASE.
+ *
+ * IF YOU WISH TO USE THE SOFTWARE AS AN EMPLOYEE, CONTRACTOR, OR AGENT OF A
+ * CORPORATION, PARTNERSHIP OR SIMILAR ENTITY, THEN YOU MUST BE AUTHORIZED TO SIGN
+ * FOR AND BIND THE ENTITY IN ORDER TO ACCEPT THE TERMS OF THIS AGREEMENT. THE
+ * LICENSES GRANTED UNDER THIS AGREEMENT ARE EXPRESSLY CONDITIONED UPON ACCEPTANCE
+ * BY SUCH AUTHORIZED PERSONNEL.
+ *
+ * IF YOU HAVE ENTERED INTO A SEPARATE WRITTEN LICENSE AGREEMENT WITH AKIBAN FOR
+ * USE OF THE SOFTWARE, THE TERMS AND CONDITIONS OF SUCH OTHER AGREEMENT SHALL
+ * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
 package com.persistit.stress;
@@ -109,7 +120,7 @@ public class StressRecovery extends StressBase {
          * @param ticketId
          * @throws Exception
          */
-        void performTransaction(final long ticketId) throws Exception;
+        long performTransaction(final long ticketId) throws Exception;
 
         /**
          * Given a ticketId, verify that the transaction previously performed by
@@ -177,11 +188,11 @@ public class StressRecovery extends StressBase {
             final TransactionType tt = registry.get((int) (ticketId % registry.size()));
             final long start = System.nanoTime();
             try {
-                tt.performTransaction(ticketId);
+                long commitTs = tt.performTransaction(ticketId);
                 final long now = System.nanoTime();
-                emit(ticketId, start - zero, now - start);
+                emit(ticketId, start - zero, now - start, commitTs);
             } catch (Exception e) {
-                emit(ticketId, start - zero, -1);
+                emit(ticketId, start - zero, -1, -1);
                 printStackTrace(e);
             }
         }
@@ -198,6 +209,8 @@ public class StressRecovery extends StressBase {
      */
     private void verifyTicketStream() {
         long firstFault = Long.MAX_VALUE;
+        long firstFaultTicket = 0;
+        int successAfterFailureCount = 0;
         long last = Long.MIN_VALUE;
         int faults = 0;
         for (int _count = 1;; _count++) {
@@ -228,8 +241,12 @@ public class StressRecovery extends StressBase {
                 try {
                     TransactionType tt = registry.get((int) (ticketId % registry.size()));
                     tt.verifyTransaction(ticketId);
+                    if (start + elapsed > firstFault) {
+                        successAfterFailureCount++;
+                    }
                 } catch (Exception e) {
                     firstFault = Math.min(firstFault, start + elapsed);
+                    firstFaultTicket = ticketId;
                     faults++;
                 }
             }
@@ -237,22 +254,27 @@ public class StressRecovery extends StressBase {
 
         if (faults > 0) {
             if (last - firstFault < _maxLatency) {
-                String msg = String.format("There were %,d faults. Last one occurred %,dms before crash: "
-                        + "PASS because acceptable latency setting is %,dms.", faults, (last - firstFault) / 1000000l,
-                        _maxLatency / 1000000l);
+                String msg = String
+                        .format("There were %,d faults. Last one occurred %,dms before crash: "
+                                + "PASS because acceptable latency setting is %,dms First-failed ticketId=%,d laterSuccess=%,d.",
+                                faults, (last - firstFault) / 1000000l, _maxLatency / 1000000l, firstFaultTicket,
+                                successAfterFailureCount);
                 println(msg);
                 _result = new TestResult(true, msg);
             } else {
-                _result = new TestResult(false, String.format(
-                        "There were %,d faults. Last one occurred %,dms before crash: "
-                                + "FAIL because acceptable latency setting is %,dms.", faults,
-                        (last - firstFault) / 1000000l, _maxLatency / 1000000l));
+                _result = new TestResult(
+                        false,
+                        String.format(
+                                "There were %,d faults. Last one occurred %,dms before crash: "
+                                        + "FAIL because acceptable latency setting is %,dms First-failed ticketId=%,d laterSuccess=%,d.",
+                                faults, (last - firstFault) / 1000000l, _maxLatency / 1000000l, firstFaultTicket,
+                                successAfterFailureCount));
             }
         }
     }
 
-    private synchronized static void emit(final long ticketId, final long start, final long elapsed) {
-        System.out.println(ticketId + "," + start + "," + elapsed);
+    private synchronized static void emit(final long ticketId, final long start, final long elapsed, final long ts) {
+        System.out.println(ticketId + "," + start + "," + elapsed + "," + ts);
         System.out.flush();
     }
 
@@ -268,7 +290,7 @@ public class StressRecovery extends StressBase {
         private static final int SCALE = 10000;
 
         @Override
-        public void performTransaction(long ticketId) throws Exception {
+        public long performTransaction(long ticketId) throws Exception {
             Transaction txn = _persistit.getTransaction();
             for (;;) {
                 txn.begin();
@@ -276,7 +298,7 @@ public class StressRecovery extends StressBase {
                     _exs.getValue().putString("ticket " + ticketId + " value");
                     _exs.clear().append(ticketId % SCALE).append(ticketId / SCALE);
                     _exs.store();
-                    txn.commit(false);
+                    txn.commit();
                     break;
                 } catch (RollbackException e) {
                     continue;
@@ -284,6 +306,7 @@ public class StressRecovery extends StressBase {
                     txn.end();
                 }
             }
+            return txn.getCommitTimestamp();
         }
 
         @Override
@@ -300,7 +323,7 @@ public class StressRecovery extends StressBase {
                 "aid", "some", "party" };
 
         @Override
-        public void performTransaction(long ticketId) throws Exception {
+        public long performTransaction(long ticketId) throws Exception {
             final StringBuilder sb = new StringBuilder(String.format("%,15d", ticketId));
             final int size = (int) ((ticketId * 17) % 876);
             for (int i = 0; i < size; i++) {
@@ -336,7 +359,7 @@ public class StressRecovery extends StressBase {
                     }
                     _exs.store();
 
-                    txn.commit(false);
+                    txn.commit();
                     break;
                 } catch (RollbackException e) {
                     continue;
@@ -344,6 +367,7 @@ public class StressRecovery extends StressBase {
                     txn.end();
                 }
             }
+            return txn.getCommitTimestamp();
         }
 
         @Override
