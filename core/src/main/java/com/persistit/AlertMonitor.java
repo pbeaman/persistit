@@ -30,18 +30,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
-import javax.management.AttributeChangeNotification;
 import javax.management.MBeanNotificationInfo;
 import javax.management.Notification;
 import javax.management.NotificationBroadcasterSupport;
 import javax.management.ObjectName;
 
-import com.persistit.AbstractAlertMonitor.Event;
 import com.persistit.logging.LogBase;
 import com.persistit.logging.PersistitLogMessage.LogItem;
+import com.persistit.mxbeans.AlertMonitorMXBean;
 import com.persistit.util.Util;
 
 /**
@@ -54,7 +54,7 @@ import com.persistit.util.Util;
  * @author peter
  * 
  */
-public class AbstractAlertMonitor extends NotificationBroadcasterSupport implements AlertMonitorMXBean {
+public class AlertMonitor extends NotificationBroadcasterSupport implements AlertMonitorMXBean {
 
     private final static int DEFAULT_HISTORY_LENGTH = 10;
     private final static int MINIMUM_HISTORY_LENGTH = 1;
@@ -107,7 +107,7 @@ public class AbstractAlertMonitor extends NotificationBroadcasterSupport impleme
         @Override
         public String toString() {
             final StringBuilder sb = new StringBuilder();
-            synchronized (AbstractAlertMonitor.this) {
+            synchronized (AlertMonitor.this) {
                 final Event event = getLastEvent();
                 if (_count > 0) {
                     sb.append(String.format(EVENT_FORMAT, _count, event == null ? "missing" : format(event)));
@@ -118,7 +118,7 @@ public class AbstractAlertMonitor extends NotificationBroadcasterSupport impleme
 
         public String getDetailedHistory() {
             final StringBuilder sb = new StringBuilder();
-            synchronized (AbstractAlertMonitor.this) {
+            synchronized (AlertMonitor.this) {
                 int size = _eventList.size();
                 if (_count > 0) {
                     sb.append(String.format(EVENT_FORMAT, 1, format(_firstEvent)));
@@ -223,7 +223,7 @@ public class AbstractAlertMonitor extends NotificationBroadcasterSupport impleme
          * @return time of the last event
          */
         public long getLastEventTime() {
-            synchronized (AbstractAlertMonitor.this) {
+            synchronized (AlertMonitor.this) {
                 if (_eventList.size() > 0) {
                     return _eventList.get(_eventList.size() - 1)._time;
                 } else {
@@ -247,7 +247,7 @@ public class AbstractAlertMonitor extends NotificationBroadcasterSupport impleme
          * @return the recent history
          */
         public List<Event> getEventList() {
-            synchronized (AbstractAlertMonitor.this) {
+            synchronized (AlertMonitor.this) {
                 return new ArrayList<Event>(_eventList);
             }
         }
@@ -265,7 +265,7 @@ public class AbstractAlertMonitor extends NotificationBroadcasterSupport impleme
          *         there have been no events.
          */
         public Event getLastEvent() {
-            synchronized (AbstractAlertMonitor.this) {
+            synchronized (AlertMonitor.this) {
                 if (_eventList.isEmpty()) {
                     return null;
                 } else {
@@ -286,8 +286,8 @@ public class AbstractAlertMonitor extends NotificationBroadcasterSupport impleme
          * called periodically. It keeps track of when the last message was
          * added to the log and writes a new recurring message only as
          * frequently as allowed by
-         * {@link AbstractAlertMonitor#getErrorLogTimeInterval()} or
-         * {@link AbstractAlertMonitor#getWarnLogTimeInterval()}.
+         * {@link AlertMonitor#getErrorLogTimeInterval()} or
+         * {@link AlertMonitor#getWarnLogTimeInterval()}.
          */
         public void poll(final long now, final boolean force) {
             int count = getCount();
@@ -376,8 +376,6 @@ public class AbstractAlertMonitor extends NotificationBroadcasterSupport impleme
 
     final static String NOTIFICATION_TYPE = "com.persistit.AlertMonitor";
 
-    private final String _name;
-
     private final Map<String, History> _historyMap = new TreeMap<String, History>();
 
     private volatile long _warnLogTimeInterval = DEFAULT_WARN_INTERVAL;
@@ -387,9 +385,8 @@ public class AbstractAlertMonitor extends NotificationBroadcasterSupport impleme
     private AtomicLong _notificationSequence = new AtomicLong();
     private volatile ObjectName _objectName;
 
-    protected AbstractAlertMonitor(final String name) {
-        super(/*Executors.newCachedThreadPool()*/);
-        _name = name;
+    public AlertMonitor() {
+        super(Executors.newCachedThreadPool());
     }
     
     void setObjectName(final ObjectName on) {
@@ -440,13 +437,6 @@ public class AbstractAlertMonitor extends NotificationBroadcasterSupport impleme
         // Default: do nothing
     }
 
-    /**
-     * @return the name of this AlertMonitor
-     */
-    @Override
-    public String getName() {
-        return _name;
-    }
 
     /**
      * Restore this alert monitor to level {@link AlertLevel#NORMAL} with no
@@ -696,5 +686,4 @@ public class AbstractAlertMonitor extends NotificationBroadcasterSupport impleme
     protected synchronized Map<String, History> getHistoryMap() {
         return new TreeMap<String, History>(_historyMap);
     }
-
 }

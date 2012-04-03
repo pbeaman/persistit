@@ -31,8 +31,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
-import com.persistit.AbstractAlertMonitor.Event;
-import com.persistit.AbstractAlertMonitor.AlertLevel;
+import com.persistit.AlertMonitor.Event;
+import com.persistit.AlertMonitor.AlertLevel;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
@@ -288,9 +288,9 @@ class VolumeStorageT2 extends VolumeStorage {
                         buffer.getBufferSize(), buffer.getIndex());
                 _volume.getStatistics().bumpReadCounter();
             } catch (IOException ioe) {
-                _persistit.getIOAlertMonitor().post(
+                _persistit.getAlertMonitor().post(
                         new Event(_persistit.getLogBase().readException, ioe, _volume, page, buffer.getIndex()),
-                        IOAlertMonitor.READ_PAGE_CATEGORY, AlertLevel.ERROR);
+                        AlertMonitor.READ_PAGE_CATEGORY, AlertLevel.ERROR);
                 throw new PersistitIOException(ioe);
             }
         } finally {
@@ -325,9 +325,9 @@ class VolumeStorageT2 extends VolumeStorage {
                 getChannel().write(bb, (page - 1) * pageSize);
 
             } catch (IOException ioe) {
-                _persistit.getIOAlertMonitor().post(
+                _persistit.getAlertMonitor().post(
                         new Event(_persistit.getLogBase().writeException, ioe, _volume, page),
-                        IOAlertMonitor.WRITE_PAGE_CATEGORY, AlertLevel.ERROR);
+                        AlertMonitor.WRITE_PAGE_CATEGORY, AlertLevel.ERROR);
                 throw new PersistitIOException(ioe);
             }
         } finally {

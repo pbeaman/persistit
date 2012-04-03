@@ -64,8 +64,8 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 
-import com.persistit.AbstractAlertMonitor.Event;
-import com.persistit.AbstractAlertMonitor.AlertLevel;
+import com.persistit.AlertMonitor.Event;
+import com.persistit.AlertMonitor.AlertLevel;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
@@ -454,8 +454,8 @@ class VolumeStorageV2 extends VolumeStorage {
                 _volume.getStatistics().bumpReadCounter();
 
             } catch (IOException ioe) {
-                _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().readException, ioe, _volume, page, buffer.getIndex()),
-                        IOAlertMonitor.READ_PAGE_CATEGORY, AlertLevel.ERROR);
+                _persistit.getAlertMonitor().post(new Event(_persistit.getLogBase().readException, ioe, _volume, page, buffer.getIndex()),
+                        AlertMonitor.READ_PAGE_CATEGORY, AlertLevel.ERROR);
                 throw new PersistitIOException(ioe);
             }
         } finally {
@@ -493,8 +493,8 @@ class VolumeStorageV2 extends VolumeStorage {
         try {
             _channel.write(bb, page * _volume.getStructure().getPageSize());
         } catch (IOException ioe) {
-            _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().writeException, ioe, _volume, page),
-                    IOAlertMonitor.WRITE_PAGE_CATEGORY, AlertLevel.ERROR);
+            _persistit.getAlertMonitor().post(new Event(_persistit.getLogBase().writeException, ioe, _volume, page),
+                    AlertMonitor.WRITE_PAGE_CATEGORY, AlertLevel.ERROR);
             throw new PersistitIOException(ioe);
         }
     }
@@ -628,8 +628,8 @@ class VolumeStorageV2 extends VolumeStorage {
             _volume.getStatistics().setLastExtensionTime(System.currentTimeMillis());
             _extendedPageCount = pageCount;
         } catch (IOException ioe) {
-            _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().extendException, ioe, currentSize, newSize),
-                    IOAlertMonitor.EXTEND_VOLUME_CATEGORY, AlertLevel.ERROR);
+            _persistit.getAlertMonitor().post(new Event(_persistit.getLogBase().extendException, ioe, currentSize, newSize),
+                    AlertMonitor.EXTEND_VOLUME_CATEGORY, AlertLevel.ERROR);
             throw new PersistitIOException(ioe);
         }
     }

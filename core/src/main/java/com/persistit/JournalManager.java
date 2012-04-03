@@ -52,8 +52,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.persistit.AbstractAlertMonitor.Event;
-import com.persistit.AbstractAlertMonitor.AlertLevel;
+import com.persistit.AlertMonitor.Event;
+import com.persistit.AlertMonitor.AlertLevel;
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.IT;
@@ -2137,10 +2137,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     if (e instanceof InterruptedException || e instanceof FatalErrorException) {
                         _closed.set(true);
                     } else if (e instanceof PersistitIOException) {
-                        _persistit.getIOAlertMonitor().post(
+                        _persistit.getAlertMonitor().post(
                                 new Event(_persistit.getLogBase().journalWriteError, e,
                                         addressToFile(_writeBufferAddress), addressToOffset(_writeBufferAddress)),
-                                IOAlertMonitor.JOURNAL_CATEGORY, AlertLevel.ERROR);
+                                AlertMonitor.JOURNAL_CATEGORY, AlertLevel.ERROR);
                     } else {
                         _persistit.getLogBase().journalWriteError.log(e, addressToFile(_writeBufferAddress),
                                 addressToOffset(_writeBufferAddress));
@@ -2424,17 +2424,17 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress / _blockSize);
         if (journalFileCount != _lastReportedJournalFileCount) {
             if (journalFileCount > TOO_MANY_ERROR_THRESHOLD) {
-                _persistit.getLoadAlertMonitor().post(
+                _persistit.getAlertMonitor().post(
                         new Event(_persistit.getLogBase().tooManyJournalFilesError, journalFileCount),
-                        LoadAlertMonitor.MANY_JOURNAL_FILES, AlertLevel.ERROR);
+                        AlertMonitor.MANY_JOURNAL_FILES, AlertLevel.ERROR);
             } else if (journalFileCount > TOO_MANY_WARN_THRESHOLD) {
-                _persistit.getLoadAlertMonitor().post(
+                _persistit.getAlertMonitor().post(
                         new Event(_persistit.getLogBase().tooManyJournalFilesWarning, journalFileCount),
-                        LoadAlertMonitor.MANY_JOURNAL_FILES, AlertLevel.WARN);
+                        AlertMonitor.MANY_JOURNAL_FILES, AlertLevel.WARN);
             } else {
-                _persistit.getLoadAlertMonitor().post(
+                _persistit.getAlertMonitor().post(
                         new Event(_persistit.getLogBase().normalJournalFileCount, journalFileCount),
-                        LoadAlertMonitor.MANY_JOURNAL_FILES, AlertLevel.NORMAL);
+                        AlertMonitor.MANY_JOURNAL_FILES, AlertLevel.NORMAL);
             }
             _lastReportedJournalFileCount = journalFileCount;
         }

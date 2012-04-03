@@ -24,19 +24,20 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
+package com.persistit.mxbeans;
 
-import com.persistit.AbstractAlertMonitor.AlertLevel;
-import com.persistit.mxbeans.Description;
-import com.persistit.mxbeans.IOAlertMonitorMXBean;
+import com.persistit.AlertMonitor;
+import com.persistit.AlertMonitor.AlertLevel;
 
 /**
- * Methods of {@link AbstractAlertMonitor intended to be exposed in an MXBean.
+ * Methods of {@link AlertMonitor intended to be exposed in an MXBean.
  * This interface should be extended by the MXBean interface for a concrete
  * implementation such as {@link IOAlertMonitorMXBean}.
  */
-interface AlertMonitorMXBean {
-    
+public interface AlertMonitorMXBean {
+
+    public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=AlertMonitor";
+
     final static String MANY_JOURNAL_FILES = "JournalFiles";
     final static String JOURNAL_CATEGORY = "Journal";
     final static String WRITE_PAGE_CATEGORY = "WritePage";
@@ -45,12 +46,6 @@ interface AlertMonitorMXBean {
     final static String FLUSH_STATISTICS_CATEGORY = "FlushStatistics";
     final static String CLEANUP_CATEGORY = "Cleanup";
     
-    /**
-     * @return the name of this AlertMonitor
-     */
-    @Description("The name of this AlertMonitor.")
-    String getName();
-
     /**
      * @return Current maximum AlertLevel in this monitor as a String: one of
      *         NORMAL, WARN or ERROR

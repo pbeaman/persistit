@@ -34,8 +34,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.persistit.AbstractAlertMonitor.AlertLevel;
-import com.persistit.AbstractAlertMonitor.Event;
+import com.persistit.AlertMonitor.AlertLevel;
+import com.persistit.AlertMonitor.Event;
 import com.persistit.exception.PersistitException;
 
 class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
@@ -159,8 +159,8 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
                 _performed.incrementAndGet();
             } catch (PersistitException e) {
                 lastException(e);
-                _persistit.getIOAlertMonitor().post(new Event(_persistit.getLogBase().cleanupException, e, action),
-                        IOAlertMonitor.CLEANUP_CATEGORY, AlertLevel.ERROR);
+                _persistit.getAlertMonitor().post(new Event(_persistit.getLogBase().cleanupException, e, action),
+                        AlertMonitor.CLEANUP_CATEGORY, AlertLevel.ERROR);
                 _errors.incrementAndGet();
             }
         }

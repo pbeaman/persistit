@@ -79,11 +79,10 @@ import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
 import com.persistit.logging.LogBase;
 import com.persistit.logging.PersistitLogger;
+import com.persistit.mxbeans.AlertMonitorMXBean;
 import com.persistit.mxbeans.BufferPoolMXBean;
-import com.persistit.mxbeans.IOAlertMonitorMXBean;
 import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.mxbeans.JournalManagerMXBean;
-import com.persistit.mxbeans.LoadAlertMonitorMXBean;
 import com.persistit.mxbeans.MXBeanWrapper;
 import com.persistit.mxbeans.ManagementMXBean;
 import com.persistit.mxbeans.RecoveryManagerMXBean;
@@ -455,9 +454,7 @@ public class Persistit {
 
     private final IOMeter _ioMeter = new IOMeter();
 
-    private final IOAlertMonitor _ioAlertMonitor = new IOAlertMonitor();
-
-    private final LoadAlertMonitor _loadAlertMonitor = new LoadAlertMonitor();
+    private final AlertMonitor _alertMonitor = new AlertMonitor();
 
     private final TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
 
@@ -806,8 +803,7 @@ public class Persistit {
             registerMBean(_transactionIndex, TransactionIndexMXBean.class, TransactionIndexMXBean.MXBEAN_NAME);
             registerMBean(_journalManager, JournalManagerMXBean.class, JournalManagerMXBean.MXBEAN_NAME);
             registerMBean(_recoveryManager, RecoveryManagerMXBean.class, RecoveryManagerMXBean.MXBEAN_NAME);
-            registerMBean(_ioAlertMonitor, IOAlertMonitorMXBean.class, IOAlertMonitorMXBean.MXBEAN_NAME);
-            registerMBean(_loadAlertMonitor, LoadAlertMonitorMXBean.class, LoadAlertMonitorMXBean.MXBEAN_NAME);
+            registerMBean(_alertMonitor, AlertMonitorMXBean.class, AlertMonitorMXBean.MXBEAN_NAME);
         } catch (Exception exception) {
             _logBase.mbeanException.log(exception);
         }
@@ -826,10 +822,9 @@ public class Persistit {
         MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         ObjectName on = new ObjectName(name);
         NotificationEmitter emitter = null;
-        if (mbean instanceof AbstractAlertMonitor) {
-            AbstractAlertMonitor monitor = (AbstractAlertMonitor) mbean;
+        if (mbean instanceof AlertMonitor) {
+            AlertMonitor monitor = (AlertMonitor) mbean;
             monitor.setObjectName(on);
-//            server.registerMBean(monitor, on);
             emitter = monitor;
         }
             MXBeanWrapper wrapper = new MXBeanWrapper(mbean, mbeanInterface, emitter);
@@ -2376,12 +2371,8 @@ public class Persistit {
         return _ioMeter;
     }
 
-    IOAlertMonitor getIOAlertMonitor() {
-        return _ioAlertMonitor;
-    }
-
-    LoadAlertMonitor getLoadAlertMonitor() {
-        return _loadAlertMonitor;
+    AlertMonitor getAlertMonitor() {
+        return _alertMonitor;
     }
 
     TransactionIndex getTransactionIndex() {
