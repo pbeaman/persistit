@@ -26,7 +26,9 @@
 
 package com.persistit;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -216,14 +218,16 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     @Test
     public void testAggregationRetry() throws Exception {
         final long time = 5000;
-        final TransactionIndex ti = new TransactionIndex(_tsa, 5000);
+        final TransactionIndex ti = new TransactionIndex(_tsa, 256);
         final AtomicLong before = new AtomicLong();
         final AtomicLong after = new AtomicLong();
         final AtomicLong pauseTime = new AtomicLong();
         final Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        final List<Accumulator> accumulators = new ArrayList<Accumulator>();
+        accumulators.add(acc);
         final long stopTime = System.currentTimeMillis() + time;
         final Random random = new Random();
-        final Thread[] threads = new Thread[10];
+        final Thread[] threads = new Thread[50];
         for (int i = 0; i < threads.length; i++) {
             threads[i] = new Thread(new Runnable() {
                 public void run() {
@@ -233,12 +237,12 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                             status = ti.registerTransaction();
                             acc.update(1, status, 0);
                             before.incrementAndGet();
-                            if (random.nextInt(100) < 2) {
+                            if (random.nextInt(100) < 1) {
                                 Thread.sleep(1);
                                 pauseTime.incrementAndGet();
                             }
                             status.commit(_tsa.getCurrentTimestamp());
-                            if (random.nextInt(100) < 2) {
+                            if (random.nextInt(100) < 5) {
                                 Thread.sleep(1);
                                 pauseTime.incrementAndGet();
                             }
@@ -260,9 +264,9 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         long elapsedNanos = 0;
         int calls = 0;
         for (int i = 0; System.currentTimeMillis() < stopTime; i++) {
-            Thread.sleep(5);
+            Thread.sleep(1);
             ti.updateActiveTransactionCache();
-            if ((i % 10) == 0) {
+                ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp(), accumulators);
                 long low = after.get();
                 long timestamp = _tsa.updateTimestamp();
                 elapsedNanos -= System.nanoTime();
@@ -272,12 +276,18 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                 long high = before.get();
                 assertTrue(low <= value);
                 assertTrue(value <= high);
-            }
         }
         for (final Thread thread : threads) {
             thread.join();
         }
         assertEquals(after.get(), acc.getSnapshotValue(_tsa.updateTimestamp(), 0));
+        //
+        // Verify that retries were created
+        //
+        assertTrue("At least one RetryException should have been thrown", ti
+                .incrementAccumulatorCheckpointRetryCounter() > 1);
+        assertTrue("At least one RetryException should have been thrown",
+                ti.incrementAccumulatorSnapshotRetryCounter() > 1);
         final long workTime = (threads.length * time) - pauseTime.get();
         if (workTime > 0) {
             System.out.printf("Count per ms = %,d  Nanos per call=%,d", after.get() / workTime, elapsedNanos / calls);

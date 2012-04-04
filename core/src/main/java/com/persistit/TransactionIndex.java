@@ -148,6 +148,10 @@ public class TransactionIndex implements TransactionIndexMXBean {
     private volatile ActiveTransactionCache _atCache;
 
     private AtomicLong _deadlockCounter = new AtomicLong();
+    
+    private AtomicLong _accumulatorSnapshotRetryCounter = new AtomicLong();
+
+    private AtomicLong _accumulatorCheckpointRetryCounter = new AtomicLong();
     /**
      * The system-wide timestamp allocator
      */
@@ -378,10 +382,10 @@ public class TransactionIndex implements TransactionIndexMXBean {
      * the "step" number encoded in the supplied <code>versionHandle</code>
      * (stepv) and the supplied <code>step</code>parameter:
      * <ul>
-     * <li>If stepv &lt;= step then return tsv as the "commit"
-     * timestamp. (Note that the transaction has not actually committed, but for
-     * the purpose of reading values during the execution of the transaction it
-     * is as if that transaction's own updates are present.)</li>
+     * <li>If stepv &lt;= step then return tsv as the "commit" timestamp. (Note
+     * that the transaction has not actually committed, but for the purpose of
+     * reading values during the execution of the transaction it is as if that
+     * transaction's own updates are present.)</li>
      * <li>Else return {@link TransactionStatus#UNCOMMITTED}.</li>
      * </ul>
      * <li>If T has committed, the result depends on the start timestamp
@@ -704,7 +708,6 @@ public class TransactionIndex implements TransactionIndexMXBean {
          * There were members on at least one of the lists. Need to lock the
          * bucket so we can traverse the lists.
          */
-        TransactionStatus status = null;
         bucket.lock();
         try {
             /*
@@ -713,24 +716,20 @@ public class TransactionIndex implements TransactionIndexMXBean {
              * longRunning lists.
              */
             if (tsv >= bucket.getFloor()) {
-                for (TransactionStatus s = bucket.getCurrent(); s != null && status == null; s = s.getNext()) {
+                for (TransactionStatus s = bucket.getCurrent(); s != null; s = s.getNext()) {
                     if (s.getTs() == tsv) {
                         return s;
                     }
                 }
             }
-            if (status == null) {
-                for (TransactionStatus s = bucket.getAborted(); s != null && status == null; s = s.getNext()) {
-                    if (s.getTs() == tsv) {
-                        return s;
-                    }
+            for (TransactionStatus s = bucket.getAborted(); s != null; s = s.getNext()) {
+                if (s.getTs() == tsv) {
+                    return s;
                 }
             }
-            if (status == null) {
-                for (TransactionStatus s = bucket.getLongRunning(); s != null && status == null; s = s.getNext()) {
-                    if (s.getTs() == tsv) {
-                        return s;
-                    }
+            for (TransactionStatus s = bucket.getLongRunning(); s != null; s = s.getNext()) {
+                if (s.getTs() == tsv) {
+                    return s;
                 }
             }
         } finally {
@@ -775,7 +774,6 @@ public class TransactionIndex implements TransactionIndexMXBean {
      * usually non-conflicting, outcome when the page holding the MVV is
      * latched. The TIMED_OUT return value indicates that the caller must back
      * off the latch, reevaluate the wwDependency with no locks, and then retry.
-     * </p>
      * </p>
      * 
      * @param versionHandle
@@ -1258,6 +1256,14 @@ public class TransactionIndex implements TransactionIndexMXBean {
             task.crash();
             _activeTransactionCachePollTask = null;
         }
+    }
+    
+    long incrementAccumulatorSnapshotRetryCounter() {
+        return _accumulatorSnapshotRetryCounter.incrementAndGet();
+    }
+    
+    long incrementAccumulatorCheckpointRetryCounter() {
+        return _accumulatorCheckpointRetryCounter.incrementAndGet();
     }
 
 }
