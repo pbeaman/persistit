@@ -280,7 +280,7 @@ public class TransactionIndexTest extends TestCase {
         long commitTimestamp = _tsa.updateTimestamp();
         ts1.commit(commitTimestamp);
         /*
-         * Transactions which will ultimately be non-concurent.
+         * Transactions which will ultimately be non-concurrent.
          */
         final TransactionStatus ts2 = ti.registerTransaction();
         final AtomicLong result1 = new AtomicLong(-42);
