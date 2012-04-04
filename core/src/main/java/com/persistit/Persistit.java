@@ -1922,14 +1922,14 @@ public class Persistit {
      *            Throwable cause of condition
      */
     void fatal(final String msg, final Throwable cause) {
-        _fatal.set(true);
-        _closed.set(true);
         final FatalErrorException exception = new FatalErrorException(msg, cause);
         synchronized (_fatalErrors) {
             if (_fatalErrors.size() < MAX_FATAL_ERROR_MESSAGES) {
                 _fatalErrors.add(exception);
             }
         }
+        _fatal.set(true);
+        _closed.set(true);
         throw exception;
     }
 

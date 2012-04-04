@@ -250,7 +250,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
                     bucket.lock();
                     try {
                         for (TransactionStatus status = bucket.getCurrent(); status != null; status = status.getNext()) {
-                            if (!status.isNotified() && status.getTs() <= timestampAtStart) {
+                            if (status.getTs() <= timestampAtStart && !status.isNotified()) {
                                 add(status.getTs());
                                 if (status.getTs() < floor) {
                                     floor = status.getTs();
@@ -259,7 +259,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
                         }
                         for (TransactionStatus status = bucket.getLongRunning(); status != null; status = status
                                 .getNext()) {
-                            if (!status.isNotified() && status.getTs() <= timestampAtStart) {
+                            if (status.getTs() <= timestampAtStart && !status.isNotified()) {
                                 add(status.getTs());
                                 if (status.getTs() < floor) {
                                     floor = status.getTs();

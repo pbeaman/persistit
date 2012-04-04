@@ -53,9 +53,9 @@ public class TransactionIndexTest extends TestCase {
         assertTrue(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
         ti.updateActiveTransactionCache();
         /*
-         * False (correctly) after update.
+         * Floor value can't move until notifyComplete called on ts1.
          */
-        assertFalse(ti.hasConcurrentTransaction(0, ts1.getTs() + 1));
+        assertTrue(ti.hasConcurrentTransaction(0, ts1.getTs() + 1));
         assertTrue(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
         /*
          * Same transaction - illusion that it has committed.
@@ -73,7 +73,7 @@ public class TransactionIndexTest extends TestCase {
 
         ts2.commit(_tsa.updateTimestamp());
         ti.updateActiveTransactionCache();
-        assertFalse(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
+        assertTrue(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
         _tsa.updateTimestamp();
         assertEquals(UNCOMMITTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa.getCurrentTimestamp(), 0));
         assertEquals(ts3.getTs(), ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), ts3.getTs(), 0));
@@ -81,7 +81,7 @@ public class TransactionIndexTest extends TestCase {
         ts3.abort();
         assertEquals(ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa.getCurrentTimestamp(), 0));
         assertEquals(4, ti.getCurrentCount());
-        ti.notifyCompleted(ts1, -ts1.getTc() + 1);
+        ti.notifyCompleted(ts1, -ts1.getTc());
         /*
          * ts1 committed and not concurrent with ts2
          */
@@ -92,13 +92,13 @@ public class TransactionIndexTest extends TestCase {
          */
         assertFalse(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()), ts4.getTs(), 0)));
         ts4.commit(_tsa.updateTimestamp());
-        ti.notifyCompleted(ts3, -ts3.getTc() + 1);
+        ti.notifyCompleted(ts3, ABORTED);
         ti.updateActiveTransactionCache();
 
         ti.notifyCompleted(ts4, -ts4.getTc() + 1);
-        assertEquals(1, ti.getCurrentCount());
-        assertEquals(2, ti.getFreeCount());
-        assertEquals(1, ti.getAbortedCount());
+        assertEquals(3, ti.getCurrentCount());
+        assertEquals(1, ti.getFreeCount());
+        assertEquals(0, ti.getAbortedCount());
         ts3.decrementMvvCount();
 
         ti.cleanup(); // compute canonical form
