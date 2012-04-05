@@ -53,9 +53,9 @@ public class TransactionIndexTest extends TestCase {
         assertTrue(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
         ti.updateActiveTransactionCache();
         /*
-         * False (correctly) after update.
+         * Floor value can't move until notifyComplete called on ts1.
          */
-        assertFalse(ti.hasConcurrentTransaction(0, ts1.getTs() + 1));
+        assertTrue(ti.hasConcurrentTransaction(0, ts1.getTs() + 1));
         assertTrue(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
         /*
          * Same transaction - illusion that it has committed.
@@ -73,17 +73,15 @@ public class TransactionIndexTest extends TestCase {
 
         ts2.commit(_tsa.updateTimestamp());
         ti.updateActiveTransactionCache();
-        assertFalse(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
+        assertTrue(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
         _tsa.updateTimestamp();
-        assertEquals(UNCOMMITTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
-                .getCurrentTimestamp(), 0));
+        assertEquals(UNCOMMITTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa.getCurrentTimestamp(), 0));
         assertEquals(ts3.getTs(), ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), ts3.getTs(), 0));
         ts3.incrementMvvCount();
         ts3.abort();
-        assertEquals(ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
-                .getCurrentTimestamp(), 0));
+        assertEquals(ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa.getCurrentTimestamp(), 0));
         assertEquals(4, ti.getCurrentCount());
-        ti.notifyCompleted(ts1, -ts1.getTc() + 1);
+        ti.notifyCompleted(ts1, -ts1.getTc());
         /*
          * ts1 committed and not concurrent with ts2
          */
@@ -94,13 +92,13 @@ public class TransactionIndexTest extends TestCase {
          */
         assertFalse(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()), ts4.getTs(), 0)));
         ts4.commit(_tsa.updateTimestamp());
-        ti.notifyCompleted(ts3, -ts3.getTc() + 1);
+        ti.notifyCompleted(ts3, ABORTED);
         ti.updateActiveTransactionCache();
 
         ti.notifyCompleted(ts4, -ts4.getTc() + 1);
-        assertEquals(1, ti.getCurrentCount());
-        assertEquals(2, ti.getFreeCount());
-        assertEquals(1, ti.getAbortedCount());
+        assertEquals(3, ti.getCurrentCount());
+        assertEquals(1, ti.getFreeCount());
+        assertEquals(0, ti.getAbortedCount());
         ts3.decrementMvvCount();
 
         ti.cleanup(); // compute canonical form
@@ -199,16 +197,16 @@ public class TransactionIndexTest extends TestCase {
         final TransactionStatus ts1 = ti.registerTransaction();
         final TransactionStatus ts2 = ti.registerTransaction();
         final AtomicLong elapsed = new AtomicLong();
-        final boolean result1 = tryBlockingWwDependency(ti, ts1, ts2, 1000, 10000, elapsed, true);
-        assertTrue(result1);
+        final long result1 = tryBlockingWwDependency(ti, ts1, ts2, 1000, 10000, elapsed, true);
+        assertTrue(result1 > 0);
         assertTrue(elapsed.get() >= 900);
         final TransactionStatus ts3 = ti.registerTransaction();
-        final boolean result2 = tryBlockingWwDependency(ti, ts2, ts3, 1000, 10000, elapsed, false);
-        assertFalse(result2);
+        final long result2 = tryBlockingWwDependency(ti, ts2, ts3, 1000, 10000, elapsed, false);
+        assertFalse(result2 > 0);
         assertTrue(elapsed.get() >= 900);
     }
 
-    boolean tryBlockingWwDependency(final TransactionIndex ti, final TransactionStatus target,
+    private long tryBlockingWwDependency(final TransactionIndex ti, final TransactionStatus target,
             final TransactionStatus source, final long wait, final long timeout, final AtomicLong elapsed,
             boolean commit) throws Exception {
         final AtomicLong result = new AtomicLong();
@@ -234,17 +232,108 @@ public class TransactionIndexTest extends TestCase {
         }
         ti.notifyCompleted(target, _tsa.updateTimestamp());
         t.join();
-        return result.get() > 0;
+        return result.get();
+    }
+
+    public void testDeadlockedWwDependency() throws Exception {
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+
+        /*
+         * Three concurrent transactions
+         */
+        final TransactionStatus ts1 = ti.registerTransaction();
+        final TransactionStatus ts2 = ti.registerTransaction();
+        final TransactionStatus ts3 = ti.registerTransaction();
+
+        final AtomicLong result1 = new AtomicLong(-42);
+        final AtomicLong result2 = new AtomicLong(-42);
+        final AtomicLong result3 = new AtomicLong(-42);
+        final AtomicLong elapsed1 = new AtomicLong(-42);
+        final AtomicLong elapsed2 = new AtomicLong(-42);
+        final AtomicLong elapsed3 = new AtomicLong(-42);
+
+        final Thread t1 = tryWwDependency(ti, ts1, ts2, 2000, result1, elapsed1);
+        final Thread t2 = tryWwDependency(ti, ts2, ts3, 1000000, result2, elapsed2);
+        Thread.sleep(1000);
+        final Thread t3 = tryWwDependency(ti, ts3, ts1, 10000, result3, elapsed3);
+
+        t3.join();
+        assertEquals("Deadlock not detected", TransactionStatus.UNCOMMITTED, result3.get());
+
+        t1.join();
+        ts2.abort();
+        ti.notifyCompleted(ts2, TransactionStatus.ABORTED);
+
+        t2.join();
+        assertEquals(0, result2.get());
+        assertTrue(elapsed1.get() >= 900);
+        assertTrue(elapsed2.get() >= 900);
+        assertTrue(elapsed3.get() < 1000);
+    }
+
+    public void testNonConcurrentWwDependency() throws Exception {
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+        final TransactionStatus ts1 = ti.registerTransaction();
+        /*
+         * Commit processing
+         */
+        long commitTimestamp = _tsa.updateTimestamp();
+        ts1.commit(commitTimestamp);
+        /*
+         * Transactions which will ultimately be non-concurrent.
+         */
+        final TransactionStatus ts2 = ti.registerTransaction();
+        final AtomicLong result1 = new AtomicLong(-42);
+        final AtomicLong elapsed1 = new AtomicLong(-42);
+        final Thread t1 = tryWwDependency(ti, ts1, ts2, 10000, result1, elapsed1);
+        Thread.sleep(1000);
+        ti.notifyCompleted(ts1, commitTimestamp);
+        t1.join();
+        assertEquals("Should be non-current and therefore 0", 0, result1.get());
+        assertTrue("Should have waited until notifyCompleted", elapsed1.get() >= 900);
+    }
+
+    private Thread tryWwDependency(final TransactionIndex ti, final TransactionStatus target,
+            final TransactionStatus source, final long timeout, final AtomicLong result, final AtomicLong elapsed)
+            throws Exception {
+        final Thread t = new Thread(new Runnable() {
+            public void run() {
+                try {
+                    final long start = System.currentTimeMillis();
+                    result.set(ti.wwDependency(TransactionIndex.ts2vh(target.getTs()), source, timeout));
+                    elapsed.set(System.currentTimeMillis() - start);
+                } catch (IllegalArgumentException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        t.start();
+        return t;
     }
     
+    public void testNotifyCompletedBelowFloor() throws Exception {
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+        final TransactionStatus ts1 = ti.registerTransaction();
+        /*
+         * Commit processing
+         */
+        long commitTimestamp = _tsa.updateTimestamp();
+        ts1.commit(commitTimestamp);
+        ti.updateActiveTransactionCache();
+        ti.cleanup();
+        ti.notifyCompleted(ts1, commitTimestamp);
+    }
+
     /**
-     * Bug 914474 is an isolation failure in Stress8txn when run with 10 threads.
-     * Hypothesis is that a TransactionStatus for a committed transaction is
-     * still needed in the TransactionIndex to enforce wwDependency detection, but
-     * has been freed.  This test asserts that a TransactionStatus is retained until
-     * there are no other active transactions that started earlier (as opposed to the
-     * erroneous proposition that it can be freed if no other transaction is
-     * concurrent).
+     * Bug 914474 is an isolation failure in Stress8txn when run with 10
+     * threads. Hypothesis is that a TransactionStatus for a committed
+     * transaction is still needed in the TransactionIndex to enforce
+     * wwDependency detection, but has been freed. This test asserts that a
+     * TransactionStatus is retained until there are no other active
+     * transactions that started earlier (as opposed to the erroneous
+     * proposition that it can be freed if no other transaction is concurrent).
      * 
      * @throws Exception
      */
@@ -252,7 +341,7 @@ public class TransactionIndexTest extends TestCase {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
 
         TransactionStatus ts1 = ti.registerTransaction();
-        
+
         TransactionStatus ts2 = ti.registerTransaction();
         ts2.commit(_tsa.updateTimestamp());
         ti.notifyCompleted(ts2, _tsa.getCurrentTimestamp());
@@ -265,6 +354,6 @@ public class TransactionIndexTest extends TestCase {
             ti.notifyCompleted(ts3, _tsa.getCurrentTimestamp());
         }
         ti.cleanup();
-        assertTrue( ti.wwDependency(TransactionIndex.ts2vh(ts2.getTs()), ts1, 0) != 0);
+        assertTrue(ti.wwDependency(TransactionIndex.ts2vh(ts2.getTs()), ts1, 0) != 0);
     }
 }

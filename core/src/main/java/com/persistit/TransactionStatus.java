@@ -218,7 +218,7 @@ public class TransactionStatus {
     boolean isNotified() {
         return _notified;
     }
-
+    
     /**
      * Start commit processing. This method leaves the
      * <code>TransactionStatus</code> in a state indicating commit processing is
