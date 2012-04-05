@@ -129,13 +129,7 @@ import com.persistit.util.Util;
  * </p>
  * <p>
  * The default string-encoding algorithm does not support localized collation.
- * Specialized collation can be added through a custom
- * {@link com.persistit.encoding.KeyStringCoder}. To use a
- * <code>KeyStringEncoder</code>, attach it to the <code>Key</code> with the
- * {@link #setKeyStringCoder setKeyStringCoder} method. Note that once
- * custom-coded Strings have been inserted as keys into the Persistit database,
- * the same <code>KeyStringCoder</code> must be attached to the <code>Key</code>
- * for proper decoding.
+ * TODO - add collation information here - TODO
  * </p>
  * <a name="_ObjectEncoding">
  * <h3>Object Encoding</h3>
@@ -172,13 +166,6 @@ import com.persistit.util.Util;
  * All overridden object types sort <i>after</i> all other value types. Ordering
  * among various custom types is determined by the custom encoding algorithm's
  * implementation. See {@link com.persistit.encoding.CoderManager} for details.
- * </p>
- * <p>
- * While it is technically possible to override default String encoding using a
- * <code>KeyCoder</code>, <code>KeyStringCoder</code> should be used for this
- * purpose. A <code>KeyCoder</code> is concerned with application logic, whereas
- * <code>KeyStringCoder</code> supports localization. It is preferable to
- * separate these concerns.
  * </p>
  * <a name="_keySegments">
  * <h3>Key Segments</h3>
@@ -410,7 +397,7 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 public final class Key implements Comparable<Object> {
-    
+
     /**
      * Enumeration of possible qualifiers for the {@link Exchange#traverse
      * traverse} and {@link Exchange#remove(Key.Direction) remove} methods.
@@ -418,47 +405,48 @@ public final class Key implements Comparable<Object> {
      * {@link #LTEQ}.
      */
 
-
     public enum Direction {
         /**
-         * Indicates for {@link Exchange#traverse traverse} that the specified key,
-         * if it exists, is to be returned. Indicates for {@link Exchange#remove
-         * remove} that only the specified key is to be removed.
+         * Indicates for {@link Exchange#traverse traverse} that the specified
+         * key, if it exists, is to be returned. Indicates for
+         * {@link Exchange#remove remove} that only the specified key is to be
+         * removed.
          */
         EQ,
         /**
-         * Indicates for {@link Exchange#traverse traverse} that the next smaller
-         * key is to be returned. Not valid for {@link Exchange#remove remove}.
+         * Indicates for {@link Exchange#traverse traverse} that the next
+         * smaller key is to be returned. Not valid for {@link Exchange#remove
+         * remove}.
          */
         LT,
         /**
-         * Indicates for {@link Exchange#traverse traverse} that the current key, if
-         * it exists or else the next smaller key is to be returned. Not valid for
-         * {@link Exchange#remove remove}.
+         * Indicates for {@link Exchange#traverse traverse} that the current
+         * key, if it exists or else the next smaller key is to be returned. Not
+         * valid for {@link Exchange#remove remove}.
          */
         LTEQ,
         /**
-         * Indicates for {@link Exchange#traverse traverse} that the next larger key
-         * is to be returned. Indicates for {@link Exchange#remove remove} that a
-         * range of keys following but not including the specified key is to be
-         * removed.
+         * Indicates for {@link Exchange#traverse traverse} that the next larger
+         * key is to be returned. Indicates for {@link Exchange#remove remove}
+         * that a range of keys following but not including the specified key is
+         * to be removed.
          */
         GT,
         /**
-         * Indicates for {@link Exchange#traverse traverse} that the specified key,
-         * if it exists or else the next larger key is to be returned. Indicates for
-         * {@link Exchange#remove remove} that a range of keys including and
-         * following the specified key is to be removed.
+         * Indicates for {@link Exchange#traverse traverse} that the specified
+         * key, if it exists or else the next larger key is to be returned.
+         * Indicates for {@link Exchange#remove remove} that a range of keys
+         * including and following the specified key is to be removed.
          */
         GTEQ
     }
-    
+
     public static final Direction GT = Direction.GT;
     public static final Direction GTEQ = Direction.GTEQ;
     public static final Direction EQ = Direction.EQ;
     public static final Direction LTEQ = Direction.LTEQ;
     public static final Direction LT = Direction.LT;
-    
+
     /**
      * Key that always occupies the left edge of any <code>Tree</code>
      */
@@ -908,7 +896,6 @@ public final class Key implements Comparable<Object> {
     private int _maxSize;
     private long _generation;
     private Persistit _persistit;
-
 
     /**
      * Enumeration of special key segment values used to traverse from the first
@@ -1473,7 +1460,7 @@ public final class Key implements Comparable<Object> {
             for (int depth = 0; _index < _size; depth++) {
                 if (depth > 0)
                     Util.append(sb, ",");
-                decodeDisplayable(true, sb);
+                decodeDisplayable(true, sb, null);
             }
             Util.append(sb, "}");
             switch (nudged) {
@@ -2566,8 +2553,7 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Decodes the next key segment as a <code>String</code>, advances the index
-     * to the next key segment and returns the result. This method uses the
-     * {@link KeyStringCoder} if there is one.
+     * to the next key segment and returns the result.
      * 
      * @return The String value
      * @throws ConversionException
@@ -2575,26 +2561,7 @@ public final class Key implements Comparable<Object> {
      */
     public String decodeString() {
         StringBuilder sb = new StringBuilder();
-        decodeString(false, sb, null);
-        return sb.toString();
-    }
-
-    /**
-     * Decodes the next key segment as a <code>String</code>, advances the index
-     * to the next key segment and returns the result. This method uses the
-     * {@link KeyStringCoder} if there is one.
-     * 
-     * @param context
-     *            An application-specified value that may assist a
-     *            {@link KeyStringCoder}. The context is passed to the
-     *            {@link KeyStringCoder#decodeKeySegment} method.
-     * @return The String value
-     * @throws ConversionException
-     *             if the next key segment value is not a String.
-     */
-    public String decodeString(CoderContext context) {
-        StringBuilder sb = new StringBuilder();
-        decodeString(false, sb, context);
+        decodeString(false, sb);
         return sb.toString();
     }
 
@@ -2605,32 +2572,13 @@ public final class Key implements Comparable<Object> {
      * 
      * @param sb
      *            The <code>Appendable</code>
-     * 
+     * @return The supplied <code>Appendable</code> to permit operation
+     *         chaining.
      * @throws ConversionException
      *             if the next key segment value is not a String.
      */
-    public void decodeString(Appendable sb) {
-        decodeString(false, sb, null);
-    }
-
-    /**
-     * Decodes the next key segment as a <code>String</code>, appends the result
-     * to the supplied <code>Appendable</code> and advances the index to the
-     * next key segment.
-     * 
-     * @param sb
-     *            The <code>Appendable</code>
-     * 
-     * @param context
-     *            An application-specified value that may assist a
-     *            {@link KeyCoder}. The context is passed to the
-     *            {@link KeyCoder#decodeKeySegment} method.
-     * 
-     * @throws ConversionException
-     *             if the next key segment value is not a String.
-     */
-    public Appendable decodeString(Appendable sb, CoderContext context) {
-        return decodeString(false, sb, context);
+    public Appendable decodeString(Appendable sb) {
+        return decodeString(false, sb);
     }
 
     /**
@@ -2852,9 +2800,9 @@ public final class Key implements Comparable<Object> {
 
         if (type == TYPE_STRING) {
             if (target != null && Appendable.class.isAssignableFrom(target.getClass())) {
-                return decodeString((Appendable) target, context);
+                return decodeString((Appendable) target);
             } else {
-                return decodeString(context);
+                return decodeString();
             }
         }
 
@@ -2916,34 +2864,12 @@ public final class Key implements Comparable<Object> {
      */
     public String decodeDisplayable(boolean quoted) {
         StringBuilder sb = new StringBuilder();
-        decodeDisplayable(quoted, sb);
+        decodeDisplayable(quoted, sb, null);
         return sb.toString();
     }
 
     /**
-     * Decodes the next key segment as a displayable String and advances the
-     * index to the next key segment. This method appends the decoded String
-     * value to the supplied StringBuilder. If <code>quoted</code> is true, and
-     * if the segment value is a String, then the String value is surrounded by
-     * quote (") characters, and backslashes are inserted into the display
-     * string to quote any embedded any backslash or quote characters. This
-     * method is intended to generate a human-readable, canonical String
-     * representation for any type of key segment value.
-     * 
-     * @param quoted
-     *            <code>true</code> if the resulting string is to be quoted.
-     * @param sb
-     *            The <code>StringBuilder</code> to which the displayable String
-     *            is to be appended.
-     * @throws ConversionException
-     *             if the next key segment value is not a boolean.
-     */
-    public void decodeDisplayable(boolean quoted, Appendable sb) {
-        decodeDisplayable(quoted, sb, null);
-    }
-
-    /**
-     * Decodes the next key segment as a displayable String and advances the
+     * Decode the next key segment as a displayable String and advances the
      * index to the next key segment. This method appends the decoded String
      * value to the supplied StringBuilder. If <code>quoted</code> is true, and
      * if the segment value is a String, then the String value is surrounded by
@@ -2957,10 +2883,6 @@ public final class Key implements Comparable<Object> {
      * @param sb
      *            The <code>StringBuilder</code> to which the displayable string
      *            is to be appended.
-     * @param context
-     *            An application-specified value that may assist a
-     *            {@link KeyStringCoder}. The context is passed to the
-     *            {@link KeyStringCoder#renderKeySegment} method.
      * @throws ConversionException
      *             if the next key segment value is not a boolean.
      */
@@ -2992,7 +2914,7 @@ public final class Key implements Comparable<Object> {
             if (quoted) {
                 Util.append(sb, '\"');
             }
-            decodeString(quoted, sb, context);
+            decodeString(quoted, sb);
             if (quoted) {
                 Util.append(sb, '\"');
             }
@@ -3005,7 +2927,9 @@ public final class Key implements Comparable<Object> {
 
         case TYPE_BOOLEAN_FALSE:
         case TYPE_BOOLEAN_TRUE:
-            Util.append(sb, Boolean.toString(decodeBoolean())); // let system define the string form
+            Util.append(sb, Boolean.toString(decodeBoolean())); // let system
+                                                                // define the
+                                                                // string form
             return;
 
         default:
@@ -3561,7 +3485,7 @@ public final class Key implements Comparable<Object> {
      * @param quoted
      * @param sb
      */
-    private Appendable decodeString(boolean quoted, Appendable sb, CoderContext context) {
+    private Appendable decodeString(boolean quoted, Appendable sb) {
         int index = _index;
         int c1 = _bytes[index++] & 0xFF;
         if (c1 != TYPE_STRING) {

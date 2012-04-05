@@ -41,11 +41,11 @@ import com.persistit.exception.PersistitInterruptedException;
  * include SumAccumulator, MinAccumulator, MaxAccumulator and SeqAccumulator
  * which compute the sum, minimum and maximum values of contributions by
  * individual transactions. (See below for semantics of the SeqAccummulator.)
- * Each contribution is accounted for separately as a {@link Delta} instance
- * until the transaction is either committed or aborted <i>and<i> there are no
- * other concurrently executing transactions that started before the commit
- * timestamp. This mechanism is designed to provide a "snapshot" view of the
- * Accumulator that is consistent with the snapshot view of the database.
+ * Each contribution is accounted for separately as a <code>Delta</code>
+ * instance until the transaction is either committed or aborted <i>and<i> there
+ * are no other concurrently executing transactions that started before the
+ * commit timestamp. This mechanism is designed to provide a "snapshot" view of
+ * the Accumulator that is consistent with the snapshot view of the database.
  * </p>
  * <p>
  * In more detail: the {@link #update(long, Transaction)} method of an
@@ -516,8 +516,9 @@ public abstract class Accumulator {
     }
 
     /**
-     * Non-transactional view aggregating all updates applied to this Accumlator,
-     * whether committed or not.
+     * Non-transactional view aggregating all updates applied to this
+     * Accumlator, whether committed or not.
+     * 
      * @return the live value
      */
     public long getLiveValue() {
@@ -575,8 +576,7 @@ public abstract class Accumulator {
     /**
      * Update the Accumulator by contributing a value. The contribution is
      * immediately accumulated into the live value, and it is also posted with a
-     * 
-     * @{link {@link Delta} instance to the supplied {@link Transaction}.
+     * <code>Delta</code>instance to the supplied {@link Transaction}.
      * 
      * @param value
      *            The delta value

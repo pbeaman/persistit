@@ -136,7 +136,7 @@ import com.persistit.util.Util;
  * </p>
  * <p>
  * Commands are defined below in methods annotated with @Cmd having parameters annotated with @Arg.
- * The format of the argument annotation is specified in {@link ArgParser). Enter the command
+ * The format of the argument annotation is specified in {@link ArgParser}. Enter the command
  * 'help' to see a readable list of commands and their arguments.
  * </p>
  * 

@@ -217,7 +217,7 @@ public class MVV {
      * <p>
      * The target MVV array must have enough available space to hold the updated
      * value. The caller can invoke the
-     * {@link #exactRequiredLength(byte[], int, long, int)} method to determine
+     * {@link #exactRequiredLength(byte[], int, int, long, int)} method to determine
      * how much space is required.
      * </p>
      * 
@@ -250,8 +250,8 @@ public class MVV {
      *            Length of source currently in use
      * @return Compound value consisting of a flag indicating if the version
      *         already existed and the new consumed length of target. Use the
-     *         mask values {@link MVV2#STORE_EXISTED_MASK} and
-     *         {@link MVV2#STORE_LENGTH_MASK} for decoding the two pieces.
+     *         mask values {@link MVV#STORE_EXISTED_MASK} and
+     *         {@link MVV#STORE_LENGTH_MASK} for decoding the two pieces.
      * @throws IllegalArgumentException
      *             If target is too small to hold final MVV contents
      */
@@ -718,7 +718,7 @@ public class MVV {
      * Fetch a version of a value from a MVV array given a known offset. The
      * offset should be the starting position of of the actual value and not the
      * MVV header bytes. Intended to be used in connection with the
-     * {@link #visitAllVersions(VersionVisitor, byte[], int)} method which gives
+     * {@link #visitAllVersions(VersionVisitor, byte[], int, int)} method which gives
      * this offset.
      * 
      * @param source

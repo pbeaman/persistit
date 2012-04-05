@@ -26,76 +26,12 @@
 
 package com.persistit.collation;
 
-/**
- * <p>
- * Convert string-valued data to and from a form that sorts correctly under a
- * binary ordering for use in B-Tree keys. This interface defines two main
- * methods, {@link #encode(byte[], int, int, byte[], int, int)} and
- * {@link #decode(byte[], int, int, byte[], int, int)}. These methods are
- * responsible for encoding and decoding strings within Persistit {@link Key}
- * instances in such a way that binary comparisons of the key bytes will result
- * in correct locale-specific ordering of the keys.
- * </p>
- * 
- * <p>
- * The <code>encode</code> method populates two byte arrays, one containing the
- * "keyBytes" and the other containing the "caseBytes". The keyBytes array is an
- * encoding of a derived sort key for the string. The caseBytes contains the
- * information needed to recover the original string when combined with the
- * keyBytes.
- * </p>
- * 
- * <p>
- * As might be expected, the <code>decode</code> method combines the keyBytes
- * and caseBytes data to recreate the original string.
- * </p>
- * 
- * <p>
- * An instance of this interface holds a small-integer collationId. Its value is
- * intended to be used as a handle by which an implementation of a specific
- * collation scheme can be looked up. CollationId value zero is reserved to
- * specify collation consistent with the default UTF-8 encoding scheme. Small
- * positive integers are used to specify collation schemes for supported
- * languages.
- * </p>
- * 
- * <p>
- * You must specify the collationId before calling the <code>encode</code>
- * method. The implementation of <code>encode</code> should encode the
- * collationId into the caseBytes array.
- * </p>
- * 
- * <p>
- * You may specify the collationId before calling the <code>decode</code>
- * method, in which case the value encoded in the caseBytes will be verified
- * against the supplied value. Alternatively you may specify a value of -1 in
- * which case the value encoded in caseBytes will be used without verification.
- * </p>
- * 
- * <p>
- * As an option specified by passing a value of zero as caseBytesMaximumLength,
- * the <code>encode</code> method may not write any case bytes. In this case,
- * the value of {@link #getCollationId()} will be used when decoding the string.
- * </p>
- * 
- * @author peter
- * 
- */
-public interface CollatableCharSequence extends CharSequence, Appendable {
+public interface CollationEngine {
 
     /**
-     * @return the current collationId
+     * @return the unique collationId of this CollationEngine implementation
      */
-    int getCollationId();
-
-    /**
-     * Change the current collationId.
-     * 
-     * @param collationId
-     *            identifier of a collation scheme. Values -1 and 0 have special
-     *            meaning described {@link #decode}.
-     */
-    void setCollationId(int collationId);
+    public int getCollationId();
 
     /**
      * <p>
@@ -105,11 +41,11 @@ public interface CollatableCharSequence extends CharSequence, Appendable {
      * {@link #setCollationId(int)}.
      * </p>
      * <p>
-     * An implementation of this method may only use non-zero bytes to encode the
-     * keyBytes field. Zero bytes are reserved to delimit the ends of key segments.
-     * Since this method is used in performance-critical code paths, the encode
-     * produced by this method is not verified for correctness. Therefore an incorrect
-     * implementation will produce anomalous results. 
+     * An implementation of this method may only use non-zero bytes to encode
+     * the keyBytes field. Zero bytes are reserved to delimit the ends of key
+     * segments. Since this method is used in performance-critical code paths,
+     * the encode produced by this method is not verified for correctness.
+     * Therefore an incorrect implementation will produce anomalous results.
      * </p>
      * <p>
      * The return value is a long that holds the length of the case bytes in its
@@ -119,6 +55,8 @@ public interface CollatableCharSequence extends CharSequence, Appendable {
      * this method throws an ArrayIndexOutOfBoundsException.
      * </p>
      * 
+     * @param source
+     *            a CharSequence from which the string to be encoded is supplied
      * @param keyBytes
      *            Byte array into which keyBytes are written
      * @param keyBytesOffset
@@ -139,16 +77,15 @@ public interface CollatableCharSequence extends CharSequence, Appendable {
      *             if the implementation determines that the string it
      *             represents cannot be encoded
      */
-    long encode(byte[] keyBytes, int keyBytesOffset, int keyBytesMaximumLength, byte[] caseBytes, int caseBytesOffset,
-            int caseBytesMaximumLength);
+    long encode(CharSequence source, byte[] keyBytes, int keyBytesOffset, int keyBytesMaximumLength, byte[] caseBytes,
+            int caseBytesOffset, int caseBytesMaximumLength);
 
     /**
      * <p>
      * Combine the supplied byte arrays previously produced by the
-     * {@link #encode} method to produce a
-     * string. The result of calling this method is equivalent to calling the
-     * {@link #append(char)} method for each character produced by combining the
-     * two byte arrays.
+     * {@link #encode} method to produce a string. The result of calling this
+     * method is equivalent to calling the {@link #append(char)} method for each
+     * character produced by combining the two byte arrays.
      * </p>
      * <p>
      * It is intended that the caseBytes should encode the collationId value
@@ -171,6 +108,9 @@ public interface CollatableCharSequence extends CharSequence, Appendable {
      * </ul>
      * </p>
      * 
+     * @param target
+     *            An Appendable to which the decoded string value will be
+     *            written
      * @param keyBytes
      *            Byte array containing keyBytes
      * @param keyBytesOffset
@@ -188,8 +128,8 @@ public interface CollatableCharSequence extends CharSequence, Appendable {
      *             if the collationId encoded in caseBytes does not match the
      *             current value of {@link #getCollationId()}.
      */
-    int decode(byte[] keyBytes, int keyBytesOffset, int keyBytesLength, byte[] caseBytes, int caseBytesOffset,
-            int caseBytesLength);
+    int decode(Appendable target, byte[] keyBytes, int keyBytesOffset, int keyBytesLength, byte[] caseBytes,
+            int caseBytesOffset, int caseBytesLength);
 
     /**
      * Decode the collationId from the supplied caseBytes.
@@ -204,4 +144,5 @@ public interface CollatableCharSequence extends CharSequence, Appendable {
      *         caseBytesLength is zero.
      */
     int decodeCollationId(byte[] caseBytes, int caseBytesOffset, int caseBytesLength);
+
 }

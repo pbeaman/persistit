@@ -111,8 +111,7 @@ import com.persistit.util.Util;
  * Additional methods of <code>Exchange</code> include {@link #fetchAndStore
  * fetchAndStore} and {@link #fetchAndRemove fetchAndRemove} which atomically
  * modify the database and return the former value associated with the current
- * <code>Key</code>, and {@link #incrementValue} which atomically increments an
- * integer value associated with the current <code>Key</code>.
+ * <code>Key</code>.
  * </p>
  * <p>
  * <h3>Exchange is Not Threadsafe</h3>
@@ -200,7 +199,7 @@ public class Exchange {
         public int getLength() {
             return _foundLength;
         }
-        
+
         public boolean foundVersion() {
             return _foundVersion != MVV.VERSION_NOT_FOUND;
         }
@@ -1402,8 +1401,8 @@ public class Exchange {
 
                 /*
                  * Can't save the old pointer as the state may have changed
-                 * since the last claim, could have even been de-allocated,
-                 * and just as equally can't hold onto the new one either.
+                 * since the last claim, could have even been de-allocated, and
+                 * just as equally can't hold onto the new one either.
                  */
                 oldLongRecordPointerMVV = 0;
                 if (!committed && newLongRecordPointerMVV != 0) {
@@ -1506,9 +1505,8 @@ public class Exchange {
                              */
                             byte[] spareBytes = _spareValue.getEncodedBytes();
                             int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
-                            spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(),
-                                    false, prunedVersions);
-
+                            spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false,
+                                    prunedVersions);
 
                             final TransactionStatus tStatus = _transaction.getTransactionStatus();
                             final int tStep = _transaction.getCurrentStep();
@@ -1716,7 +1714,7 @@ public class Exchange {
         }
         return keyExisted;
     }
-    
+
     private long timestamp() {
         return _persistit.getTimestampAllocator().updateTimestamp();
     }
@@ -2658,10 +2656,13 @@ public class Exchange {
      * assumed, but not required, to be an MVV. The correct version is
      * determined by the current transactions start timestamp. If no transaction
      * is active, the highest committed version is returned.
-     *
-     * <p><b>Note</b>: This method only determines the visible version and
-     * copies it into <code>value</code>, or clears it if there isn't one.
-     * It may still be a LONG_RECORD or AntiValue</p>.
+     * 
+     * <p>
+     * <b>Note</b>: This method only determines the visible version and copies
+     * it into <code>value</code>, or clears it if there isn't one. It may still
+     * be a LONG_RECORD or AntiValue
+     * </p>
+     * .
      * 
      * @param value
      *            The <code>Value</code> into which the value should be fetched.
@@ -2744,12 +2745,17 @@ public class Exchange {
     }
 
     /**
-     * Helper for fully pulling a value out of a Buffer. That is, if
-     * the value is a LONG_RECORD it will also be fetched.
-     * @param buffer Buffer to read from.
-     * @param value Value to write to.
-     * @param foundAt Location within <code>buffer</code>.
-     * @param minimumBytes Minimum amount of LONG_RECORD to fetch. If &lt;0, the
+     * Helper for fully pulling a value out of a Buffer. That is, if the value
+     * is a LONG_RECORD it will also be fetched.
+     * 
+     * @param buffer
+     *            Buffer to read from.
+     * @param value
+     *            Value to write to.
+     * @param foundAt
+     *            Location within <code>buffer</code>.
+     * @param minimumBytes
+     *            Minimum amount of LONG_RECORD to fetch. If &lt;0, the
      *            <code>value</code> will contain just the descriptor portion.
      * @throws PersistitException
      *             As thrown from any internal method.
@@ -2760,12 +2766,12 @@ public class Exchange {
         buffer.fetch(foundAt, value);
         /*
          * We must fetch the full LONG_RECORD, if needed, while buffer is
-         * claimed from calling code so that it can't be de-allocated
-         * as we are reading it.
+         * claimed from calling code so that it can't be de-allocated as we are
+         * reading it.
          */
         fetchFixupForLongRecords(value, minimumBytes);
         if (!_ignoreMVCCFetch) {
-            if(MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
+            if (MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
                 buffer.enqueuePruningAction(_tree.getHandle());
                 visible = mvccFetch(value, minimumBytes);
                 fetchFixupForLongRecords(value, minimumBytes);
@@ -2786,8 +2792,8 @@ public class Exchange {
      * @param value
      *            The value as found on the page.
      * @param minimumBytes
-     *            If >= 0 and stored value is a LONG_RECORD, fetch at least
-     *            this many bytes.
+     *            If >= 0 and stored value is a LONG_RECORD, fetch at least this
+     *            many bytes.
      * @throws PersistitException
      *             As thrown from {@link #search(Key, boolean)}
      */
@@ -2877,7 +2883,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public void removeTree() throws PersistitException {
-        
+
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
@@ -3616,7 +3622,7 @@ public class Exchange {
     boolean prune(final Key key1, final Key key2) throws PersistitException {
         Buffer buffer = null;
         boolean pruned = false;
-        
+
         Debug.$assert1.t(_tree.isValid());
         try {
             search(key1, true);
@@ -4031,8 +4037,8 @@ public class Exchange {
     /**
      * Store an Object with this Exchange for the convenience of an application.
      * 
-     * @param the
-     *            object to be cached for application convenience.
+     * @param appCache
+     *            the object to be cached for application convenience.
      */
     public void setAppCache(Object appCache) {
         _appCache = appCache;

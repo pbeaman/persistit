@@ -95,12 +95,6 @@ import com.persistit.util.UtilControl;
  * memory.
  * </p>
  * <p>
- * Once initialized, there is a single <code>Persistit</code> instance available
- * from the {@link #getInstance} method. Various non-static methods are
- * available on this instance. The {@link #close} method releases the
- * <code>Persistit</code> instance, allowing its memory to be released.
- * </p>
- * <p>
  * An application interacts with Persistit by creating {@link Exchange} objects
  * and invoking their methods.
  * </p>
