@@ -63,7 +63,8 @@ public interface KeyDisplayer extends KeyCoder {
      *            are to be retrieved
      * 
      * @param target
-     *            An object into which the key segment is to be written
+     *            An @{link Appendable} object into which the key segment is to
+     *            be written
      * 
      * @param clazz
      *            The class of the object that was originally encoded into
@@ -77,7 +78,7 @@ public interface KeyDisplayer extends KeyCoder {
      * 
      * @throws ConversionException
      */
-    public void displayKeySegment(Key key, StringBuilder target, Class<?> clazz, CoderContext context)
+    public void displayKeySegment(Key key, Appendable target, Class<?> clazz, CoderContext context)
             throws ConversionException;
 
 }

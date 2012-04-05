@@ -469,7 +469,7 @@ public final class Value {
 
     private final static int[] ENCODED_SIZE_BITS = { -1, 0x00, 0x10, 0x20, -1, 0x30 };
 
-    private final static Class[] CLASSES = {
+    private final static Class<?>[] CLASSES = {
             null, // 0
             Void.TYPE, Boolean.TYPE, Byte.TYPE,
             null, // reserved for .net unsigned byte
@@ -499,7 +499,8 @@ public final class Value {
             null, null,
 
             null, // 48
-            AntiValue.class, Object.class, // 50 Reference to previously encoded Object,
+            AntiValue.class, Object.class, // 50 Reference to previously encoded
+                                           // Object,
             null, null, null, null, null, null, null, null, null, Serializable.class, // 60
             Serializable.class, // 61
 
@@ -552,7 +553,7 @@ public final class Value {
     };
 
     private final static int TOO_MANY_LEVELS_THRESHOLD = 100;
-    private final static HashMap _arrayTypeCache = new HashMap();
+    private final static HashMap<Class<?>, Class<?>[]> _arrayTypeCache = new HashMap<Class<?>, Class<?>[]>();
     private final static int SAB_INCREMENT = 1024;
 
     private int _maximumSize = DEFAULT_MAXIMUM_SIZE;
@@ -576,7 +577,7 @@ public final class Value {
     private ValueObjectOutputStream _vos;
 
     private int _serializedItemCount;
-    private WeakReference _valueCacheWeakRef;
+    private WeakReference<ValueCache> _valueCacheWeakRef;
     private ValueCache _valueCache;
 
     private boolean _shared = true;
@@ -585,7 +586,7 @@ public final class Value {
 
     private final Persistit _persistit;
 
-    private WeakReference _stringAssemblyBufferWeakRef;
+    private WeakReference<StringBuilder> _stringAssemblyBufferWeakRef;
 
     /**
      * Construct a <code>Value</code> object with default initial and maximum
@@ -654,14 +655,12 @@ public final class Value {
                 Util.clearBytes(_longBytes, 0, _longBytes.length);
             }
             _longSize = 0;
-
-            char[] sab = null;
             if (_stringAssemblyBufferWeakRef != null) {
-                sab = (char[]) _stringAssemblyBufferWeakRef.get();
-                if (sab != null) {
-                    int length = sab.length;
+                StringBuilder sb = _stringAssemblyBufferWeakRef.get();
+                if (sb != null) {
+                    int length = sb.length();
                     for (int index = 0; index < length; index++) {
-                        sab[index] = (char) 0;
+                        sb.setCharAt(index, (char) 0);
                     }
                 }
             }
@@ -669,16 +668,18 @@ public final class Value {
         clear();
     }
 
-    private char[] getStringAssemblyBuffer(int size) {
-        char[] sab = null;
+    private StringBuilder getStringAssemblyBuffer(int size) {
+        StringBuilder sb = null;
         if (_stringAssemblyBufferWeakRef != null) {
-            sab = (char[]) _stringAssemblyBufferWeakRef.get();
+            sb = _stringAssemblyBufferWeakRef.get();
         }
-        if (sab == null || sab.length < size) {
-            sab = new char[size + SAB_INCREMENT];
-            _stringAssemblyBufferWeakRef = new WeakReference(sab);
+        if (sb == null) {
+            sb = new StringBuilder(size + SAB_INCREMENT);
+            _stringAssemblyBufferWeakRef = new WeakReference<StringBuilder>(sb);
+        } else {
+            sb.setLength(0);
         }
-        return sab;
+        return sb;
     }
 
     /**
@@ -1041,7 +1042,7 @@ public final class Value {
      *            <code>true</code> to quote and convert all strings to
      *            printable form.
      * @param sb
-     *            A <code>StringBuilder</code> to which the displayable value
+     *            An <code>StringBuilder</code> to which the displayable value
      *            will be appended.
      */
     public void decodeDisplayable(boolean quoted, StringBuilder sb) {
@@ -1058,7 +1059,7 @@ public final class Value {
      *            <code>true</code> to quote and convert all strings to
      *            printable form.
      * @param sb
-     *            A <code>StringBuilder</code> to which the displayable value
+     *            An <code>StringBuilder</code> to which the displayable value
      *            will be appended.
      * @param context
      *            A <code>CoderContext</code> to be passed to any underlying
@@ -1083,7 +1084,7 @@ public final class Value {
         case TYPE_BYTE: {
             _next = start;
             appendParenthesizedFriendlyClassName(sb, byte.class);
-            sb.append(getByte());
+            sb.append(Byte.toString(getByte()));
             break;
         }
 
@@ -1093,39 +1094,39 @@ public final class Value {
             if (quoted)
                 Util.appendQuotedChar(sb, getChar());
             else
-                sb.append((int) getChar());
+                sb.append(Integer.toString(getChar()));
             break;
         }
 
         case TYPE_INT: {
             _next = start;
-            sb.append(getInt());
+            sb.append(Integer.toString(getInt()));
             break;
         }
 
         case TYPE_LONG: {
             _next = start;
             appendParenthesizedFriendlyClassName(sb, long.class);
-            sb.append(getLong());
+            sb.append(Long.toString(getLong()));
             break;
         }
 
         case TYPE_FLOAT: {
             _next = start;
             appendParenthesizedFriendlyClassName(sb, float.class);
-            sb.append(getFloat());
+            sb.append(Float.toString(getFloat()));
             break;
         }
 
         case TYPE_DOUBLE: {
             _next = start;
-            sb.append(getDouble());
+            sb.append(Double.toString(getDouble()));
             break;
         }
 
         case TYPE_BOOLEAN: {
             _next = start;
-            sb.append(getBoolean());
+            sb.append(Boolean.toString(getBoolean()));
             break;
         }
 
@@ -1167,7 +1168,7 @@ public final class Value {
                     int length = _end - _next;
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
-                            sb.append(",");
+                            sb.append(',');
                         sb.append(toBoolean(_next) ? "true" : "false");
                         _next++;
                     }
@@ -1179,8 +1180,8 @@ public final class Value {
                     int length = _end - _next;
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
-                            sb.append(",");
-                        sb.append(Util.getByte(_bytes, _next));
+                            sb.append(',');
+                        sb.append(Byte.toString((byte) Util.getByte(_bytes, _next)));
                         _next++;
                     }
                     break;
@@ -1191,8 +1192,8 @@ public final class Value {
                     int length = arraySize(_end, _next, 2);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
-                            sb.append(",");
-                        sb.append(Util.getShort(_bytes, _next));
+                            sb.append(',');
+                        sb.append(Short.toString((short) Util.getShort(_bytes, _next)));
                         _next += 2;
                     }
                     break;
@@ -1203,12 +1204,12 @@ public final class Value {
                     int length = arraySize(_end, _next, 2);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
-                            sb.append(",");
+                            sb.append(',');
                         int c = Util.getChar(_bytes, _next);
                         if (quoted)
                             Util.appendQuotedChar(sb, c);
                         else
-                            sb.append((int) c);
+                            sb.append(Integer.toString(c));
                         _next += 2;
                     }
                     break;
@@ -1219,8 +1220,8 @@ public final class Value {
                     int length = arraySize(_end, _next, 4);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
-                            sb.append(",");
-                        sb.append(Util.getInt(_bytes, _next));
+                            sb.append(',');
+                        sb.append(Integer.toString(Util.getInt(_bytes, _next)));
                         _next += 4;
                     }
                     break;
@@ -1231,8 +1232,8 @@ public final class Value {
                     int length = arraySize(_end, _next, 8);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
-                            sb.append(",");
-                        sb.append(Util.getLong(_bytes, _next));
+                            sb.append(',');
+                        sb.append(Long.toString(Util.getLong(_bytes, _next)));
                         _next += 8;
                     }
                     break;
@@ -1243,9 +1244,9 @@ public final class Value {
                     int length = arraySize(_end, _next, 4);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
-                            sb.append(",");
+                            sb.append(',');
                         float f = Float.intBitsToFloat(Util.getInt(_bytes, _next));
-                        sb.append(f);
+                        sb.append(Float.toString(f));
                         _next += 4;
                     }
                     break;
@@ -1256,23 +1257,23 @@ public final class Value {
                     int length = arraySize(_end, _next, 8);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
-                            sb.append(",");
+                            sb.append(',');
                         double d = Double.longBitsToDouble(Util.getLong(_bytes, _next));
-                        sb.append(d);
+                        sb.append(Double.toString(d));
                         _next += 8;
                     }
                     break;
                 }
 
                 default: {
-                    Class cl = classForHandle(componentClassHandle);
+                    Class<?> cl = classForHandle(componentClassHandle);
                     if (cl != null)
                         appendFriendlyClassName(sb, cl);
                     sb.append("[]{");
                     int length = decodeElementCount();
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
-                            sb.append(",");
+                            sb.append(',');
                         decodeDisplayable(quoted, sb, context);
                     }
                     break;
@@ -1313,8 +1314,7 @@ public final class Value {
 
         case TYPE_MVV: {
             final int savedSize = _size;
-            sb.append("[");
-
+            sb.append('[');
 
             try {
                 MVV.visitAllVersions(new MVV.VersionVisitor() {
@@ -1326,19 +1326,19 @@ public final class Value {
 
                     @Override
                     public void sawVersion(long version, int offset, int valueLength) {
-                        if(!first) {
-                            sb.append(", ");
+                        if (!first) {
+                            sb.append(',');
                         }
                         sb.append(TransactionStatus.versionString(version));
                         try {
-                        long tc = _persistit.getTransactionIndex().commitStatus(version, Long.MAX_VALUE, 0);
+                            long tc = _persistit.getTransactionIndex().commitStatus(version, Long.MAX_VALUE, 0);
                             sb.append("<" + TransactionStatus.tcString(tc) + ">");
                         } catch (Exception e) {
                             sb.append("<" + e + ">");
                         }
-                        
+
                         sb.append(':');
-                        if(valueLength == 0) {
+                        if (valueLength == 0) {
                             sb.append(UNDEFINED);
                         } else {
                             _next = offset;
@@ -1349,22 +1349,22 @@ public final class Value {
                     }
 
                 }, getEncodedBytes(), 0, getEncodedSize());
-            } 
-            catch (Throwable t) {
-                sb.append("<<").append(t).append(">>");
-            }
-            finally {
+            } catch (Throwable t) {
+                sb.append("<<");
+                sb.append(t.toString());
+                sb.append(">>");
+            } finally {
                 _next = _end = _size = savedSize;
             }
-            
-            sb.append("]");
+
+            sb.append(']');
         }
             break;
 
         default: {
             if (classHandle >= CLASS1) {
                 try {
-                    Class clazz = _persistit.classForHandle(classHandle);
+                    Class<?> clazz = _persistit.classForHandle(classHandle);
                     ValueCoder coder = null;
                     _depth++;
                     getValueCache().store(currentItemCount, new DisplayMarker(sb.length()));
@@ -1391,15 +1391,15 @@ public final class Value {
                         }
                     } else {
                         appendParenthesizedFriendlyClassName(sb, clazz);
-                        sb.append("{");
+                        sb.append('{');
                         boolean first = true;
                         while (hasMoreItems()) {
                             if (!first)
-                                sb.append(",");
+                                sb.append(',');
                             first = false;
                             decodeDisplayable(true, sb, null);
                         }
-                        sb.append("}");
+                        sb.append('}');
                     }
                     break;
                 } catch (Throwable t) {
@@ -1427,7 +1427,7 @@ public final class Value {
         }
     }
 
-    private void decodeDisplayableMultiArray(boolean quoted, StringBuilder sb, CoderContext context, Class prototype) {
+    private void decodeDisplayableMultiArray(boolean quoted, StringBuilder sb, CoderContext context, Class<?> prototype) {
         int start = _next;
         int type = nextType(CLASS_MULTI_ARRAY, CLASS_REREF);
         if (type == CLASS_REREF) {
@@ -1452,7 +1452,7 @@ public final class Value {
                 _serializedItemCount++;
                 registerEncodedObject(sb.length());
                 sb.append('[');
-                Class componentType = prototype.getComponentType();
+                Class<?> componentType = prototype.getComponentType();
                 if (componentType.getComponentType().isArray()) {
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
@@ -1474,15 +1474,15 @@ public final class Value {
         }
     }
 
-    private void appendParenthesizedFriendlyClassName(StringBuilder sb, Class cl) {
+    private void appendParenthesizedFriendlyClassName(StringBuilder sb, Class<?> cl) {
         sb.append('(');
         appendFriendlyClassName(sb, cl);
         sb.append(')');
     }
 
-    private void appendFriendlyClassName(StringBuilder sb, Class cl) {
+    private void appendFriendlyClassName(StringBuilder sb, Class<?> cl) {
         if (cl == null) {
-            sb.append("null");
+            sb.append(cl);
             return;
         }
         if (cl.isPrimitive()) {
@@ -1504,9 +1504,9 @@ public final class Value {
 
     private void appendDisplayable(StringBuilder sb, Object value, boolean quoted, boolean reference) {
         if (value == null) {
-            sb.append("null");
+            sb.append(value);
         } else {
-            Class cl = value.getClass();
+            Class<?> cl = value.getClass();
             String className = cl.getName();
 
             if (cl == String.class) {
@@ -1532,9 +1532,9 @@ public final class Value {
                 sb.append('(');
                 sb.append(className.startsWith("java.lang.") ? className.substring(10) : className);
                 sb.append(')');
-                sb.append(value);
+                sb.append(value.toString());
             } else if (value instanceof DisplayMarker) {
-                sb.append(value);
+                sb.append(value.toString());
             } else if (value instanceof AntiValue) {
                 sb.append(cl.getSimpleName());
                 sb.append(value.toString());
@@ -1546,7 +1546,6 @@ public final class Value {
                 } catch (Throwable t) {
                     sb.append("<<" + t + ">>");
                 }
-                // sb.append(value);
             }
         }
     }
@@ -1570,7 +1569,7 @@ public final class Value {
      * 
      * @return The type
      */
-    public Class getType() {
+    public Class<?> getType() {
         int saveDepth = _depth;
         int saveLevel = _level;
         int saveNext = _next;
@@ -1600,8 +1599,8 @@ public final class Value {
             _depth = saveDepth;
         }
     }
-    
-    public boolean isType(final Class clazz) {
+
+    public boolean isType(final Class<?> clazz) {
         final int classHandle = getTypeHandle();
         if (classHandle == TYPE_MVV || classHandle == CLASS_ANTIVALUE) {
             return false;
@@ -1616,9 +1615,9 @@ public final class Value {
         }
     }
 
-    private Class arrayClass(Class componentClass, int dimensions) {
-        Class[] arraysByDimension = (Class[]) _arrayTypeCache.get(componentClass);
-        Class result = null;
+    private Class<?> arrayClass(Class<?> componentClass, int dimensions) {
+        Class<?>[] arraysByDimension = _arrayTypeCache.get(componentClass);
+        Class<?> result = null;
         if (arraysByDimension != null && arraysByDimension.length > dimensions)
             result = arraysByDimension[dimensions];
         if (result != null)
@@ -1631,13 +1630,13 @@ public final class Value {
             result = Array.newInstance(componentClass, new int[dimensions]).getClass();
         if (arraysByDimension != null) {
             if (arraysByDimension.length <= dimensions) {
-                Class[] temp = new Class[dimensions + 2];
+                Class<?>[] temp = new Class<?>[dimensions + 2];
                 System.arraycopy(arraysByDimension, 0, temp, 0, arraysByDimension.length);
                 arraysByDimension = temp;
                 _arrayTypeCache.put(componentClass, arraysByDimension);
             }
         } else
-            arraysByDimension = new Class[dimensions + 2];
+            arraysByDimension = new Class<?>[dimensions + 2];
 
         arraysByDimension[dimensions] = result;
         return result;
@@ -2102,13 +2101,13 @@ public final class Value {
             break;
 
         case CLASS_STRING: {
-            char[] sab = getStringAssemblyBuffer(_end - _next);
-            int length = utfToCharArray(sab, _next, _end);
-            if (target != null && target instanceof StringBuilder) {
-                ((StringBuilder) target).append(sab, 0, length);
+            if (target != null && target instanceof Appendable) {
+                utfToAppendable((Appendable) target, _next, _end);
                 object = target;
             } else {
-                object = new String(sab, 0, length);
+                StringBuilder sb = getStringAssemblyBuffer(_end - _next);
+                utfToAppendable(sb, _next, _end);
+                object = sb.toString();
             }
             closeVariableLengthItem();
             break;
@@ -2284,7 +2283,7 @@ public final class Value {
                 }
 
                 default: {
-                    Class componentClass = classForHandle(componentClassHandle);
+                    Class<?> componentClass = classForHandle(componentClassHandle);
                     int length = decodeElementCount();
                     Object[] result = (Object[]) Array.newInstance(componentClass, length);
                     getValueCache().store(currentItemCount, result);
@@ -2350,7 +2349,7 @@ public final class Value {
                     @Override
                     public void sawVersion(long version, int offset, int valueLength) {
                         Object obj = null;
-                        if(valueLength > 0) {
+                        if (valueLength > 0) {
                             _next = offset;
                             _end = _size = _next + valueLength;
                             obj = get(target, context);
@@ -2359,15 +2358,13 @@ public final class Value {
                     }
 
                 }, getEncodedBytes(), 0, getEncodedSize());
-            }
-            catch (PersistitException pe) {
+            } catch (PersistitException pe) {
                 throw new ConversionException("@" + start, pe);
-            }
-            finally {
+            } finally {
                 _depth--;
                 _next = _end = _size = savedSize;
             }
-            
+
             return outList.toArray();
         }
 
@@ -2375,7 +2372,7 @@ public final class Value {
             int saveDepth = _depth;
             try {
                 _depth++;
-                Class cl = _persistit.classForHandle(classHandle);
+                Class<?> cl = _persistit.classForHandle(classHandle);
                 ValueCoder coder = getValueCoder(cl);
 
                 if (coder != null) {
@@ -2415,7 +2412,7 @@ public final class Value {
         return size / blockSize;
     }
 
-    private int utfToCharArray(char[] sab, int offset, int end) {
+    private int utfToAppendable(Appendable sb, int offset, int end) {
         int counter = 0;
 
         for (int i = offset; i < end; i++) {
@@ -2433,7 +2430,7 @@ public final class Value {
             case 6:
             case 7:
                 /* 0xxxxxxx */
-                sab[counter++] = ((char) b);
+                Util.append(sb, (char) b);
                 break;
 
             case 12:
@@ -2447,7 +2444,7 @@ public final class Value {
                 if ((b2 & 0xC0) != 0x80) {
                     throw new ConversionException();
                 }
-                sab[counter++] = (char) (((b & 0x1F) << 6) | (b2 & 0x3F));
+                Util.append(sb, (char) (((b & 0x1F) << 6) | (b2 & 0x3F)));
                 break;
 
             case 14:
@@ -2461,7 +2458,7 @@ public final class Value {
                 if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)) {
                     throw new ConversionException();
                 }
-                sab[counter++] = (char) (((b & 0x0F) << 12) | ((b2 & 0x3F) << 6) | ((b3 & 0x3F) << 0));
+                Util.append(sb, (char) (((b & 0x0F) << 12) | ((b2 & 0x3F) << 6) | ((b3 & 0x3F) << 0)));
                 break;
 
             default:
@@ -2477,8 +2474,8 @@ public final class Value {
      * references. For example, suppose objects x and y have fields that refer
      * to each other. Then serializing x will serialize y, and the the reference
      * in y to x will be represented in the serialization stream by a back
-     * reference handle. This method should be called from the
-     * {@link ValueCoder#get(Value, Class, CoderContext)} method of custom
+     * reference handle. This method should be called from the {@link
+     * ValueCoder#get(Value, Class<?>, CoderContext)} method of custom
      * <code>ValueCoder</code>s. See <a
      * href="../../../Object_Serialization_Notes.html>Persistit 1.1 Object
      * Serialization</a> for further details.
@@ -2529,14 +2526,12 @@ public final class Value {
      *             if this <code>Value</code> does not currently represent a
      *             String.
      */
-    public StringBuilder getString(StringBuilder sb) {
+    public Appendable getString(Appendable sb) {
         _serializedItemCount++;
-        if (nextType(CLASS_STRING) == TYPE_NULL)
+        if (nextType(CLASS_STRING) == TYPE_NULL) {
             return null;
-        sb.setLength(0);
-        char[] sab = getStringAssemblyBuffer(_end - _next);
-        int length = utfToCharArray(sab, _next, _end);
-        sb.append(sab, 0, length);
+        }
+        utfToAppendable(sb, _next, _end);
         closeVariableLengthItem();
         return sb;
     }
@@ -3269,7 +3264,7 @@ public final class Value {
                 return;
             }
         }
-        Class cl = object.getClass();
+        Class<?> cl = object.getClass();
         if (cl == String.class) {
             String string = (String) object;
             putUTF(string);
@@ -3361,7 +3356,7 @@ public final class Value {
             _bytes[_size++] = (byte) CLASS_TREE;
             _size += ((Tree) object).store(_bytes, _size);
         } else if (cl.isArray()) {
-            Class componentClass = cl.getComponentType();
+            Class<?> componentClass = cl.getComponentType();
             int length = Array.getLength(object);
             if (componentClass.isPrimitive()) {
                 if (componentClass == Boolean.TYPE) {
@@ -3534,15 +3529,13 @@ public final class Value {
 
     /**
      * Replaces the current state with the String represented by the supplied
-     * (or in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
-     * containing this value to the state). This is equivalent to
-     * <code>putString(sb.toString())</code> but its implementation is somewhat
-     * more efficient.
+     * CharSequence (or in <i><a href="#_streamMode">stream mode</a></i>,
+     * appends a new field containing this value to the state).
      * 
      * @param sb
-     *            The new value
+     *            The String value as a CharSequence
      */
-    public void putString(StringBuilder sb) {
+    public void putString(CharSequence sb) {
         if (sb == null) {
             putNull();
         } else {
@@ -4058,7 +4051,7 @@ public final class Value {
 
     private void putObjectArray1(Object[] array, int offset, int length) {
         int dimensions = 1;
-        Class componentType = array.getClass().getComponentType();
+        Class<?> componentType = array.getClass().getComponentType();
 
         while (componentType.isArray()) {
             componentType = componentType.getComponentType();
@@ -4137,7 +4130,7 @@ public final class Value {
         _longMode = mode;
     }
 
-    private ValueCoder getValueCoder(Class clazz) {
+    private ValueCoder getValueCoder(Class<?> clazz) {
         CoderManager cm = _persistit.getCoderManager();
         if (cm != null) {
             return cm.getValueCoder(clazz);
@@ -4297,7 +4290,7 @@ public final class Value {
                 + classForHandle(type));
     }
 
-    private Object getExpectedType(Class type) {
+    private Object getExpectedType(Class<?> type) {
         Object object = get(null, null);
         if (object == null || type.isAssignableFrom(object.getClass())) {
             return object;
@@ -4380,7 +4373,7 @@ public final class Value {
         return result;
     }
 
-    private void encodeClass(Class cl) {
+    private void encodeClass(Class<?> cl) {
         int classHandle = handleForClass(cl);
         if (classHandle < CLASS1) {
             ensureFit(1);
@@ -4391,7 +4384,7 @@ public final class Value {
         }
     }
 
-    private int handleForClass(Class cl) {
+    private int handleForClass(Class<?> cl) {
         if (cl.isArray()) {
             return CLASS_ARRAY;
         }
@@ -4410,7 +4403,7 @@ public final class Value {
         return handleForIndexedClass(cl);
     }
 
-    private int handleForIndexedClass(Class cl) {
+    private int handleForIndexedClass(Class<?> cl) {
         ClassInfo ci = _persistit.getClassIndex().lookupByClass(cl);
         if (ci != null) {
             return ci.getHandle();
@@ -4418,7 +4411,7 @@ public final class Value {
         throw new ConversionException("Class not mapped to handle " + cl.getName());
     }
 
-    private Class classForHandle(int classHandle) {
+    private Class<?> classForHandle(int classHandle) {
         if (classHandle > 0 && classHandle < CLASSES.length && CLASSES[classHandle] != null) {
             return CLASSES[classHandle];
         } else if (classHandle == CLASS_ARRAY) {
@@ -4448,7 +4441,7 @@ public final class Value {
                 + index);
     }
 
-    private Object getMultiArray(Class prototype) {
+    private Object getMultiArray(Class<?> prototype) {
         int start = _next;
         int type = nextType(CLASS_MULTI_ARRAY, CLASS_REREF);
         if (type == CLASS_REREF) {
@@ -4475,7 +4468,7 @@ public final class Value {
             _serializedItemCount++;
             registerEncodedObject(result);
 
-            Class componentType = prototype.getComponentType();
+            Class<?> componentType = prototype.getComponentType();
             if (componentType.getComponentType().isArray()) {
                 for (int index = 0; index < length; index++) {
                     Array.set(result, index, getMultiArray(componentType));
@@ -4890,7 +4883,7 @@ public final class Value {
          * Override the default implementation because we want to use the
          * application's ClassLoader, not necessarily the bootstrap loader.
          */
-        protected Class resolveClass(ObjectStreamClass desc) throws ClassNotFoundException {
+        protected Class<?> resolveClass(ObjectStreamClass desc) throws ClassNotFoundException {
             String name = desc.getName();
             return Class.forName(name, false, Thread.currentThread().getContextClassLoader());
         }
@@ -4940,7 +4933,7 @@ public final class Value {
             if (_classDescriptor == null) {
                 super.writeClassDescriptor(classDescriptor);
             } else if (_innerClassDescriptor) {
-                Class clazz = classDescriptor.forClass();
+                Class<?> clazz = classDescriptor.forClass();
                 int handle = _value.handleForIndexedClass(clazz);
                 writeInt(handle);
             } else {
@@ -4972,14 +4965,13 @@ public final class Value {
 
     private ValueCache getValueCache() {
         if (_valueCache == null && _valueCacheWeakRef != null) {
-            _valueCache = (ValueCache) _valueCacheWeakRef.get();
+            _valueCache = _valueCacheWeakRef.get();
         }
         if (_valueCache == null) {
             _valueCache = new ValueCache();
-            _valueCacheWeakRef = new WeakReference(_valueCache);
+            _valueCacheWeakRef = new WeakReference<ValueCache>(_valueCache);
         }
         return _valueCache;
-
     }
 
     private void releaseValueCache() {
@@ -5096,66 +5088,69 @@ public final class Value {
             return "@" + Integer.toString(_start);
         }
     }
-    
+
     public static class Version {
         private final long _versionHandle;
         private final long _commitTimestamp;
         private final Value _value;
-        
+
         private Version(long versionHandle, long commitTimestamp, Value value) {
             _versionHandle = versionHandle;
             _commitTimestamp = commitTimestamp;
             _value = value;
         }
-        
+
         /**
          * @return the versionHandle
          */
         public long getVersionHandle() {
             return _versionHandle;
         }
+
         /**
          * @return the commitTimestamp
          */
         public long getCommitTimestamp() {
             return _commitTimestamp;
         }
+
         /**
          * @return the value
          */
         public Value getValue() {
             return _value;
         }
-        
+
         public long getStartTimestamp() {
             return TransactionIndex.vh2ts(_versionHandle);
         }
-        
+
         public int getStep() {
             return TransactionIndex.vh2step(_versionHandle);
         }
-        
+
         public String toString() {
             try {
-            StringBuilder sb = new StringBuilder();
-            sb.append(String.format("%,d", getStartTimestamp()));
-            if (getStep() > 0) {
-                sb.append(String.format("#%02d", getStep()));
-            }
-            sb.append("<" + TransactionStatus.tcString(_commitTimestamp) + ">");
-            sb.append(":");
-            sb.append(_value);
-            return sb.toString();
+                StringBuilder sb = new StringBuilder();
+                sb.append(String.format("%,d", getStartTimestamp()));
+                if (getStep() > 0) {
+                    sb.append(String.format("#%02d", getStep()));
+                }
+                sb.append("<" + TransactionStatus.tcString(_commitTimestamp) + ">");
+                sb.append(":");
+                sb.append(_value);
+                return sb.toString();
             } catch (Exception e) {
                 e.printStackTrace();
                 return e.toString();
             }
         }
     }
-    
+
     /**
      * Construct a list of {@link Version} objects, each denote one of the
      * multi-value versions currently held in this Value object.
+     * 
      * @return the list of <code>Version<code>s
      * @throws PersistitException
      */
@@ -5166,7 +5161,7 @@ public final class Value {
             @Override
             public void sawVersion(long version, int valueOffset, int valueLength) {
                 long tc = -1;
-            
+
                 try {
                     tc = _persistit.getTransactionIndex().commitStatus(version, TransactionStatus.UNCOMMITTED, 0);
                 } catch (Exception e) {
@@ -5179,10 +5174,10 @@ public final class Value {
                 value.trim();
                 versions.add(new Version(version, tc, value));
             }
-            
+
             @Override
             public void init() throws PersistitException {
-                
+
             }
         };
         MVV.visitAllVersions(visitor, getEncodedBytes(), 0, getEncodedSize());

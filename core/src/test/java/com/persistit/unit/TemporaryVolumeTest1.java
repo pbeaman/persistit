@@ -174,6 +174,7 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
             sb.setLength(length);
             // System.out.print("Record length " + length);
             exchange.clear().append(length).fetch();
+            sb2.setLength(0);
             exchange.getValue().getString(sb2);
             assertEquals(sb.toString(), sb2.toString());
             // System.out.println(" - read");

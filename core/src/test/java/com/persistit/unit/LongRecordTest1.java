@@ -147,6 +147,7 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
     void check(final Exchange ex, final int size, final StringBuilder sb1, final StringBuilder sb2)
             throws PersistitException {
         sb1.setLength(0);
+        sb2.setLength(0);
         for (int counter = 0; counter < size; counter += 10) {
             Util.fill(sb1, counter, 10);
         }

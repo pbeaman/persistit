@@ -26,6 +26,7 @@
 
 package com.persistit.util;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -33,6 +34,7 @@ import java.util.Date;
 import com.persistit.KeyState;
 import com.persistit.Persistit;
 import com.persistit.ValueState;
+import com.persistit.exception.AppendableIOException;
 import com.persistit.exception.PersistitInterruptedException;
 
 /**
@@ -347,9 +349,9 @@ public class Util {
         return sb.toString();
     }
 
-    public static StringBuilder hex(StringBuilder sb, long value, int length) {
+    public static Appendable hex(Appendable sb, long value, int length) {
         for (int i = length - 1; i >= 0; i--) {
-            sb.append(HEX_DIGITS[(int) (value >> (i * 4)) & 0xF]);
+            append(sb, HEX_DIGITS[(int) (value >> (i * 4)) & 0xF]);
         }
         return sb;
     }
@@ -382,11 +384,11 @@ public class Util {
         return sb.toString();
     }
 
-    public static void bytesToHex(StringBuilder sb, byte[] bytes, int offset, int length) {
+    public static void bytesToHex(Appendable sb, byte[] bytes, int offset, int length) {
         length += offset;
         for (int i = offset; i < length; i++) {
-            sb.append(HEX_DIGITS[(bytes[i] >>> 4) & 0x0F]);
-            sb.append(HEX_DIGITS[(bytes[i] >>> 0) & 0x0F]);
+            append(sb, HEX_DIGITS[(bytes[i] >>> 4) & 0x0F]);
+            append(sb, HEX_DIGITS[(bytes[i] >>> 0) & 0x0F]);
         }
     }
 
@@ -467,14 +469,31 @@ public class Util {
         }
     }
 
-    public static void appendQuotedString(StringBuilder sb, String s, int start, int length) {
+    public static void appendQuotedString(Appendable sb, String s, int start, int length) {
         int end = Math.min(start + length, s.length());
         for (int index = start; index < end; index++) {
             appendQuotedChar(sb, s.charAt(index));
         }
     }
 
-    public static void appendQuotedChar(StringBuilder sb, int c) {
+    public static void append(Appendable sb, char c) {
+        try {
+            sb.append(c);
+        } catch (IOException e) {
+            throw new AppendableIOException(e);
+        }
+    }
+
+
+    public static void append(Appendable sb, CharSequence s) {
+        try {
+            sb.append(s);
+        } catch (IOException e) {
+            throw new AppendableIOException(e);
+        }
+    }
+
+    public static void appendQuotedChar(Appendable sb, int c) {
         int q = 0;
         if (c == '\b')
             q = 'b';
@@ -487,13 +506,14 @@ public class Util {
         else if (c == '\"' || c == '\\')
             q = c;
         if (q != 0) {
-            sb.append('\\');
-            sb.append((char) q);
+            append(sb, '\\');
+            append(sb, (char) q);
         } else if (c >= 127 || c < 20) {
-            sb.append("\\u");
+            append(sb, '\\');
+            append(sb, 'u');
             Util.hex(sb, c, 4);
         } else
-            sb.append((char) c);
+            append(sb, (char) c);
     }
 
     public static String date(final long t) {

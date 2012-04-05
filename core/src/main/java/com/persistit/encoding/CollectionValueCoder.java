@@ -270,7 +270,7 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      *            object are to be retrieved
      * 
      * @param target
-     *            The <code>StringBuilder</code> into which the decoded value is
+     *            The <code>Appendable</code> into which the decoded value is
      *            to be written
      * 
      * @param clazz
