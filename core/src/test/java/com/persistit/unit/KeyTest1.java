@@ -29,7 +29,9 @@ package com.persistit.unit;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import com.persistit.Buffer;
 import com.persistit.TestShim;
+import com.persistit.exception.InvalidKeyException;
 import junit.framework.Assert;
 
 import com.persistit.Key;
@@ -711,7 +713,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
     }
 
     public void testAppendToLeftEdge() {
-        final Key key1 = new Key(_persistit);
+        final Key key1 = newKey();
         Key.LEFT_GUARD_KEY.copyTo(key1);
         try {
             TestShim.testValidForAppend(key1);
@@ -722,7 +724,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
     }
 
     public void testAppendToRightEdge() {
-        final Key key1 = new Key(_persistit);
+        final Key key1 = newKey();
         Key.RIGHT_GUARD_KEY.copyTo(key1);
         try {
             TestShim.testValidForAppend(key1);
@@ -733,7 +735,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
     }
 
     public void testAppendToBefore() {
-        final Key key1 = new Key(_persistit);
+        final Key key1 = newKey();
         key1.clear().append(Key.BEFORE);
         try {
             TestShim.testValidForAppend(key1);
@@ -744,8 +746,8 @@ public class KeyTest1 extends PersistitUnitTestCase {
     }
 
     public void testAppendToAfter() {
-        final Key key1 = new Key(_persistit);
-        key1.clear().append(Key.AFTER);
+        final Key key1 = newKey();
+        key1.append(Key.AFTER);
         try {
             TestShim.testValidForAppend(key1);
             fail("Expected IllegalArgumentException");
@@ -755,15 +757,73 @@ public class KeyTest1 extends PersistitUnitTestCase {
     }
 
     public void testAppendToInvalidFinalSegment() {
-        final Key key1 = new Key(_persistit);
-        key1.clear().append("asdf");
-        assertTrue("encoded size > 1", key1.getEncodedSize() > 1);
-        key1.setEncodedSize(key1.getEncodedSize() - 1);
+        final Key key1 = newKey();
+        appendInvalidSegment(key1);
         try {
             TestShim.testValidForAppend(key1);
             fail("Expected IllegalArgumentException");
         } catch(IllegalArgumentException e) {
             // expected
+        }
+    }
+
+    public void testStoreAndFetchEmptyKey() {
+        final Key key1 = newKey();
+        try {
+            TestShim.testValidForStoreAndFetch(key1, Buffer.MIN_BUFFER_SIZE);
+            fail("Expected InvalidKeyException");
+        } catch (InvalidKeyException e) {
+            // Expected
+        }
+    }
+
+    public void testStoreAndFetchBeforeKey() {
+        final Key key1 = newKey();
+        key1.append(Key.BEFORE);
+        try {
+            TestShim.testValidForStoreAndFetch(key1, Buffer.MIN_BUFFER_SIZE);
+            fail("Expected InvalidKeyException");
+        } catch (InvalidKeyException e) {
+            // Expected
+        }
+    }
+
+    public void testStoreAndFetchInvalidFinalSegment() {
+        final Key key1 = newKey();
+        appendInvalidSegment(key1);
+        try {
+            TestShim.testValidForStoreAndFetch(key1, Buffer.MAX_BUFFER_SIZE);
+            fail("Expected InvalidKeyException");
+        } catch(InvalidKeyException e) {
+            // expected
+        }
+    }
+
+    public void testStoreAndFetchAfterKey() {
+        final Key key1 = newKey();
+        key1.append(Key.AFTER);
+        try {
+            TestShim.testValidForStoreAndFetch(key1, Buffer.MIN_BUFFER_SIZE);
+            fail("Expected InvalidKeyException");
+        } catch (InvalidKeyException e) {
+            // Expected
+        }
+    }
+
+    public void testStoreAndFetchKeyTooLarge() {
+        final Key key1 = new Key(_persistit);
+        final int BMIN = Buffer.MIN_BUFFER_SIZE;
+        final int BMAX = Buffer.MAX_BUFFER_SIZE;
+        final int KMAX = key1.getMaximumSize();
+        for(int bsize = BMIN; bsize <= BMAX && bsize < KMAX; bsize *= 2) {
+            key1.clear();
+            key1.setEncodedSize(bsize + 1);
+            try {
+                TestShim.testValidForStoreAndFetch(key1, bsize);
+                fail("Expected IllegalArgumentException for buffer buffer size " + bsize);
+            } catch (InvalidKeyException e) {
+                // Expected
+            }
         }
     }
 
@@ -818,5 +878,16 @@ public class KeyTest1 extends PersistitUnitTestCase {
             return;
         }
         return; // <-- breakpoint here
+    }
+
+    private Key newKey() {
+        return new Key(_persistit);
+    }
+
+    private static Key appendInvalidSegment(Key key) {
+        key.append("asdf");
+        assertTrue("encoded size > 1", key.getEncodedSize() > 1);
+        key.setEncodedSize(key.getEncodedSize() - 1);
+        return key;
     }
 }
