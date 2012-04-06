@@ -28,6 +28,7 @@ package com.persistit;
 
 import java.nio.channels.FileChannel;
 
+import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
@@ -120,5 +121,17 @@ public class TestShim {
     
     public static boolean isValueLongRecord(final Exchange ex) throws PersistitException {
         return ex.isValueLongRecord();
+    }
+
+    public static void testValidForAppend(final Key key) {
+        key.testValidForAppend();
+    }
+
+    public static void testValidForStoreAndFetch(final Key key, final int bufferSize) throws InvalidKeyException {
+        key.testValidForStoreAndFetch(bufferSize);
+    }
+
+    public static void testValidForTraverse(final Key key) throws InvalidKeyException {
+        key.testValidForTraverse();
     }
 }

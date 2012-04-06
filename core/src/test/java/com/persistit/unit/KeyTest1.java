@@ -29,6 +29,7 @@ package com.persistit.unit;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import com.persistit.TestShim;
 import junit.framework.Assert;
 
 import com.persistit.Key;
@@ -707,8 +708,65 @@ public class KeyTest1 extends PersistitUnitTestCase {
         key2.cut();
         assertEquals("Incorrect depth", 1, key1.firstUniqueSegmentDepth(key2));
         assertEquals("Incorrect depth", 1, key2.firstUniqueSegmentDepth(key1));
-
     }
+
+    public void testAppendToLeftEdge() {
+        final Key key1 = new Key(_persistit);
+        Key.LEFT_GUARD_KEY.copyTo(key1);
+        try {
+            TestShim.testValidForAppend(key1);
+            fail("Expected IllegalArgumentException");
+        } catch(IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    public void testAppendToRightEdge() {
+        final Key key1 = new Key(_persistit);
+        Key.RIGHT_GUARD_KEY.copyTo(key1);
+        try {
+            TestShim.testValidForAppend(key1);
+            fail("Expected IllegalArgumentException");
+        } catch(IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    public void testAppendToBefore() {
+        final Key key1 = new Key(_persistit);
+        key1.clear().append(Key.BEFORE);
+        try {
+            TestShim.testValidForAppend(key1);
+            fail("Expected IllegalArgumentException");
+        } catch(IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    public void testAppendToAfter() {
+        final Key key1 = new Key(_persistit);
+        key1.clear().append(Key.AFTER);
+        try {
+            TestShim.testValidForAppend(key1);
+            fail("Expected IllegalArgumentException");
+        } catch(IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    public void testAppendToInvalidFinalSegment() {
+        final Key key1 = new Key(_persistit);
+        key1.clear().append("asdf");
+        assertTrue("encoded size > 1", key1.getEncodedSize() > 1);
+        key1.setEncodedSize(key1.getEncodedSize() - 1);
+        try {
+            TestShim.testValidForAppend(key1);
+            fail("Expected IllegalArgumentException");
+        } catch(IllegalArgumentException e) {
+            // expected
+        }
+    }
+
 
     private static boolean doubleEquals(final double f1, final double f2) {
         if (Double.isNaN(f1)) {
