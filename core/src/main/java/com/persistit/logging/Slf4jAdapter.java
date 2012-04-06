@@ -125,4 +125,10 @@ public class Slf4jAdapter implements PersistitLogger {
         // Nothing to do - the log is created and destroyed by the embedding
         // application
     }
+
+    @Override
+    public void flush() {
+        // Nothing to do - log output is managed by the embedding
+        // application
+    }
 }

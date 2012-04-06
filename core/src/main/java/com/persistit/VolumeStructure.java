@@ -32,6 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.persistit.AlertMonitor.AlertLevel;
+import com.persistit.AlertMonitor.Event;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
@@ -350,7 +352,8 @@ class VolumeStructure {
                 storeTreeStatistics(tree);
             }
         } catch (Exception e) {
-            _persistit.getLogBase().adminFlushException.log(e);
+            _persistit.getAlertMonitor().post(new Event(_persistit.getLogBase().adminFlushException, e),
+                    AlertMonitor.FLUSH_STATISTICS_CATEGORY, AlertLevel.ERROR);
         }
     }
 

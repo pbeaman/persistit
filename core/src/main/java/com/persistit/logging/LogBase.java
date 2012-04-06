@@ -39,6 +39,8 @@ import com.persistit.logging.PersistitLogMessage.LogItem;
  */
 public class LogBase {
 
+    public final static String RECURRING = "%s (%,d similar occurrences in %,d seconds)";
+    
     /**
      * Annotation for basic English log messages
      */
@@ -69,7 +71,7 @@ public class LogBase {
     @Message("INFO|Opening volume %s")
     public final LogItem openVolume = PersistitLogMessage.empty();
 
-    @Message("ERROR|Journal write failure %s in %s")
+    @Message("ERROR|Journal write failure %s in %s at offset %,d")
     public final LogItem journalWriteError = PersistitLogMessage.empty();
 
     @Message("INFO|Recovery done: %,d recovered pages, %,d committed transactions, %,d errors")
@@ -156,9 +158,6 @@ public class LogBase {
     @Message("TRACE|Updating garbage chain %s new leftPage=%,d, rightPage=%,d")
     public final LogItem garbageChainUpdate = PersistitLogMessage.empty();
 
-    @Message("TRACE|Read volume %s page %,d into buffer # %,d")
-    public final LogItem readOk = PersistitLogMessage.empty();
-
     @Message("ERROR|IOException %s while reading volume %s page %,d into buffer # %,d")
     public final LogItem readException = PersistitLogMessage.empty();
 
@@ -225,8 +224,19 @@ public class LogBase {
     @Message ("WARNING|Journal flush operation took %,dms")
     public final LogItem longJournalIO = PersistitLogMessage.empty();
     
-    
-    
+    @Message("INFO|Normal journal file count %,d")
+    public final LogItem normalJournalFileCount = PersistitLogMessage.empty();
+
+    @Message("WARNING|Too many journal files %,d")
+    public final LogItem tooManyJournalFilesWarning = PersistitLogMessage.empty();
+
+    @Message("ERROR|Too many journal files %,d")
+    public final LogItem tooManyJournalFilesError = PersistitLogMessage.empty();
+
+    public static String recurring(final String message, final int count, final long duration) {
+        return String.format(RECURRING, message, count, duration);
+    }
+  
     public void configure(final PersistitLogger logger) {
         for (final Field field : this.getClass().getDeclaredFields()) {
             final Message annotation = field.getAnnotation(Message.class);
@@ -243,4 +253,5 @@ public class LogBase {
             }
         }
     }
+ 
 }

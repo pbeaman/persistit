@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
+package com.persistit.mxbeans;
 
 import javax.management.MXBean;
 
@@ -119,76 +119,106 @@ public interface JournalManagerMXBean {
 
     final static int MAXIMUM_CONCURRENT_TRANSACTIONS = 10000;
 
+    @Description("Number of unique pages currently stored in the journal")
     int getPageMapSize();
 
+    @Description("Address of first record in the journal required for recovery")
     long getBaseAddress();
 
+    @Description("Address of next record to be written")
     long getCurrentAddress();
 
+    @Description("Maximum size of one journal file")
     long getBlockSize();
 
+    @Description("True if copying of pages from the journal to their destination volumes is disabled")
     boolean isAppendOnly();
 
+    @Description("True if copy-fast mode has be enabled")
     boolean isCopyingFast();
-
+   
+    @Description("True if copying of pages from the journal to their destination volumes is disabled")
     void setAppendOnly(boolean appendOnly);
 
+    @Description("True if copy-fast mode has be enabled")
     void setCopyingFast(boolean fast);
 
+    @Description("Interval between data flush cycles in milliseconds")
     long getFlushInterval();
 
+    @Description("Interval between data flush cycles in milliseconds")
     void setFlushInterval(long flushInterval);
 
+    @Description("Interval between page copying cycles")
     long getCopierInterval();
 
+    @Description("Interval between page copying cycles")
     void setCopierInterval(long copierInterval);
 
+    @Description("True if the journal has been closed")
     boolean isClosed();
 
+    @Description("True if the JOURNAL_COPIER thread is currently active")
     boolean isCopying();
 
+    @Description("File path where journal files are written")
     String getJournalFilePath();
 
+    @Description("Total number of page images read from the journal")
     long getReadPageCount();
 
+    @Description("Total number of page images written to the journal")
     long getJournaledPageCount();
 
+    @Description("Total number of page images copied from the journal to their destination volumes")
     long getCopiedPageCount();
 
+    @Description("System time when journal was first created")
     long getJournalCreatedTime();
 
+    @Description("Timestamp value when the most recently valid checkpoint was created")
     long getLastValidCheckpointTimestamp();
     
+    @Description("Current timestamp value")
     long getCurrentTimestamp();
 
+    @Description("True to enable pruning of rolled-back transactions")
     void setRollbackPruningEnabled(boolean rollbackPruning);
 
+    @Description("True to enable pruning of rolled-back transactions")
     boolean isRollbackPruningEnabled();
 
+    @Description("Degree of urgency for copying pages: 0-10")
     int urgency();
 
+    @Description("Flush all pending journal records to durable storage")
     void force() throws PersistitIOException;
 
+    @Description("Perform accelerated page copying")
     void copyBack() throws Exception;
 
+    @Description("String value of last Exception encountered by the JOURNAL_COPIER thread")
     String getLastCopierException();
 
+    @Description("String value of last Exception encountered by the JOURNAL_FLUSHER thread")
     String getLastFlusherException();
 
+    @Description("Interval between proposed checkpoints in milliseconds")
     long getCheckpointInterval();
 
+    @Description("System time when the most recently valid checkpoint was created")
     long getLastValidCheckpointTimeMillis();
     
+    @Description("Total number of transaction commit records written to the journal")
     long getTotalCompletedCommits();
     
+    @Description("Total aggregate time spent waiting for durable commits in milliseconds")
     long getCommitCompletionWaitTime();
 
-    long getLogRepeatInterval();
-
-    void setLogRepeatInterval(long logRepeatInterval);
-
+    @Description("Threshold in  milliseconds for warnings of long duration flush cycles")
     long getSlowIoAlertThreshold();
 
+    @Description("Threshold in  milliseconds for warnings of long duration flush cycles")
     void setSlowIoAlertThreshold(long slowIoAlertThreshold);
 
 }

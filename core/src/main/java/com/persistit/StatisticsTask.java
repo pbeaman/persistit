@@ -39,6 +39,7 @@ import com.persistit.CLI.Cmd;
 import com.persistit.Management.BufferPoolInfo;
 import com.persistit.Management.JournalInfo;
 import com.persistit.Management.TransactionInfo;
+import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.util.Util;
 
 /**
@@ -286,8 +287,8 @@ public class StatisticsTask extends Task {
         long size = 0;
 
         for (String item : items) {
-            stat(item).update(time, ioMeter.getCount(item));
-            size += ioMeter.getSum(item);
+            stat(item).update(time, ioMeter.totalOperations(item));
+            size += ioMeter.totalBytes(item);
         }
         stat("IOkbytes").update(time, (size + 600) / 1000);
     }

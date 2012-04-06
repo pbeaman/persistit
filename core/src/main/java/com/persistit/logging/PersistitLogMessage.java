@@ -60,7 +60,7 @@ public class PersistitLogMessage {
 
         /**
          * Construct a log message consisting of this LogItem's template
-         * combined with values in thes supplied argument list.
+         * combined with values in the supplied argument list.
          * 
          * @param args
          *            array of argument values that will be substituted into the
@@ -78,6 +78,18 @@ public class PersistitLogMessage {
          *            log message
          */
         void log(Object... args);
+
+        /**
+         * Emit a log message for a recurring event, or do nothing if this
+         * <code>LogItem</code> is disabled.
+         * 
+         * @param count
+         *            number of occurrences
+         * @param duration
+         *            period of time in duration array of argument values that
+         *            will be substituted into the log message
+         */
+        void logRecurring(int count, long duration, Object... args);
 
         /**
          * @return This LogItem's log level, one of TRACE, DEBUG, INFO, WARN or
@@ -98,7 +110,7 @@ public class PersistitLogMessage {
          * @param level
          *            The <code>PersistitLevel</code> of this item
          * @param message
-         *            A message templace which forms the basis of the log
+         *            A message template which forms the basis of the log
          *            message
          */
         void configure(PersistitLogger logger, PersistitLevel level, String message);
@@ -149,6 +161,11 @@ public class PersistitLogMessage {
             _dispatch.log(args);
         }
 
+        @Override
+        public void logRecurring(int count, long duration, Object... args) {
+            _dispatch.logRecurring(count, duration, args);
+        }
+
         public void disable() {
             _dispatch = new Disabled();
         }
@@ -183,6 +200,10 @@ public class PersistitLogMessage {
 
         @Override
         public void log(Object... args) {
+        }
+
+        @Override
+        public void logRecurring(int count, long duration, Object... args) {
         }
 
         @Override
@@ -252,6 +273,15 @@ public class PersistitLogMessage {
             _logger.log(_level, logMessage(args));
         }
 
+        @Override
+        public void logRecurring(int count, long duration, Object... args) {
+            if (count == 1) {
+                log(args);
+            } else {
+                _logger.log(_level, LogBase.recurring(logMessage(args), count, duration));
+            }
+        }
+
         public PersistitLogger getLogger() {
             return _logger;
         }
@@ -268,7 +298,6 @@ public class PersistitLogMessage {
         public void configure(final PersistitLogger logger, final PersistitLevel level, final String message) {
 
         }
-
     }
 
     static String throwableFormatter(final Throwable t) {

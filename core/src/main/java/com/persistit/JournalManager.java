@@ -52,6 +52,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.persistit.AlertMonitor.Event;
+import com.persistit.AlertMonitor.AlertLevel;
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.IT;
@@ -69,6 +71,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RebalanceException;
+import com.persistit.mxbeans.JournalManagerMXBean;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -86,6 +89,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     final static int HALF_URGENT = 5;
     private final static long NS_PER_MS = 1000000L;
     private final static int IO_MEASUREMENT_CYCLES = 8;
+
+    private final static int TOO_MANY_WARN_THRESHOLD = 15;
+    private final static int TOO_MANY_ERROR_THRESHOLD = 20;
 
     /**
      * REGEX expression that recognizes the name of a journal file.
@@ -163,6 +169,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private long _deleteBoundaryAddress = 0;
 
+    private int _lastReportedJournalFileCount = 0;
+
     private boolean _isNewEpoch = true;
 
     private volatile long _writePageCount = 0;
@@ -180,8 +188,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private AtomicLong _totalFlushIoTime = new AtomicLong();
 
     private volatile long _flushInterval = DEFAULT_FLUSH_INTERVAL;
-
-    private volatile long _logRepeatInterval = DEFAULT_LOG_REPEAT_INTERVAL;
 
     private volatile long _slowIoAlertThreshold = DEFAULT_SLOW_IO_ALERT_THRESHOLD;
 
@@ -203,6 +209,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private volatile int _pageMapSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
 
     private volatile long _copierTimestampLimit = Long.MAX_VALUE;
+
     /**
      * <p>
      * Initialize the new journal. This method takes its information from the
@@ -455,31 +462,20 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     @Override
-    public long getLogRepeatInterval() {
-        return _logRepeatInterval;
-    }
-
-    @Override
-    public void setLogRepeatInterval(long logRepeatInterval) {
-        Util.rangeCheck(logRepeatInterval, MINIMUM_LOG_REPEAT_INTERVAL, MAXIMUM_LOG_REPEAT_INTERVAL);
-        _logRepeatInterval = logRepeatInterval;
-    }
-
-    @Override
     public long getSlowIoAlertThreshold() {
         return _slowIoAlertThreshold;
     }
-    
+
     @Override
     public long getTotalCompletedCommits() {
         return _totalCommits.get();
     }
-    
+
     @Override
     public long getCommitCompletionWaitTime() {
         return _totalCommitWaitTime.get() / NS_PER_MS;
     }
-    
+
     @Override
     public long getCurrentTimestamp() {
         return _persistit.getCurrentTimestamp();
@@ -1970,7 +1966,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private class JournalFlusher extends IOTaskRunnable {
 
         final ReentrantReadWriteLock _lock = new ReentrantReadWriteLock();
-        long _lastLogMessageTime = 0;
 
         volatile long _lastExceptionTimestamp = 0;
         volatile Exception _lastException = null;
@@ -2073,7 +2068,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     kick();
                 } else {
                     /*
-                     * Otherwise, wait until the I/O is about half done and then retry.
+                     * Otherwise, wait until the I/O is about half done and then
+                     * retry.
                      */
                     long delay = (estimatedNanosToFinish - leadTime * NS_PER_MS) / 2;
                     try {
@@ -2100,7 +2096,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         @Override
         protected void runTask() {
             _flushing.set(true);
-            final long now = System.nanoTime();
             try {
                 try {
                     /*
@@ -2141,13 +2136,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 } catch (Exception e) {
                     if (e instanceof InterruptedException || e instanceof FatalErrorException) {
                         _closed.set(true);
-                    }
-                    if (_lastException == null || !e.getClass().equals(_lastException.getClass())
-                            || now - _lastLogMessageTime > -_logRepeatInterval * NS_PER_MS) {
-                        _lastException = e;
-                        _lastLogMessageTime = now;
-                        _lastExceptionTimestamp = _endTimestamp;
-                        _persistit.getLogBase().journalWriteError.log(e, addressToFile(_writeBufferAddress));
+                    } else if (e instanceof PersistitIOException) {
+                        _persistit.getAlertMonitor().post(
+                                new Event(_persistit.getLogBase().journalWriteError, e,
+                                        addressToFile(_writeBufferAddress), addressToOffset(_writeBufferAddress)),
+                                AlertMonitor.JOURNAL_CATEGORY, AlertLevel.ERROR);
+                    } else {
+                        _persistit.getLogBase().journalWriteError.log(e, addressToFile(_writeBufferAddress),
+                                addressToOffset(_writeBufferAddress));
                     }
                 }
             } finally {
@@ -2416,6 +2412,31 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
         if (deleted) {
             _deleteBoundaryAddress = deleteBoundary;
+        }
+        reportJournalFileCount();
+    }
+
+    private void reportJournalFileCount() {
+        /*
+         * Does not need synchronization since only the JOURNAL_COPIER thread
+         * calls this
+         */
+        int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress / _blockSize);
+        if (journalFileCount != _lastReportedJournalFileCount) {
+            if (journalFileCount > TOO_MANY_ERROR_THRESHOLD) {
+                _persistit.getAlertMonitor().post(
+                        new Event(_persistit.getLogBase().tooManyJournalFilesError, journalFileCount),
+                        AlertMonitor.MANY_JOURNAL_FILES, AlertLevel.ERROR);
+            } else if (journalFileCount > TOO_MANY_WARN_THRESHOLD) {
+                _persistit.getAlertMonitor().post(
+                        new Event(_persistit.getLogBase().tooManyJournalFilesWarning, journalFileCount),
+                        AlertMonitor.MANY_JOURNAL_FILES, AlertLevel.WARN);
+            } else {
+                _persistit.getAlertMonitor().post(
+                        new Event(_persistit.getLogBase().normalJournalFileCount, journalFileCount),
+                        AlertMonitor.MANY_JOURNAL_FILES, AlertLevel.NORMAL);
+            }
+            _lastReportedJournalFileCount = journalFileCount;
         }
     }
 

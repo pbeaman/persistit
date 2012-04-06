@@ -52,12 +52,14 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
+import javax.management.NotificationEmitter;
 import javax.management.ObjectName;
 
 import com.persistit.Accumulator.AccumulatorRef;
@@ -77,6 +79,14 @@ import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
 import com.persistit.logging.LogBase;
 import com.persistit.logging.PersistitLogger;
+import com.persistit.mxbeans.AlertMonitorMXBean;
+import com.persistit.mxbeans.BufferPoolMXBean;
+import com.persistit.mxbeans.IOMeterMXBean;
+import com.persistit.mxbeans.JournalManagerMXBean;
+import com.persistit.mxbeans.MXBeanWrapper;
+import com.persistit.mxbeans.ManagementMXBean;
+import com.persistit.mxbeans.RecoveryManagerMXBean;
+import com.persistit.mxbeans.TransactionIndexMXBean;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.util.ArgParser;
@@ -347,6 +357,7 @@ public class Persistit {
     private final static long DEFAULT_COMMIT_STALL_TIME = 1;
     private final static long MAX_COMMIT_LEAD_TIME = 5000;
     private final static long MAX_COMMIT_STALL_TIME = 5000;
+    private final static long FLUSH_DELAY_INTERVAL = 5000;
 
     private final static int MAX_FATAL_ERROR_MESSAGES = 10;
 
@@ -360,9 +371,39 @@ public class Persistit {
         }
     }
 
+    /**
+     * Background thread that periodically flushes the log file buffers so that
+     * we actually have log information in the event of a failure.
+     */
+    private class LogFlusher extends Thread {
+        boolean _stop;
+
+        LogFlusher() {
+            setDaemon(true);
+            setName("LOG_FLUSHER");
+        }
+
+        @Override
+        public void run() {
+            while (!_stop) {
+                try {
+                    Util.sleep(FLUSH_DELAY_INTERVAL);
+                } catch (PersistitInterruptedException ie) {
+                    break;
+                }
+                pollAlertMonitors(false);
+                PersistitLogger logger = _logger;
+                if (logger != null) {
+                    logger.flush();
+                }
+            }
+        }
+    }
+
     private final long _availableHeap = availableHeap();
 
-    private PersistitLogger _logger;
+    private volatile PersistitLogger _logger;
+    private LogFlusher _logFlusher;
 
     /**
      * Start time
@@ -413,17 +454,23 @@ public class Persistit {
 
     private final IOMeter _ioMeter = new IOMeter();
 
-    private TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
+    private final AlertMonitor _alertMonitor = new AlertMonitor();
 
-    private Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
+    private final TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
 
-    private boolean _readRetryEnabled;
+    private final Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
 
-    private long _defaultTimeout;
+    private final Map<ObjectName, Object> _mxbeans = new TreeMap<ObjectName, Object>();
+
+    private final List<AlertMonitorMXBean> _alertMonitors = Collections.synchronizedList(new ArrayList<AlertMonitorMXBean>());
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
     private final WeakHashMap<SessionId, CLI> _cliSessionMap = new WeakHashMap<SessionId, CLI>();
+
+    private boolean _readRetryEnabled;
+
+    private long _defaultTimeout;
 
     private volatile SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
@@ -569,6 +616,9 @@ public class Persistit {
 
     void initializeLogging() throws PersistitException {
         try {
+            _logFlusher = new LogFlusher();
+            _logFlusher.start();
+
             getPersistitLogger().open();
             String logLevel = getProperty(LOGGING_PROPERTIES);
             if (logLevel != null && getPersistitLogger() instanceof DefaultPersistitLogger) {
@@ -747,12 +797,13 @@ public class Persistit {
      */
     private void registerMXBeans() {
         try {
-            registerMBean(getManagement(), ManagementMXBean.MXBEAN_NAME);
-            registerMBean(_ioMeter, IOMeterMXBean.MXBEAN_NAME);
-            registerMBean(_cleanupManager, CleanupManagerMXBean.MXBEAN_NAME);
-            registerMBean(_transactionIndex, TransactionIndexMXBean.MXBEAN_NAME);
-            registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
-            registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
+            registerMBean(getManagement(), ManagementMXBean.class, ManagementMXBean.MXBEAN_NAME);
+            registerMBean(_ioMeter, IOMeterMXBean.class, IOMeterMXBean.MXBEAN_NAME);
+            registerMBean(_cleanupManager, CleanupManagerMXBean.class, CleanupManagerMXBean.MXBEAN_NAME);
+            registerMBean(_transactionIndex, TransactionIndexMXBean.class, TransactionIndexMXBean.MXBEAN_NAME);
+            registerMBean(_journalManager, JournalManagerMXBean.class, JournalManagerMXBean.MXBEAN_NAME);
+            registerMBean(_recoveryManager, RecoveryManagerMXBean.class, RecoveryManagerMXBean.MXBEAN_NAME);
+            registerMBean(_alertMonitor, AlertMonitorMXBean.class, AlertMonitorMXBean.MXBEAN_NAME);
         } catch (Exception exception) {
             _logBase.mbeanException.log(exception);
         }
@@ -761,56 +812,43 @@ public class Persistit {
     private void registerBufferPoolMXBean(final int bufferSize) {
         try {
             BufferPoolMXBean bean = new BufferPoolMXBeanImpl(this, bufferSize);
-            registerMBean(bean, BufferPoolMXBeanImpl.mbeanName(bufferSize));
+            registerMBean(bean, BufferPoolMXBean.class, BufferPoolMXBeanImpl.mbeanName(bufferSize));
         } catch (Exception exception) {
             _logBase.mbeanException.log(exception);
         }
     }
 
-    private void registerMBean(final Object mbean, final String name) throws Exception {
+    private void registerMBean(final Object mbean, final Class<?> mbeanInterface, final String name) throws Exception {
         MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         ObjectName on = new ObjectName(name);
-        server.registerMBean(mbean, on);
+        NotificationEmitter emitter = null;
+        if (mbean instanceof AlertMonitor) {
+            AlertMonitor monitor = (AlertMonitor) mbean;
+            monitor.setObjectName(on);
+            emitter = monitor;
+        }
+            MXBeanWrapper wrapper = new MXBeanWrapper(mbean, mbeanInterface, emitter);
+            server.registerMBean(wrapper, on);
+        
         _logBase.mbeanRegistered.log(on);
+        _mxbeans.put(on, mbean);
+        if (mbean instanceof AlertMonitorMXBean) {
+            _alertMonitors.add((AlertMonitorMXBean) mbean);
+        }
     }
 
     private void unregisterMXBeans() {
-        try {
-            unregisterMBean(RecoveryManagerMXBean.MXBEAN_NAME);
-            unregisterMBean(JournalManagerMXBean.MXBEAN_NAME);
-            unregisterMBean(TransactionIndexMXBean.MXBEAN_NAME);
-            unregisterMBean(CleanupManagerMXBean.MXBEAN_NAME);
-            unregisterMBean(IOMeterMXBean.MXBEAN_NAME);
-            unregisterMBean(ManagementMXBean.MXBEAN_NAME);
-            for (int size = Buffer.MIN_BUFFER_SIZE; size <= Buffer.MAX_BUFFER_SIZE; size *= 2) {
-                if (_bufferPoolTable.get(size) != null) {
-                    unregisterBufferPoolMXBean(size);
-                }
-            }
-
-        } catch (InstanceNotFoundException exception) {
-            // ignore
-        } catch (Exception exception) {
-            _logBase.mbeanException.log(exception);
-        }
-    }
-
-    private void unregisterBufferPoolMXBean(final int bufferSize) {
-        try {
-            unregisterMBean(BufferPoolMXBeanImpl.mbeanName(bufferSize));
-        } catch (InstanceNotFoundException exception) {
-            // ignore
-        } catch (Exception exception) {
-            _logBase.mbeanException.log(exception);
-        }
-    }
-
-    private void unregisterMBean(final String name) throws Exception {
         MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
-        ObjectName on = new ObjectName(name);
-        server.unregisterMBean(on);
-        _logBase.mbeanUnregistered.log(on);
-
+        for (final ObjectName on : _mxbeans.keySet()) {
+            try {
+                server.unregisterMBean(on);
+                _logBase.mbeanUnregistered.log(on);
+            } catch (InstanceNotFoundException exception) {
+                // ignore
+            } catch (Exception exception) {
+                _logBase.mbeanException.log(exception);
+            }
+        }
     }
 
     synchronized void addVolume(Volume volume) throws VolumeAlreadyExistsException {
@@ -1864,6 +1902,7 @@ public class Persistit {
                     }
                 }
             }
+            pollAlertMonitors(true);
         }
         releaseAllResources();
     }
@@ -1899,7 +1938,6 @@ public class Persistit {
         final Map<Integer, BufferPool> buffers = _bufferPoolTable;
         if (buffers != null) {
             for (final BufferPool pool : buffers.values()) {
-                unregisterBufferPoolMXBean(pool.getBufferSize());
                 pool.crash();
             }
         }
@@ -1935,24 +1973,7 @@ public class Persistit {
 
     private void releaseAllResources() {
 
-        _accumulators.clear();
-        _volumes.clear();
-        _exchangePoolMap.clear();
-        _cleanupManager.clear();
-        _transactionSessionMap.clear();
-        _cliSessionMap.clear();
-        _sessionIdThreadLocal.remove();
-        _fatalErrors.clear();
-
         unregisterMXBeans();
-
-        _bufferPoolTable.clear();
-
-        if (_management != null) {
-            _management.unregister();
-            _management = null;
-        }
-
         try {
             if (_logger != null) {
                 _logBase.end.log(System.currentTimeMillis());
@@ -1961,6 +1982,24 @@ public class Persistit {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        if (_management != null) {
+            _management.unregister();
+            _management = null;
+        }
+        if (_logFlusher != null) {
+            _logFlusher.interrupt();
+        }
+        _logFlusher = null;
+        _accumulators.clear();
+        _volumes.clear();
+        _exchangePoolMap.clear();
+        _cleanupManager.clear();
+        _transactionSessionMap.clear();
+        _cliSessionMap.clear();
+        _sessionIdThreadLocal.remove();
+        _fatalErrors.clear();
+        _alertMonitors.clear();
+        _bufferPoolTable.clear();
     }
 
     /**
@@ -2169,6 +2208,23 @@ public class Persistit {
         _defaultCommitPolicy = policy;
     }
 
+    /**
+     * Set the current default transaction commit property by name. See
+     * {@link #setDefaultTransactionCommitPolicy(CommitPolicy)}.
+     * 
+     * @param policyName
+     *            The policy name: "SOFT", "HARD" or "GROUP"
+     */
+    public void setDefaultTransactionCommitPolicy(final String policyName) {
+        CommitPolicy policy;
+        try {
+            policy = CommitPolicy.valueOf(policyName.toUpperCase());
+            setDefaultTransactionCommitPolicy(policy);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid CommitPolicy name: " + policyName);
+        }
+    }
+
     long getTransactionCommitLeadTime() {
         return _commitLeadTime;
     }
@@ -2315,6 +2371,10 @@ public class Persistit {
         return _ioMeter;
     }
 
+    AlertMonitor getAlertMonitor() {
+        return _alertMonitor;
+    }
+
     TransactionIndex getTransactionIndex() {
         return _transactionIndex;
     }
@@ -2343,6 +2403,20 @@ public class Persistit {
         if (_logger == null)
             _logger = new DefaultPersistitLogger(getProperty(LOGFILE_PROPERTY));
         return _logger;
+    }
+
+    /**
+     * Called periodically by the LogFlusher thread to emit pending
+     * {@link AlertMonitorMXBean} messages to the log.
+     */
+    void pollAlertMonitors(boolean force) {
+        for (final AlertMonitorMXBean monitor : _alertMonitors) {
+            try {
+                monitor.poll(force);
+            } catch (Exception e) {
+                _logBase.exception.log(e);
+            }
+        }
     }
 
     /**
