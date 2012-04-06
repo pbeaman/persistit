@@ -30,8 +30,8 @@ import com.persistit.AlertMonitor;
 import com.persistit.AlertMonitor.AlertLevel;
 
 /**
- * Methods of {@link AlertMonitor intended to be exposed in an MXBean.
- * This interface should be extended by the MXBean interface for a concrete
+ * Methods of {@link AlertMonitor intended to be exposed in an MXBean. This
+ * interface should be extended by the MXBean interface for a concrete
  * implementation such as {@link IOAlertMonitorMXBean}.
  */
 public interface AlertMonitorMXBean {
@@ -45,10 +45,10 @@ public interface AlertMonitorMXBean {
     final static String EXTEND_VOLUME_CATEGORY = "ExtendVolume";
     final static String FLUSH_STATISTICS_CATEGORY = "FlushStatistics";
     final static String CLEANUP_CATEGORY = "Cleanup";
-    
+
     /**
-     * @return Current maximum AlertLevel in this monitor as a String: one of
-     *         NORMAL, WARN or ERROR
+     * Current maximum AlertLevel in this monitor as a String: one of NORMAL,
+     * WARN or ERROR
      */
     @Description("Current maximum AlertLevel in this monitor as a String: one of NORMAL, WARN or ERROR.")
     String getAlertLevel();
@@ -114,7 +114,7 @@ public interface AlertMonitorMXBean {
      *            the historyLength to set
      */
     @Description("The number of events per category for which to keep individual Events.")
-    void setHistoryLength(int historyLength);
+    void setHistoryLength(@PName("historyLength") int historyLength);
 
     /**
      * Return a summary of this AlertMonitor's current state.
@@ -140,8 +140,12 @@ public interface AlertMonitorMXBean {
 
     /**
      * Called periodically to emit log messages
+     * 
+     * @param force
+     *            Whether to force notifications to be issued immediatel
      */
     @Description("Operation called periodically to emit notifications and log messages.")
-    void poll(final boolean force);
+    void poll(
+            @PName("force") @Description("Whether to force notifications to be issued immediately") final boolean force);
 
 }

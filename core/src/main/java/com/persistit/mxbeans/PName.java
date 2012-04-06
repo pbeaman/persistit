@@ -34,21 +34,16 @@ import java.lang.annotation.Target;
 import javax.management.DescriptorKey;
 
 /**
- * 
- * This annotation is intended to work somewhat like the Description annotation
- * specified in JMX 2 (JSR 255) which is currently inactive. The annotation lets
- * you add a description to the Descriptor attribute of an MBeanFeatureInfo.
- * Unfortunately that does not directly affect the result returned by
- * {@link javax.management.MBeanFeatureInfo#getDescription()} but the can be
- * accomplished through the MXBeanWrapper class which marshals the value from
- * the Descriptor to the description attribute.
- * @see http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4853303
+ * Annotation used to declare the externally visible name of a
+ * parameter on an MXBean operation. The {@link MXBeanWrapper}
+ * class marshals the value added here to the descriptor to
+ * the appropriate MBeanParameterInfo attribute.
  */
 @Target({ ElementType.METHOD, ElementType.PARAMETER })
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Description {
-    String DESCRIPTION = "Description";
+public @interface PName {
+    String PNAME = "PName";
 
-    @DescriptorKey(DESCRIPTION)
+    @DescriptorKey(PNAME)
     String value();
 }

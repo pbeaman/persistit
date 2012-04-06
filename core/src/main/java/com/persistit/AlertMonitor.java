@@ -54,7 +54,7 @@ import com.persistit.util.Util;
  * @author peter
  * 
  */
-public class AlertMonitor extends NotificationBroadcasterSupport implements AlertMonitorMXBean {
+public final class AlertMonitor extends NotificationBroadcasterSupport implements AlertMonitorMXBean {
 
     private final static int DEFAULT_HISTORY_LENGTH = 10;
     private final static int MINIMUM_HISTORY_LENGTH = 1;
@@ -68,18 +68,21 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
     private final static long MINIMUM_ERROR_INTERVAL = 1000;
     private final static long MAXIMUM_ERROR_INTERVAL = 86400000;
 
+    /**
+     * Severity of an event
+     */
     public enum AlertLevel {
-        /*
+        /**
          * Normal state
          */
         NORMAL,
-        /*
+        /**
          * Warning - system is running but could be experiencing trouble that
          * could lead to an error. Example: too many journal files, disk is
          * filling up, pruning is falling behind etc.
          */
         WARN,
-        /*
+        /**
          * Error - system is generating errors and failing. Example: disk is
          * full.
          */
@@ -99,10 +102,6 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
         private volatile int _reportedCount;
         private volatile Event _firstEvent;
         private volatile int _count;
-        private volatile long _minimum;
-        private volatile long _maximum;
-        private volatile long _total;
-        private volatile Object _extra;
 
         @Override
         public String toString() {
@@ -128,18 +127,6 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
                         }
                         sb.append(String.format(EVENT_FORMAT, _count - size + index + 1, format(_eventList.get(index))));
                     }
-                    if (_minimum != 0 || _maximum != 0 || _total != 0) {
-                        if (sb.length() > 0) {
-                            sb.append(Util.NEW_LINE);
-                        }
-                        sb.append(String.format(AGGREGATION_FORMAT, _minimum, _maximum, _total));
-                    }
-                    if (_extra != null) {
-                        if (sb.length() > 0) {
-                            sb.append(Util.NEW_LINE);
-                        }
-                        sb.append(String.format(EXTRA_FORMAT, _extra));
-                    }
                 }
             }
             return sb.toString();
@@ -150,66 +137,6 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
          */
         public AlertLevel getLevel() {
             return _level;
-        }
-
-        /**
-         * @return the minimum
-         */
-        public long getMinimum() {
-            return _minimum;
-        }
-
-        /**
-         * @param minimum
-         *            the minimum to set
-         */
-        public void setMinimum(long minimum) {
-            _minimum = minimum;
-        }
-
-        /**
-         * @return the maximum
-         */
-        public long getMaximum() {
-            return _maximum;
-        }
-
-        /**
-         * @param maximum
-         *            the maximum to set
-         */
-        public void setMaximum(long maximum) {
-            _maximum = maximum;
-        }
-
-        /**
-         * @return the total
-         */
-        public long getTotal() {
-            return _total;
-        }
-
-        /**
-         * @param total
-         *            the total to set
-         */
-        public void setTotal(long total) {
-            _total = total;
-        }
-
-        /**
-         * @return the extra
-         */
-        public Object getExtra() {
-            return _extra;
-        }
-
-        /**
-         * @param extra
-         *            the extra to set
-         */
-        public void setExtra(Object extra) {
-            _extra = extra;
         }
 
         /**
@@ -288,6 +215,15 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
          * frequently as allowed by
          * {@link AlertMonitor#getErrorLogTimeInterval()} or
          * {@link AlertMonitor#getWarnLogTimeInterval()}.
+         * 
+         * @param now
+         *            current system time as returned by
+         *            {@link System#currentTimeMillis()}
+         * @param force
+         *            if <code>true</code> and the level is WARN or ERROR, this
+         *            method emits a notification regardless of whether the
+         *            notification interval has elapsed; otherwise this method
+         *            does nothing unless the interval has elapsed.
          */
         public void poll(final long now, final boolean force) {
             int count = getCount();
@@ -316,19 +252,38 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
             }
         }
 
+        /**
+         * Add an Event at the specified level
+         * 
+         * @param event
+         *            the <code>Event</code> to add
+         * @param level
+         *            the <code>AlertLevel</code> that should be assigned to it
+         */
         private void addEvent(final Event event, final AlertLevel level) {
-            int size = Math.max(_historyLength, 1);
-            while (_eventList.size() >= size) {
-                _eventList.remove(0);
-            }
+            trim(_historyLength - 1);
             _eventList.add(event);
             _count++;
             if (event.getTime() < _firstEventTime) {
                 _firstEventTime = event.getTime();
                 _firstEvent = event;
             }
-            _level = translateLevel(event, level, this);
+            event.added(this);
+            _level = level;
+        }
 
+        /**
+         * Remove events until the event list is no larger than the supplied
+         * size
+         * 
+         * @param size
+         *            maximum number of events to retain on the event list
+         */
+        private void trim(final int size) {
+            while (_eventList.size() > size) {
+                _eventList.get(0).removed(this);
+                _eventList.remove(0);
+            }
         }
     }
 
@@ -342,32 +297,103 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
         private final Object[] _args;
         private final long _time;
 
+        /**
+         * Construct an <code>Event</code> for the specified {@link LogItem} and
+         * arguments with the current system time.
+         * 
+         * @param logItem
+         *            <code>LogItem</code> to be used in logging this event
+         * @param args
+         *            arguments specific to the <code>LogItem</code>
+         */
         public Event(LogItem logItem, Object... args) {
             this(System.currentTimeMillis(), logItem, args);
         }
 
+        /**
+         * Construct an <code>Event</code> for the specified {@link LogItem} and
+         * arguments with the specified system time.
+         * 
+         * @param time
+         *            System time in milliseconds at which the event occurred
+         * @param logItem
+         *            <code>LogItem</code> to be used in logging this event
+         * @param args
+         *            arguments specific to the <code>LogItem</code>
+         */
         public Event(long time, LogItem logItem, Object... args) {
             _logItem = logItem;
             _args = args;
             _time = time;
         }
 
+        /**
+         * @return The {@link LogItem} assigned to the event
+         */
         public LogItem getLogItem() {
             return _logItem;
         }
 
+        /**
+         * 
+         * @return the system time at which the event occurred
+         */
         public long getTime() {
             return _time;
         }
 
+        /**
+         * 
+         * @return arguments supplied with the event and used to format a log or
+         *         notification message to describe this event
+         */
         public Object[] getArgs() {
             return _args;
         }
 
+        /**
+         * 
+         * @return the first element of the argument array, or
+         *         <code>null<code> if the array is empty
+         */
         public Object getFirstArg() {
             return _args.length > 0 ? _args[0] : null;
         }
 
+        /**
+         * Called when this <code>Event</code> is added to a
+         * <code>History</code>. By default this method does nothing, but an
+         * Event subclass can use this method to compute statistics or perform
+         * other custom operations. This method is called after the event has
+         * been added.
+         * 
+         * @param History
+         *            the <code>History</code> to which this event has been
+         *            added
+         */
+        protected void added(final History history) {
+            // Default: do nothing
+        }
+
+        /**
+         * Called when this <code>Event</code> is removed from a
+         * <code>History</code>. By default this method does nothing, but an
+         * Event subclass can use this method to compute statistics or perform
+         * other custom operations. This method is called before the event has
+         * been removed.
+         * 
+         * @param History
+         *            the <code>History</code> from which this event will be
+         *            removed
+         */
+        protected void removed(final History history) {
+            // Default: do nothing
+        }
+
+        /**
+         * @return a description of the event with human-readable time and log
+         *         message
+         */
         @Override
         public String toString() {
             return Util.date(_time) + " " + _logItem.logMessage(_args);
@@ -385,14 +411,28 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
     private AtomicLong _notificationSequence = new AtomicLong();
     private volatile ObjectName _objectName;
 
-    public AlertMonitor() {
+    /**
+     * Constructor
+     */
+    AlertMonitor() {
         super(Executors.newCachedThreadPool());
     }
-    
+
+    /**
+     * Record the <code>ObjectName</code> with which this instance was
+     * registered as an MBean
+     * 
+     * @param on
+     *            The <code>ObjectName</code>
+     */
     void setObjectName(final ObjectName on) {
         _objectName = on;
     }
-    
+
+    /**
+     * @return the <code>ObjectName</code> with which this instance was
+     *         registered as an MBean
+     */
     ObjectName getObjectName() {
         return _objectName;
     }
@@ -405,42 +445,28 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
      * 
      * @param event
      *            A Event object describing what happened
+     * @param category
+     *            A String describing the nature of the event. A separate
+     *            event-history is maintained for each unique category.
      * @param level
      *            Indicates whether this event is a warning or an error.
      * @param time
      *            at which event occurred
      */
     public synchronized final void post(Event event, final String category, AlertLevel level) {
-        final String translatedCategory = translateCategory(event, category);
-        History history = _historyMap.get(translatedCategory);
+        History history = _historyMap.get(category);
         if (history == null) {
             history = new History();
-            _historyMap.put(translatedCategory, history);
+            _historyMap.put(category, history);
         }
-        aggregate(event, history, level);
-
         history.addEvent(event, level);
         history.poll(event.getTime(), false);
-
     }
 
     /**
-     * Perform extended aggregation of the history. For example, a subclass may
-     * extend this method the maintain the minimum, maximum and total fields of
-     * the History object. By default this method does nothing.
-     * 
-     * @param event
-     * @param history
-     * @param level
-     */
-    protected void aggregate(Event event, History history, AlertLevel level) {
-        // Default: do nothing
-    }
-
-
-    /**
-     * Restore this alert monitor to level {@link AlertLevel#NORMAL} with no
-     * history. The logging time intervals and history length are not changed.
+     * Restore this alert monitor to level {@link AlertLevel#NORMAL} with and
+     * remove all histories for all categories. The logging time intervals and
+     * history length are not changed.
      */
     @Override
     public synchronized void reset() {
@@ -492,8 +518,9 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
     }
 
     /**
-     * @return the number of events per category on which to keep a complete
-     *         history.
+     * @see #setHistoryLength(int)
+     * @return the number of events to retain in the <code>History</code> per
+     *         category.
      */
     @Override
     public int getHistoryLength() {
@@ -503,28 +530,40 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
     /**
      * @param name
      *            Category name
-     * @return the History for that category
+     * @return the <code>History</code> for that category or <code>null</code>
+     *         if the specified category has no <code>History</code>.
      */
     public synchronized History getHistory(String name) {
         return _historyMap.get(name);
     }
 
     /**
-     * Set the number of events per category on which to keep a complete
-     * history. Once the number of events exceeds this count, the events
-     * aggregated.
+     * Set the number of <code>Event</code>s per category to keep in the
+     * <code>History</code>. Once the number of events exceeds this count,
+     * earlier events are removed when new events are added. (However, the first
+     * <code>Event</code> added is retained and get accessed via
+     * {@link History#getFirstEvent()} even when subsequent <code>Event</code>s
+     * are removed.) The default value is {@value #DEFAULT_HISTORY_LENGTH}.
      * 
      * @param historyLength
      *            the historyLength to set
      */
     @Override
-    public void setHistoryLength(int historyLength) {
+    public synchronized void setHistoryLength(int historyLength) {
         Util.rangeCheck(historyLength, MINIMUM_HISTORY_LENGTH, MAXIMUM_HISTORY_LENGTH);
         _historyLength = historyLength;
+        for (final History history : _historyMap.values()) {
+            history.trim(historyLength);
+        }
     }
 
     /**
-     * Called periodically to emit any pending log messages
+     * Called periodically to emit any pending log messages.
+     * 
+     * @param force
+     *            Indicates whether to emit pending log messages and
+     *            notifications prior to expiration of their respective
+     *            notification time intervals.
      */
     @Override
     public synchronized void poll(final boolean force) {
@@ -533,6 +572,9 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
         }
     }
 
+    /**
+     * @return A human-readable summary of all <code>History</code> instances.
+     */
     @Override
     public synchronized String toString() {
         StringBuilder sb = new StringBuilder();
@@ -542,6 +584,10 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
         return sb.toString();
     }
 
+    /**
+     * @see #toString()
+     * @return A human-readable summary of all <code>History</code> instances.
+     */
     @Override
     public String getSummary() {
         return toString();
@@ -550,7 +596,7 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
     /**
      * @return a detailed history report for the specified category
      * @param select
-     *            The category name to include, optionally with wildcards '*'
+     *            The category name(s) to include, optionally with wildcards '*'
      *            and '?'
      */
     @Override
@@ -566,6 +612,10 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
         return sb.toString();
     }
 
+    /**
+     * @return the String value of the highest current {@link AlertLevel} among
+     *         all categories being maintained
+     */
     @Override
     public synchronized String getAlertLevel() {
         AlertLevel level = AlertLevel.NORMAL;
@@ -577,6 +627,10 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
         return level.toString();
     }
 
+    /**
+     * @return the metadata needed by an MBeanServer to know what notifications
+     *         may be sent by this MBean
+     */
     @Override
     public MBeanNotificationInfo[] getNotificationInfo() {
         String[] types = new String[] { NOTIFICATION_TYPE };
@@ -587,13 +641,13 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
     }
 
     /**
-     * Emits a log message. If there has been only one Event, log it as a
+     * Emit a log message. If there has been only one Event, log it as a
      * standard log message. If there have been multiple Events, emit a
-     * recurring event message. Subclasses may replace this implementation.
+     * recurring event message.
      * 
      * @param history
      */
-    protected void log(History history) {
+    private void log(History history) {
         final Event event = history.getLastEvent();
         if (event != null && event.getLogItem().isEnabled()) {
             if (history.getCount() == 1) {
@@ -605,18 +659,17 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
     }
 
     /**
-     * Broadcasts a JMX Notification. Subclasses may replace this
-     * implementation.
+     * Broadcast a JMX Notification.
      * 
      * @param history
      */
-    protected void sendNotification(History history) {
+    private void sendNotification(History history) {
         final Event event = history.getLastEvent();
         if (event != null && event.getLogItem().isEnabled()) {
             final String description = LogBase.recurring(event.getLogItem().logMessage(event.getArgs()), history
                     .getCount(), history.getDuration());
-            Notification notification = new Notification(NOTIFICATION_TYPE, getClass().getName(), _notificationSequence.incrementAndGet(),
-                    description);
+            Notification notification = new Notification(NOTIFICATION_TYPE, getClass().getName(), _notificationSequence
+                    .incrementAndGet(), description);
             sendNotification(notification);
         }
     }
@@ -635,55 +688,12 @@ public class AlertMonitor extends NotificationBroadcasterSupport implements Aler
      * for an event that happened on March 13, 2012 at 4:25:05pm for which there
      * were three argument elements.
      * </p>
-     * <p>
-     * A subclass may override this method to provide a more readable version.
-     * </p>
      * 
      * @param event
      * @return
      */
-    protected String format(Event event) {
+    private String format(Event event) {
         return event == null ? "null" : event.toString();
     }
 
-    /**
-     * Return the context-sensitive level of the event. By default this method
-     * returns the level supplied when the event was posted. A subclass can
-     * override this method to compute a different level based on context; for
-     * example, a result determined by an aggregated history.
-     * 
-     * @param category
-     *            category returned by {@link #categorize(Event)}
-     * @param event
-     *            the event being posted
-     * @param level
-     *            the original <code>Level</code>
-     * @param history
-     *            the <code>History</code> for this category
-     * @return translated Level
-     */
-    protected AlertLevel translateLevel(Event event, AlertLevel level, History history) {
-        return level;
-    }
-
-    /**
-     * Return a category name for the event. By default this is simply the name
-     * of the alert. A subclass can override this method to build separate
-     * histories for different event categories, e.g., different kinds of
-     * Exceptions.
-     * 
-     * @param event
-     * @param level
-     * @return
-     */
-    protected String translateCategory(final Event event, String category) {
-        return category;
-    }
-
-    /**
-     * @return Map of all History instances by category name
-     */
-    protected synchronized Map<String, History> getHistoryMap() {
-        return new TreeMap<String, History>(_historyMap);
-    }
 }

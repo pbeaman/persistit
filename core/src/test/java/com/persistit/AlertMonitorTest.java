@@ -33,6 +33,7 @@ import com.persistit.AlertMonitor.AlertLevel;
 import com.persistit.AlertMonitor.Event;
 import com.persistit.AlertMonitor.History;
 import com.persistit.logging.PersistitLevel;
+import com.persistit.logging.PersistitLogMessage.LogItem;
 import com.persistit.logging.PersistitLogger;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -42,6 +43,8 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
 
     String _lastMessage;
     Notification _notification;
+    int _added;
+    int _removed;
 
     class MockPersistitLogger implements PersistitLogger {
 
@@ -72,6 +75,22 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
 
     }
 
+    class AggregatingEvent extends Event {
+        
+        AggregatingEvent(LogItem logItem, Object... args) {
+            super(logItem, args);
+        }
+        
+        protected void added(final History h) {
+            _added++;
+        }
+        
+        protected void removed(final History h) {
+            _removed++;
+        }
+        
+    }
+
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -85,8 +104,8 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
         }
         History history = monitor.getHistory(CATEGORY);
         assertNotNull(history);
-        assertEquals(100, history.getCount());
-        assertEquals(0, history.getFirstEvent().getFirstArg());
+        assertEquals("Event count should be 100", 100, history.getCount());
+        assertEquals("First event argument should be 0", 0, history.getFirstEvent().getFirstArg());
         String s = monitor.getDetailedHistory(CATEGORY);
         assertTrue("Should contain first event", s.contains("   1:"));
         assertTrue("Should contain last event", s.contains(" 100:"));
@@ -114,13 +133,28 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
         assertEquals("History should have been cleared", "", monitor.toString());
         assertEquals("Level should be NORMAL", AlertLevel.NORMAL.toString(), monitor.getAlertLevel());
     }
-    
+
+    public void testChangeHistoryLength() throws Exception {
+        AlertMonitor monitor = _persistit.getAlertMonitor();
+        for (int index = 0; index < 100; index++) {
+            monitor.post(new AggregatingEvent(_persistit.getLogBase().copyright, index), CATEGORY, AlertLevel.NORMAL);
+        }
+        History history = monitor.getHistory(CATEGORY);
+        assertEquals("History should have 10 events", 10, history.getEventList().size());
+        monitor.setHistoryLength(5);
+        assertEquals("History should now have 5 events", 5, history.getEventList().size());
+        monitor.post(new AggregatingEvent(_persistit.getLogBase().copyright, 101), CATEGORY, AlertLevel.NORMAL);
+        assertEquals("History should still have 5 events", 5, history.getEventList().size());
+        assertEquals("Total of 101 events added", 101, _added);
+        assertEquals("Total of 101-5 events removed", 101 - 5, _removed);
+    }
+
     public void testNotifications() throws Exception {
         AlertMonitor monitor = _persistit.getAlertMonitor();
         MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         server.addNotificationListener(_persistit.getAlertMonitor().getObjectName(), new NotificationListener() {
             public void handleNotification(Notification notification, Object handback) {
-                ((AlertMonitorTest)handback)._notification = notification;
+                ((AlertMonitorTest) handback)._notification = notification;
             }
         }, null, this);
         monitor.post(new Event(_persistit.getLogBase().copyright, 2012), CATEGORY, AlertLevel.ERROR);
