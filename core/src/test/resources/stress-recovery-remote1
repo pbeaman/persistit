@@ -22,10 +22,10 @@
 # stress-recovery-remote2.
 #
 # This tests assumes some predefined directories:
-
+#
 # On the local machine, this test writes the ticket stream to
 #     /tmp/persistit_test_data/recovery.log
-
+#
 # On the target machine, this test creates the directory ~/persistit_test_data
 # (relative to the remote user) to hold Volume and Journal files (Note: that 
 # /tmp/persistit_test_data is not used since rebooting the machine removes data
