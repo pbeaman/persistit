@@ -26,24 +26,27 @@
 
 package com.persistit.collation;
 
-import java.io.IOException;
-
 /**
- * A CollatableCharSequence that delegates to a StringBuilder and uses the
- * current value of _collationId to find the correct CollationEngine.
+ * A CollatableCharSequence that delegates to a StringBuilder and uses
+ * a collationId to find the correct CollationEngine.
  * 
  * @author peter
  */
-public class CollatableStringBuilder implements CollatableCharSequence {
+public class CollatableStringBuilder implements CollatableCharSequence<CharSequence>, Appendable {
 
     private final StringBuilder _sb;
 
-    private int _collationId;
+    private final int _collationId;
 
-    private CollationEngine _collationEngine;
+    private final CollationEngine _collationEngine;
 
-    public CollatableStringBuilder(final StringBuilder sb) {
+    private final boolean _recoverableEncoding;
+
+    public CollatableStringBuilder(final StringBuilder sb, final int collationId, final boolean recoverable) {
         _sb = sb;
+        _collationId = collationId;
+        _recoverableEncoding = recoverable;
+        _collationEngine = CollationEngines.getEngine(_collationId);
     }
 
     @Override
@@ -66,29 +69,46 @@ public class CollatableStringBuilder implements CollatableCharSequence {
         return _sb.subSequence(start, end);
     }
 
-
     @Override
     public int getCollationId() {
         return _collationId;
     }
 
     @Override
-    public void setCollationId(int collationId) {
-        _collationId = collationId;
+    public long encode(byte[] keyBytes, int keyBytesOffset, int keyBytesMaximumLength, byte[] caseBytes,
+            int caseBytesOffset, int caseBytesMaximumLength) {
+        return _collationEngine.encode(_sb, keyBytes, keyBytesOffset, keyBytesMaximumLength, caseBytes,
+                caseBytesOffset, _recoverableEncoding ? caseBytesMaximumLength : 0);
     }
 
     @Override
-    public long encode(byte[] keyBytes, int keyBytesOffset, int keyBytesMaximumLength, byte[] caseBytes,
-            int caseBytesOffset, int caseBytesMaximumLength) {
-        return getCollationEngine().encode(_sb, keyBytes, keyBytesOffset, keyBytesMaximumLength, caseBytes,
-                caseBytesOffset, caseBytesMaximumLength);
+    public Appendable append(CharSequence csq) {
+        return _sb.append(csq);
     }
 
-    private CollationEngine getCollationEngine() {
-        if (_collationEngine == null || _collationEngine.getCollationId() != _collationId) {
-            _collationEngine = CollationEngines.getEngine(_collationId);
-        }
-        return _collationEngine;
+    @Override
+    public Appendable append(CharSequence csq, int start, int end) {
+        return _sb.append(csq, start, end);
+    }
+
+    @Override
+    public Appendable append(char c) {
+        return _sb.append(c);
+    }
+
+    public void setLength(final int newLength) {
+        _sb.setLength(newLength);
+    }
+
+    /**
+     * @return a negative integer, zero, or a positive integer as the string
+     *         string represented by this object is less than, equal to, or
+     *         greater than the target string under the collation rules implied
+     *         by the current collationId
+     */
+    @Override
+    public int compareTo(CharSequence target) {
+        return _collationEngine.compare(this, target);
     }
 
 }

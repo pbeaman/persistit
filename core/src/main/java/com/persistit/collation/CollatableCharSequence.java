@@ -81,21 +81,12 @@ package com.persistit.collation;
  * @author peter
  * 
  */
-public interface CollatableCharSequence extends CharSequence {
+public interface CollatableCharSequence<T extends CharSequence> extends CharSequence, Comparable<T> {
 
     /**
      * @return the current collationId
      */
     int getCollationId();
-
-    /**
-     * Change the current collationId.
-     * 
-     * @param collationId
-     *            identifier of a collation scheme. Values -1 and 0 have special
-     *            meaning described {@link #decode}.
-     */
-    void setCollationId(int collationId);
 
     /**
      * <p>

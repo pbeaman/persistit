@@ -145,4 +145,18 @@ public interface CollationEngine {
      */
     int decodeCollationId(byte[] caseBytes, int caseBytesOffset, int caseBytesLength);
 
+    /**
+     * Compare the strings represented by source and target using the collation
+     * rules of this CollationEngine.
+     * 
+     * @param source
+     *            first string to compare
+     * @param other
+     *            second string to compare
+     * @return a negative integer, zero, or a positive integer as the source
+     *         string is less than, equal to, or greater than the target string
+     *         under the collation rules of this CollationEngine
+     */
+    int compare(CharSequence source, CharSequence other);
+
 }
