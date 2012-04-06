@@ -81,7 +81,7 @@ package com.persistit.collation;
  * @author peter
  * 
  */
-public interface CollatableCharSequence extends CharSequence, Appendable {
+public interface CollatableCharSequence extends CharSequence {
 
     /**
      * @return the current collationId
@@ -142,66 +142,4 @@ public interface CollatableCharSequence extends CharSequence, Appendable {
     long encode(byte[] keyBytes, int keyBytesOffset, int keyBytesMaximumLength, byte[] caseBytes, int caseBytesOffset,
             int caseBytesMaximumLength);
 
-    /**
-     * <p>
-     * Combine the supplied byte arrays previously produced by the
-     * {@link #encode} method to produce a
-     * string. The result of calling this method is equivalent to calling the
-     * {@link #append(char)} method for each character produced by combining the
-     * two byte arrays.
-     * </p>
-     * <p>
-     * It is intended that the caseBytes should encode the collationId value
-     * used when the <code>encode</code> method was called. That value (E)
-     * interacts with the current value of {@link #getCollationId()} (C) in the
-     * following way:
-     * <ul>
-     * <li>if E == C then the string is decoded using the collation scheme
-     * identified by E.</li>
-     * <li>if E is non-zero and C is -1 then the string is decoded using the
-     * collation scheme identified by E and the current collationId of this
-     * CollatableCharSequence is set to E as if setCollationId(E) were called.</li>
-     * <li>if E>0, C>0 and E != C then this method throws an
-     * IllegalArgumentException.
-     * <li>if caseBytes is empty then the collation scheme identified by C is
-     * used to decode the string, but the result is likely to be different from
-     * the original string due to missing information.</li>
-     * <li>if caseBytes is empty and C is -1 or 0 then the default Persistit
-     * UTF-8 binary encoding is used to create a string from the keyBytes</li>
-     * </ul>
-     * </p>
-     * 
-     * @param keyBytes
-     *            Byte array containing keyBytes
-     * @param keyBytesOffset
-     *            offset of first byte of keyBytes
-     * @param keyBytesLength
-     *            length of keyBytes
-     * @param caseBytes
-     *            Byte array containing caseBytes
-     * @param caseBytesOffset
-     *            offset of first byte of caseBytes
-     * @param caseBytesLength
-     *            length of caseBytes
-     * @return length of the resulting string
-     * @throws IllegalArgumentException
-     *             if the collationId encoded in caseBytes does not match the
-     *             current value of {@link #getCollationId()}.
-     */
-    int decode(byte[] keyBytes, int keyBytesOffset, int keyBytesLength, byte[] caseBytes, int caseBytesOffset,
-            int caseBytesLength);
-
-    /**
-     * Decode the collationId from the supplied caseBytes.
-     * 
-     * @param caseBytes
-     *            Byte array containing caseBytes
-     * @param caseBytesOffset
-     *            offset of first byte of caseBytes
-     * @param caseBytesLength
-     *            length of caseBytes
-     * @return the collationId encoded in the supplied caseBytes, or zero if the
-     *         caseBytesLength is zero.
-     */
-    int decodeCollationId(byte[] caseBytes, int caseBytesOffset, int caseBytesLength);
 }

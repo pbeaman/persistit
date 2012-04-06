@@ -66,20 +66,6 @@ public class CollatableStringBuilder implements CollatableCharSequence {
         return _sb.subSequence(start, end);
     }
 
-    @Override
-    public Appendable append(CharSequence csq) {
-        return _sb.append(csq);
-    }
-
-    @Override
-    public Appendable append(CharSequence csq, int start, int end) {
-        return _sb.append(csq, start, end);
-    }
-
-    @Override
-    public Appendable append(char c) throws IOException {
-        return _sb.append(c);
-    }
 
     @Override
     public int getCollationId() {
@@ -96,21 +82,6 @@ public class CollatableStringBuilder implements CollatableCharSequence {
             int caseBytesOffset, int caseBytesMaximumLength) {
         return getCollationEngine().encode(_sb, keyBytes, keyBytesOffset, keyBytesMaximumLength, caseBytes,
                 caseBytesOffset, caseBytesMaximumLength);
-    }
-
-    @Override
-    public int decode(byte[] keyBytes, int keyBytesOffset, int keyBytesLength, byte[] caseBytes, int caseBytesOffset,
-            int caseBytesLength) {
-        if (_collationId == -1) {
-            _collationId = decode(keyBytes, keyBytesOffset, keyBytesLength, caseBytes, caseBytesOffset, caseBytesLength);
-        }
-        return getCollationEngine().decode(_sb, keyBytes, keyBytesOffset, keyBytesLength, caseBytes, caseBytesOffset,
-                caseBytesLength);
-    }
-
-    @Override
-    public int decodeCollationId(byte[] caseBytes, int caseBytesOffset, int caseBytesLength) {
-        return CollationEngines.decodeCollationId(caseBytes, caseBytesOffset, caseBytesLength);
     }
 
     private CollationEngine getCollationEngine() {
