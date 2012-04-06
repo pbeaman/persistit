@@ -1,22 +1,17 @@
 #!/bin/bash
-#
-# Copyright (C) 2011 Akiban Technologies Inc.
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License, version 3,
-# as published by the Free Software Foundation.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see http://www.gnu.org/licenses.
-#
+
 #-----------------------------
 # This is a working template for a simple script to perform crash
 # recovery testing in Persistit.  This script should be run from the
-# root directory of the Persistit project.
+# root directory of the Persistit project. To run this
+# part part of the test:
+#
+# # To run this test:
+#
+#   ./core/src/test/resources/stress-recovery-remote2 username@remotehost remote_directory_path
+#
+# Where remote_directory_path is the full path on the remote machine to the
+# root of an akiban-persistit working directory.
 #
 # This script is the second half of a test start started by
 # stress-recovery-remote1. This half checks the validity of the
@@ -31,7 +26,7 @@ remote_datapath="~/persistit_test_data"
 scriptpath="core/src/test/resources/tscripts"
 jvm_options="-Xmx2G -Xrunjdwp:transport=dt_socket,address=8000,suspend=n,server=y"
 
-testrunner_command="cd recovery_test ; java $jvm_options -cp \`find . -name akiban-persistit-core\*with-dependencies\*.jar\` com.persistit.test.TestRunner "
+testrunner_command="cd $2 ; java $jvm_options -cp \`find . -name akiban-persistit-core\*with-dependencies\*.jar\` com.persistit.test.TestRunner "
 
 command="ssh $1 $testrunner_command script=$scriptpath/recovery_2_stdin.plan datapath=$remote_datapath"
 echo "$command  < $local_datapath/recovery.log"
