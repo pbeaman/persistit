@@ -134,4 +134,16 @@ public class TestShim {
     public static void testValidForTraverse(final Key key) throws InvalidKeyException {
         key.testValidForTraverse();
     }
+
+    public static void nudgeDeeper(final Key key) {
+        key.nudgeDeeper();
+    }
+
+    public static void nudgeLeft(final Key key) {
+        key.nudgeLeft();
+    }
+
+    public static void nudgeRight(final Key key) {
+        key.nudgeRight();
+    }
 }

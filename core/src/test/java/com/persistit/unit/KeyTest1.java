@@ -837,6 +837,72 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
     }
 
+    public void testNudgeDeeperFullKey() {
+        final Key key1 = newKey();
+        fillKey(key1);
+
+        final long gen1 = key1.getGeneration();
+        final int fullSize = key1.getEncodedSize();
+        TestShim.nudgeDeeper(key1);
+
+        final long gen2 = key1.getGeneration();
+        final int nudge1Size = key1.getEncodedSize();
+        assertEquals("can nudge when key is full", fullSize + 1, nudge1Size);
+        assertTrue("Generation changed after successful nudge", gen2 > gen1);
+
+        TestShim.nudgeDeeper(key1);
+
+        final long gen3 = key1.getGeneration();
+        final int nudge2Size = key1.getEncodedSize();
+        assertEquals("cannot nudge full key twice", fullSize + 1, nudge2Size);
+        assertEquals("Generation did not change after unsuccessful nudge", gen2, gen3);
+    }
+
+    public void testNudgeLeftRightNoChangeSpecialKeys() {
+        final Key key1 = newKey();
+        final Key key2 = newKey();
+
+        Key.LEFT_GUARD_KEY.copyTo(key1);
+        TestShim.nudgeLeft(key1);
+        assertEquals("no nudgeLeft LEFT_GUARD", 0, Key.LEFT_GUARD_KEY.compareTo(key1));
+        TestShim.nudgeRight(key1);
+        assertEquals("no nudgeRight LEFT_GUARD", 0, Key.LEFT_GUARD_KEY.compareTo(key1));
+
+        Key.RIGHT_GUARD_KEY.copyTo(key1);
+        TestShim.nudgeLeft(key1);
+        assertEquals("no nudgeLeft RIGHT_GUARD", 0, Key.RIGHT_GUARD_KEY.compareTo(key1));
+        TestShim.nudgeRight(key1);
+        assertEquals("no nudgeRight RIGHT_GUARD", 0, Key.RIGHT_GUARD_KEY.compareTo(key1));
+
+        key1.clear().append(Key.BEFORE);
+        key1.copyTo(key2);
+        TestShim.nudgeLeft(key1);
+        assertEquals("no nudgeLeft BEFORE", 0, key2.compareTo(key1));
+        TestShim.nudgeRight(key1);
+        assertEquals("no nudgeRight BEFORE", 0, key2.compareTo(key1));
+
+        key1.clear().append(Key.AFTER);
+        key1.copyTo(key2);
+        TestShim.nudgeLeft(key1);
+        assertEquals("no nudgeLeft AFTER", 0, key2.compareTo(key1));
+        TestShim.nudgeRight(key1);
+        assertEquals("no nudgeRight AFTER", 0, key2.compareTo(key1));
+    }
+
+    public void testNudgeLeftRightFullKey() {
+        final Key key1 = newKey();
+        fillKey(key1);
+
+        final Key key2 = newKey();
+        key1.copyTo(key2);
+
+        TestShim.nudgeLeft(key1);
+        assertTrue("nudgeLeft on full key compares less", key1.compareTo(key2) < 0);
+
+        key2.copyTo(key1);
+        TestShim.nudgeRight(key1);
+        assertTrue("nudgeRight on full key compares greater", key1.compareTo(key2) > 0);
+    }
 
     private static boolean doubleEquals(final double f1, final double f2) {
         if (Double.isNaN(f1)) {
@@ -847,10 +913,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
         return f1 == f2;
     }
-
-    // public static void main(final String[] args) throws Exception {
-    // new KeyTest1().runTest();
-    // }
 
     public void runAllTests() throws Exception {
         test1();
@@ -899,5 +961,14 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertTrue("encoded size > 1", key.getEncodedSize() > 1);
         key.setEncodedSize(key.getEncodedSize() - 1);
         return key;
+    }
+
+    private static void fillKey(Key key) {
+        byte[] array = new byte[key.getMaximumSize() - 2];
+        for(int i = 0; i < array.length; ++i) {
+            array[i] = 10;
+        }
+        key.clear().append(array);
+        assertEquals("encoded size is max size", key.getEncodedSize(), key.getMaximumSize());
     }
 }
