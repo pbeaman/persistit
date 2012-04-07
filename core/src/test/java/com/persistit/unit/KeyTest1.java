@@ -904,6 +904,23 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertTrue("nudgeRight on full key compares greater", key1.compareTo(key2) > 0);
     }
 
+    public void testNonAsciiString() {
+        final String[] strings = {
+                "\u0000\u0001\u0000\u0001", // small, <= 0x01
+                "asdf",                     // ascii
+                "\u03A3\u03A4\u03A6\u03A8", // medium, <= 0x7FF (greek capital sigma, tau, phi, psi)
+                "\u2654\u2655\u2656\u2657", // large, (white chess king, queen, rook, bishop)
+        };
+        final Key key1 = newKey();
+        for(String s : strings) {
+            assertEquals("character count", 4, s.length());
+            key1.clear().append(s);
+            String decoded = key1.decodeString();
+            assertEquals("append and decode", s, decoded);
+        }
+    }
+
+
     private static boolean doubleEquals(final double f1, final double f2) {
         if (Double.isNaN(f1)) {
             return Double.isNaN(f2);
