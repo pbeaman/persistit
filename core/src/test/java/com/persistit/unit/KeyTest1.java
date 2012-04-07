@@ -29,6 +29,9 @@ package com.persistit.unit;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import com.persistit.Buffer;
+import com.persistit.TestShim;
+import com.persistit.exception.InvalidKeyException;
 import junit.framework.Assert;
 
 import com.persistit.Key;
@@ -707,8 +710,216 @@ public class KeyTest1 extends PersistitUnitTestCase {
         key2.cut();
         assertEquals("Incorrect depth", 1, key1.firstUniqueSegmentDepth(key2));
         assertEquals("Incorrect depth", 1, key2.firstUniqueSegmentDepth(key1));
-
     }
+
+    public void testValidForAppendLeftEdge() {
+        final Key key1 = newKey();
+        Key.LEFT_GUARD_KEY.copyTo(key1);
+        try {
+            TestShim.testValidForAppend(key1);
+            fail("Expected IllegalArgumentException");
+        } catch(IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    public void testValidForAppendRightEdge() {
+        final Key key1 = newKey();
+        Key.RIGHT_GUARD_KEY.copyTo(key1);
+        try {
+            TestShim.testValidForAppend(key1);
+            fail("Expected IllegalArgumentException");
+        } catch(IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    public void testValidForAppendBefore() {
+        final Key key1 = newKey();
+        key1.clear().append(Key.BEFORE);
+        try {
+            TestShim.testValidForAppend(key1);
+            fail("Expected IllegalArgumentException");
+        } catch(IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    public void testValidForAppendAfter() {
+        final Key key1 = newKey();
+        key1.append(Key.AFTER);
+        try {
+            TestShim.testValidForAppend(key1);
+            fail("Expected IllegalArgumentException");
+        } catch(IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    public void testValidForAppendInvalidFinalSegment() {
+        final Key key1 = newKey();
+        appendInvalidSegment(key1);
+        try {
+            TestShim.testValidForAppend(key1);
+            fail("Expected IllegalArgumentException");
+        } catch(IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    public void testValidForStoreAndFetchEmptyKey() {
+        final Key key1 = newKey();
+        try {
+            TestShim.testValidForStoreAndFetch(key1, Buffer.MIN_BUFFER_SIZE);
+            fail("Expected InvalidKeyException");
+        } catch (InvalidKeyException e) {
+            // Expected
+        }
+    }
+
+    public void testValidForStoreAndFetchBeforeKey() {
+        final Key key1 = newKey();
+        key1.append(Key.BEFORE);
+        try {
+            TestShim.testValidForStoreAndFetch(key1, Buffer.MIN_BUFFER_SIZE);
+            fail("Expected InvalidKeyException");
+        } catch (InvalidKeyException e) {
+            // Expected
+        }
+    }
+
+    public void testValidForStoreAndFetchInvalidFinalSegment() {
+        final Key key1 = newKey();
+        appendInvalidSegment(key1);
+        try {
+            TestShim.testValidForStoreAndFetch(key1, Buffer.MAX_BUFFER_SIZE);
+            fail("Expected InvalidKeyException");
+        } catch(InvalidKeyException e) {
+            // expected
+        }
+    }
+
+    public void testValidForStoreAndFetchAfterKey() {
+        final Key key1 = newKey();
+        key1.append(Key.AFTER);
+        try {
+            TestShim.testValidForStoreAndFetch(key1, Buffer.MIN_BUFFER_SIZE);
+            fail("Expected InvalidKeyException");
+        } catch (InvalidKeyException e) {
+            // Expected
+        }
+    }
+
+    public void testValidForStoreAndFetchKeyTooLarge() {
+        final Key key1 = new Key(_persistit);
+        final int BMIN = Buffer.MIN_BUFFER_SIZE;
+        final int BMAX = Buffer.MAX_BUFFER_SIZE;
+        final int KMAX = key1.getMaximumSize();
+        for(int bsize = BMIN; bsize <= BMAX && bsize < KMAX; bsize *= 2) {
+            key1.clear();
+            key1.setEncodedSize(bsize + 1);
+            try {
+                TestShim.testValidForStoreAndFetch(key1, bsize);
+                fail("Expected IllegalArgumentException for buffer buffer size " + bsize);
+            } catch (InvalidKeyException e) {
+                // Expected
+            }
+        }
+    }
+
+    public void testValidForTraverseEmptyKey() {
+        final Key key1 = newKey();
+        try {
+            TestShim.testValidForTraverse(key1);
+            fail("Expected InvalidKeyException");
+        } catch (InvalidKeyException e) {
+            // Expected
+        }
+    }
+
+    public void testNudgeDeeperFullKey() {
+        final Key key1 = newKey();
+        fillKey(key1);
+
+        final long gen1 = key1.getGeneration();
+        final int fullSize = key1.getEncodedSize();
+        TestShim.nudgeDeeper(key1);
+
+        final long gen2 = key1.getGeneration();
+        final int nudge1Size = key1.getEncodedSize();
+        assertEquals("can nudge when key is full", fullSize + 1, nudge1Size);
+        assertTrue("Generation changed after successful nudge", gen2 > gen1);
+
+        TestShim.nudgeDeeper(key1);
+
+        final long gen3 = key1.getGeneration();
+        final int nudge2Size = key1.getEncodedSize();
+        assertEquals("cannot nudge full key twice", fullSize + 1, nudge2Size);
+        assertEquals("Generation did not change after unsuccessful nudge", gen2, gen3);
+    }
+
+    public void testNudgeLeftRightNoChangeSpecialKeys() {
+        final Key key1 = newKey();
+        final Key key2 = newKey();
+
+        Key.LEFT_GUARD_KEY.copyTo(key1);
+        TestShim.nudgeLeft(key1);
+        assertEquals("no nudgeLeft LEFT_GUARD", 0, Key.LEFT_GUARD_KEY.compareTo(key1));
+        TestShim.nudgeRight(key1);
+        assertEquals("no nudgeRight LEFT_GUARD", 0, Key.LEFT_GUARD_KEY.compareTo(key1));
+
+        Key.RIGHT_GUARD_KEY.copyTo(key1);
+        TestShim.nudgeLeft(key1);
+        assertEquals("no nudgeLeft RIGHT_GUARD", 0, Key.RIGHT_GUARD_KEY.compareTo(key1));
+        TestShim.nudgeRight(key1);
+        assertEquals("no nudgeRight RIGHT_GUARD", 0, Key.RIGHT_GUARD_KEY.compareTo(key1));
+
+        key1.clear().append(Key.BEFORE);
+        key1.copyTo(key2);
+        TestShim.nudgeLeft(key1);
+        assertEquals("no nudgeLeft BEFORE", 0, key2.compareTo(key1));
+        TestShim.nudgeRight(key1);
+        assertEquals("no nudgeRight BEFORE", 0, key2.compareTo(key1));
+
+        key1.clear().append(Key.AFTER);
+        key1.copyTo(key2);
+        TestShim.nudgeLeft(key1);
+        assertEquals("no nudgeLeft AFTER", 0, key2.compareTo(key1));
+        TestShim.nudgeRight(key1);
+        assertEquals("no nudgeRight AFTER", 0, key2.compareTo(key1));
+    }
+
+    public void testNudgeLeftRightFullKey() {
+        final Key key1 = newKey();
+        fillKey(key1);
+
+        final Key key2 = newKey();
+        key1.copyTo(key2);
+
+        TestShim.nudgeLeft(key1);
+        assertTrue("nudgeLeft on full key compares less", key1.compareTo(key2) < 0);
+
+        key2.copyTo(key1);
+        TestShim.nudgeRight(key1);
+        assertTrue("nudgeRight on full key compares greater", key1.compareTo(key2) > 0);
+    }
+
+    public void testNonAsciiString() {
+        final String[] strings = {
+                "\u0000\u0001\u0000\u0001", // small, <= 0x01
+                "asdf",                     // ascii
+                "\u03A3\u03A4\u03A6\u03A8", // medium, <= 0x7FF (greek capital sigma, tau, phi, psi)
+                "\u2654\u2655\u2656\u2657", // large, (white chess king, queen, rook, bishop)
+        };
+        final Key key1 = newKey();
+        for(String s : strings) {
+            assertEquals("character count", 4, s.length());
+            key1.clear().append(s);
+            String decoded = key1.decodeString();
+            assertEquals("append and decode", s, decoded);
+        }
+    }
+
 
     private static boolean doubleEquals(final double f1, final double f2) {
         if (Double.isNaN(f1)) {
@@ -719,10 +930,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
         return f1 == f2;
     }
-
-    // public static void main(final String[] args) throws Exception {
-    // new KeyTest1().runTest();
-    // }
 
     public void runAllTests() throws Exception {
         test1();
@@ -760,5 +967,25 @@ public class KeyTest1 extends PersistitUnitTestCase {
             return;
         }
         return; // <-- breakpoint here
+    }
+
+    private Key newKey() {
+        return new Key(_persistit);
+    }
+
+    private static Key appendInvalidSegment(Key key) {
+        key.append("asdf");
+        assertTrue("encoded size > 1", key.getEncodedSize() > 1);
+        key.setEncodedSize(key.getEncodedSize() - 1);
+        return key;
+    }
+
+    private static void fillKey(Key key) {
+        byte[] array = new byte[key.getMaximumSize() - 2];
+        for(int i = 0; i < array.length; ++i) {
+            array[i] = 10;
+        }
+        key.clear().append(array);
+        assertEquals("encoded size is max size", key.getEncodedSize(), key.getMaximumSize());
     }
 }
