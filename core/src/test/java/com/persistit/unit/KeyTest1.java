@@ -712,7 +712,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertEquals("Incorrect depth", 1, key2.firstUniqueSegmentDepth(key1));
     }
 
-    public void testAppendToLeftEdge() {
+    public void testValidForAppendLeftEdge() {
         final Key key1 = newKey();
         Key.LEFT_GUARD_KEY.copyTo(key1);
         try {
@@ -723,7 +723,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
     }
 
-    public void testAppendToRightEdge() {
+    public void testValidForAppendRightEdge() {
         final Key key1 = newKey();
         Key.RIGHT_GUARD_KEY.copyTo(key1);
         try {
@@ -734,7 +734,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
     }
 
-    public void testAppendToBefore() {
+    public void testValidForAppendBefore() {
         final Key key1 = newKey();
         key1.clear().append(Key.BEFORE);
         try {
@@ -745,7 +745,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
     }
 
-    public void testAppendToAfter() {
+    public void testValidForAppendAfter() {
         final Key key1 = newKey();
         key1.append(Key.AFTER);
         try {
@@ -756,7 +756,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
     }
 
-    public void testAppendToInvalidFinalSegment() {
+    public void testValidForAppendInvalidFinalSegment() {
         final Key key1 = newKey();
         appendInvalidSegment(key1);
         try {
@@ -767,7 +767,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
     }
 
-    public void testStoreAndFetchEmptyKey() {
+    public void testValidForStoreAndFetchEmptyKey() {
         final Key key1 = newKey();
         try {
             TestShim.testValidForStoreAndFetch(key1, Buffer.MIN_BUFFER_SIZE);
@@ -777,7 +777,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
     }
 
-    public void testStoreAndFetchBeforeKey() {
+    public void testValidForStoreAndFetchBeforeKey() {
         final Key key1 = newKey();
         key1.append(Key.BEFORE);
         try {
@@ -788,7 +788,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
     }
 
-    public void testStoreAndFetchInvalidFinalSegment() {
+    public void testValidForStoreAndFetchInvalidFinalSegment() {
         final Key key1 = newKey();
         appendInvalidSegment(key1);
         try {
@@ -799,7 +799,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
     }
 
-    public void testStoreAndFetchAfterKey() {
+    public void testValidForStoreAndFetchAfterKey() {
         final Key key1 = newKey();
         key1.append(Key.AFTER);
         try {
@@ -810,7 +810,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
     }
 
-    public void testStoreAndFetchKeyTooLarge() {
+    public void testValidForStoreAndFetchKeyTooLarge() {
         final Key key1 = new Key(_persistit);
         final int BMIN = Buffer.MIN_BUFFER_SIZE;
         final int BMAX = Buffer.MAX_BUFFER_SIZE;
@@ -824,6 +824,16 @@ public class KeyTest1 extends PersistitUnitTestCase {
             } catch (InvalidKeyException e) {
                 // Expected
             }
+        }
+    }
+
+    public void testValidForTraverseEmptyKey() {
+        final Key key1 = newKey();
+        try {
+            TestShim.testValidForTraverse(key1);
+            fail("Expected InvalidKeyException");
+        } catch (InvalidKeyException e) {
+            // Expected
         }
     }
 
