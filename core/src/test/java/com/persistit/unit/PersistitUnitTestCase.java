@@ -30,13 +30,15 @@ import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.Properties;
 
-import com.persistit.exception.PersistitException;
 import junit.framework.TestCase;
 
 import com.persistit.Persistit;
+import com.persistit.exception.PersistitException;
 
 public abstract class PersistitUnitTestCase extends TestCase {
 
+    private final static long TEN_SECONDS = 10L * 1000L * 1000L * 1000L;
+    
     protected final static String RED_FOX = "The quick red fox jumped over the lazy brown dog.";
 
     protected Persistit _persistit = new Persistit();
@@ -56,11 +58,8 @@ public abstract class PersistitUnitTestCase extends TestCase {
         final WeakReference<Persistit> ref = new WeakReference<Persistit>(_persistit);
         _persistit.close(false);
         _persistit = null;
-        for (int count = 0; count < 100 && ref.get() != null; count++) {
-            System.gc();
-            Thread.sleep(100);
-        }
-        if (ref.get() != null) {
+        
+        if (!doesRefBecomeNull(ref)) {
             System.out.println("Persistit has a leftover strong reference");
         }
         checkNoPersistitThreads();
@@ -109,5 +108,14 @@ public abstract class PersistitUnitTestCase extends TestCase {
         _persistit.crash();
         _persistit = new Persistit();
         _persistit.initialize(properties);
+    }
+    
+    public static boolean doesRefBecomeNull(final WeakReference<?> ref) throws InterruptedException {
+        long expires = System.nanoTime() + TEN_SECONDS;
+        while (ref.get() != null && System.nanoTime() < expires) {
+            System.gc();
+            Thread.sleep(100);
+        }
+        return ref.get() == null;
     }
 }
