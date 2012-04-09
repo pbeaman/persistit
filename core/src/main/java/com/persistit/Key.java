@@ -3211,7 +3211,7 @@ public final class Key implements Comparable<Object> {
     }
 
     void nudgeDeeper() {
-        if (_size <= MAX_KEY_LENGTH) {
+        if (_size <= _maxSize) {
             _bytes[_size++] = 0;
             bumpGeneration();
         }

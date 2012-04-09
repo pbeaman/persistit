@@ -74,6 +74,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TestException;
+import com.persistit.mxbeans.RecoveryManagerMXBean;
 import com.persistit.util.ArgParser;
 import com.persistit.util.Util;
 

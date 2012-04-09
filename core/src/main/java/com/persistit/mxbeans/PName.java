@@ -24,51 +24,26 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.logging;
+package com.persistit.mxbeans;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+import javax.management.DescriptorKey;
 
 /**
- * Simple interface for attaching an external logger.
- * 
- * @author peter
- * 
+ * Annotation used to declare the externally visible name of a
+ * parameter on an MXBean operation. The {@link MXBeanWrapper}
+ * class marshals the value added here to the descriptor to
+ * the appropriate MBeanParameterInfo attribute.
  */
-public interface PersistitLogger {
+@Target({ ElementType.METHOD, ElementType.PARAMETER })
+@Retention(RetentionPolicy.RUNTIME)
+public @interface PName {
+    String PNAME = "PName";
 
-    /**
-     * Emit the message to the log at the specified level. Configuration will
-     * ensure that this method is called only when the level is indeed loggable.
-     * 
-     * @param level
-     * @param message
-     */
-    void log(final PersistitLevel level, final String message);
-
-    /**
-     * Test whether a message at the specified level should be written to the
-     * log. This method is called during configuration, not once per log
-     * message.
-     * 
-     * @param level
-     * @return
-     */
-    boolean isLoggable(final PersistitLevel level);
-
-    /**
-     * Called when Persistit starts using the log.
-     * 
-     * @throws Exception
-     */
-    void open() throws Exception;
-
-    /**
-     * Called when Persistit stos using the log.
-     * 
-     * @throws Exception
-     */
-    void close() throws Exception;
-
-    /**
-     * Flush pending ouput
-     */
-    void flush();
+    @DescriptorKey(PNAME)
+    String value();
 }

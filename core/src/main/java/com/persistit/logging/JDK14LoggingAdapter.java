@@ -106,4 +106,10 @@ public class JDK14LoggingAdapter implements PersistitLogger {
         // application
     }
 
+
+    @Override
+    public void flush() {
+        // Nothing to do - log output is managed by the embedding
+        // application
+    }
 }

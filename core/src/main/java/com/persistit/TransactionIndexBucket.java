@@ -283,26 +283,29 @@ public class TransactionIndexBucket {
                     s.complete(timestamp);
                     status.wwUnlock();
                     boolean moved = false;
-                    if (s.getTc() < _activeTransactionFloor) {
-                        if (s.getTc() > 0) {
-                            aggregate(s, true);
-                            free(s);
-                            moved = true;
-                        } else if (s.getTc() == ABORTED) {
-                            aggregate(s, false);
-                            s.setNext(_aborted);
-                            _aborted = s;
-                            _abortedCount++;
-                            moved = true;
+                    if (s.getTc() == ABORTED) {
+                        aggregate(s, false);
+                        s.setNext(_aborted);
+                        _aborted = s;
+                        _abortedCount++;
+                        moved = true;
+                    } else {
+                        /*
+                         * The activeTransactionFloor can only increase after
+                         * the relevant transactions have been notified.
+                         * Therefore any transaction now being notified must
+                         * either be ABORTED or have a tc greater than or equal
+                         * to the floor.
+                         */
+                        assert s.getTc() >= _activeTransactionFloor;
+                    }
+                    if (moved) {
+                        if (previous == null) {
+                            _longRunning = next;
+                        } else {
+                            previous.setNext(next);
                         }
-                        if (moved) {
-                            if (previous == null) {
-                                _longRunning = next;
-                            } else {
-                                previous.setNext(next);
-                            }
-                            _longRunningCount--;
-                        }
+                        _longRunningCount--;
                     }
                     return;
                 }
@@ -393,9 +396,6 @@ public class TransactionIndexBucket {
                             previous.setNext(next);
                         } else {
                             _current = next;
-                            if (next == null) {
-                                newFloor = Long.MAX_VALUE;
-                            }
                         }
                         _currentCount--;
                         status = next;
@@ -589,6 +589,7 @@ public class TransactionIndexBucket {
                         status.wwUnlock();
                     }
                 }
+                _transactionIndex.incrementAccumulatorSnapshotRetryCounter();
                 throw RetryException.SINGLE;
             }
         }
@@ -620,6 +621,7 @@ public class TransactionIndexBucket {
                         status.wwUnlock();
                     }
                 }
+                _transactionIndex.incrementAccumulatorCheckpointRetryCounter();
                 throw RetryException.SINGLE;
             }
         }

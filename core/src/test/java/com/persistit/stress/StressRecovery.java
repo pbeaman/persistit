@@ -29,6 +29,7 @@ package com.persistit.stress;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -150,7 +151,11 @@ public class StressRecovery extends StressBase {
         _verifyPath = _ap.getStringValue("verify");
         if (_verifyPath != null && !_verifyPath.isEmpty()) {
             _verifyMode = true;
-            _verifyReader = new BufferedReader(new FileReader(_verifyPath));
+            if (_verifyPath.equals("stdin")) {
+                _verifyReader = new BufferedReader(new InputStreamReader(System.in));
+            } else {
+                _verifyReader = new BufferedReader(new FileReader(_verifyPath));
+            }
         }
         _dotGranularity = 10000;
 
@@ -227,7 +232,7 @@ public class StressRecovery extends StressBase {
                     continue;
                 }
                 final String[] s = line.split(",");
-                if (s.length != 3) {
+                if (s.length < 3) {
                     continue;
                 }
                 ticketId = Long.parseLong(s[0]);

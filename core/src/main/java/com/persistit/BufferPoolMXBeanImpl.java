@@ -29,6 +29,7 @@ package com.persistit;
 import java.rmi.RemoteException;
 
 import com.persistit.Management.BufferPoolInfo;
+import com.persistit.mxbeans.BufferPoolMXBean;
 
 public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
 

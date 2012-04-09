@@ -70,6 +70,7 @@ import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.JH;
 import com.persistit.exception.PersistitException;
+import com.persistit.mxbeans.JournalManagerMXBean;
 import com.persistit.util.ArgParser;
 import com.persistit.util.Util;
 

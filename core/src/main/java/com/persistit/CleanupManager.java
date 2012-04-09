@@ -34,6 +34,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.persistit.AlertMonitor.AlertLevel;
+import com.persistit.AlertMonitor.Event;
 import com.persistit.exception.PersistitException;
 
 class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
@@ -149,9 +151,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
                 workList.add(action);
             }
         }
-        if (!workList.isEmpty()) {
-            Collections.sort(workList);
-        }
+        Collections.sort(workList);
 
         for (final CleanupAction action : workList) {
             try {
@@ -159,7 +159,8 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
                 _performed.incrementAndGet();
             } catch (PersistitException e) {
                 lastException(e);
-                _persistit.getLogBase().cleanupException.log(e, action.toString());
+                _persistit.getAlertMonitor().post(new Event(_persistit.getLogBase().cleanupException, e, action),
+                        AlertMonitor.CLEANUP_CATEGORY, AlertLevel.ERROR);
                 _errors.incrementAndGet();
             }
         }
@@ -211,7 +212,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
         @Override
         public String toString() {
-            return getClass().getName() + "[" + _treeHandle + "]" + _page;
+            return String.format("%s on page %,d tree handle [%,d]", getClass().getSimpleName(), _page, _treeHandle);
         }
 
         protected Exchange getExchange(final Persistit persistit) throws PersistitException {
@@ -244,12 +245,6 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
                 exchange.pruneLeftEdgeValue(_page);
             }
         }
-
-        @Override
-        public String toString() {
-            return String.format("Cleanup Antivalue on page %,d in tree handle [%d]", _page, _treeHandle);
-        }
-
     }
 
     static class CleanupPruneAction extends CleanupTreePage {

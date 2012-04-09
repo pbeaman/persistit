@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.regex.Pattern;
 
 import com.persistit.KeyState;
 import com.persistit.Persistit;
@@ -46,6 +47,7 @@ public class Util {
     final static String SPACES = "                                                                    ";
     private final static String UTF8 = "UTF-8";
     public final static String NEW_LINE = System.getProperty("line.separator");
+    private final static String REGEX_QUOTE = "^$*+?()[].";
 
     public final static char[] HEX_DIGITS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
             'E', 'F' };
@@ -520,7 +522,7 @@ public class Util {
         if (t == 0) {
             return "none";
         } else {
-            return new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date(t));
+            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(t));
         }
     }
 
@@ -598,4 +600,27 @@ public class Util {
                     value));
         }
     }
+    
+    public static Pattern pattern(final String s, final boolean caseInsensitive) {
+        final StringBuilder sb = new StringBuilder();
+        if (s == null) {
+            sb.append(".*");
+        } else {
+            for (int index = 0; index < s.length(); index++) {
+                final char c = s.charAt(index);
+                if (c == '*') {
+                    sb.append(".*");
+                } else if (c == '?') {
+                    sb.append(".");
+                } else if (REGEX_QUOTE.indexOf(c) != -1) {
+                    sb.append('\\');
+                    sb.append(c);
+                } else {
+                    sb.append(c);
+                }
+            }
+        }
+        return Pattern.compile(sb.toString(), caseInsensitive ? Pattern.CASE_INSENSITIVE : 0); 
+    }
+    
 }

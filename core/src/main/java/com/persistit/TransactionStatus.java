@@ -218,7 +218,7 @@ public class TransactionStatus {
     boolean isNotified() {
         return _notified;
     }
-
+    
     /**
      * Start commit processing. This method leaves the
      * <code>TransactionStatus</code> in a state indicating commit processing is
@@ -399,7 +399,7 @@ public class TransactionStatus {
 
     @Override
     public String toString() {
-        return String.format("<ts=%,d tc=%s mvv=%,d %s>", _ts, tcString(_tc), _mvvCount.get(), _wwLock);
+        return String.format("<ts=%,d tc=%s mvv=%,d>", _ts, tcString(_tc), _mvvCount.get());
     }
 
     static String versionString(final long version) {
