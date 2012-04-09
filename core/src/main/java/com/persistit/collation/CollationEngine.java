@@ -26,26 +26,36 @@
 
 package com.persistit.collation;
 
+/**
+ * Implementation of logic to encode and decode Strings for locale-sensitive
+ * collation. There will be one CollationEngine per supported set of collation
+ * rules. Each CollationEngine is given a permanent small-integer unique
+ * identifier. This identifier is stored in the encoded data so that it can
+ * subsequently be decoded properly.
+ * 
+ * @author peter
+ * 
+ */
 public interface CollationEngine {
 
     /**
      * @return the unique collationId of this CollationEngine implementation
      */
-    public int getCollationId();
+    int getCollationId();
 
     /**
      * <p>
      * Encode a string value for proper collation using the supplied array
      * specifications to hold the keyBytes and caseBytes. The encoding scheme is
-     * specified by the collationId value last assigned via
-     * {@link #setCollationId(int)}.
+     * specified by the collationId.
      * </p>
      * <p>
      * An implementation of this method may only use non-zero bytes to encode
-     * the keyBytes field. Zero bytes are reserved to delimit the ends of key
-     * segments. Since this method is used in performance-critical code paths,
-     * the encode produced by this method is not verified for correctness.
-     * Therefore an incorrect implementation will produce anomalous results.
+     * the keyBytes field. Zero-valued bytes are reserved to delimit the ends of
+     * key segments. Since this method is used in performance-critical code
+     * paths, the encoding produced by this method is not verified for
+     * correctness. Therefore an incorrect implementation will produce anomalous
+     * results.
      * </p>
      * <p>
      * The return value is a long that holds the length of the case bytes in its
@@ -84,8 +94,8 @@ public interface CollationEngine {
      * <p>
      * Combine the supplied byte arrays previously produced by the
      * {@link #encode} method to produce a string. The result of calling this
-     * method is equivalent to calling the {@link #append(char)} method for each
-     * character produced by combining the two byte arrays.
+     * method is equivalent to calling the {@link Appendable#append(char)}
+     * method for each character produced by combining the two byte arrays.
      * </p>
      * <p>
      * It is intended that the caseBytes should encode the collationId value

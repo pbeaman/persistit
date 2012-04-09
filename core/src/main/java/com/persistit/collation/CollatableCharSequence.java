@@ -26,17 +26,17 @@
 
 package com.persistit.collation;
 
+import com.persistit.Key;
+
 /**
  * <p>
  * Convert string-valued data to and from a form that sorts correctly under a
- * binary ordering for use in B-Tree keys. This interface defines two main
- * methods, {@link #encode(byte[], int, int, byte[], int, int)} and
- * {@link #decode(byte[], int, int, byte[], int, int)}. These methods are
- * responsible for encoding and decoding strings within Persistit {@link Key}
- * instances in such a way that binary comparisons of the key bytes will result
- * in correct locale-specific ordering of the keys.
+ * binary ordering for use in B-Tree keys. This interface defines one main
+ * method, {@link #encode(byte[], int, int, byte[], int, int)}. This method is
+ * responsible for encoding strings within Persistit {@link Key} instances in
+ * such a way that binary comparisons of the key bytes will result in correct
+ * locale-specific ordering of the keys.
  * </p>
- * 
  * <p>
  * The <code>encode</code> method populates two byte arrays, one containing the
  * "keyBytes" and the other containing the "caseBytes". The keyBytes array is an
@@ -44,12 +44,6 @@ package com.persistit.collation;
  * information needed to recover the original string when combined with the
  * keyBytes.
  * </p>
- * 
- * <p>
- * As might be expected, the <code>decode</code> method combines the keyBytes
- * and caseBytes data to recreate the original string.
- * </p>
- * 
  * <p>
  * An instance of this interface holds a small-integer collationId. Its value is
  * intended to be used as a handle by which an implementation of a specific
@@ -58,20 +52,6 @@ package com.persistit.collation;
  * positive integers are used to specify collation schemes for supported
  * languages.
  * </p>
- * 
- * <p>
- * You must specify the collationId before calling the <code>encode</code>
- * method. The implementation of <code>encode</code> should encode the
- * collationId into the caseBytes array.
- * </p>
- * 
- * <p>
- * You may specify the collationId before calling the <code>decode</code>
- * method, in which case the value encoded in the caseBytes will be verified
- * against the supplied value. Alternatively you may specify a value of -1 in
- * which case the value encoded in caseBytes will be used without verification.
- * </p>
- * 
  * <p>
  * As an option specified by passing a value of zero as caseBytesMaximumLength,
  * the <code>encode</code> method may not write any case bytes. In this case,
@@ -84,6 +64,9 @@ package com.persistit.collation;
 public interface CollatableCharSequence<T extends CharSequence> extends CharSequence, Comparable<T> {
 
     /**
+     * A collationId identifies a {@link CollationEngine} which will be used
+     * when encoding string.
+     * 
      * @return the current collationId
      */
     int getCollationId();
@@ -92,15 +75,14 @@ public interface CollatableCharSequence<T extends CharSequence> extends CharSequ
      * <p>
      * Encode a string value for proper collation using the supplied array
      * specifications to hold the keyBytes and caseBytes. The encoding scheme is
-     * specified by the collationId value last assigned via
-     * {@link #setCollationId(int)}.
+     * specified by the collationId returned by {@link #getCollationId()}.
      * </p>
      * <p>
-     * An implementation of this method may only use non-zero bytes to encode the
-     * keyBytes field. Zero bytes are reserved to delimit the ends of key segments.
-     * Since this method is used in performance-critical code paths, the encode
-     * produced by this method is not verified for correctness. Therefore an incorrect
-     * implementation will produce anomalous results. 
+     * An implementation of this method may only use non-zero bytes to encode
+     * the keyBytes field. Zero bytes are reserved to delimit the ends of key
+     * segments. Since this method is used in performance-critical code paths,
+     * the encode produced by this method is not verified for correctness.
+     * Therefore an incorrect implementation will produce anomalous results.
      * </p>
      * <p>
      * The return value is a long that holds the length of the case bytes in its
