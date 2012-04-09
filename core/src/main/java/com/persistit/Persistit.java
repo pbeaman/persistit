@@ -81,6 +81,7 @@ import com.persistit.logging.LogBase;
 import com.persistit.logging.PersistitLogger;
 import com.persistit.mxbeans.AlertMonitorMXBean;
 import com.persistit.mxbeans.BufferPoolMXBean;
+import com.persistit.mxbeans.CleanupManagerMXBean;
 import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.mxbeans.JournalManagerMXBean;
 import com.persistit.mxbeans.MXBeanWrapper;
@@ -860,7 +861,7 @@ public class Persistit {
 
     /**
      * Replaces substitution variables in a supplied string with values taken
-     * from the properties available to Persistit (see {@link getProperty}).
+     * from the properties available to Persistit (see {@link #getProperties()}).
      * 
      * @param text
      *            String in in which to make substitutions
@@ -1498,19 +1499,6 @@ public class Persistit {
     }
 
     /**
-     * Return the default timeout for operations on an <code>Exchange</code>.
-     * The application may override this default value for an instance of an
-     * <code>Exchange</code> through the {@link Exchange#setTimeout(long)}
-     * method. The default timeout may be specified through the
-     * <code>com.persistit.defaultTimeout</code> property.
-     * 
-     * @return The default timeout value, in milliseconds.
-     */
-    public long getDefaultTimeout() {
-        return _defaultTimeout;
-    }
-
-    /**
      * @return The {@link SplitPolicy} that will by applied by default to newly
      *         created or allocated {@link Exchange}s.
      */
@@ -1754,8 +1742,6 @@ public class Persistit {
      * @throws IOException
      * @throws PersistitException
      * @throws IOException
-     * @return <code>true</code> if Persistit was initialized and this
-     *         invocation closed it, otherwise false.
      */
     public void close() throws PersistitException {
         close(true);
@@ -1814,8 +1800,6 @@ public class Persistit {
      * @throws IOException
      * @throws PersistitException
      * @throws IOException
-     * @return <code>true</code> if Persistit was initialized and this
-     *         invocation closed it, otherwise false.
      */
     public void close(final boolean flush) throws PersistitException {
         if (_initialized.get() && !_closed.get()) {
@@ -2380,7 +2364,7 @@ public class Persistit {
     /**
      * Replaces the current logger implementation.
      * 
-     * @see com.persistit.logging.AbstractPersistitLogger
+     * @see com.persistit.logging.DefaultPersistitLogger
      * @see com.persistit.logging.JDK14LoggingAdapter
      * @see com.persistit.logging.Log4JAdapter
      * @param logger
@@ -2844,8 +2828,7 @@ public class Persistit {
             "script|string|Pathname of CLI script to execute", };
 
     /**
-     * Perform various utility functions. Specify arguments on the command line
-     * conforming to {@value #ARG_TEMPLATE}. Options:
+     * Perform various utility functions.
      * <ul>
      * <li>If the cliport=nnnn argument is set, then this method starts a CLI
      * server on the specified port.</li>

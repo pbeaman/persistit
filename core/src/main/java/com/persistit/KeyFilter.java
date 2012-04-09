@@ -1511,7 +1511,7 @@ public class KeyFilter {
      * @param key
      *            The <code>Key</code>
      * 
-     * @param Direction
+     * @param direction
      *            Direction specified in the <code>traverse</code> method using
      *            this KeyFilter
      * 

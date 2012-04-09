@@ -388,21 +388,47 @@ import com.persistit.util.Util;
  * </tr>
  * 
  * <tr valign="top">
- * <td>CU</td>
- * <td>Cache Update - encapsulates a set of updates to be applied to a
- * {@link TransactionalCache} instance. Serialization format of the Update
- * records is determined by the <code>TransactionalCache</code> implementation.
+ * <td>D1</td>
+ * <td>Delta with 1 long-valued argument - encapsulates an update with argument
+ * to a <code>Delta</code> (see @link Accumulator}
  * <table>
  * <tr valign="top">
  * <td>+8</td>
- * <td>cacheId (long) - unique identifier of <code>TransactionalCache</code>
+ * <td>Tree handle (int) - matches a tree identified in a preceding IT record</td>
  * instance</td>
  * </tr>
  * <tr valign="top">
+ * <td>+12</td>
+ * <td>index (char) - an Accumulator index</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>+14</td>
+ * <td>type (char) - type of Accumulator (0=SUM, 1=MAX, 2=MIN, 3=SEQ)</td>
+ * </tr>
+ * <tr valign="top">
  * <td>+16</td>
- * <td>Updates (variable-length) - the serialized updates</td>
+ * <td>argument (long) - value by which the Delta is to be adjusted</td>
  * </tr>
  * </table>
+ * </tr>
+ * 
+ * <tr valign="top">
+ * <td>D0</td>
+ * <td>Delta with no argument - encapsulates an update with a argument value of
+ * 1 to a <code>Delta</code> (see @link Accumulator}
+ * <table>
+ * <tr valign="top">
+ * <td>+8</td>
+ * <td>Tree handle (int) - matches a tree identified in a preceding IT record</td>
+ * instance</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>+12</td>
+ * <td>index (char) - an Accumulator index</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>+14</td>
+ * <td>type (char) - type of Accumulator (0=SUM, 1=MAX, 2=MIN, 3=SEQ)</td>
  * </tr>
  * 
  * </table>
@@ -416,7 +442,7 @@ public class JournalRecord {
      * Minimum length of first-level record
      */
     final static int OVERHEAD = 16;
-    
+
     /**
      * Minimum length of a sub-record inside of a TX
      */
@@ -1021,11 +1047,11 @@ public class JournalRecord {
         public static int getIndex(final ByteBuffer bb) {
             return getChar(bb, 12);
         }
-        
+
         public static void putAccumulatorTypeOrdinal(final ByteBuffer bb, final int type) {
             putChar(bb, 14, type);
         }
-        
+
         public static int getAccumulatorTypeOrdinal(final ByteBuffer bb) {
             return getChar(bb, 14);
         }
@@ -1064,11 +1090,11 @@ public class JournalRecord {
         public static int getIndex(final ByteBuffer bb) {
             return getChar(bb, 12);
         }
-        
+
         public static void putAccumulatorTypeOrdinal(final ByteBuffer bb, final int type) {
             putChar(bb, 14, type);
         }
-        
+
         public static int getAccumulatorTypeOrdinal(final ByteBuffer bb) {
             return getChar(bb, 14);
         }

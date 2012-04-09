@@ -294,15 +294,14 @@ public abstract class Task implements Runnable {
     }
 
     /**
-     * Sets up a <code>Task</code>. This method calls the task-specific
-     * {@link #setupTask} method to finish setup.
+     * Sets up a <code>Task</code>.
      * 
+     * @param taskId
+     *            unique identifier for this task invocation
      * @param description
      *            Description of this task
      * @param owner
      *            Hostname and/or username
-     * @param args
-     *            Task-specific arguments
      * @param maxTime
      *            Maximum wall-clock duration, in milliseconds, that Task will
      *            be allowed to run
@@ -398,7 +397,7 @@ public abstract class Task implements Runnable {
     /**
      * Sets a <code>PrintWriter</code> to receive posted messages.
      * 
-     * @param ps
+     * @param pw
      *            The <code>PrintWriter</code>
      */
     public void setMessageWriter(PrintWriter pw) {
@@ -473,7 +472,7 @@ public abstract class Task implements Runnable {
             }
         }
     }
-    
+
     protected void endMessage(int level) {
         if (level <= _messageLogVerbosity && _messageWriter != null) {
             _messageWriter.println();

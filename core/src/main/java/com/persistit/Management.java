@@ -600,7 +600,7 @@ public interface Management extends Remote, ManagementMXBean {
      * 
      * @param task
      *            the Task
-     * @param a
+     * @param description
      *            description identifying what the task is doing
      * @return the taskId as a String, or other status information
      * @throws RemoteException
@@ -1864,7 +1864,7 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * @return the count of {@link Exchange#traverse} operations including
-         *         {@link Exchange#next} and {@link Exchange#_previous}.
+         *         {@link Exchange#next} and {@link Exchange#previous}.
          */
         public long getTraverseCounter() {
             return _traverseCounter;
@@ -1872,8 +1872,7 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * @return the count of {@link Exchange#store} operations, including
-         *         {@link Exchange#fetchAndStore} and
-         *         {@link Exchange#incrementValue} operations.
+         *         {@link Exchange#fetchAndStore} operations.
          */
         public long getStoreCounter() {
             return _storeCounter;
@@ -2020,16 +2019,16 @@ public interface Management extends Remote, ManagementMXBean {
         /**
          * Return the state code for this task. This is one of
          * <ul>
-         * <li>{@link Task#STATENOTSTARTED}</li>
-         * <li>{@link Task#STATERUNNING}</li>
-         * <li>{@link Task#STATESUSPENDED}</li>
-         * <li>{@link Task#STATEDONE}</li>
-         * <li>{@link Task#STATEFAILED}</li>
-         * <li>{@link Task#STATEENDED}</li>
-         * <li>{@link Task#STATEEXPIRED}</li>
+         * <li>{@link Task#STATE_NOT_STARTED}</li>
+         * <li>{@link Task#STATE_RUNNING}</li>
+         * <li>{@link Task#STATE_SUSPENDED}</li>
+         * <li>{@link Task#STATE_DONE}</li>
+         * <li>{@link Task#STATE_FAILED}</li>
+         * <li>{@link Task#STATE_ENDED}</li>
+         * <li>{@link Task#STATE_EXPIRED}</li>
          * </ul>
          * 
-         * @return The status
+         * @return The state
          */
         public int getState() {
             return state;

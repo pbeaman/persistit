@@ -94,7 +94,7 @@ import com.persistit.exception.PersistitException;
  * installation of a custom {@link java.util.Comparator Comparator}. To
  * customize the ordering of key values in a <code>PersistitMap</code>,
  * implement and register a custom {@link com.persistit.encoding.KeyCoder
- * KeyCoder} or {@link com.persistit.encoding.KeyStringCoder KeyStringCoder}.
+ * KeyCoder}.
  * </p>
  * <p>
  * Unlike other <code>Map</code> implementations, the methods of this class

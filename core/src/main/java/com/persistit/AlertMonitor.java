@@ -367,7 +367,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
          * other custom operations. This method is called after the event has
          * been added.
          * 
-         * @param History
+         * @param history
          *            the <code>History</code> to which this event has been
          *            added
          */
@@ -382,7 +382,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
          * other custom operations. This method is called before the event has
          * been removed.
          * 
-         * @param History
+         * @param history
          *            the <code>History</code> from which this event will be
          *            removed
          */
@@ -438,10 +438,10 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
     }
 
     /**
-     * Post an event. The event can describe an Exception, a String, or other
-     * kind of object understood by the
-     * {@link #translateCategory(Object, AlertLevel)} method. Does nothing if
-     * <code>level</code> is {@link AlertLevel#NORMAL}.
+     * Post an event. If necessary, create a {@link History} for the specified
+     * category and then add the event to it. Subsequently, poll the
+     * <code>History</code> to cause any pending notifications or log messages
+     * to be emitted. 
      * 
      * @param event
      *            A Event object describing what happened
@@ -450,8 +450,6 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      *            event-history is maintained for each unique category.
      * @param level
      *            Indicates whether this event is a warning or an error.
-     * @param time
-     *            at which event occurred
      */
     public synchronized final void post(Event event, final String category, AlertLevel level) {
         History history = _historyMap.get(category);
@@ -508,7 +506,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * Set the interval between successive log entries for this monitor when its
      * {@link AlertLevel#ERROR}.
      * 
-     * @param _warnLogTimeInterval
+     * @param errorLogTimeInterval
      *            the interval in milliseconds
      */
     @Override
@@ -543,7 +541,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * earlier events are removed when new events are added. (However, the first
      * <code>Event</code> added is retained and get accessed via
      * {@link History#getFirstEvent()} even when subsequent <code>Event</code>s
-     * are removed.) The default value is {@value #DEFAULT_HISTORY_LENGTH}.
+     * are removed.) The default value is 10.
      * 
      * @param historyLength
      *            the historyLength to set

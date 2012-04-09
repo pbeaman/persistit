@@ -26,8 +26,6 @@
 
 package com.persistit.mxbeans;
 
-import com.persistit.TransactionIndexBucket;
-
 public interface TransactionIndexMXBean {
 
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=TransactionIndex";
@@ -35,9 +33,9 @@ public interface TransactionIndexMXBean {
     /**
      * Timestamp known to be less than or equal to the start timestamp of any
      * currently executing transaction. This value is computed by
-     * {@link #updateActiveTransactionCache()} and is therefore may be less the
-     * timestamp of any currently executing transaction at the instant this
-     * value is returned. However, it is guaranteed that no running transaction
+     * <code>updateActiveTransactionCache<code> and is therefore less the
+     * timestamp of any currently executing transaction at the instant that
+     * method was called. It is guaranteed that no running transaction
      * has a lower start timestamp.
      * 
      * @return Lower bound on start timestamps of currently active transactions.
@@ -46,10 +44,9 @@ public interface TransactionIndexMXBean {
 
     /**
      * Timestamp recorded at the start of the last invocation of
-     * {@link #updateActiveTransactionCache()}. The
-     * {@link #hasConcurrentTransaction(long, long)} method will indicate that
-     * any transaction newer than that ceiling is currently active even if that
-     * transaction subsequently committed or aborted.
+     * <code>updateActiveTransactionCache<code>. Any transaction newer than 
+     * this ceiling is currently considered active even if it has
+     * already committed or aborted.
      * 
      * @return Upper bound on timestamps for which
      *         {@link #hasConcurrentTransaction(long, long)} returns accurate
@@ -59,7 +56,7 @@ public interface TransactionIndexMXBean {
 
     /**
      * Count of active transactions measured when
-     * {@link #updateActiveTransactionCache()} was last called. The count may
+     * <code>updateActiveTransactionCache<code> was last called. The count may
      * have changed to due new transactions starting or existing transactions
      * committing since that invocation, and therefore the value returned by
      * this method is an estimate.
@@ -71,18 +68,16 @@ public interface TransactionIndexMXBean {
     /**
      * Refresh the ActiveTransactionCache. This method walks the hashTable to
      * update the non-current ActiveTransactionCache instance and then makes it
-     * current. This method will block until it can acquire an exclusive lock on
-     * _atCacheLock. Therefore there can never be more than one thread
-     * performing this method at a time.
+     * current. This method will acquires an exclusive lock on the
+     * ActiveTransactionCache.
      */
     public abstract void updateActiveTransactionCache();
 
     /**
-     * Invoke the {@link TransactionIndexBucket#cleanup()} method on each bucket
-     * to remove all obsolete long-running and aborted
+     * Remove all obsolete long-running and aborted
      * <code>TransactionStatus</code> instances. This is useful to generate a
-     * canonical state for unit tests. Cleanup logic is normally called during
-     * the {@link TransactionIndexBucket#reduce()} process.
+     * canonical state for unit tests. Cleanup logic is normally invoke
+     * automatically within a running system..
      */
     public abstract void cleanup();
 

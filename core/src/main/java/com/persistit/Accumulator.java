@@ -86,7 +86,7 @@ import com.persistit.exception.PersistitInterruptedException;
  * <code>SumAccumulator</code> and <code>MaxAccumulator</code>. When the
  * {@link #update(long, Transaction)} method is called, the supplied long value
  * is atomically added to the Accumulator's <code>live</code> value and the
- * result is returned. In addition, a {@link Delta} holding the resulting sum as
+ * result is returned. In addition, a <code>Delta</code> holding the resulting sum as
  * a proposed maximum value is added to the transaction.
  * </p>
  * 

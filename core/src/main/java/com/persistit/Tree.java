@@ -224,7 +224,7 @@ public class Tree extends SharedResource {
     /**
      * Store an Object with this Tree for the convenience of an application.
      * 
-     * @param the
+     * @param appCache
      *            object to be cached for application convenience.
      */
     public void setAppCache(Object appCache) {
