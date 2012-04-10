@@ -54,9 +54,9 @@ import com.persistit.exception.ConversionException;
 
 /**
  * <p>
- * Implements {@link ValueCoder} using reflection to access and modify the
- * fields of an object. This implementation provides the new default
- * serialization mechanism for Persistit version 1.1. See <a
+ * A {@link ValueCoder} that uses reflection to access and modify the fields of
+ * an object. This implementation provides the default serialization mechanism
+ * for Persistit version 1.1. See <a
  * href="../../../Object_Serialization_Notes.html"> Persistit JSA 1.1 Object
  * Serialization</a> for details.
  * </p>
@@ -75,12 +75,6 @@ import com.persistit.exception.ConversionException;
  * implementation invokes a platform-specific, non-public API method of
  * <code>java.io.ObjectStreamClass</code> or
  * </code>java.io.ObjectInputStream</code>. </p>
- * <p>
- * For Java Runtime Environments 1.3 through 1.4.2, this class is unable to
- * deserialize fields marked <code>final</code> due to a bug in the JRE (see <a
- * href="http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=5044412"> bug
- * 5044412</a>). This bug was fixed in Java SE 5.0.
- * </p>
  * <p>
  * This implementation invokes the <code>readExternal</code> and
  * <code>writeExternal</code> methods of <code>Externalizable</code> classes,

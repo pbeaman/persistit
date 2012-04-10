@@ -32,8 +32,6 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.RollbackException;
-import com.persistit.exception.TransactionFailedException;
 
 /**
  * <p>
@@ -42,7 +40,7 @@ import com.persistit.exception.TransactionFailedException;
  * <code>Value</code> encodes an <code>Object</code>, rather than recording the
  * object's full class name, it stores an integer-valued handle. The handle is
  * associated by the <code>ClassIndex</code> to the class name. This mechanism
- * minimizes the storage of redudant information in the potentially numerous
+ * minimizes the storage of redundant information in the potentially numerous
  * stored instances of the same class.
  * </p>
  * <p>

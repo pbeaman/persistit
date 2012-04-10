@@ -360,7 +360,7 @@ import com.persistit.util.Util;
  * {@link #append(short)} ... {@link #append(Object)}, {@link #to(boolean)},
  * {@link #to(byte)} {@link #to(short)} ... {@link #to(Object)}. These methods
  * all modify the current state of the key. As a convenience, these methods all
- * return the <code>Key</code> so support method call chaining.
+ * return the <code>Key</code> to support method call chaining.
  * </p>
  * <p>
  * Methods used to decode key values are {@link #reset}, {@link #indexTo},
@@ -407,8 +407,8 @@ public final class Key implements Comparable<Object> {
 
     public enum Direction {
         /**
-         * Indicates for {@link Exchange#traverse traverse} that the specified
-         * key, if it exists, is to be returned. Indicates for
+         * Indicates for {@link Exchange#traverse traverse} that only the
+         * specified key, if it exists, is to be returned. Indicates for
          * {@link Exchange#remove remove} that only the specified key is to be
          * removed.
          */
@@ -420,9 +420,9 @@ public final class Key implements Comparable<Object> {
          */
         LT,
         /**
-         * Indicates for {@link Exchange#traverse traverse} that the current
-         * key, if it exists or else the next smaller key is to be returned. Not
-         * valid for {@link Exchange#remove remove}.
+         * Indicates for {@link Exchange#traverse traverse} that the specified
+         * key, if it exists, or else the next smaller key is to be returned.
+         * Not valid for {@link Exchange#remove remove}.
          */
         LTEQ,
         /**
@@ -434,7 +434,7 @@ public final class Key implements Comparable<Object> {
         GT,
         /**
          * Indicates for {@link Exchange#traverse traverse} that the specified
-         * key, if it exists or else the next larger key is to be returned.
+         * key, if it exists, or else the next larger key is to be returned.
          * Indicates for {@link Exchange#remove remove} that a range of keys
          * including and following the specified key is to be removed.
          */

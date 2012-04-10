@@ -32,7 +32,7 @@ import com.persistit.exception.ConversionException;
 /**
  * <p>
  * An extension of {@link KeyCoder} that adds the {@link #displayKeySegment}
- * method. This method populates a supplied <code>StringBuilder</code> with a
+ * method. This method populates a supplied <code>Appendable</code> with a
  * displayable, human-readable representation of the Object value that was
  * formerly written to a {@link Key} by this <code>KeyDisplayer</code>.
  * </p>

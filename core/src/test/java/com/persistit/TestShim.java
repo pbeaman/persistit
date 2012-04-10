@@ -146,4 +146,8 @@ public class TestShim {
     public static void nudgeRight(final Key key) {
         key.nudgeRight();
     }
+    
+    public static Task parseTask(final Persistit persistit, final String line) throws Exception {
+        return CLI.parseTask(persistit, line);
+    }
 }

@@ -430,7 +430,9 @@ import com.persistit.util.Util;
  * <td>+14</td>
  * <td>type (char) - type of Accumulator (0=SUM, 1=MAX, 2=MIN, 3=SEQ)</td>
  * </tr>
- * 
+ * </table>
+ * </tr>
+ *
  * </table>
  * 
  * @author peter

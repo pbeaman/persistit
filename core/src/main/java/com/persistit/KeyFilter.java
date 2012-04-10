@@ -108,7 +108,7 @@ import com.persistit.util.Util;
  * 
  * The first term specifies a range that includes any last name that sorts
  * alphabetically between "M" and "Q" (inclusively). The second term is an
- * OrTerm that selects the first names "Alice" and "Bob".
+ * OrTerm that selects the first names "Alice" or "Bob".
  * </p>
  * <p>
  * A RangeTerm optionally specifies whether the end-points are inclusive. For

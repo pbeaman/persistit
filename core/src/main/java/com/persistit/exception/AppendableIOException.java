@@ -29,13 +29,14 @@ package com.persistit.exception;
 import java.io.IOException;
 
 /**
- * This is a wrapper for an {@link IOException} used in a context where the
- * {@link Appendable#append(char)} operation throws an IOException. Since most
- * uses of methods that take Appendable will operate on StringBuilders, for
- * which an IOException is never thrown, it is desirable for calling code not to
- * have to catch and handle IOException. Therefore any IOException from invoking
- * append on a different Appendble implementation is caught and thrown as this
- * unchecked type.
+ * Unchecked wrapper for an {@link IOException} used in a context where the
+ * {@link Appendable#append} operation throws an IOException. Since most uses of
+ * methods that take an <code>Appendable</code> will operate on
+ * <code>StringBuilder</code>s, for which an IOException is never thrown, it is
+ * desirable for calling code not to have to catch and handle
+ * <code>IOException</code>. Therefore any <code>IOException</code> from
+ * invoking append on a different <code>Appendable</code> implementation is
+ * caught and thrown as this unchecked type.
  * 
  * @version 1.0
  */

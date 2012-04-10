@@ -28,7 +28,7 @@ package com.persistit.util;
 
 /**
  * <p>
- * A simple command line argument parser the provides primitive type conversion
+ * A simple command line argument parser that provides primitive type conversion
  * and value checking. An application passes a template and the command line
  * argument array to the constructor of this class. The constructor validates
  * the argument list. Subsequently the application can access specific fields
@@ -38,9 +38,7 @@ package com.persistit.util;
  * If the command line includes the argument <code>-?</code> then
  * <code>ArgParser</code> displays a summary of permissible arguments and sets
  * its UsageOnly property to true. The calling application should simply exit if
- * <code>isUsageonly</code> is true for the constructed ArgParser. The display
- * text output is in English. Applications needing localization should use a
- * different mechanism.
+ * <code>isUsageonly</code> is true for the constructed ArgParser.
  * </p>
  * 
  * @author peter
@@ -64,12 +62,12 @@ public class ArgParser {
      * <p>
      * Command line arguments are specified by name, not by position. Each
      * argument must either be a flag in the form <code>-<i>X</i></code> (where
-     * <i>X</i> is letter) or a name/value pair in the form
+     * <i>X</i> is letter) or a name-value pair in the form
      * <code><i>argname</i>=</i>value</i></code>. The permissible flags and
      * argument names are specified by the array of template strings, each of
      * which must have the form:
-     * </p>
-     * </p> <blockquote>
+     * 
+     * <blockquote>
      * 
      * <pre>
      * <code>  _flag|<i>flchar</i>|<i>description</i></code>
@@ -77,10 +75,10 @@ public class ArgParser {
      * <code>  <i>argname</i>|<i>argtype</i>|<i>description</i></code>
      * </pre>
      * 
-     * </blockquote> </p>
+     * </blockquote>
+     * </p>
      * <p>
      * where
-     * </p>
      * <dl>
      * <dt><code><i>flchar</i></code></dt>
      * <dd>is a single letter that can be used as a flag on the command line.
@@ -91,10 +89,11 @@ public class ArgParser {
      * </dd>
      * <dt><code><i>argtype</i></code></dt>
      * <dd>
+     * One of:
      * 
      * <pre>
      * <code>int:<i>defaultvalue</i>:<i>lowbound</i>:<i>highbound</i></code>
-     *        or
+     * <code>long:<i>defaultvalue</i>:<i>lowbound</i>:<i>highbound</i></code>
      * <code>String:<i>default</i></code>
      * </pre>
      * 
@@ -206,6 +205,13 @@ public class ArgParser {
         return _flags;
     }
 
+    /**
+     * Return the boolean value of argument specified by its index in the
+     * template
+     * 
+     * @param index
+     * @return the boolean value for the specified template item
+     */
     public boolean booleanValue(final int index) {
         String t = _template[index];
         if (t.startsWith("_flag|")) {
@@ -237,6 +243,13 @@ public class ArgParser {
         return (int) _longArgs[lookupName(fieldName)];
     }
 
+    /**
+     * Return the integer value of argument specified by its index in the
+     * template
+     * 
+     * @param index
+     * @return the int value for the specified template item
+     */
     public int intValue(int index) {
         return (int) _longArgs[index];
     }
@@ -252,10 +265,24 @@ public class ArgParser {
         return _longArgs[lookupName(fieldName)];
     }
 
+    /**
+     * Return the long value of argument specified by its index in the template
+     * 
+     * @param index
+     * @return the long value for the specified template item
+     */
+
     public long longValue(final int index) {
         return _longArgs[index];
     }
 
+    /**
+     * Return the String value of argument specified by its index in the
+     * template
+     * 
+     * @param index
+     * @return the String value for the specified template item
+     */
     public String stringValue(final int index) {
         return _strArgs[index];
     }

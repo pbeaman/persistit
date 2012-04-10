@@ -278,9 +278,7 @@ import com.persistit.util.Util;
  * <code>end</code> decrements the count. These methods are intended to be used
  * in a standard essential pattern, shown here, to ensure that the scope of of
  * the transaction is reliably determined by the lexical the structure of the
- * code rather than conditional logic:
- * </p>
- * <blockquote><code><pre>
+ * code rather than conditional logic: <blockquote><code><pre>
  *     <b>txn.begin();</b>
  *     try {
  *         //
@@ -293,6 +291,7 @@ import com.persistit.util.Util;
  *         <b>txn.end();</b>
  *     }
  * </pre></code></blockquote>
+ * </p>
  * <p>
  * This pattern ensures that the transaction scope is ended properly regardless
  * of whether the application code throws an exception or completes and commits
@@ -328,6 +327,69 @@ import com.persistit.util.Util;
  * developers must carefully verify that the <code>end</code> method is always
  * invoked whether or not the transaction completes normally.
  * </p>
+ * <h2>Step Index: Controlling Visibility of Uncommitted Updates</h2>
+ * <p>
+ * By default, application logic within the scope of a transaction can read two
+ * kinds of values: those that were committed by other transactions prior to the
+ * start of the current transaction (from the "snapshot") and those that were
+ * modified by the transaction itself. However, in some applications it is
+ * useful to control the visibility of modifications made by the current
+ * transaction. For example, update queries that select records to update and
+ * then change the very values used as selection criteria can produce anomalous
+ * results. See <a
+ * href="http://en.wikipedia.org/wiki/Halloween_Problem">Halloween Problem</a>
+ * for a succinct description of this issue. Persistit provides a mechanism to
+ * control visibility of a transaction's own modifications to avoid this
+ * problem.
+ * </p>
+ * <p>
+ * While a transaction is executing, every updated value it generates is stored
+ * within a multi-version value and labeled with the transaction ID of the
+ * transaction that produced it <u>and</u> a small integer index (0-99) called
+ * the <i>step</i>.
+ * </p>
+ * <p>
+ * The current step index is an attribute of the <code>Transaction</code> object
+ * available from {@link #getStep}. The <code>begin</code> method resets its
+ * value to zero. An application can invoke {@link #incrementStep} to increment
+ * it, or {@link #setStep} to control its current value. Modifications created
+ * by the transaction are labeled with the current step value.
+ * </p>
+ * <p>
+ * When reading data, modifications created by the current transaction are
+ * visible to Persistit if and only if the step number they were assigned is
+ * less or equal to the <code>Transaction</code>'s current step number. An
+ * application can take advantage of this by controlling the current step index,
+ * for example, by reading data using step 0 while posting updates with a step
+ * value of 1.
+ * </p>
+ * <h2>Transaction is not Threadsafe</h2>
+ * <p>
+ * As noted above, a <code>Transaction</code> typically belongs to one thread
+ * for its entire lifetime. However, to support server applications which may
+ * manage a large number of sessions among a smaller number of threads, Persisit
+ * allows an application to manage sessions explicitly. See
+ * {@link Persistit#getSessionId()} and
+ * {@link Persistit#setSessionId(SessionId)}. The method
+ * {@link Persistit#getTransaction()} is sensitive to the thread's current
+ * <code>SessionId</code>, and therefore the following style of interaction is
+ * possible:
+ * <ul>
+ * <li>Thread T1 is assigned work for session S.</li>
+ * <li>Thread T1 invokes <code>begin</code>, does some work and then returns
+ * control to a client.</li>
+ * <li>Thread T2 receives additional work to perform on behalf of session S.</li>
+ * <li>Thread T2 sets its current SessionId to session S</li>
+ * <li>Thread T2 then uses {@link Persistit#getTransaction()} to acquire the
+ * same transaction context previously started by T1.</li>
+ * <li>Thread T2 does additional work and then calls <code>commit</code> and
+ * <code>end</code> to complete the transaction.</li>
+ * </ul>
+ * Applications that use this technique must be written carefully to ensure that
+ * multiple threads never execute with the same SessionId. Concurrent access to a
+ * <code>Transaction</code> or <code>Exchange</code> can cause serious errors,
+ * including database corruption.
+ * </p>
  * <h2>Additional Notes</h2>
  * <p>
  * Optimistic concurrency control works well when the likelihood of conflicting
@@ -347,39 +409,14 @@ import com.persistit.util.Util;
  * {@link #getRolledBackTransactionCount()} and
  * {@link #getRolledBackSinceLastCommitCount()}, respectively.
  * </p>
- * <p>
- * As noted above, a <code>Transaction</code> typically belongs to one thread
- * for its entire lifetime. However, to support server applications which may
- * manage a large number of sessions among a smaller number of threads, Persisit
- * allows an application to transaction manage sessions explicitly. See
- * {@link Persistit#getSessionId()} and
- * {@link Persistit#setSessionId(SessionId)}. The method
- * {@link Persistit#getTransaction()} is sensitive to the thread's current
- * <code>SessionId</code>, and therefore the following style of interaction is
- * possible:
- * <ul>
- * <li>Thread T1 is assigned work for session S.</li>
- * <li>Thread T1 invokes <code>begin</code>, does some work and then returns
- * control to a client.</li>
- * <li>Thread T2 receives additional work to perform on behalf of session S.</li>
- * <li>Thread T2 sets its current SessionId to session S</li>
- * <li>Thread T2 then uses {@link Persistit#getTransaction()} to acquire the
- * same transaction context previously started by T1.</li>
- * <li>Thread T2 does additional work and then calls <code>commit</code> and
- * <code>end</code> to complete the transaction.</li>
- * </ul>
- * Applications that use this technique must be written carefully to ensure that
- * two threads never execute with the same SessionId. Concurrent access to a
- * <code>Transaction</code> or <code>Exchange</code> can cause serious errors,
- * including database corruption.
- * </p>
  * 
  * @author peter
  * @version 1.1
  */
 public class Transaction {
-    final static int TRANSACTION_BUFFER_SIZE = 65536;
     final static int MAXIMUM_STEP = TransactionIndex.VERSION_HANDLE_MULTIPLIER - 1;
+
+    final static int TRANSACTION_BUFFER_SIZE = 65536;
 
     private static long _idCounter = 100000000;
 
@@ -612,10 +649,7 @@ public class Transaction {
      *             if there is no current transaction scope.
      */
     public void end() {
-
-        if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
-        }
+        checkActive();
 
         if (_nestedDepth == 1) {
             //
@@ -662,9 +696,7 @@ public class Transaction {
      */
     public void rollback() {
 
-        if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
-        }
+        checkActive();
 
         if (_commitCompleted) {
             throw new IllegalStateException("Already committed " + this);
@@ -798,9 +830,9 @@ public class Transaction {
      * 
      */
     public void commit(CommitPolicy policy) throws PersistitException {
-        if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
-        } else if (_commitCompleted) {
+        checkActive();
+
+        if (_commitCompleted) {
             throw new IllegalStateException("Already committed " + this);
         }
 
@@ -1199,15 +1231,14 @@ public class Transaction {
     }
 
     /**
-     * @return Get the current step index.
+     * @return the current step index.
      */
-    public int getCurrentStep() {
+    public int getStep() {
         return _step;
     }
 
     /**
-     * Set the current step index. Must be in the range [0,
-     * {@link #MAXIMUM_STEP}).
+     * Set the current step index. Must be in the range [0, 99].
      * <p>
      * Also see {@link #incrementStep()} for step semantics.
      * </p>
@@ -1224,19 +1255,25 @@ public class Transaction {
         return previous;
     }
 
+    void checkActive() {
+        if (!isActive()) {
+            throw new IllegalStateException("No transaction scope: begin() has not been called in " + this);
+        }
+    }
+
     /**
      * Increment this transaction's current step index. For any given step,
      * values written by updates within this transaction are visible (within
      * this transaction) only if they were written with earlier or equal step
      * indexes. In other words, a transaction that writes an update at step N
      * can see the result of that update when reading the database and any step
-     * <= N. This mechanism helps solve the "Halloween" problem in which a
+     * &lt;= N. This mechanism helps solve the "Halloween" problem in which a
      * SELECT query producing values to UPDATE should not be able to read back
      * those update values.
      * 
      * @throws IllegalStateException
-     *             if this method is called {@link #MAXIMUM_STEP} times or more
-     *             within the scope of one transaction.
+     *             if this method is called more than 99 times within the scope
+     *             of one transaction.
      * @return The previous value of the step.
      */
     public int incrementStep() {
@@ -1247,7 +1284,7 @@ public class Transaction {
         if (newStep < 0) {
             throw new IllegalStateException(this + " cannot have a step of " + newStep + ", less than 0");
         }
-        if (newStep >= MAXIMUM_STEP) {
+        if (newStep > MAXIMUM_STEP) {
             throw new IllegalStateException(this + " cannot have a step of " + newStep + ", greater than maximum "
                     + MAXIMUM_STEP);
         }

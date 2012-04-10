@@ -51,9 +51,8 @@ import static com.persistit.Key.LT;
 import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
-import static com.persistit.util.ThreadSequencer.sequence;
 import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_A;
-import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_B;
+import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -1509,7 +1508,7 @@ public class Exchange {
                                     prunedVersions);
 
                             final TransactionStatus tStatus = _transaction.getTransactionStatus();
-                            final int tStep = _transaction.getCurrentStep();
+                            final int tStep = _transaction.getStep();
 
                             if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
                                 /*
@@ -2680,7 +2679,7 @@ public class Exchange {
         final int step;
         if (_transaction.isActive()) {
             status = _transaction.getTransactionStatus();
-            step = _transaction.getCurrentStep();
+            step = _transaction.getStep();
         } else {
             status = null;
             step = 0;

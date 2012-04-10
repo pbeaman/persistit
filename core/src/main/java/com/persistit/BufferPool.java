@@ -54,6 +54,7 @@ import com.persistit.util.Util;
  * A pool of {@link Buffer} objects, maintained on various lists that permit
  * rapid lookup and replacement of pages images within <code>Buffer</code>s.
  * 
+ * @author peter
  * @version 2.1
  */
 public class BufferPool {

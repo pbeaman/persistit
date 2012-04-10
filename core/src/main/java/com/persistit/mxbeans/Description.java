@@ -39,7 +39,7 @@ import javax.management.DescriptorKey;
  * specified in JMX 2 (JSR 255) which is currently inactive. The annotation lets
  * you add a description to the Descriptor attribute of an MBeanFeatureInfo.
  * Unfortunately that does not directly affect the result returned by
- * {@link javax.management.MBeanFeatureInfo#getDescription()} but the can be
+ * {@link javax.management.MBeanFeatureInfo#getDescription()} but that can be
  * accomplished through the MXBeanWrapper class which marshals the value from
  * the Descriptor to the description attribute.
  * @see <a href="http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4853303">bug 4853303</a>

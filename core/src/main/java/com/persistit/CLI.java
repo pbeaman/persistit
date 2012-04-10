@@ -76,8 +76,8 @@ import com.persistit.util.Util;
 
 /**
  * <p>
- * Handle commands delivered interactively as command strings. For example, the 
- * following loads a Persistit database located in directory /var/lib/data, 
+ * Handle commands delivered interactively as command strings. For example, the
+ * following loads a Persistit database located in directory /var/lib/data,
  * selects a volume named xyz, and displays page 42 of that volume:
  * 
  * <code><pre>
@@ -88,57 +88,60 @@ import com.persistit.util.Util;
  * </p>
  * <p>
  * CLI operates in one of two modes: "live" and "standalone".
- * </p><p>
- * In live mode you use one of several access methods to invoke commands to be processed within
- * an actively running server process that has initialized Persistit. Access methods include
- * the AdminUI utility, the Persistit management MBean, a simple network server that can receive 
- * command lines from an external tool, or via an application program using the {@link Management} interface.
  * </p>
  * <p>
- * In stand-alone mode you specify through the <code>open</code> command a path on which to find Persistit database
- * files; the open command creates a read-only version Persistit instance capable of
- * performing read-only operations such as <code>save</code>, <code>backup</code>
- * or <code>icheck</code> on the data found in those files. 
+ * In live mode you use one of several access methods to invoke commands to be
+ * processed within an actively running server process that has initialized
+ * Persistit. Access methods include the AdminUI utility, the Persistit
+ * management MBean, a simple network server that can receive command lines from
+ * an external tool, or via an application program using the {@link Management}
+ * interface.
  * </p>
  * <p>
- * CLI can set up an extremely simple network server that works with telnet or curl.
- * The advantage is that you can then issue commands interactively
- * from a simple network client using the full facilities of the shell, including
- * piping the output to tools such as grep and more.
+ * In stand-alone mode you specify through the <code>open</code> command a path
+ * on which to find Persistit database files; the open command creates a
+ * read-only version Persistit instance capable of performing read-only
+ * operations such as <code>save</code>, <code>backup</code> or
+ * <code>icheck</code> on the data found in those files.
  * </p>
  * <p>
- * To run the CLI in standalone mode, simply execute
- * <code><pre>
- * java -cp persisit.jar com.persistit.Persistit port=nnnn
- * </pre></code>
- * or
- * <code><pre>
+ * CLI can set up an extremely simple network server that works with telnet,
+ * curl or the simple client built into the {@link #main(String[])} method of
+ * this class. The advantage is that you can then issue commands interactively
+ * from a simple network client using the full facilities of the shell,
+ * including piping the output to tools such as grep and more.
+ * </p>
+ * <p>
+ * To run the CLI in standalone mode, simply execute <blockquote><code><pre>
+ * java -cp persisit.jar com.persistit.Persistit cliport=9999
+ * </pre></code></blockquote> or <blockquote><code><pre>
  * java -cp persisit.jar com.persistit.Persistit script=pathname
- * </pre></code>
- * where persistit.jar contains the Persistit library. The first option specifies a port on which CLI will listen for
- * commands. (Use a port number larger than 1024 to avoid permissions problems.) 
- * The following client script works with the network server facility:
- * <code><pre>
- *   #!/bin/sh
- *   echo "$*" | curl telnet://localhost:9999
- * </pre></code>
- * With it you can then enter command such as this at the shell:
- * 
- * <code><pre>
- * pcli init datapath=/var/lib/data
- * pcli select volume=xyz
- * pcli view page=42
- * </pre></code>
- * </p>
- * <p>
- * (Note that the network server closes the client socket on each request, so a new connection
- * is formed each time you invoke curl or telnet.)
+ * </pre></code></blockquote> where persistit.jar contains the Persistit
+ * library. The first option specifies a port on which CLI will listen for
+ * commands. (Use a port number larger than 1024 to avoid permissions problems.)
  * The second option executes commands from a text file in batch mode.
  * </p>
  * <p>
- * Commands are defined below in methods annotated with @Cmd having parameters annotated with @Arg.
- * The format of the argument annotation is specified in {@link ArgParser}. Enter the command
- * 'help' to see a readable list of commands and their arguments.
+ * The following *nix client script works with the network server facility:
+ * <blockquote><code><pre>
+ *   #!/bin/sh
+ *   java -cp persistit.jar com.persistit.CLI 9999 $*
+ * </pre></code></blockquote> (Substitute the port number assigned to the
+ * cliport parameter above.)
+ * </p>
+ * <p>
+ * With this script you can then enter command such as this at the shell:
+ * <blockquote><code><pre>
+ * pcli init datapath=/var/lib/data
+ * pcli select volume=xyz
+ * pcli view page=42
+ * </pre></code></blockquote>
+ * </p>
+ * <p>
+ * Commands are defined below in methods annotated with @Cmd having parameters
+ * annotated with @Arg. The format of the argument annotation is specified in
+ * {@link ArgParser}. Enter the command 'help' to see a readable list of
+ * commands and their arguments.
  * </p>
  * 
  * @author peter
@@ -271,6 +274,16 @@ public class CLI {
         System.out.println();
     }
 
+    /**
+     * Invoke lines read from the supplied <code>BufferedReader</code> as CLI
+     * commands and write any generated output to the supplied
+     * <code>PrintWriter</code>.
+     * 
+     * @param persistit
+     * @param reader
+     * @param writer
+     * @throws Exception
+     */
     public static void runScript(final Persistit persistit, final BufferedReader reader, final PrintWriter writer)
             throws Exception {
         CLI cli = new CLI(persistit, reader, writer);
@@ -339,7 +352,7 @@ public class CLI {
         return strings;
     }
 
-    public static Task parseTask(final Persistit persistit, final String line) throws Exception {
+    static Task parseTask(final Persistit persistit, final String line) throws Exception {
         List<String> pieces = pieces(line);
         if (pieces.isEmpty()) {
             return null;

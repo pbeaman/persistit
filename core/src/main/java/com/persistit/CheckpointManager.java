@@ -54,7 +54,7 @@ class CheckpointManager extends IOTaskRunnable {
 
         private volatile boolean _completed = false;
 
-        public Checkpoint(final long timestamp, final long systemTime) {
+        Checkpoint(final long timestamp, final long systemTime) {
             _timestamp = timestamp;
             _systemTime = systemTime;
         }

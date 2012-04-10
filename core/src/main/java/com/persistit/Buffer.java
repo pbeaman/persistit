@@ -63,7 +63,7 @@ import com.persistit.util.Util;
 /**
  * <p>
  * Memory structure that holds and manipulates the state of a fixed-length
- * <i>page</i> of the database. Persistit manipulates the content of a page by
+ * page of a {@link Volume}. Persistit manipulates the content of a page by
  * copying it into a <code>Buffer</code>, reading and/or modifying modifying the
  * <code>Buffer</code>, and then writing the <code>Buffer</code>'s content back
  * into the page. There are several types of pages within the BTree structure -
