@@ -1019,7 +1019,7 @@ public class Persistit {
      *            The property name
      * @param value
      *            Value to set, or
-     *            <code>null<code> to remove an existing property
+     *            <code>null</code> to remove an existing property
      */
     public void setProperty(final String propertyName, final String value) {
         if (value == null) {

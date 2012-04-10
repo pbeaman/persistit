@@ -47,8 +47,9 @@ import com.persistit.util.Util;
 
 /**
  * <p>
- * Represents a transaction context for atomic units of work performed by
- * Persistit.
+ * Transaction context for atomic units of work performed by Persistit. Each
+ * Persistit thread typically uses one <code>Transaction</code> object for its
+ * lifetime. Within that context it may execute and commit many transactions.
  * </p>
  * <p>
  * The application determines when to {@link #begin}, {@link #commit},
@@ -67,6 +68,12 @@ import com.persistit.util.Util;
  * transactions must roll back (abort) and retry. These topics are covered in
  * greater detail below.
  * </p>
+ * <p>
+ * The <code>Transaction</code> object itself is not thread-safe and may be
+ * accessed and used by only one thread at a time. However, the database
+ * operations being executed within the scope defined by <code>begin</code> and
+ * <code>end</code> are capable of highly concurrent execution.
+ * </p>
  * <h2>Lexical Scoping</h2>
  * <p>
  * Applications must manage the scope of any transaction by ensuring that
@@ -79,7 +86,7 @@ import com.persistit.util.Util;
  * <code>TransactionRunnable</code></a> pattern to ensure correctness.
  * </p>
  * <p>
- * <a name="commitPolicy">
+ * <a name="commitPolicy"/>
  * <h2>Commit Policy</h2>
  * Persistit provides three policies that determine the durability of a
  * transaction after it has executed the <code>commit</code> method. These are:
@@ -193,7 +200,7 @@ import com.persistit.util.Util;
  * A transaction can also voluntarily roll back. For example, transaction logic
  * could detect an error condition that it chooses to handle by throwing an
  * exception back to the application. In this case the transaction should invoke
- * the {@link #rollback} method to explicit declare the intent to abort the
+ * the {@link #rollback} method to explicit declare its intent to abort the
  * transaction.
  * </p>
  * <h3>Read-Only Transactions</h3>
@@ -214,7 +221,7 @@ import com.persistit.util.Util;
  * The following code fragment illustrates a transaction executed with up to to
  * RETRY_COUNT retries. If the <code>commit</code> method succeeds, the whole
  * transaction is completed and the retry loop terminates. If after RETRY_COUNT
- * retries, <code>commit</code> has not been successfully completed, the
+ * retries <code>commit</code> has not been successfully completed, the
  * application throws a <code>TransactionFailedException</code>.
  * </p>
  * 
@@ -263,7 +270,7 @@ import com.persistit.util.Util;
  * </pre></code></blockquote>
  * 
  * </p>
- * <a name="#_scopedCodePattern"/> <h2>Nested Transaction Scope</h2>
+ * <a name="_scopedCodePattern"/> <h2>Nested Transaction Scope</h2>
  * <p>
  * Persistit supports nested transactions by counting the number of nested
  * {@link #begin} and {@link #end} operations. Each invocation of
@@ -275,13 +282,14 @@ import com.persistit.util.Util;
  * </p>
  * <blockquote><code><pre>
  *     <b>txn.begin();</b>
- *     try
- *     {
- *         // application transaction logic here
+ *     try {
+ *         //
+ *         // Application transaction logic here, possibly including 
+ *         // invocation of methods that also call txn.begin() and
+ *         // txn.end().
+ *         //
  *         <b>txn.commit();</b>
- *     }
- *     finally
- *     {
+ *     } finally {
  *         <b>txn.end();</b>
  *     }
  * </pre></code></blockquote>
@@ -292,19 +300,20 @@ import com.persistit.util.Util;
  * </p>
  * <p>
  * The {@link #commit} method performs the actual commit operation only when the
- * current nested level count is 1. That is, if <code>begin</code> has been
- * invoked N times, then <code>commit</code> will actually commit the data only
- * when <code>end</code> is invoked the Nth time. Thus data updated by an inner
- * (nested) transaction is never actually committed until the outermost
- * <code>commit</code> is called. This permits transactional code to invoke
- * other code (possibly an opaque library supplied by a third party) that may
- * itself <code>begin</code> and <code>commit</code> transactions.
+ * current nested level count (see {@link #getNestedTransactionDepth()}) is 1.
+ * That is, if <code>begin</code> has been invoked N times, then
+ * <code>commit</code> will actually commit the data only when <code>end</code>
+ * is invoked the Nth time. Data updated by an inner (nested) transaction is
+ * never actually committed until the outermost <code>commit</code> is called.
+ * This permits transactional code to invoke other code (possibly an opaque
+ * library supplied by a third party) that may itself <code>begin</code> and
+ * <code>commit</code> transactions.
  * </p>
  * <p>
- * Invoking {@link #rollback} removes all pending but uncommitted updates, marks
- * the current transaction scope as <i>rollback pending</i>. Any subsequent
- * attempt to perform any Persistit operation, including <code>commit</code> in
- * the current transaction scope, will fail with a
+ * Invoking {@link #rollback} removes all pending but uncommitted updates and
+ * marks the current transaction scope as <i>rollback pending</i>. Any
+ * subsequent attempt to perform any Persistit operation, including
+ * <code>commit</code> in the current transaction scope, will fail with a
  * <code>RollbackException</code>.
  * </p>
  * <p>
@@ -316,10 +325,10 @@ import com.persistit.util.Util;
  * <code>end</code> method is designed this way to allow an exception thrown
  * within the application code to be caught and handled without being obscured
  * by a RollbackException thrown by <code>end</code>. But as a consequence,
- * developers must carefully verify that the <code>commit</code> method is
- * always invoked when the transaction completes normally.
+ * developers must carefully verify that the <code>end</code> method is always
+ * invoked whether or not the transaction completes normally.
  * </p>
- * <h2>Miscellaneous</h2>
+ * <h2>Additional Notes</h2>
  * <p>
  * Optimistic concurrency control works well when the likelihood of conflicting
  * transactions - that is, concurrent execution of two or more transactions that
@@ -328,9 +337,9 @@ import com.persistit.util.Util;
  * </p>
  * <p>
  * For best performance, applications in which multiple threads frequently
- * operate on overlapping data such that rollbacks are likely, the application
- * should use an external locking mechanism to prevent or reduce the likelihood
- * of collisions.
+ * operate on overlapping data such that roll-backs are likely, the application
+ * should implement its own locks to prevent or reduce the likelihood of
+ * collisions.
  * </p>
  * <p>
  * An application can examine counts of commits, rollbacks and rollbacks since
@@ -338,8 +347,34 @@ import com.persistit.util.Util;
  * {@link #getRolledBackTransactionCount()} and
  * {@link #getRolledBackSinceLastCommitCount()}, respectively.
  * </p>
+ * <p>
+ * As noted above, a <code>Transaction</code> typically belongs to one thread
+ * for its entire lifetime. However, to support server applications which may
+ * manage a large number of sessions among a smaller number of threads, Persisit
+ * allows an application to transaction manage sessions explicitly. See
+ * {@link Persistit#getSessionId()} and
+ * {@link Persistit#setSessionId(SessionId)}. The method
+ * {@link Persistit#getTransaction()} is sensitive to the thread's current
+ * <code>SessionId</code>, and therefore the following style of interaction is
+ * possible:
+ * <ul>
+ * <li>Thread T1 is assigned work for session S.</li>
+ * <li>Thread T1 invokes <code>begin</code>, does some work and then returns
+ * control to a client.</li>
+ * <li>Thread T2 receives additional work to perform on behalf of session S.</li>
+ * <li>Thread T2 sets its current SessionId to session S</li>
+ * <li>Thread T2 then uses {@link Persistit#getTransaction()} to acquire the
+ * same transaction context previously started by T1.</li>
+ * <li>Thread T2 does additional work and then calls <code>commit</code> and
+ * <code>end</code> to complete the transaction.</li>
+ * </ul>
+ * Applications that use this technique must be written carefully to ensure that
+ * two threads never execute with the same SessionId. Concurrent access to a
+ * <code>Transaction</code> or <code>Exchange</code> can cause serious errors,
+ * including database corruption.
+ * </p>
  * 
- * @author pbeaman
+ * @author peter
  * @version 1.1
  */
 public class Transaction {
@@ -374,12 +409,12 @@ public class Transaction {
 
     public static enum CommitPolicy {
         /**
-         * Committed transactions are flushed to durable within a fraction of a
-         * second but the Transaction#commit method returns before this is done.
-         * This policy is a compromise that offers much better throughput but
-         * does not provide durability for every committed transactions; some
-         * recently committed transactions may be lost after a crash/recovery
-         * cycle.
+         * The {@link Transaction#commit} method returns before all updates have
+         * been written to durable storage. This policy is a compromise that
+         * offers much better throughput, especially for sequential
+         * transactions, but does not provide durability for every committed
+         * transactions. Some recently committed transactions may be lost after
+         * a crash/recovery cycle.
          */
         SOFT,
         /**
@@ -453,7 +488,7 @@ public class Transaction {
 
     /**
      * Throws a {@link RollbackException} if this transaction context has a
-     * rollback transition pending.
+     * roll-back transition pending.
      * 
      * @throws RollbackException
      */
@@ -507,7 +542,7 @@ public class Transaction {
      * <code>begin</code> has been called. Application code should ensure that
      * every method that calls <code>begin</code> also invokes <code>end</code>
      * using a <code>try/finally</code> pattern described <a
-     * href="#_scopedCodePattern">above</a></code>.
+     * href="#_scopedCodePattern">above</a>.
      * 
      * @throws IllegalStateException
      *             if the current transaction scope has already been committed.
@@ -560,10 +595,10 @@ public class Transaction {
 
     /**
      * <p>
-     * Ends the current transaction scope. Application code should ensure that
+     * End the current transaction scope. Application code should ensure that
      * every method that calls <code>begin</code> also invokes <code>end</code>
      * using a <code>try/finally</code> pattern described in <a
-     * href="#_scopedCodePattern">above</a></code>.
+     * href="#_scopedCodePattern">above</a>.
      * </p>
      * <p>
      * This method implicitly rolls back any pending, uncommitted updates.
