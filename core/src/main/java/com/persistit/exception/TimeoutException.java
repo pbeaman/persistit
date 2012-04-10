@@ -28,8 +28,6 @@ package com.persistit.exception;
 
 /**
  * Thrown when an operation has waited too long for an operation to complete.
- * The {@link com.persistit.Exchange#setTimeout} method adjusts the timeout
- * value.
  * 
  * @version 1.0
  */

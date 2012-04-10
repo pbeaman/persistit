@@ -91,10 +91,12 @@ public abstract class SplitPolicy {
      * @param splitBest
      *            the previous best-fit result from this method, or 0 if there
      *            is no candidate split location yet.
+     * @param sequence
+     *            current sequential insert state
      * @return measure of goodness of fit.
      */
     public abstract int splitFit(Buffer buffer, int kbOffset, int insertAt, boolean replace, int leftSize,
-            int rightSize, int currentSize, int virtualSize, int capacity, int splitInfo, Sequence sequence);
+            int rightSize, int currentSize, int virtualSize, int capacity, int splitBest, Sequence sequence);
 
     private static class Left extends SplitPolicy {
 

@@ -72,7 +72,7 @@ import java.util.concurrent.Semaphore;
  * </p>
  * <p>
  * The entire ThreadSequence mechanism must be enabled via
- * {@link #enableSequencer(boolean))}. By default all calls to
+ * {@link #enableSequencer(boolean)}. By default all calls to
  * {@link #sequence(int)} invoke an empty method in the NullSequencer subclass,
  * which is fast.
  * </p>

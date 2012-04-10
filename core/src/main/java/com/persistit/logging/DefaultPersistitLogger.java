@@ -86,8 +86,9 @@ public class DefaultPersistitLogger implements PersistitLogger {
      * Writes a message to the log file and also displays high-significance
      * messages to <code>System.err</code>.
      * 
-     * @param logTemplate
-     *            Ignored in this implementation
+     * @param level
+     *            PersistitLevel at which this message should be logged. (Ignored
+     *            in this implementation.)
      * @param message
      *            The message to write
      */

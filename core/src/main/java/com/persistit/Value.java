@@ -2475,7 +2475,7 @@ public final class Value {
      * to each other. Then serializing x will serialize y, and the the reference
      * in y to x will be represented in the serialization stream by a back
      * reference handle. This method should be called from the {@link
-     * ValueCoder#get(Value, Class<?>, CoderContext)} method of custom
+     * ValueCoder#get(Value, Class, CoderContext)} method of custom
      * <code>ValueCoder</code>s. See <a
      * href="../../../Object_Serialization_Notes.html>Persistit 1.1 Object
      * Serialization</a> for further details.

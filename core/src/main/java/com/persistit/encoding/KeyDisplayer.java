@@ -38,7 +38,7 @@ import com.persistit.exception.ConversionException;
  * </p>
  * <p>
  * The {@link Key#toString toString} method and
- * {@link Key#decodeDisplayable(boolean, StringBuilder) decodeDisplayable}
+ * {@link Key#decodeDisplayable(boolean, Appendable, CoderContext) decodeDisplayable}
  * methods of <code>Value</code> preferentially use the registered
  * <code>KeyDisplayer</code>, if present, to generate a String representation of
  * an object value encoded in a <code>Key</code>.

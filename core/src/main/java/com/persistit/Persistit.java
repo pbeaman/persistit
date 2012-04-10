@@ -457,7 +457,8 @@ public class Persistit {
 
     private final Map<ObjectName, Object> _mxbeans = new TreeMap<ObjectName, Object>();
 
-    private final List<AlertMonitorMXBean> _alertMonitors = Collections.synchronizedList(new ArrayList<AlertMonitorMXBean>());
+    private final List<AlertMonitorMXBean> _alertMonitors = Collections
+            .synchronizedList(new ArrayList<AlertMonitorMXBean>());
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
@@ -822,9 +823,9 @@ public class Persistit {
             monitor.setObjectName(on);
             emitter = monitor;
         }
-            MXBeanWrapper wrapper = new MXBeanWrapper(mbean, mbeanInterface, emitter);
-            server.registerMBean(wrapper, on);
-        
+        MXBeanWrapper wrapper = new MXBeanWrapper(mbean, mbeanInterface, emitter);
+        server.registerMBean(wrapper, on);
+
         _logBase.mbeanRegistered.log(on);
         _mxbeans.put(on, mbean);
         if (mbean instanceof AlertMonitorMXBean) {
@@ -861,7 +862,8 @@ public class Persistit {
 
     /**
      * Replaces substitution variables in a supplied string with values taken
-     * from the properties available to Persistit (see {@link #getProperties()}).
+     * from the properties available to Persistit (see {@link #getProperties()}
+     * ).
      * 
      * @param text
      *            String in in which to make substitutions
@@ -1706,7 +1708,9 @@ public class Persistit {
      * order from oldest to youngest.
      * 
      * @param max
-     * @return
+     * @return status of the <code>max</code> longest-running transactions, in
+     *         order from oldest to youngest, reported as a String with one line
+     *         per transaction.
      */
     public String transactionReport(final int max) {
         long[] timestamps = _transactionIndex.oldestTransactions(max);
@@ -2187,8 +2191,11 @@ public class Persistit {
     }
 
     /**
-     * Set the current default transaction commit property by name. See
-     * {@link #setDefaultTransactionCommitPolicy(CommitPolicy)}.
+     * Set the current default transaction commit property by name. This policy
+     * is applied to transactions that call {@link Transaction#commit()}. Note
+     * that {@link Transaction#commit(CommitPolicy)} permits control on a
+     * per-transaction basis. The supplied policy value must be one of "HARD",
+     * "GROUP" or "SOFT".
      * 
      * @param policyName
      *            The policy name: "SOFT", "HARD" or "GROUP"

@@ -86,13 +86,14 @@ import com.persistit.util.Util;
  * <dl>
  * <dt>{@link CommitPolicy#HARD}</dt>
  * <dd>The <code>commit</code> method does not return until all updates created
- * by the transaction have been written to non-volatile storage (e.g., disk).</dd>
+ * by the transaction have been written to non-volatile storage (e.g., disk
+ * storage).</dd>
  * <dt>{@link CommitPolicy#GROUP}</dt>
  * <dd>The <code>commit</code> method does not return until all updates created
  * by the transaction have been written to non-volatile storage. In addition,
- * the transaction waits briefly in an attempt to recruit other concurrently
- * running transactions to write their updates with the same physical I/O
- * operation.</dd>
+ * the committing transaction waits briefly in an attempt to recruit other
+ * concurrently running transactions to write their updates with the same
+ * physical I/O operation.</dd>
  * <dt>{@link CommitPolicy#SOFT}</dt>
  * <dd>The <code>commit</code> method returns <i>before</i> the updates have
  * been recorded on non-volatile storage. Persistit attempts to write them
@@ -100,11 +101,11 @@ import com.persistit.util.Util;
  * </dl>
  * <p>
  * You can specify a default policy in the Persistit initialization properties
- * using the {@value Persistit#TRANSACTION_COMMIT_POLICY_NAME} property or under
- * program control using
- * {@link Persistit#setDefaultTransactionCommitPolicy(CommitPolicy)}. The
- * default policy applies to the {@link #commit()} method. You can override the
- * default policy using {@link #commit(CommitPolicy)}.
+ * using the {@value com.persistit.Persistit#TRANSACTION_COMMIT_POLICY_NAME}
+ * property or under program control using
+ * {@link Persistit#setDefaultTransactionCommitPolicy} . The default policy
+ * applies to the {@link #commit()} method. You can override the default policy
+ * using {@link #commit(CommitPolicy)}.
  * </p>
  * <p>
  * HARD and GROUP ensure each transaction is written durably to non-volatile

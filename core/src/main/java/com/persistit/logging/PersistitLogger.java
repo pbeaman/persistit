@@ -35,11 +35,13 @@ package com.persistit.logging;
 public interface PersistitLogger {
 
     /**
-     * Emit the message to the log at the specified level. Configuration will
+     * Write the message to the log at the specified level. Configuration will
      * ensure that this method is called only when the level is indeed loggable.
      * 
      * @param level
+     *            The level of the log event
      * @param message
+     *            A string-valued description of the event
      */
     void log(final PersistitLevel level, final String message);
 
@@ -49,7 +51,8 @@ public interface PersistitLogger {
      * message.
      * 
      * @param level
-     * @return
+     *            The level of the log event
+     * @return whether a message should be logged at the specified level
      */
     boolean isLoggable(final PersistitLevel level);
 

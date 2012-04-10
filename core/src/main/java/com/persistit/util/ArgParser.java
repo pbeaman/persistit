@@ -265,7 +265,7 @@ public class ArgParser {
      * default value.
      * 
      * @param fieldName
-     * @return
+     * @return <code>true</code> if the field contains its default value
      */
     public boolean isDefault(String fieldName) {
         return _isDefault[lookupName(fieldName)];

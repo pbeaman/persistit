@@ -49,8 +49,8 @@ public interface TransactionIndexMXBean {
      * already committed or aborted.
      * 
      * @return Upper bound on timestamps for which
-     *         {@link #hasConcurrentTransaction(long, long)} returns accurate
-     *         information.
+     *         {@link com.persistit.TransactionIndex#hasConcurrentTransaction(long, long)
+     *         hasConcurrentTransaction} returns accurate information.
      */
     public abstract long getActiveTransactionCeiling();
 

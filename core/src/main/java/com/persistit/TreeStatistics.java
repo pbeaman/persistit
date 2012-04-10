@@ -33,10 +33,10 @@ import com.persistit.util.Util;
 
 /**
  * Collection of <code>AtomicLong</code> counters representing for interesting
- * statistics in a {@link Tree}. The {@link #save} and {@link #load} methods are
- * designed to serialize and deserialize evolving versions of this class.
- * Therefore it should be relatively to add and remove in new versions of
- * Persistit.
+ * statistics in a {@link Tree}. The {@link #store} and {@link #load} methods
+ * are designed to serialize and deserialize evolving versions of this class,
+ * therefore it is possible to add and remove new counters while remaining
+ * compatible with prior versions.
  * 
  * @author peter
  */
@@ -85,7 +85,7 @@ public class TreeStatistics {
     /**
      * @return the count of {@link Exchange#fetch} operations, including
      *         {@link Exchange#fetchAndStore} and
-     *         {@link Exchange#fetchAndRemove} operations.
+     *         {@link Exchange#fetchAndRemove} operations
      */
     public long getFetchCounter() {
         return _fetchCounter.get();
@@ -93,7 +93,7 @@ public class TreeStatistics {
 
     /**
      * @return the count of {@link Exchange#traverse} operations including
-     *         {@link Exchange#next} and {@link Exchange#_previous}.
+     *         {@link Exchange#next} and {@link Exchange#previous}
      */
     public long getTraverseCounter() {
         return _traverseCounter.get();
@@ -101,8 +101,7 @@ public class TreeStatistics {
 
     /**
      * @return the count of {@link Exchange#store} operations, including
-     *         {@link Exchange#fetchAndStore} and
-     *         {@link Exchange#incrementValue} operations.
+     *         {@link Exchange#fetchAndStore}
      */
     public long getStoreCounter() {
         return _storeCounter.get();
@@ -110,7 +109,7 @@ public class TreeStatistics {
 
     /**
      * @return the count of {@link Exchange#remove} operations, including
-     *         {@link Exchange#fetchAndRemove} operations.
+     *         {@link Exchange#fetchAndRemove} operations
      */
     public long getRemoveCounter() {
         return _removeCounter.get();
@@ -118,7 +117,7 @@ public class TreeStatistics {
 
     /**
      * @return Count of records in this <code>Tree</code> having multi-version
-     *         values.
+     *         values
      */
     public long getMvvCounter() {
         return _mvvCounter.get();
@@ -126,7 +125,7 @@ public class TreeStatistics {
 
     /**
      * @return Overhead bytes consumed by multi-version values that will be
-     *         removed by pruning.
+     *         removed by pruning
      */
     public long getMvvOverhead() {
         return _mvvOverhead.get();
@@ -142,7 +141,7 @@ public class TreeStatistics {
 
     /**
      * @return Approximate size in bytes of the overhead space consumed in this
-     *         <code>Tree</code> by multi-version-values.
+     *         <code>Tree</code> by multi-version-values
      */
 
     void reset() {

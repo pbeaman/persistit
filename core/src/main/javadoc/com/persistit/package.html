@@ -100,13 +100,8 @@ of which constitutes a physical balanced tree.
 the internal integrity of <code>Volume</code>s and/or individual <code>Tree</code>s.
 </p>
 <p>
-This package also includes {@link com.persistit.PersistitMap PersistitMap} and
-{@link com.persistit.PersistitIndexedSet}.  <code>PersistitMap</code>
+This package also includes {@link com.persistit.PersistitMap PersistitMap} which
 provides a persistent, fast implementation of <code>java.util.SortedMap</code>.
-<code>PersistitIndexedSet</code> associates objects with unique persistent object identifiers.
-To be useful in a <code>PersistitIndexedSet</code>, an object must be encodable as a key, meaning
-either that it is one of the classes for which built-in key encoding is supported (such as
-<code>java.lang.String</code>) or it has a registered {@link com.persistit.encoding.KeyCoder}.
 </p>
 <p>
 Finally, an application can obtain an instance of a 

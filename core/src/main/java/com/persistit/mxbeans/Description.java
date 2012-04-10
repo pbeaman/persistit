@@ -42,7 +42,7 @@ import javax.management.DescriptorKey;
  * {@link javax.management.MBeanFeatureInfo#getDescription()} but the can be
  * accomplished through the MXBeanWrapper class which marshals the value from
  * the Descriptor to the description attribute.
- * @see http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4853303
+ * @see <a href="http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4853303">bug 4853303</a>
  */
 @Target({ ElementType.METHOD, ElementType.PARAMETER })
 @Retention(RetentionPolicy.RUNTIME)

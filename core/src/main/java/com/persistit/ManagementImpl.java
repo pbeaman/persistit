@@ -297,13 +297,13 @@ class ManagementImpl implements Management {
     }
 
     /**
-     * Attempts to flush and sync all dirty data in Persistit by invoking
-     * {@link Persistit#flush} and {@link Persistit#sync}.
+     * Attempts to flush and force all dirty data in Persistit by invoking
+     * {@link Persistit#flush} and {@link Persistit#force}.
      * 
      * @throws RemoteException
      */
     @Override
-    public void flushAndSync() throws RemoteException {
+    public void flushAndForce() throws RemoteException {
         try {
             _persistit.flush();
             _persistit.force();

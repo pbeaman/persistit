@@ -1115,7 +1115,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 }
             } else if ("FLUSH".equals(name)) {
                 if (management != null && management.isInitialized()) {
-                    management.flushAndSync();
+                    management.flushAndForce();
                 }
                 // } else if ("SHUTDOWN".equals(name)) {
                 // if (management != null && management.isInitialized()) {

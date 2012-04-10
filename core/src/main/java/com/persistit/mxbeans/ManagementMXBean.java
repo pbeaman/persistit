@@ -174,11 +174,11 @@ public interface ManagementMXBean {
 
     /**
      * Flush and sync all dirty data in Persistit by invoking
-     * {@link Persistit#flush} and {@link Persistit#sync}.
+     * {@link Persistit#flush} and {@link Persistit#force}.
      * 
      * @throws RemoteException
      */
-    public void flushAndSync() throws RemoteException;
+    public void flushAndForce() throws RemoteException;
 
     /**
      * Use a simple command-line processor to invoke a task. Allows task
@@ -187,7 +187,7 @@ public interface ManagementMXBean {
      * {@link #launch(String)} method initiates the task in a new thread and
      * returns immediately.
      * 
-     * @param arg
+     * @param commandLine
      * @return The final status of the Task, as a String
      * @throws RemoteException
      */
@@ -199,7 +199,7 @@ public interface ManagementMXBean {
      * starts the task in a new thread and returns immediately. In contrast, the
      * {@link #execute(String)} method completes the task before returning.
      * 
-     * @param arg
+     * @param commandLine
      * @return The taskId, as a String
      * @throws RemoteException
      */

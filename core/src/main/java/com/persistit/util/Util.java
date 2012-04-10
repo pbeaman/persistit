@@ -540,7 +540,7 @@ public class Util {
      *            The offset of the sub-array within the source.
      * @param target
      *            The target byte array
-     * @return
+     * @return <code>true</code> if the byte subarrays are equal
      */
     public static boolean bytesEqual(byte[] source, int offset, byte[] target) {
         for (int index = 0; index < target.length; index++) {
