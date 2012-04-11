@@ -404,7 +404,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
 
             txn.begin();
             txn.commit();
-            assertEquals("Accumulator after pass inserts, pass"+pass, ROW_COUNT, accum.getSnapshotValue(txn));
+            assertEquals("Accumulator after inserts, pass"+pass, ROW_COUNT, accum.getSnapshotValue(txn));
             txn.end();
 
             ex.removeTree();
