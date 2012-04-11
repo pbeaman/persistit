@@ -110,7 +110,6 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
         _persistit.crash();
         _persistit = new Persistit();
         cm = null;
-        System.gc();
-        assertNull(ref.get());
+        assertTrue(doesRefBecomeNull(ref));
     }
 }
