@@ -26,6 +26,8 @@
 
 package com.persistit.exception;
 
+import com.persistit.Task;
+
 /**
  * Thrown when a {@link Task} performing within the context of a task controller
  * is stopped.

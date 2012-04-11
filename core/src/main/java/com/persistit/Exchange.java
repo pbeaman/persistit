@@ -1044,7 +1044,7 @@ public class Exchange {
         Buffer buffer = null;
         checkLevelCache();
         LevelCache lc = _levelCache[0];
-        buffer = reclaimQuickBuffer(lc, writer);
+        buffer = quicklyReclaimBuffer(lc, writer);
 
         if (buffer == null) {
             return searchTree(key, 0, writer);
@@ -1223,7 +1223,7 @@ public class Exchange {
                 LevelCache lc = _levelCache[currentLevel];
 
                 if (lc._page == pageAddress) {
-                    buffer = reclaimQuickBuffer(lc, writer);
+                    buffer = quicklyReclaimBuffer(lc, writer);
                 }
 
                 if (buffer == null) {
@@ -1439,7 +1439,7 @@ public class Exchange {
                     Debug.$assert0.t(buffer == null);
                     int foundAt = -1;
                     LevelCache lc = _levelCache[level];
-                    buffer = reclaimQuickBuffer(lc, true);
+                    buffer = quicklyReclaimBuffer(lc, true);
 
                     if (buffer != null) {
                         //
@@ -1847,7 +1847,7 @@ public class Exchange {
         }
     }
 
-    private Buffer reclaimQuickBuffer(LevelCache lc, boolean writer) throws PersistitException {
+    private Buffer quicklyReclaimBuffer(LevelCache lc, boolean writer) throws PersistitException {
         Buffer buffer = lc._buffer;
         if (buffer == null)
             return null;
@@ -2035,7 +2035,7 @@ public class Exchange {
                 // by previous operation.
                 //
                 if (buffer == null && lc._keyGeneration == _key.getGeneration()) {
-                    buffer = reclaimQuickBuffer(lc, false);
+                    buffer = quicklyReclaimBuffer(lc, false);
                     foundAt = lc._foundAt;
                 }
                 //
