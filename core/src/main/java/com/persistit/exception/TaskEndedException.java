@@ -27,8 +27,8 @@
 package com.persistit.exception;
 
 /**
- * Thrown when an utililty operation performing within the context of a
- * TaskController is stopped.
+ * Thrown when a {@link Task} performing within the context of a task controller
+ * is stopped.
  * 
  * @version 1.0
  */

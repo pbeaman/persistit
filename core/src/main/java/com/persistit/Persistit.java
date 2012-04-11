@@ -97,25 +97,28 @@ import com.persistit.util.UtilControl;
 
 /**
  * <p>
- * Creates and manages the the runtime environment for a Persistit&trade;
- * database. To use <code>Persistit</code>, an application invokes one of the
- * static {@link #initialize} methods to load a set of properties that govern
- * Persistit's behavior, and to initialize its memory structures. When
- * terminating, the application should invoke the static {@link #close} method
- * to complete all database writes, close all files and relinquish all buffer
- * memory.
+ * Create and manage the runtime environment for a Persistit&trade; database. To
+ * use Persistit an application
+ * <ul>
+ * <li>constructs a Persistit instance when it starts up</li>
+ * <li>calls one of the {@link #initialize} methods to set up a configuration
+ * and initialize the memory structures and background threads</li>
+ * <li>uses various method to acquire {@link Exchange} and {@link Transaction}
+ * instances to perform work,</li>
+ * <li>calls one of the {@link #close()} methods to gracefully release all
+ * memory resources and shut down the background threads.</li>
+ * </ul>
+ * </p>
+ * Generally an application will have no more than one Persistit instance,
+ * treating it as a singleton. However, the application is responsible for
+ * holding a reference to that instance and calling {@link #close()} when
+ * finished with it. Persistit's background threads are not daemon threads, and
+ * an application that does not call <code>close</code> therefore will not exit
+ * normally.
  * </p>
  * <p>
- * An application interacts with Persistit by creating {@link Exchange} objects
- * and invoking their methods.
- * </p>
- * <p>
- * During initialization this class optionally creates a small Swing UI
- * containing various useful diagnostic views of internal state. To request this
- * utility, include the command-line parameter
- * <code>-Dcom.persistit.showgui=true</code>, or specify the property
- * </code>showgui=true</code> in the properties file supplied to the
- * {@link #initialize} method.
+ * Persistit takes a large variety of configuration properties.  These are
+ * specified through the <code>initalize</code> method.
  * </p>
  * 
  * @version 1.1
@@ -356,6 +359,10 @@ public class Persistit {
 
     private final static int MAX_FATAL_ERROR_MESSAGES = 10;
 
+    /**
+     * An Exception created when Persistit detects a fatal internal error
+     * such as database corruption.
+     */
     public static class FatalErrorException extends RuntimeException {
 
         final String _threadName = Thread.currentThread().getName();
@@ -1018,8 +1025,8 @@ public class Persistit {
      * @param propertyName
      *            The property name
      * @param value
-     *            Value to set, or
-     *            <code>null</code> to remove an existing property
+     *            Value to set, or <code>null</code> to remove an existing
+     *            property
      */
     public void setProperty(final String propertyName, final String value) {
         if (value == null) {

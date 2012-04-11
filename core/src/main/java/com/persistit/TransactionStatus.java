@@ -31,9 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.Accumulator.Delta;
-import com.persistit.exception.TimeoutException;
 
-public class TransactionStatus {
+class TransactionStatus {
 
     /**
      * Distinguished commit timestamp for any value that has become primordial,

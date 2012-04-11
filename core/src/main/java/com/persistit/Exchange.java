@@ -26,7 +26,6 @@
 
 package com.persistit;
 
-import static com.persistit.Buffer.ENABLE_LOCK_MANAGER;
 import static com.persistit.Buffer.EXACT_MASK;
 import static com.persistit.Buffer.HEADER_SIZE;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
@@ -490,9 +489,6 @@ public class Exchange {
         _splitPolicy = _persistit.getDefaultSplitPolicy();
         _joinPolicy = _persistit.getDefaultJoinPolicy();
         _treeHolder.verifyReleased();
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.verify();
-        }
     }
 
     void initCache() {
@@ -1912,9 +1908,6 @@ public class Exchange {
      */
     public boolean traverse(Direction direction, boolean deep) throws PersistitException {
         boolean result = traverse(direction, deep, Integer.MAX_VALUE);
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.verify();
-        }
         return result;
     }
 
@@ -2983,9 +2976,6 @@ public class Exchange {
 
         final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, fetchFirst);
         _treeHolder.verifyReleased();
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.verify();
-        }
         return result;
     }
 
@@ -3031,9 +3021,6 @@ public class Exchange {
 
         final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, false);
         _treeHolder.verifyReleased();
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.verify();
-        }
         return result;
     }
 

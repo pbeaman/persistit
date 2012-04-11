@@ -76,7 +76,7 @@ import com.persistit.exception.RetryException;
  * @author peter
  * 
  */
-public class TransactionIndexBucket {
+class TransactionIndexBucket {
     /**
      * The owner of the hash table that contains this bucket
      */

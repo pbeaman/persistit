@@ -64,7 +64,7 @@ public interface PersistitLogger {
     void open() throws Exception;
 
     /**
-     * Called when Persistit stos using the log.
+     * Called when Persistit stops using the log.
      * 
      * @throws Exception
      */

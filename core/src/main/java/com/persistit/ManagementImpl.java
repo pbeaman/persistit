@@ -53,13 +53,6 @@ import com.persistit.exception.TreeNotFoundException;
  * may be useful in tuning and managing Persistit.
  * </p>
  * <p>
- * This class is not a JMX MBean because in many cases a deployment will not
- * include the JMX API libraies, and in some applications it may not be
- * desirable to expose the inner workings of Persistit via JMX even when it is
- * available. A companion Open MBean that exposes the same information as this
- * class is provided in the {com.persistit.jmx} package.
- * </p>
- * <p>
  * All information returned by methods of this class represent a snapshot of
  * system state. Data structures such as
  * {@link com.persistit.Management.BufferPoolInfo} represent system state at the

@@ -37,6 +37,7 @@ import com.persistit.mxbeans.ManagementMXBean;
 import com.persistit.util.Util;
 
 /**
+ * <p>
  * Interface for a service object that exposes information about the Persistit
  * environment. With this public API, embedding applications can query
  * performance metrics and resources within Persistit that are not exposed by
@@ -44,6 +45,13 @@ import com.persistit.util.Util;
  * enumerate the volumes currently mounted, the size and effectiveness of buffer
  * pool components, and many other items that may be useful in tuning and
  * managing Persistit.
+ * </p>
+ * <p>
+ * Methods of this class are exposed via RMI (Remote Method Invocation) to permit
+ * management tools to operate remotely. For example, the AdminUI tool can connect
+ * to a running Persistit instance via RMI.  Most of the information available
+ * on this interface is also accessible through JMX MXBeans.
+ * </p>
  * 
  * @version 1.0
  */
@@ -1774,8 +1782,6 @@ public interface Management extends Remote, ManagementMXBean {
         long _traverseCounter;
         long _storeCounter;
         long _removeCounter;
-        long _mvvCounter;
-        long _mvvOverhead;
 
         TreeInfo(Tree tree) {
             super();
@@ -1791,16 +1797,13 @@ public interface Management extends Remote, ManagementMXBean {
             this._traverseCounter = stats.getTraverseCounter();
             this._storeCounter = stats.getStoreCounter();
             this._removeCounter = stats.getRemoveCounter();
-            this._mvvCounter = stats.getMvvCounter();
-            this._mvvOverhead = stats.getMvvOverhead();
         }
 
         @ConstructorProperties({ "name", "index", "rootPageAddress", "depth", "volumePathName", "status",
-                "writerThreadName", "fetchCounter", "traverseCounter", "storeCounter", "removeCounter", "mvvCounter",
-                "mvvOverhead" })
+                "writerThreadName", "fetchCounter", "traverseCounter", "storeCounter", "removeCounter" })
         public TreeInfo(String name, long rootPageAddress, int depth, String volumePathName, String status,
                 String writerThreadName, long fetchCounter, long traverseCounter, long storeCounter,
-                long removeCounter, long mvvCounter, long mvvOverhead) {
+                long removeCounter) {
             super();
             this.name = name;
             this.rootPageAddress = rootPageAddress;
@@ -1812,8 +1815,6 @@ public interface Management extends Remote, ManagementMXBean {
             this._traverseCounter = traverseCounter;
             this._storeCounter = storeCounter;
             this._removeCounter = removeCounter;
-            this._mvvCounter = mvvCounter;
-            this._mvvOverhead = mvvOverhead;
 
         }
 
@@ -1884,22 +1885,6 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public long getRemoveCounter() {
             return _removeCounter;
-        }
-
-        /**
-         * @return Count of records in this <code>Tree</code> having
-         *         multi-version values.
-         */
-        public long getMvvCounter() {
-            return _mvvCounter;
-        }
-
-        /**
-         * @return Overhead bytes consumed by multi-version values that will be
-         *         removed by pruning.
-         */
-        public long getMvvOverhead() {
-            return _mvvOverhead;
         }
 
         /**

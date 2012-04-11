@@ -41,7 +41,7 @@ import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
-public class MVV {
+class MVV {
 
     static class PrunedVersion {
         private final long _version;

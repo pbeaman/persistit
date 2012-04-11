@@ -41,32 +41,32 @@ import com.persistit.exception.PersistitException;
 
 /**
  * <p>
- * Implements a persistent <code>java.util.SortedMap</code> over a Persistit
+ * A persistent <code>java.util.SortedMap</code> over a Persistit
  * database. Keys and values inserted into this map are serialized and stored
  * within Persistit using the encoding methods of {@link Key} and {@link Value}.
  * </p>
  * <p>
- * To construct a <code>PersistitMap</code> you supply a {@link Exchange}. The
+ * To construct a <code>PersistitMap</code> you supply an {@link Exchange}. The
  * keys inserted into this map are appended to the key within the {@link Tree}
  * originally supplied by the <code>Exchange</code>. For example, the code
  * 
- * <pre>
+ * <pre><code>
  * Exchange ex = new Exchange(&quot;demo&quot;, &quot;composers&quot;, true);
  * ex.append(&quot;My Favorite Johns&quot;);
  * Map&lt;String, String&gt; map = new PersistitMap&lt;String, String&gt;(ex);
  * map.put(&quot;Brahms&quot;, &quot;Johannes&quot;);
  * map.put(&quot;Bach&quot;, &quot;Johann&quot;);
- * </pre>
+ * </code></pre>
  * 
  * is equivalent to
  * 
- * <pre>
+ * <pre><code>
  * Exchange ex = new Exchange(&quot;demo&quot;, &quot;composers&quot;, true);
  * ex.getValue().put(&quot;Johannes&quot;);
  * ex.clear().append(&quot;My Favorite Johns&quot;, &quot;Brahms&quot;).store();
  * ex.getValue().put(&quot;Johann&quot;);
  * ex.clear().append(&quot;My Favorite Johns&quot;, &quot;Bach&quot;).store();
- * </pre>
+ * </code></pre>
  * 
  * </p>
  * <p>
@@ -75,7 +75,7 @@ import com.persistit.exception.PersistitException;
  * the the <code>Iterator</code> will throw a
  * <code>ConcurrentModificationException</code> if the backing store has changed
  * after the <code>Iterator</code> was created. However, in a large persistent
- * database designed for concurrent access, it is often preferable to allow the
+ * database designed for concurrent access, it may be preferable to allow the
  * <code>Iterator</code> to function continuously even when the underlying
  * database is changing. The {@link #setAllowConcurrentModification} method
  * provides control over this behavior.
@@ -115,7 +115,7 @@ import com.persistit.exception.PersistitException;
  * {@link #remove} methods not only read the former value from the database, but
  * also incur the overhead of deserializing it. In many cases applications do
  * not use the former value, and therefore this computation is often
- * unnecessary. For maximum performance an application can invoke the
+ * unnecessary. For maximum performance an application can use the
  * {@link #putFast} and {@link #removeFast} methods. These methods are analogous
  * to {@link #put} and {@link #remove} but do not deserialize or return the
  * former object value.
@@ -134,14 +134,20 @@ import com.persistit.exception.PersistitException;
  * expected types. For example, the following will compile correctly but throw a
  * ClassCastException at runtime:
  * 
- * <pre>
+ * <pre><code>
  * Exchange ex = new Exchange(&quot;demo&quot;, &quot;composers&quot;, true);
  * PersistitMap&lt;String, Integer&gt; map1 = new PersistitMap&lt;String, Integer&gt;();
  * map1.put(&quot;Adams&quot;, Integer.valueOf(1));
  * PersistitMap&lt;String, String&gt; map2 = new PersistitMap&lt;String, String&gt;();
  * String lastName = map2.get(&quot;Adams&quot;);
- * </pre>
+ * </code></pre>
  * 
+ * <p>
+ * Note that any {@link PersistitException} that may occur during execution of one of the
+ * <code>SortedMap</code> methods is thrown within the unchecked wrapper class
+ * {@link PersistitMapException}. Applications using <code>PersistitMap</code> should
+ * catch and handled <code>PersistitMapException</code>.
+ * </p>
  * @version 1.0
  */
 public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K, V> {
@@ -718,6 +724,10 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
         }
     }
 
+    /**
+     * Unchecked wrapper for {@link PersistitException}s that may be thrown 
+     * by methods of {@link SortedMap}.
+     */
     public static class PersistitMapException extends RuntimeException {
         private static final long serialVersionUID = 7257161738800744724L;
 

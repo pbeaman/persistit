@@ -39,11 +39,11 @@ import com.persistit.util.Util;
 /**
  * Abstract superclass of classes that perform long-running utility operations,
  * such as export, import and integrity check. Concrete classes should
- * frequently call the poll() method to allow users to stop, suspend or view
- * progress. Concrete classes should post all progress messages to the message
- * log by calling postMessage.
+ * frequently call the {@link #poll()} method to allow users to stop, suspend or view
+ * progress and should post all progress messages to the message
+ * log by calling {@link #postMessage(String, int)}.
  * 
- * @author Peter Beaman
+ * @author peter
  * @version 1.0
  */
 public abstract class Task implements Runnable {

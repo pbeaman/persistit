@@ -36,7 +36,36 @@ import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**
- * Represents a single B-Tree within a {@link Volume}.
+ * <p>
+ * Cached meta-data about a single B-Tree within a {@link Volume}. A
+ * <code>Tree</code> object keeps track of the <code>Volume</code>, the index
+ * root page, the index depth, various other statistics and the
+ * {@link Accumulator}s for a B-Tree.
+ * </p>
+ * <p>
+ * <code>Tree</code> instances are created by
+ * {@link Volume#getTree(String, boolean)}. If the <code>Volume</code> already
+ * has a B-Tree with the specified name, then the <code>Tree</code> object
+ * returned by <code>getTree</code> reflects the stored information. Otherwise,
+ * <code>getTree</code> can create a new B-Tree. In either case, the
+ * <code>Tree</code> is merely a transient in-memory cache for the B-Tree
+ * information ultimately stored on disk.
+ * </p>
+ * <p>
+ * Persistit ensures that <code>Tree</code> instances are unique, that is, for a
+ * given <code>Volume</code> and name, there is only one <code>Tree</code>. if
+ * multiple threads call {@link Volume#getTree(String, boolean)} for the same
+ * name on the same volume, the first such call will create a new
+ * <code>Tree</code> instance and subsequent calls will return the same
+ * instance.
+ * </p>
+ * <p>
+ * Each <code>Tree</code> may have up to 64 {@link Accumulator} instances that
+ * may be used to aggregate statistical information such as counters.
+ * <code>Accumulator</code>s work within the MVCC transaction scheme to provide
+ * highly concurrent access to a small number of variables that would otherwise
+ * cause a significant performance degradation.
+ * </p>
  */
 public class Tree extends SharedResource {
     final static int MAX_SERIALIZED_SIZE = 512;
@@ -67,15 +96,20 @@ public class Tree extends SharedResource {
         _generation.set(1);
     }
 
+    /**
+     * @return The volume containing this <code>Tree</code>.
+     */
     public Volume getVolume() {
         return _volume;
     }
 
+    /**
+     * @return This <code>Tree</code>'s name
+     */
     public String getName() {
         return _name;
     }
 
-    // TODO - renameTree
     @Override
     public int hashCode() {
         return _volume.hashCode() ^ _name.hashCode();
@@ -205,15 +239,19 @@ public class Tree extends SharedResource {
         _generation.set(-1);
     }
 
+    /**
+     * @return a <code>TreeStatistics</code> object containing approximate
+     *         counts of records added, removed and fetched from this
+     *         </code>Tree</code>
+     */
     public TreeStatistics getStatistics() {
         return _treeStatistics;
     }
 
     /**
-     * Returns a displayable description of the <code>Tree</code>, including its
-     * name, its internal tree index, its root page address, and its depth.
-     * 
-     * @return A displayable summary
+     * @return a displayable description of the <code>Tree</code>, including its
+     *         name, its internal tree index, its root page address, and its
+     *         depth.
      */
     @Override
     public String toString() {
@@ -225,7 +263,7 @@ public class Tree extends SharedResource {
      * Store an Object with this Tree for the convenience of an application.
      * 
      * @param appCache
-     *            object to be cached for application convenience.
+     *            the object to be cached for application convenience.
      */
     public void setAppCache(Object appCache) {
         _appCache.set(appCache);
@@ -239,14 +277,28 @@ public class Tree extends SharedResource {
     }
 
     /**
-     * @return The handle value used to identify this Tree in the journal
+     * @return The handle value used to identify this <code>Tree</code> in the
+     *         journal
      */
     public int getHandle() {
         return _handle.get();
     }
 
     /**
-     * Return an <code>Accumulator</code> for this Tree.
+     * Return an <code>Accumulator</code> for this Tree. The caller provides the
+     * type (SUM, MAX, MIN or SEQ) of accumulator, and an index value between 0
+     * and 63, inclusive. If the <code>Tree</code> does not yet have an
+     * <code>Accumulator</code> with the specified index, this method creates
+     * one of the the specified type. Otherwise the specified type must match
+     * the type of the one previously.
+     * 
+     * @param type
+     *            Type of <code>Accumulator</code>
+     * @param index
+     *            Application-controlled value between 0 and 63, inclusive.
+     * @throws IllegalStateException
+     *             if the supplied type does not match that of a previously
+     *             created <code>Accumulator</code>
      */
     public synchronized Accumulator getAccumulator(final Accumulator.Type type, final int index)
             throws PersistitException {
@@ -292,7 +344,7 @@ public class Tree extends SharedResource {
     }
 
     /**
-     * Resets the handle to zero. Intended for use only by tests.
+     * Reset the handle to zero. Intended for use only by tests.
      */
     void resetHandle() {
         _handle.set(0);

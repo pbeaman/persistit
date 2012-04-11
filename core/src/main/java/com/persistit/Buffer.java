@@ -273,8 +273,6 @@ public class Buffer extends SharedResource {
 
     public final static int MAX_KEY_RATIO = 16;
 
-    final static boolean ENABLE_LOCK_MANAGER = false;
-    
     private final static int BINARY_SEARCH_THRESHOLD = 6;
 
     abstract static class VerifyVisitor {
@@ -567,31 +565,20 @@ public class Buffer extends SharedResource {
             if (!isDirty()) {
                 _timestamp = _persistit.getCurrentTimestamp();
             }
-            if (ENABLE_LOCK_MANAGER) {
-                _pool._lockManager.registerClaim(this, writer);
-            }
             return true;
         } else {
             return false;
         }
     }
 
+    @Override
     void release() {
         if (Debug.ENABLED && isDirty() && (isDataPage() || isIndexPage())) {
             assertVerify();
         }
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.unregisterClaim(this);
-        }
         super.release();
     }
 
-    @Override
-    void releaseWriterClaim() {
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.registerDowngrade(this);
-        }
-    }
 
     void releaseTouched() {
         setTouched();

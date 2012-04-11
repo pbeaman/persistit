@@ -29,6 +29,12 @@ package com.persistit.util;
 import static com.persistit.util.ThreadSequencer.allocate;
 import static com.persistit.util.ThreadSequencer.array;
 
+/**
+ * Constants used in the implementation of internal tests on
+ * concurrent behavior.
+ * @author peter
+ *
+ */
 public interface SequencerConstants {
     
     /*

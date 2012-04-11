@@ -50,7 +50,7 @@ import com.persistit.util.Debug;
  * 
  * @author peter
  */
-public class TransactionIndex implements TransactionIndexMXBean {
+class TransactionIndex implements TransactionIndexMXBean {
 
     /**
      * Thread name of the polling task

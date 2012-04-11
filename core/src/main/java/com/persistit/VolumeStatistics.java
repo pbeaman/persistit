@@ -28,6 +28,12 @@ package com.persistit;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Repository of counters for operations on a {@link Volume}
+ * 
+ * @author peter
+ * 
+ */
 class VolumeStatistics {
 
     private volatile long _openTime;

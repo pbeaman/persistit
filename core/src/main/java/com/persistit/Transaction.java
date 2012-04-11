@@ -216,7 +216,7 @@ import com.persistit.util.Util;
  * the duration of long-running transactions.
  * </p>
  * 
- * <a name="_pattern1"/> <h3>The try/finally/retry Code Pattern</h3>
+ * <a name="_pattern1"/> <h2>The try/finally/retry Code Pattern</h2>
  * <p>
  * The following code fragment illustrates a transaction executed with up to to
  * RETRY_COUNT retries. If the <code>commit</code> method succeeds, the whole
@@ -250,7 +250,7 @@ import com.persistit.util.Util;
  *     }
  * </pre></code></blockquote>
  * 
- * <a name="_pattern2" /> <h3>The TransactionRunnable Pattern</h3>
+ * <a name="_pattern2" /> <h2>The TransactionRunnable Pattern</h2>
  * <p>
  * As an alternative, the application can embed the actual database operations
  * within a {@link TransactionRunnable} and invoke the {@link #run} method to

@@ -48,7 +48,7 @@ public interface KeyRenderer extends KeyCoder {
 
     /**
      * <p>
-     * Populates the state of the supplied target <code>Object</code> by
+     * Populate the state of the supplied target <code>Object</code> by
      * decoding the next key segment of the supplied <code>Key</code>. This
      * method will be called only if this <code>KeyRenderer</code> has been
      * registered with the current {@link CoderManager} to encode objects having

@@ -29,25 +29,25 @@ package com.persistit.policy;
 import com.persistit.Buffer;
 
 /**
- * Policy for determining the balance between left and right pages when
+ * Policies for determining the balance between left and right pages when
  * rebalancing page content due to deletion.
  * 
  * @version 1.0
  */
 public class JoinPolicy {
     /**
-     * A policy that maximizes the number of records in the left sibling page,
-     * and minimizes the number of records in the right sibling page.
+     * Maximize the number of records in the left page,
+     * and minimize the number of records in the right page.
      */
     public final static JoinPolicy LEFT_BIAS = new JoinPolicy(-1, "LEFT");
     /**
-     * A policy that minimizes the number of records in the left sibling page,
-     * and maximizes the number of records in the right sibling page.
+     * Minimize the number of records in the left page,
+     * and maximize the number of records in the right page.
      */
     public final static JoinPolicy RIGHT_BIAS = new JoinPolicy(1, "RIGHT");
     /**
-     * A policy that attempts to evenly balance the number of records in the
-     * left and right sibling pages.
+     * Balance the allocation of spaces evenly between
+     * left and right pages.
      */
     public final static JoinPolicy EVEN_BIAS = new JoinPolicy(0, "EVEN");
 

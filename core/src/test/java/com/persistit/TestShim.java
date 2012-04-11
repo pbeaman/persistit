@@ -114,11 +114,11 @@ public class TestShim {
     public static void copyPages(final JournalManager jman) throws Exception {
         jman.copyBack();
     }
-    
+
     public static Exchange directoryExchange(final Volume volume) {
         return volume.getStructure().directoryExchange();
     }
-    
+
     public static boolean isValueLongRecord(final Exchange ex) throws PersistitException {
         return ex.isValueLongRecord();
     }
@@ -146,8 +146,15 @@ public class TestShim {
     public static void nudgeRight(final Key key) {
         key.nudgeRight();
     }
-    
+
     public static Task parseTask(final Persistit persistit, final String line) throws Exception {
         return CLI.parseTask(persistit, line);
     }
+
+    public static int storeVersion(byte[] target, int targetOffset, int targetLength, int targetLimit,
+            long versionHandle, byte[] source, int sourceOffset, int sourceLength) {
+        return MVV.storeVersion(target, targetOffset, targetLength, targetLimit, versionHandle, source, sourceOffset,
+                sourceLength);
+    }
+    
 }

@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * session contexts using SessionID. See {@link Persistit#getSessionId()} and
  * {@link Persistit#setSessionId(SessionId)}.
  * <p />
- * A SessionId instance hold a reference to the <code>Thread</code> currently
+ * A SessionId instance holds a reference to the <code>Thread</code> currently
  * associated with it; initially this this the thread that created the
  * SessionId. The <code>setSessionId</code> method reassigns the thread field.
  * The {@link #isAlive()} method indicates whether the associated thread is

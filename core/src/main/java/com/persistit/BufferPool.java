@@ -47,7 +47,6 @@ import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
-import com.persistit.util.LockManager;
 import com.persistit.util.Util;
 
 /**
@@ -1428,8 +1427,4 @@ public class BufferPool {
         }
         stream.flush();
     }
-
-    // TODO -- Remove this when done with bug
-
-    LockManager _lockManager = new LockManager();
 }
