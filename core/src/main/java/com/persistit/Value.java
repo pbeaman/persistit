@@ -2518,15 +2518,15 @@ public final class Value {
     /**
      * Decodes the <code>java.lang.String</code> value represented by the
      * current state of this <code>Value</code> into a supplied
-     * <code>java.lang.StringBuilder</code>.
+     * <code>java.lang.Appendable</code>.
      * 
-     * @return The supplied StringBuilder, modified to contain the decoded
+     * @return The supplied Appendable, modified to contain the decoded
      *         String
      * @throws ConversionException
      *             if this <code>Value</code> does not currently represent a
      *             String.
      */
-    public Appendable getString(Appendable sb) {
+    public <T extends Appendable> Appendable getString(T sb) {
         _serializedItemCount++;
         if (nextType(CLASS_STRING) == TYPE_NULL) {
             return null;

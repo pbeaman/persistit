@@ -491,7 +491,10 @@ public class Exchange {
         _treeHolder.verifyReleased();
     }
 
-    void initCache() {
+    /**
+     * Drop all cached optimization information
+     */
+    public void initCache() {
         for (int level = 0; level < MAX_TREE_DEPTH; level++) {
             if (_levelCache[level] != null)
                 _levelCache[level].invalidate();
