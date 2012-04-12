@@ -2812,6 +2812,18 @@ public class Persistit {
         }
     }
 
+    /**
+     * Remove an Accumulator from the active list. This will cause it to not
+     * be checkpointed or otherwise known about.
+     *
+     * @param accumulator Accumulator to remove
+     */
+    void removeAccumulator(final Accumulator accumulator) {
+        synchronized (_accumulators) {
+            _accumulators.remove(accumulator.getAccumulatorRef());
+        }
+    }
+
     List<Accumulator> getCheckpointAccumulators() {
         final List<Accumulator> result = new ArrayList<Accumulator>();
         synchronized (_accumulators) {

@@ -263,6 +263,8 @@ class VolumeStructure {
         final long treeRootPage = tree.getRootPageAddr();
 
         try {
+            tree.discardAccumulators();
+
             synchronized (this) {
                 _treeNameHashMap.remove(tree.getName());
                 tree.bumpGeneration();

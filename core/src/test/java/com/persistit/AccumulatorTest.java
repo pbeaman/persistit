@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.persistit.exception.PersistitException;
+import com.persistit.unit.UnitTestProperties;
 import org.junit.Test;
 
 import com.persistit.Accumulator.Type;
@@ -357,6 +359,56 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             assertEquals(Type.SEQ, as.getType());
             assertEquals(1, as.getIndex());
             assertEquals(count * 17, as.getValue());
+        }
+    }
+
+    /*
+     * bug979332:
+     * If a tree that has had accumulator activity is removed, a checkpoint
+     * occurs, and that same tree is recreated the accumulators would get
+     * initialized with the old, stale values.
+     *
+     * This was because the map in Persistit was not informed of the remove
+     * so the checkpoint proceeded to save data it didn't need to.
+     */
+    public void testRecreateAccumulatorAfterCheckpoint() throws PersistitException {
+        final int PASS_COUNT = 2;
+        final int ROW_COUNT = 10;
+        final int ACCUM_INDEX = 0;
+        final String TEST_VOLUME_NAME = UnitTestProperties.VOLUME_NAME;
+        final String TEST_TREE_NAME = "AccumulatorTest";
+        final Accumulator.Type ACCUM_TYPE = Accumulator.Type.SUM;
+
+        assertNotNull("Initial checkpoint successful (not null)", _persistit.checkpoint());
+
+        for (int pass = 1; pass <= PASS_COUNT; ++pass) {
+            Volume vol = _persistit.getVolume(TEST_VOLUME_NAME);
+            assertNull("Tree should not exist, pass"+pass, vol.getTree(TEST_TREE_NAME, false));
+
+            Exchange ex = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
+            Accumulator accum = ex.getTree().getAccumulator(ACCUM_TYPE, ACCUM_INDEX);
+            Transaction txn = _persistit.getTransaction();
+
+            txn.begin();
+            assertEquals("Initial accumulator value, pass"+pass, 0, accum.getSnapshotValue(txn));
+            txn.commit();
+            txn.end();
+
+            for(int row = 0; row < ROW_COUNT; ++row) {
+                txn.begin();
+                ex.clear().append(row);
+                accum.update(1, txn);
+                txn.commit();
+                txn.end();
+            }
+
+            txn.begin();
+            txn.commit();
+            assertEquals("Accumulator after inserts, pass"+pass, ROW_COUNT, accum.getSnapshotValue(txn));
+            txn.end();
+
+            ex.removeTree();
+            assertNotNull("Checkpoint after removeTree successful, pass"+pass, _persistit.checkpoint());
         }
     }
 }
