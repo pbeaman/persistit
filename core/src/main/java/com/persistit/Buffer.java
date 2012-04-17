@@ -3628,6 +3628,7 @@ public class Buffer extends SharedResource {
                     if (valueByte == MVV.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
                             if (tree != null) {
+                                _mvvCount++;
                                 _persistit.getCleanupManager().offer(
                                         new CleanupAntiValue(tree.getHandle(), getPageAddress()));
                             }

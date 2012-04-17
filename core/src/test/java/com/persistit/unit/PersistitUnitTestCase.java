@@ -114,7 +114,7 @@ public abstract class PersistitUnitTestCase extends TestCase {
         long expires = System.nanoTime() + TEN_SECONDS;
         while (ref.get() != null && System.nanoTime() < expires) {
             System.gc();
-            Thread.sleep(100);
+            Thread.sleep(10);
         }
         return ref.get() == null;
     }

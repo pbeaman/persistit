@@ -363,13 +363,13 @@ import com.persistit.util.Util;
  * for example, by reading data using step 0 while posting updates with a step
  * value of 1.
  * </p>
- * <h2>Transaction is not Threadsafe</h2>
+ * <a name="_threadManagement" /> <h2>Thread Management</h2>
  * <p>
  * As noted above, a <code>Transaction</code> typically belongs to one thread
- * for its entire lifetime. However, to support server applications which may
- * manage a large number of sessions among a smaller number of threads, Persisit
- * allows an application to manage sessions explicitly. See
- * {@link Persistit#getSessionId()} and
+ * for its entire lifetime and is <i>not</i> threadsafe. However, to support
+ * server applications which may manage a large number of sessions among a
+ * smaller number of threads, Persisit allows an application to manage sessions
+ * explicitly. See {@link Persistit#getSessionId()} and
  * {@link Persistit#setSessionId(SessionId)}. The method
  * {@link Persistit#getTransaction()} is sensitive to the thread's current
  * <code>SessionId</code>, and therefore the following style of interaction is
@@ -386,8 +386,8 @@ import com.persistit.util.Util;
  * <code>end</code> to complete the transaction.</li>
  * </ul>
  * Applications that use this technique must be written carefully to ensure that
- * multiple threads never execute with the same SessionId. Concurrent access to a
- * <code>Transaction</code> or <code>Exchange</code> can cause serious errors,
+ * multiple threads never execute with the same SessionId. Concurrent access to
+ * a <code>Transaction</code> or <code>Exchange</code> can cause serious errors,
  * including database corruption.
  * </p>
  * <h2>Additional Notes</h2>
@@ -1229,12 +1229,11 @@ public class Transaction {
             throw new IllegalArgumentException("Transaction not in scope " + this);
         }
     }
-    
-    
 
     /**
-     * Temporary alias for {@link #getStep()} to be removed after
-     * we change server.
+     * Temporary alias for {@link #getStep()} to be removed after we change
+     * server.
+     * 
      * @return the current step index.
      */
     @Deprecated
