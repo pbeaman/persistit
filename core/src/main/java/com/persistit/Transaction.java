@@ -1229,6 +1229,18 @@ public class Transaction {
             throw new IllegalArgumentException("Transaction not in scope " + this);
         }
     }
+    
+    
+
+    /**
+     * Temporary alias for {@link #getStep()} to be removed after
+     * we change server.
+     * @return the current step index.
+     */
+    @Deprecated
+    public int getCurrentStep() {
+        return _step;
+    }
 
     /**
      * @return the current step index.
