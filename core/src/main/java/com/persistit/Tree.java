@@ -350,4 +350,17 @@ public class Tree extends SharedResource {
         _handle.set(0);
     }
 
+    /**
+     * Forget about any instantiated accumulator and remove it from the active
+     * list in Persistit. This should only be called in the during the process
+     * of removing a tree.
+     */
+    void discardAccumulators() {
+        for (int i = 0; i < _accumulators.length; ++i) {
+            if (_accumulators[i] != null) {
+                _persistit.removeAccumulator(_accumulators[i]);
+                _accumulators[i] = null;
+            }
+        }
+    }
 }
