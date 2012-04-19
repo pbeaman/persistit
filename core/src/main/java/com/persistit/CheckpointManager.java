@@ -245,7 +245,7 @@ class CheckpointManager extends IOTaskRunnable {
             if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
                 try {
                     _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
-                } catch (PersistitIOException e) {
+                } catch (PersistitException e) {
                     _persistit.getLogBase().exception.log(e);
                 }
             }

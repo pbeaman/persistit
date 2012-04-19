@@ -30,7 +30,6 @@ import java.nio.channels.FileChannel;
 
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 
 /**
@@ -44,7 +43,7 @@ public class TestShim {
 
     public final static int BUFFER_INDEX_PAGE_OVERHEAD = Buffer.INDEX_PAGE_OVERHEAD;
 
-    public static void rollover(final JournalManager journalManager) throws PersistitIOException {
+    public static void rollover(final JournalManager journalManager) throws PersistitException {
         journalManager.rollover();
     }
 

@@ -28,7 +28,7 @@ package com.persistit.mxbeans;
 
 import javax.management.MXBean;
 
-import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitException;
 
 @MXBean
 public interface JournalManagerMXBean {
@@ -192,7 +192,7 @@ public interface JournalManagerMXBean {
     int urgency();
 
     @Description("Flush all pending journal records to durable storage")
-    void force() throws PersistitIOException;
+    void force() throws PersistitException;
 
     @Description("Perform accelerated page copying")
     void copyBack() throws Exception;
