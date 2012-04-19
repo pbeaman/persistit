@@ -520,7 +520,7 @@ public abstract class Accumulator {
 
     /**
      * Non-transactional view aggregating all updates applied to this
-     * Accumlator, whether committed or not.
+     * Accumulator, whether committed or not.
      * 
      * @return the live value
      */
