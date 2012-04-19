@@ -1001,8 +1001,9 @@ public final class Value {
         try {
             boolean first = true;
             while (_next < _size) {
-                if (!first)
+                if (!first) {
                     sb.append(",");
+                }
                 first = false;
                 decodeDisplayable(true, sb, null);
             }
@@ -1042,7 +1043,7 @@ public final class Value {
      *            <code>true</code> to quote and convert all strings to
      *            printable form.
      * @param sb
-     *            An <code>StringBuilder</code> to which the displayable value
+     *            A <code>StringBuilder</code> to which the displayable value
      *            will be appended.
      */
     public void decodeDisplayable(boolean quoted, StringBuilder sb) {
@@ -1059,7 +1060,7 @@ public final class Value {
      *            <code>true</code> to quote and convert all strings to
      *            printable form.
      * @param sb
-     *            An <code>StringBuilder</code> to which the displayable value
+     *            A <code>StringBuilder</code> to which the displayable value
      *            will be appended.
      * @param context
      *            A <code>CoderContext</code> to be passed to any underlying
@@ -1084,7 +1085,7 @@ public final class Value {
         case TYPE_BYTE: {
             _next = start;
             appendParenthesizedFriendlyClassName(sb, byte.class);
-            sb.append(Byte.toString(getByte()));
+            sb.append(getByte());
             break;
         }
 
@@ -1094,39 +1095,39 @@ public final class Value {
             if (quoted)
                 Util.appendQuotedChar(sb, getChar());
             else
-                sb.append(Integer.toString(getChar()));
+                sb.append((int) getChar());
             break;
         }
 
         case TYPE_INT: {
             _next = start;
-            sb.append(Integer.toString(getInt()));
+            sb.append(getInt());
             break;
         }
 
         case TYPE_LONG: {
             _next = start;
             appendParenthesizedFriendlyClassName(sb, long.class);
-            sb.append(Long.toString(getLong()));
+            sb.append(getLong());
             break;
         }
 
         case TYPE_FLOAT: {
             _next = start;
             appendParenthesizedFriendlyClassName(sb, float.class);
-            sb.append(Float.toString(getFloat()));
+            sb.append(getFloat());
             break;
         }
 
         case TYPE_DOUBLE: {
             _next = start;
-            sb.append(Double.toString(getDouble()));
+            sb.append(getDouble());
             break;
         }
 
         case TYPE_BOOLEAN: {
             _next = start;
-            sb.append(Boolean.toString(getBoolean()));
+            sb.append(getBoolean());
             break;
         }
 
@@ -1181,7 +1182,7 @@ public final class Value {
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
-                        sb.append(Byte.toString((byte) Util.getByte(_bytes, _next)));
+                        sb.append(Util.getByte(_bytes, _next));
                         _next++;
                     }
                     break;
@@ -1193,7 +1194,7 @@ public final class Value {
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
-                        sb.append(Short.toString((short) Util.getShort(_bytes, _next)));
+                        sb.append(Util.getShort(_bytes, _next));
                         _next += 2;
                     }
                     break;
@@ -1209,7 +1210,7 @@ public final class Value {
                         if (quoted)
                             Util.appendQuotedChar(sb, c);
                         else
-                            sb.append(Integer.toString(c));
+                            sb.append((int) c);
                         _next += 2;
                     }
                     break;
@@ -1221,7 +1222,7 @@ public final class Value {
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
-                        sb.append(Integer.toString(Util.getInt(_bytes, _next)));
+                        sb.append(Util.getInt(_bytes, _next));
                         _next += 4;
                     }
                     break;
@@ -1233,7 +1234,7 @@ public final class Value {
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
-                        sb.append(Long.toString(Util.getLong(_bytes, _next)));
+                        sb.append(Util.getLong(_bytes, _next));
                         _next += 8;
                     }
                     break;
@@ -1246,7 +1247,7 @@ public final class Value {
                         if (index > 0)
                             sb.append(',');
                         float f = Float.intBitsToFloat(Util.getInt(_bytes, _next));
-                        sb.append(Float.toString(f));
+                        sb.append(f);
                         _next += 4;
                     }
                     break;
@@ -1259,7 +1260,7 @@ public final class Value {
                         if (index > 0)
                             sb.append(',');
                         double d = Double.longBitsToDouble(Util.getLong(_bytes, _next));
-                        sb.append(Double.toString(d));
+                        sb.append(d);
                         _next += 8;
                     }
                     break;
@@ -1350,9 +1351,7 @@ public final class Value {
 
                 }, getEncodedBytes(), 0, getEncodedSize());
             } catch (Throwable t) {
-                sb.append("<<");
-                sb.append(t.toString());
-                sb.append(">>");
+                sb.append("<<").append(t).append(">>");
             } finally {
                 _next = _end = _size = savedSize;
             }
@@ -1532,12 +1531,12 @@ public final class Value {
                 sb.append('(');
                 sb.append(className.startsWith("java.lang.") ? className.substring(10) : className);
                 sb.append(')');
-                sb.append(value.toString());
+                sb.append(value);
             } else if (value instanceof DisplayMarker) {
-                sb.append(value.toString());
+                sb.append(value);
             } else if (value instanceof AntiValue) {
                 sb.append(cl.getSimpleName());
-                sb.append(value.toString());
+                sb.append(value);
             } else {
                 appendParenthesizedFriendlyClassName(sb, cl);
                 try {
@@ -2474,8 +2473,8 @@ public final class Value {
      * references. For example, suppose objects x and y have fields that refer
      * to each other. Then serializing x will serialize y, and the the reference
      * in y to x will be represented in the serialization stream by a back
-     * reference handle. This method should be called from the {@link
-     * ValueCoder#get(Value, Class, CoderContext)} method of custom
+     * reference handle. This method should be called from the
+     * {@link ValueCoder#get(Value, Class, CoderContext)} method of custom
      * <code>ValueCoder</code>s. See <a
      * href="../../../Object_Serialization_Notes.html>Persistit 1.1 Object
      * Serialization</a> for further details.
@@ -2520,8 +2519,7 @@ public final class Value {
      * current state of this <code>Value</code> into a supplied
      * <code>java.lang.Appendable</code>.
      * 
-     * @return The supplied Appendable, modified to contain the decoded
-     *         String
+     * @return The supplied Appendable, modified to contain the decoded String
      * @throws ConversionException
      *             if this <code>Value</code> does not currently represent a
      *             String.

@@ -34,10 +34,12 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import com.persistit.Key;
+import com.persistit.TestShim;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.KeyRenderer;
 import com.persistit.exception.ConversionException;
+import com.persistit.exception.PersistitException;
 
 public class KeyCoderTest1 extends PersistitUnitTestCase {
 
@@ -47,7 +49,6 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
         final KeyCoder coder = new TestKeyRenderer();
         _persistit.getCoderManager().registerKeyCoder(URL.class, coder);
         Key key1;
-        Key key2;
 
         key1 = new Key(_persistit);
         final URL url1 = new URL("http://w/z");
@@ -88,11 +89,46 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
                 + "(java.net.URL){\"http\",\"w\",8080,\"/z?userid=pb\"},\"c\"}");
         System.out.println("- done");
     }
+    
+    @Test
+    public void testKeyHandleEncodeDecode() throws Exception {
+        final int[] handles = {0, 0x1FE, 0x1FF, 0x200, 0x201, 0x7FFE, 0x7FFF, 0x8000, 0x8001, Integer.MAX_VALUE};
+        final KeyCoder coder = new TestKeyRenderer();
+        final Key key1 = new Key(_persistit);
+        final URL url1 = new URL("http://w/z");
+        final URL url2 = new URL("http://w:8080/z?userid=pb");
+
+        for (int handle : handles) {
+            registerCoderDefinedKeyHandle(coder, handle);
+            
+            key1.clear();
+            key1.append(url1);
+            key1.append(url2);
+
+            key1.reset();
+            final Object obj1 = key1.decode();
+            final Object obj2 = key1.decode();
+
+            assertEquals(url1.toString(), obj1.toString());
+            assertEquals(url2.toString(), obj2.toString());
+
+            final StringBuilder sb = new StringBuilder();
+            key1.indexTo(1);
+            key1.decode(sb);
+            assertEquals(url2.toString(), sb.toString());
+
+        }
+    }
+    
+    private void registerCoderDefinedKeyHandle(final KeyCoder coder, final int handle) throws PersistitException {
+        TestShim.clearAllClassIndexEntries(_persistit);
+        TestShim.setClassIndexTestIdFloor(_persistit, handle);
+        _persistit.getCoderManager().registerKeyCoder(URL.class, coder);
+    }
 
     public static void main(final String[] args) throws Exception {
         new KeyCoderTest1().initAndRunTest();
     }
-
 
     public void debugAssert(boolean condition) {
         Assert.assertTrue(condition);

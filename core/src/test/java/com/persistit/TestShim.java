@@ -157,4 +157,11 @@ public class TestShim {
                 sourceLength);
     }
     
+    public static void setClassIndexTestIdFloor(final Persistit persistit, final int id) {
+        persistit.getClassIndex().setTestIdFloor(id);
+    }
+    
+    public static void clearAllClassIndexEntries(final Persistit persistit) throws PersistitException {
+        persistit.getClassIndex().clearAllEntries();
+    }
 }
