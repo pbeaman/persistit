@@ -160,6 +160,11 @@ public class RecoveryTest extends PersistitUnitTestCase {
             public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value)
                     throws PersistitException {
             }
+            
+            @Override
+            public boolean requiresLongRecordConversion() {
+                return true;
+            }
 
         };
         plan.applyAllRecoveredTransactions(actor, plan.getDefaultRollbackListener());

@@ -198,6 +198,11 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value)
                     throws PersistitException {
             }
+            
+            @Override
+            public boolean requiresLongRecordConversion() {
+                return true;
+            }
 
         };
         rman.applyAllRecoveredTransactions(actor, rman.getDefaultRollbackListener());
