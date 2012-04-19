@@ -1231,17 +1231,6 @@ public class Transaction {
     }
 
     /**
-     * Temporary alias for {@link #getStep()} to be removed after we change
-     * server.
-     * 
-     * @return the current step index.
-     */
-    @Deprecated
-    public int getCurrentStep() {
-        return _step;
-    }
-
-    /**
      * @return the current step index.
      */
     public int getStep() {
