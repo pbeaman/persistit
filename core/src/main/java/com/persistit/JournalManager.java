@@ -600,10 +600,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         final int length = bb.remaining();
         synchronized (this) {
             if (address >= _writeBufferAddress && address + length <= _currentAddress) {
+                assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
+                        "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
+                                .position(), _currentAddress);
                 final int wbPosition = _writeBuffer.position();
                 final int wbLimit = _writeBuffer.limit();
-                _writeBuffer.position((int)(address - _writeBufferAddress));
-                _writeBuffer.limit((int)(address - _writeBufferAddress) + length);
+                _writeBuffer.position((int) (address - _writeBufferAddress));
+                _writeBuffer.limit((int) (address - _writeBufferAddress) + length);
                 bb.put(_writeBuffer);
                 _writeBuffer.limit(wbLimit);
                 _writeBuffer.position(wbPosition);
