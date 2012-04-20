@@ -1300,7 +1300,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     /**
-     * Maps a ByteBuffer to a file address, as needed to ensure client methods
+     * Map a ByteBuffer to a file address, as needed to ensure client methods
      * can write their records. This method modifies the values of _writeBuffer,
      * _writeBufferAddress, and in case a new journal file is prepared (a
      * "roll-over" event), it also modifies _currentAddress to reflect the
@@ -1308,7 +1308,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * 
      * @param size
      *            Size of record to be written
-     * @return <code>true</code> iff a new journal file was started
+     * @return <code>true</code> if and only if a new journal file was started
      * @throws PersistitException
      */
     private boolean prepareWriteBuffer(final int size) throws PersistitException {
@@ -1320,7 +1320,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             startJournalFile();
             newJournalFile = true;
         }
-        Debug.$assert1.t(_writeBufferAddress + _writeBuffer.position() == _currentAddress);
+        
+        assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
+                "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
+                        .position(), _currentAddress);
         //
         // If the current journal file has room for the record, then return.
         //
