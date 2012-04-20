@@ -166,6 +166,11 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
                     throws PersistitException {
                 recoveredRowCount.addAndGet(value);
             }
+            
+            @Override
+            public boolean requiresLongRecordConversion() {
+                return true;
+            }
 
         };
         plan.applyAllRecoveredTransactions(commitListener, plan.getDefaultRollbackListener());
