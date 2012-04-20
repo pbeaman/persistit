@@ -1249,8 +1249,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                          * "Unless otherwise specified...")
                          */
                         channel.write(_writeBuffer, _writeBufferAddress % _blockSize);
-                        writeComplete = true;
-                        assert _writeBuffer.remaining() == 0;
+                        /*
+                         * Surprise: FileChannel#write does not throw an Exception if it
+                         * successfully writes some bytes and then encounters a disk
+                         * full condition. (Found this out empirically.)
+                         */
+                        writeComplete = _writeBuffer.remaining() == 0;
                     } finally {
                         written = _writeBuffer.position();
                         _writeBufferAddress += written;
