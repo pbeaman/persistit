@@ -26,6 +26,7 @@
 
 package com.persistit;
 
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 import com.persistit.exception.InvalidKeyException;
@@ -144,5 +145,9 @@ public class TestShim {
 
     public static void nudgeRight(final Key key) {
         key.nudgeRight();
+    }
+    
+    public static ByteBuffer getTransactionBuffer(Transaction txn) {
+        return txn.getTransactionBuffer();
     }
 }

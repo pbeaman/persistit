@@ -278,6 +278,12 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         public void endRecovery(long address, long timestamp) throws PersistitException {
             // Default: do nothing
         }
+        
+        @Override
+        public boolean requiresLongRecordConversion() {
+            return true;
+        }
+
     }
 
     public class DefaultRollbackListener implements TransactionPlayerListener {
@@ -332,6 +338,12 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         public void endRecovery(long address, long timestamp) throws PersistitException {
             // Default: do nothing
         }
+        
+        @Override
+        public boolean requiresLongRecordConversion() {
+            return false;
+        }
+
     }
 
     private class RecoveryTransactionPlayerSupport implements TransactionPlayerSupport {

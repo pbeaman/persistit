@@ -2566,6 +2566,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         public void endRecovery(long address, long timestamp) throws PersistitException {
             // Default: do nothing
         }
+        
+        @Override
+        public boolean requiresLongRecordConversion() {
+            return false;
+        }
+
+
     }
 
     private long rolloverThreshold() {
