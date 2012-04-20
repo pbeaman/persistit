@@ -34,47 +34,14 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import com.persistit.Key;
+import com.persistit.TestShim;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.KeyRenderer;
-import com.persistit.encoding.KeyStringCoder;
 import com.persistit.exception.ConversionException;
+import com.persistit.exception.PersistitException;
 
 public class KeyCoderTest1 extends PersistitUnitTestCase {
-
-
-    @Test
-    public void test1() {
-        System.out.print("test1 ");
-        final KeyStringCoder coder = new TestStringCoder();
-        Key key1;
-        Key key2;
-        key1 = new Key(_persistit);
-        key2 = new Key(_persistit);
-        key1.setKeyStringCoder(coder);
-        key2.setKeyStringCoder(coder);
-
-        final String a1 = "Abcde";
-        final String b1 = "abCDE";
-        final String c1 = "Bcde";
-
-        key1.clear().append(a1);
-        key2.clear().append(b1);
-
-        final String a2 = key1.indexTo(0).decodeString();
-        final String b2 = key2.indexTo(0).decodeString();
-
-        assertEquals(a1, a2);
-        assertEquals(b1, b2);
-        assertTrue(key1.compareTo(key2) < 0);
-
-        key1.clear().append(c1);
-        final String c2 = (String) key1.indexTo(0).decode();
-        assertTrue(key1.compareTo(key2) > 0);
-        assertEquals(c1, c2);
-
-        System.out.println("- done");
-    }
 
     @Test
     public void test2() throws MalformedURLException {
@@ -82,7 +49,6 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
         final KeyCoder coder = new TestKeyRenderer();
         _persistit.getCoderManager().registerKeyCoder(URL.class, coder);
         Key key1;
-        Key key2;
 
         key1 = new Key(_persistit);
         final URL url1 = new URL("http://w/z");
@@ -123,15 +89,45 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
                 + "(java.net.URL){\"http\",\"w\",8080,\"/z?userid=pb\"},\"c\"}");
         System.out.println("- done");
     }
+    
+    @Test
+    public void testKeyHandleEncodeDecode() throws Exception {
+        final int[] handles = {0, 0x1FE, 0x1FF, 0x200, 0x201, 0x7FFE, 0x7FFF, 0x8000, 0x8001, Integer.MAX_VALUE};
+        final KeyCoder coder = new TestKeyRenderer();
+        final Key key1 = new Key(_persistit);
+        final URL url1 = new URL("http://w/z");
+        final URL url2 = new URL("http://w:8080/z?userid=pb");
+
+        for (int handle : handles) {
+            registerCoderDefinedKeyHandle(coder, handle);
+            
+            key1.clear();
+            key1.append(url1);
+            key1.append(url2);
+
+            key1.reset();
+            final Object obj1 = key1.decode();
+            final Object obj2 = key1.decode();
+
+            assertEquals(url1.toString(), obj1.toString());
+            assertEquals(url2.toString(), obj2.toString());
+
+            final StringBuilder sb = new StringBuilder();
+            key1.indexTo(1);
+            key1.decode(sb);
+            assertEquals(url2.toString(), sb.toString());
+
+        }
+    }
+    
+    private void registerCoderDefinedKeyHandle(final KeyCoder coder, final int handle) throws PersistitException {
+        TestShim.clearAllClassIndexEntries(_persistit);
+        TestShim.setClassIndexTestIdFloor(_persistit, handle);
+        _persistit.getCoderManager().registerKeyCoder(URL.class, coder);
+    }
 
     public static void main(final String[] args) throws Exception {
         new KeyCoderTest1().initAndRunTest();
-    }
-
-    @Override
-    public void runAllTests() throws Exception {
-        test1();
-        test2();
     }
 
     public void debugAssert(boolean condition) {
@@ -174,72 +170,6 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
                 sb.append(port);
             }
             key.decodeString(sb);
-        }
-    }
-
-    public static class TestStringCoder implements KeyStringCoder {
-        @Override
-        public void appendKeySegment(final Key key, final Object object, final CoderContext context) {
-            if (object instanceof CharSequence) {
-                final CharSequence s = (CharSequence) object;
-                final byte[] bytes = key.getEncodedBytes();
-                final int start = key.getEncodedSize();
-                int end = start;
-                for (int i = 0; i < s.length(); i++) {
-                    int ch = s.charAt(i);
-                    if ((ch >= 'A') && (ch < 'M')) {
-                        ch = 'A' + 2 * (ch - 'A');
-                    } else if ((ch >= 'M') && (ch <= 'Z')) {
-                        ch = 'a' + 2 * (ch - 'M');
-                    } else if ((ch >= 'a') && (ch < 'm')) {
-                        ch = 'B' + 2 * (ch - 'a');
-                    } else if ((ch >= 'm') && (ch <= 'z')) {
-                        ch = 'b' + 2 * (ch - 'm');
-                    }
-                    bytes[end++] = (byte) ch;
-                }
-                key.setEncodedSize(end);
-            }
-        }
-
-        @Override
-        public Object decodeKeySegment(final Key key, final Class cl, final CoderContext context) {
-            final StringBuilder sb = new StringBuilder();
-            renderKeySegment(key, sb, cl, context);
-            if (cl == StringBuilder.class) {
-                return sb;
-            }
-            if (cl == String.class) {
-                return sb.toString();
-            }
-            throw new ConversionException("String conversion to class " + cl.getName() + " is not supported");
-        }
-
-        @Override
-        public void renderKeySegment(final Key key, final Object target, final Class cl, final CoderContext context) {
-            final StringBuilder sb = (StringBuilder) target;
-            final byte[] bytes = key.getEncodedBytes();
-            final int start = key.getIndex();
-            for (int end = start;; end++) {
-                int ch = bytes[end];
-                if (ch == 0) {
-                    key.setIndex(end);
-                    break;
-                }
-                final boolean lower = (ch & 1) == 0;
-                if ((ch >= 'A') && (ch <= 'Z')) {
-                    ch = 'A' + (ch - 'A') / 2;
-                    if (lower) {
-                        ch += ('a' - 'A');
-                    }
-                } else if ((ch >= 'a') && (ch <= 'z')) {
-                    ch = 'M' + (ch - 'a') / 2;
-                    if (lower) {
-                        ch += ('a' - 'A');
-                    }
-                }
-                sb.append((char) ch);
-            }
         }
     }
 }

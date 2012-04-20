@@ -58,7 +58,7 @@ public class Log4JAdapter implements PersistitLogger {
     private Logger _logger;
 
     /**
-     * Constructs a wrapped JDK 1.4 Logger.
+     * Constructs a wrapped Log4J Logger.
      * 
      * @param logger
      *            A <code>Logger</code> to which Persistit log messages will be
@@ -72,8 +72,8 @@ public class Log4JAdapter implements PersistitLogger {
      * Overrides <code>isLoggable</code> to allow control by the wrapped
      * <code>Logger</code>.
      * 
-     * @param lt
-     *            The <code>LogTemplate</code>
+     * @param level
+     *            The <code>PersistitLevel</code>
      */
     @Override
     public boolean isLoggable(PersistitLevel level) {

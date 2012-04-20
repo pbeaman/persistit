@@ -33,10 +33,9 @@ import com.persistit.exception.ConversionException;
  * <p>
  * Interface for specialized encoding and decoding of an <code>Object</code> of
  * arbitrary type to or from a {@link Key}. Persistit contains built-in logic to
- * encode Objects of certain classes. By implementing and registering a
- * <code>KeyCoder</code> with the current {@link CoderManager} you can override
- * the default encoding or add encoding for classes that otherwise are not able
- * to be included in Persistit key values.
+ * encode Objects of certain classes. By registering a <code>KeyCoder</code>
+ * with the current {@link CoderManager} you can add encoding for classes that
+ * otherwise are not able to be included in Persistit key values.
  * </p>
  * <p>
  * A <code>KeyCoder</code> implements methods to convert an object of some class

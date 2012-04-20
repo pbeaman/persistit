@@ -72,8 +72,8 @@ public class JDK14LoggingAdapter implements PersistitLogger {
      * Overrides <code>isLoggable</code> to allow control by the wrapped
      * <code>Logger</code>.
      * 
-     * @param lt
-     *            The <code>LogTemplate</code>
+     * @param level
+     *            The <code>PersistitLevel</code>
      */
     @Override
     public boolean isLoggable(PersistitLevel level) {

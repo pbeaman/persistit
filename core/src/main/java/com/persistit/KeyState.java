@@ -29,7 +29,7 @@ package com.persistit;
 import java.io.Serializable;
 
 /**
- * Contains an immutable copy of the state from a {@link Key} object suitable
+ * Represent an immutable copy of the state from a {@link Key} object suitable
  * for use as the key of a <code>Map</code>.
  * 
  * @version 1.0
@@ -65,7 +65,7 @@ public class KeyState implements Comparable, Serializable {
     }
 
     /**
-     * Copies the content of this <code>KeyState</code> to the supplied
+     * Copy the content of this <code>KeyState</code> to the supplied
      * <code>Key</code>.
      * 
      * @param key
@@ -81,10 +81,10 @@ public class KeyState implements Comparable, Serializable {
     }
 
     /**
-     * The hash code for this <code>KeyState</code>. The hashCode is the same as
+     * Compute the hash code for this <code>KeyState</code>. The hashCode is the same as
      * for the equivalent <code>Key</code>, that is the <code>Key</code> from
      * which this <code>KeyState</code> was constructed prior to any subsequent
-     * modificiations.
+     * modifications.
      * 
      * @return The hashCode.
      */
@@ -101,7 +101,7 @@ public class KeyState implements Comparable, Serializable {
     }
 
     /**
-     * Implements <code>equals</code> in such a way that <code>Key</code> and
+     * Implement <code>equals</code> in such a way that <code>Key</code> and
      * <code>KeyState</code> can be used interchangeably as map keys.
      * 
      * @return <code>true</code> if the specified object is either a
@@ -134,7 +134,7 @@ public class KeyState implements Comparable, Serializable {
     }
 
     /**
-     * Implements <code>Comparable</code> in such a way that <code>Key</code>
+     * Implement <code>Comparable</code> in such a way that <code>Key</code>
      * and <code>KeyState</code> can be used interchangeably as map keys.
      * 
      * @return results of comparing the key value represented by this

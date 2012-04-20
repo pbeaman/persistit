@@ -26,7 +26,7 @@
 
 package com.persistit;
 
-public interface ValueHelper {
+interface ValueHelper {
 
     int requiredLength(final byte[] target, int targetOffset, int targetLength);
 

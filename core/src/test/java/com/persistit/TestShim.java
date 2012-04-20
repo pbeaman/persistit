@@ -115,11 +115,11 @@ public class TestShim {
     public static void copyPages(final JournalManager jman) throws Exception {
         jman.copyBack();
     }
-    
+
     public static Exchange directoryExchange(final Volume volume) {
         return volume.getStructure().directoryExchange();
     }
-    
+
     public static boolean isValueLongRecord(final Exchange ex) throws PersistitException {
         return ex.isValueLongRecord();
     }
@@ -147,7 +147,25 @@ public class TestShim {
     public static void nudgeRight(final Key key) {
         key.nudgeRight();
     }
+
+    public static Task parseTask(final Persistit persistit, final String line) throws Exception {
+        return CLI.parseTask(persistit, line);
+    }
+
+    public static int storeVersion(byte[] target, int targetOffset, int targetLength, int targetLimit,
+            long versionHandle, byte[] source, int sourceOffset, int sourceLength) {
+        return MVV.storeVersion(target, targetOffset, targetLength, targetLimit, versionHandle, source, sourceOffset,
+                sourceLength);
+    }
     
+    public static void setClassIndexTestIdFloor(final Persistit persistit, final int id) {
+        persistit.getClassIndex().setTestIdFloor(id);
+    }
+    
+    public static void clearAllClassIndexEntries(final Persistit persistit) throws PersistitException {
+        persistit.getClassIndex().clearAllEntries();
+    }   
+
     public static ByteBuffer getTransactionBuffer(Transaction txn) {
         return txn.getTransactionBuffer();
     }

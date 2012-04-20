@@ -33,6 +33,12 @@ import java.util.Random;
 import java.util.StringTokenizer;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Internal helper methods used to help verify code correctness.
+ * 
+ * @author peter
+ * 
+ */
 public class Debug {
 
     public final static boolean ENABLED = false;

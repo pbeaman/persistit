@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * Selects Volumes, Trees or Keys given a pattern string. The CLI utilities use
+ * Select Volumes, Trees or Keys given a pattern string. The CLI utilities use
  * this to select Volumes and/or Trees. Syntax:
  * 
  * <pre>
@@ -101,6 +101,20 @@ public class TreeSelector {
     private static enum State {
         V, T, K, C
     }
+
+    /**
+     * Create a <code>TreeSelector</code> based on the supplied parameters.
+     * 
+     * @param spec
+     *            The specification string
+     * @param regex
+     *            <code>true</code> if the specification string is a Regex
+     *            expression, <code>false</code> if it simply uses '*' and '?'
+     *            as wildcards
+     * @param quote
+     *            meta-character to quote the next character, typically '\'
+     * @return the <code>TreeSelector</code>
+     */
 
     public static TreeSelector parseSelector(final String spec, final boolean regex, final char quote) {
         TreeSelector treeSelector = new TreeSelector();

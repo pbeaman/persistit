@@ -30,7 +30,7 @@ import java.util.List;
 
 import org.junit.Test;
 
-import com.persistit.MVV;
+import com.persistit.TestShim;
 import com.persistit.Value;
 import com.persistit.Value.Version;
 
@@ -63,7 +63,7 @@ public class ValueTest7 extends PersistitUnitTestCase {
         Value v = new Value(_persistit);
         for (int i = 1; i < 5; i++) {
             v.put(RED_FOX + "_" + i);
-            int s = MVV.storeVersion(value.getEncodedBytes(), 0, value.getEncodedSize(), 100000, i,
+            int s = TestShim.storeVersion(value.getEncodedBytes(), 0, value.getEncodedSize(), 100000, i,
                     v.getEncodedBytes(), 0, v.getEncodedSize());
             value.setEncodedSize(s);
         }

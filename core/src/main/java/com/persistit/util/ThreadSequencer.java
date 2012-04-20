@@ -33,9 +33,9 @@ import java.util.concurrent.Semaphore;
 
 /**
  * <p>
- * Utility allows tests to define execution sequences to confirm specific
- * concurrent execution patterns. Application code incorporates calls to the
- * static method {@link #sequence(int)}. Each usage in the application code
+ * Internal utility that allows tests to define execution sequences to confirm
+ * specific concurrent execution patterns. Subject code incorporates calls to
+ * the static method {@link #sequence(int)}. Each usage in the application code
  * should follow this pattern:
  * </p>
  * <ul>
@@ -72,7 +72,7 @@ import java.util.concurrent.Semaphore;
  * </p>
  * <p>
  * The entire ThreadSequence mechanism must be enabled via
- * {@link #enableSequencer(boolean))}. By default all calls to
+ * {@link #enableSequencer(boolean)}. By default all calls to
  * {@link #sequence(int)} invoke an empty method in the NullSequencer subclass,
  * which is fast.
  * </p>
@@ -122,7 +122,7 @@ public class ThreadSequencer implements SequencerConstants {
     private final static List<String> LOCATIONS = new ArrayList<String>();
 
     private final static int MAX_LOCATIONS = 64;
-    
+
     public synchronized static int allocate(final String locationName) {
         for (final String alreadyRegistered : LOCATIONS) {
             assert !alreadyRegistered.equals(locationName) : "Location name " + locationName + " is already in use";
@@ -195,7 +195,7 @@ public class ThreadSequencer implements SequencerConstants {
             sb.append(LOCATIONS.get(location));
         }
     }
-    
+
     public static String describeHistory(int[] history) {
         StringBuilder sb = new StringBuilder();
         if (history != null) {
@@ -211,12 +211,12 @@ public class ThreadSequencer implements SequencerConstants {
 
     public static String describePartialOrdering(int[]... args) {
         StringBuilder builder = new StringBuilder();
-        for(int i = 0; i < args.length; ++i) {
-            if(i != 0) {
+        for (int i = 0; i < args.length; ++i) {
+            if (i != 0) {
                 builder.append(',');
             }
             builder.append('{');
-            for(int location : args[i]) {
+            for (int location : args[i]) {
                 appendHistoryElement(builder, location);
             }
             builder.append('}');
@@ -226,45 +226,67 @@ public class ThreadSequencer implements SequencerConstants {
 
     /**
      * Compare a particular sequence history to a collection of required
-     * subsets. That is, compare the total ordering of the history as
-     * specified by the given ranges where the elements within a given
-     * range can be in any order.
+     * subsets. That is, compare the total ordering of the history as specified
+     * by the given ranges where the elements within a given range can be in any
+     * order.
      * <p>
      * For example, a <code>partialOrderings</code> of:
-     *     <ul><li><pre>{ { A_IN, B_IN }, { OUT_B }, { IN_C } }</pre></li></ul>
+     * <ul>
+     * <li>
+     * 
+     * <pre>
+     * { { A_IN, B_IN }, { OUT_B }, { IN_C } }
+     * </pre>
+     * 
+     * </li>
+     * </ul>
      * Could be satisfied by either of these <code>history</code>:
-     *     <ul>
-     *         <li><pre>{ A_IN, B_IN, OUT_B, IN_C }</pre></li>
-     *         <li><pre>{ B_IN, A_IN, OUT_B, IN_C }</pre></li>
-     *     </ul>
+     * <ul>
+     * <li>
+     * 
+     * <pre>
+     * { A_IN, B_IN, OUT_B, IN_C }
+     * </pre>
+     * 
+     * </li>
+     * <li>
+     * 
+     * <pre>
+     * { B_IN, A_IN, OUT_B, IN_C }
+     * </pre>
+     * 
+     * </li>
+     * </ul>
      * But not by any that contains IN_C before OUT_B.
      * </p>
      * <p>
-     *     <b>Note:</b> Both parameters will be modified by sorting.
+     * <b>Note:</b> Both parameters will be modified by sorting.
      * </p>
-     *
+     * 
      * @param history
-     *            An ordered history, e.g. from {@link #rawSequenceHistoryCopy()}.
+     *            An ordered history, e.g. from
+     *            {@link #rawSequenceHistoryCopy()}.
      * @param partialOrderings
      *            Total ordering specification of unordered subsets
-     *
-     * @return <code>true</code> if the history fulfilled the required orderings.
+     * 
+     * @return <code>true</code> if the history fulfilled the required
+     *         orderings.
      */
     public static boolean historyMeetsPartialOrdering(int[] history, int[]... partialOrderings) {
         /*
-        * Sort each subset and equivalent ranges in the actual history.
-        * Then a simple element wise comparison.
-        */
+         * Sort each subset and equivalent ranges in the actual history. Then a
+         * simple element wise comparison.
+         */
         int offset = 0;
-        for(int[] subset : partialOrderings) {
+        for (int[] subset : partialOrderings) {
             Arrays.sort(subset);
             int nextOffset = offset + subset.length;
-            if(nextOffset > history.length) {
+            if (nextOffset > history.length) {
                 return false;
             }
             Arrays.sort(history, offset, nextOffset);
-            for(int i = 0; i < subset.length; ++i) {
-                if(subset[i] != history[offset + i]) {
+            for (int i = 0; i < subset.length; ++i) {
+                if (subset[i] != history[offset + i]) {
                     return false;
                 }
             }
@@ -280,7 +302,7 @@ public class ThreadSequencer implements SequencerConstants {
     public static int out(int location) {
         return Integer.MAX_VALUE - location;
     }
-    
+
     private static long bits(final int[] locations) {
         long bits = 0;
         for (final int location : locations) {
@@ -293,8 +315,9 @@ public class ThreadSequencer implements SequencerConstants {
 
     interface Sequencer {
         /**
-         * A location is a long with one bit set that denotes one of MAX_LOCATIONS possible
-         * locations in code where a join point can occur.
+         * A location is a long with one bit set that denotes one of
+         * MAX_LOCATIONS possible locations in code where a join point can
+         * occur.
          * 
          * @param location
          */
@@ -448,7 +471,7 @@ public class ThreadSequencer implements SequencerConstants {
             int[] historyCopy = null;
             if (_history != null) {
                 historyCopy = new int[_history.size()];
-                for(int i = 0; i < _history.size(); ++i) {
+                for (int i = 0; i < _history.size(); ++i) {
                     historyCopy[i] = _history.get(i);
                 }
             }

@@ -90,7 +90,7 @@ public final class DefaultCoderManager implements CoderManager {
      * <code>serialOverride</code> system configuration property to determine
      * which classes, if any, must employ standard Java serialization.
      * 
-     * @see #DefaultCoderManager(String)
+     * @see #DefaultCoderManager(Persistit, String)
      * @throws IllegalArgumentException
      *             if the format of the <code>serialOverride</code> property is
      *             invalid

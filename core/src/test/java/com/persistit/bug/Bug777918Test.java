@@ -217,7 +217,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
         // transactions.
         //
         try {
-        _persistit.initialize(properties);
+            _persistit.initialize(properties);
         } catch (MissingThreadException e) {
             // expected
         } catch (TestException e) {

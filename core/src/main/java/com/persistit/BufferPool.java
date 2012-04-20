@@ -47,13 +47,13 @@ import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
-import com.persistit.util.LockManager;
 import com.persistit.util.Util;
 
 /**
  * A pool of {@link Buffer} objects, maintained on various lists that permit
  * rapid lookup and replacement of pages images within <code>Buffer</code>s.
  * 
+ * @author peter
  * @version 2.1
  */
 public class BufferPool {
@@ -1427,8 +1427,4 @@ public class BufferPool {
         }
         stream.flush();
     }
-
-    // TODO -- Remove this when done with bug
-
-    LockManager _lockManager = new LockManager();
 }

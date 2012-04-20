@@ -26,20 +26,26 @@
 
 package com.persistit.exception;
 
+import java.io.IOException;
+
 /**
- * This is a wrapper for any {@link Exception} that occurs while initializing
- * the logging subsystem. It is frequently convenient for the caller of a
- * Persistit method to catch {@link PersistitException}s without also needing to
- * catch <code>IOException</code>s or other <code>Exception</code> subclasses.
- * For compatibility with earlier J2SE releases this is implemented without
- * using JDK 1.4 Exception chaining.
+ * Unchecked wrapper for an {@link IOException} used in a context where the
+ * {@link Appendable#append} operation throws an IOException. Since most uses of
+ * methods that take an <code>Appendable</code> will operate on
+ * <code>StringBuilder</code>s, for which an IOException is never thrown, it is
+ * desirable for calling code not to have to catch and handle
+ * <code>IOException</code>. Therefore any <code>IOException</code> from
+ * invoking append on a different <code>Appendable</code> implementation is
+ * caught and thrown as this unchecked type.
  * 
  * @version 1.0
  */
-public class LogInitializationException extends PersistitException {
-    private static final long serialVersionUID = -3253500224779009799L;
+public class AppendableIOException extends RuntimeException {
 
-    public LogInitializationException(Exception e) {
-        super(e);
+    private static final long serialVersionUID = -2096632389635542578L;
+
+    public AppendableIOException(IOException ioe) {
+        super(ioe);
     }
+
 }

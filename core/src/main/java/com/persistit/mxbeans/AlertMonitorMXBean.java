@@ -30,9 +30,7 @@ import com.persistit.AlertMonitor;
 import com.persistit.AlertMonitor.AlertLevel;
 
 /**
- * Methods of {@link AlertMonitor intended to be exposed in an MXBean. This
- * interface should be extended by the MXBean interface for a concrete
- * implementation such as {@link IOAlertMonitorMXBean}.
+ * Methods of {@link AlertMonitor} to be exposed by an MXBean.
  */
 public interface AlertMonitorMXBean {
 
@@ -91,7 +89,7 @@ public interface AlertMonitorMXBean {
      * Set the interval between successive notifications for this monitor when
      * its {@link AlertLevel#ERROR}.
      * 
-     * @param _warnLogTimeInterval
+     * @param errorLogTimeInterval
      *            the interval in milliseconds
      */
     @Description("The interval in milliseconds between successive notifications"

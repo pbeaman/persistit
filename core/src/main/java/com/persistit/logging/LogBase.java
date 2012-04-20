@@ -35,12 +35,28 @@ import java.lang.reflect.Field;
 import com.persistit.logging.PersistitLogMessage.LogItem;
 
 /**
- *
+ * <p>
+ * Log message and configuration mechanism for Persistit's internal logging
+ * method. This class contains a field for each log message template. Typical
+ * use within the main body of code is this:
+ * 
+ * <pre>
+ * <code>
+ *     persistit.getLogBase().recoveryException.log(exception, location);
+ * </code>
+ * </pre>
+ * 
+ * where <code>recoveryException</code> is one of the fields of this class. Each
+ * field contains a {@link LogItem} which is either enabled or disabled,
+ * depending on the currently configured log level. An enabled
+ * <code>LogItem</code> actually issues a log message, while a disabled
+ * <code>LogItem</code> does nothing.
+ * </p>
  */
 public class LogBase {
 
     public final static String RECURRING = "%s (%,d similar occurrences in %,d seconds)";
-    
+
     /**
      * Annotation for basic English log messages
      */
@@ -124,7 +140,7 @@ public class LogBase {
 
     @Message("WARNING|Transaction abandoned %s")
     public final LogItem txnAbandoned = PersistitLogMessage.empty();
-    
+
     @Message("INFO|Starting AdminUI")
     public final LogItem startAdminUI = PersistitLogMessage.empty();
 
@@ -218,12 +234,12 @@ public class LogBase {
     @Message("WARNING|Transaction %s pruning incomplete at %s after rollback")
     public final LogItem pruningIncomplete = PersistitLogMessage.empty();
 
-    @Message ("WARNING|Crash retried %,d times on %s")
+    @Message("WARNING|Crash retried %,d times on %s")
     public final LogItem crashRetry = PersistitLogMessage.empty();
-    
-    @Message ("WARNING|Journal flush operation took %,dms")
+
+    @Message("WARNING|Journal flush operation took %,dms")
     public final LogItem longJournalIO = PersistitLogMessage.empty();
-    
+
     @Message("INFO|Normal journal file count %,d")
     public final LogItem normalJournalFileCount = PersistitLogMessage.empty();
 
@@ -236,7 +252,7 @@ public class LogBase {
     public static String recurring(final String message, final int count, final long duration) {
         return String.format(RECURRING, message, count, duration);
     }
-  
+
     public void configure(final PersistitLogger logger) {
         for (final Field field : this.getClass().getDeclaredFields()) {
             final Message annotation = field.getAnnotation(Message.class);
@@ -253,5 +269,5 @@ public class LogBase {
             }
         }
     }
- 
+
 }

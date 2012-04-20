@@ -41,7 +41,7 @@ import javax.management.StandardMBean;
 /**
  * Wrapper for MXBean to enable the {@link Description} annotation.
  * 
- * @see http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4853303
+ * @see <a href="http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4853303">Bug 4853303</a>
  * 
  * @author peter
  * 

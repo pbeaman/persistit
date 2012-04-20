@@ -47,11 +47,13 @@ import com.persistit.Management.VolumeInfo;
 import com.persistit.util.Util;
 
 /**
+ * <p>
  * Task to perform and/or control hot (concurrent) backup. Generally the process
  * of copying large data files is best done by third party utility software.
  * This class provides built-in ability to copy database files, but production
  * configurations will likely use only the control mechanisms of this class and
  * will run external programs to perform data compression and copying.
+ * </p>
  * <p>
  * To perform a concurrent backup, Persistit needs to ensure that the state of
  * copied volume files plus journal files is sufficient to ensure a consistent,
@@ -59,12 +61,13 @@ import com.persistit.util.Util;
  * <code>appendOnly</code> mode, which causes Persistit not to modify its Volume
  * files and not to delete any journal files. A snapshot of the journal file and
  * volume provides a reliable source for recovery.
+ * </p>
  * <p>
  * This class provides a {@link Task} implementation that sets and resets the
  * <code>appendOnly</code> flag, provides a list a files needing to be copied to
  * form a complete backup, and as a convenience, a mechanism to compress and
  * copy them.
- * <p>
+ * </p>
  * 
  * @author peter
  * 

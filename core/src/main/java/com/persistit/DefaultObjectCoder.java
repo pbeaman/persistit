@@ -42,10 +42,10 @@ import com.persistit.exception.ConversionException;
 
 /**
  * <p>
- * Implements {@link ObjectCoder} using reflection to access the properties
- * and/or fields of an object. An <code>ObjectCoder</code> provides methods to
- * encode and decode properties or fields of an object into or from {@link Key
- * Key}s and {@link Value Value}s.
+ * An {@link ObjectCoder} that uses reflection to access the properties and/or
+ * fields of an object. An <code>ObjectCoder</code> provides methods to encode
+ * and decode properties or fields of an object into or from {@link Key Key}s
+ * and {@link Value Value}s.
  * </p>
  * <p>
  * <code>ObjectCoder</code>s allow Persistit to store and retrieve arbitrary
@@ -150,6 +150,7 @@ import com.persistit.exception.ConversionException;
  * 
  * </p>
  * 
+ * @author peter
  * @version 1.1
  */
 public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer {

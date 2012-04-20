@@ -108,7 +108,7 @@ import com.persistit.util.Util;
  * 
  * The first term specifies a range that includes any last name that sorts
  * alphabetically between "M" and "Q" (inclusively). The second term is an
- * OrTerm that selects the first names "Alice" and "Bob".
+ * OrTerm that selects the first names "Alice" or "Bob".
  * </p>
  * <p>
  * A RangeTerm optionally specifies whether the end-points are inclusive. For
@@ -327,7 +327,6 @@ public class KeyFilter {
      */
     private int _keyPrefixByteCount = 0;
     private boolean _isKeyPrefixFilter = false;
-
 
     /**
      * Constructs an empty <code>KeyFilter</code>. This <code>KeyFilter</code>
@@ -1512,10 +1511,9 @@ public class KeyFilter {
      * @param key
      *            The <code>Key</code>
      * 
-     * @param forward
-     *            <code>true</code> to advance to the next larger key, or
-     *            <code>false</code> to advance to the next smaller key within
-     *            the key ordering.
+     * @param direction
+     *            Direction specified in the <code>traverse</code> method using
+     *            this KeyFilter
      * 
      * @return <code>true</code> if a successor (or predecessor) key exists,
      *         otherwise <code>false</code>.
@@ -1742,7 +1740,7 @@ public class KeyFilter {
     boolean isKeyPrefixFilter() {
         return _isKeyPrefixFilter;
     }
-    
+
     int getKeyPrefixByteCount() {
         return _keyPrefixByteCount;
     }

@@ -62,7 +62,7 @@ public class KeyParser {
     }
 
     /**
-     * Constructs a <code>KeyParser</code> for the specified string.
+     * Construct a <code>KeyParser</code> for the specified string.
      * 
      * @param source
      *            The string to be parsed.
@@ -75,7 +75,7 @@ public class KeyParser {
     }
 
     /**
-     * Constructs a <code>KeyParser</code> for a substring of the specified
+     * Construct a <code>KeyParser</code> for a substring of the specified
      * string.
      * 
      * @param source
@@ -98,7 +98,7 @@ public class KeyParser {
     }
 
     /**
-     * Parses a key value from the string or substring from which this
+     * Parse a key value from the string or substring from which this
      * <code>KeyParser</code> was constructed, modifying the supplied
      * <code>Key</code> to contain the result.
      * 
@@ -140,7 +140,7 @@ public class KeyParser {
     }
 
     /**
-     * Parses and returns a <code>KeyFilter</code> from the string or substring
+     * Parse and returns a <code>KeyFilter</code> from the string or substring
      * from which this <code>KeyParser</code> was constructed.
      * 
      * @return A <code>KeyFilter</code> or <code>null</code> if the string or
@@ -225,8 +225,8 @@ public class KeyParser {
     }
 
     /**
-     * Attempts to parse a chunk of the source string as a key segment. If
-     * successful, appends the segment to the key.
+     * Attempt to parse a chunk of the source string as a key segment. If
+     * successful, append the segment to the key.
      * 
      * @param key
      * @return

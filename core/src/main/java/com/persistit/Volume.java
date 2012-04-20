@@ -41,14 +41,17 @@ import com.persistit.exception.WrongVolumeException;
 import com.persistit.util.Util;
 
 /**
+ * <p>
  * Represent the identity and optionally the service classes that manage a
  * volume. A newly constructed Volume is "hollow" in the sense that it has no
  * ability to perform I/O on a backing file or allocate pages. In this state it
  * represents the identity, but not the content, of the volume.
- * <p />
+ * </p>
+ * <p>
  * To enable the <code>Volume</code> to act on data, you must supply a
  * {@link VolumeSpecification} object, either through the constructor or with
- * #setSpecification call either the {@link #open(Persistit)} method.
+ * {@link #setSpecification}, and then call the {@link #open(Persistit)} method.
+ * </p>
  * 
  * @author peter
  */
@@ -85,6 +88,11 @@ public class Volume {
         _id = id;
     }
 
+    /**
+     * Construct a hollow Volume with its specification.
+     * 
+     * @param specification
+     */
     Volume(final VolumeSpecification specification) {
         this(specification.getName(), specification.getId());
         _specification = specification;
@@ -140,7 +148,7 @@ public class Volume {
     }
 
     /**
-     * Closes all resources for this <code>Volume</code> and invalidates all its
+     * Release all resources for this <code>Volume</code> and invalidate all its
      * buffers in the {@link BufferPool}. Exchanges based on this
      * <code>Volume</code> may no longer be used after this call.
      * 
@@ -219,6 +227,13 @@ public class Volume {
         }
     }
 
+    /**
+     * Delete the file backing this <code>Volume</code>.
+     * 
+     * @return <code>true</code> if the file existed and was successfully
+     *         deleted.
+     * @throws PersistitException
+     */
     public boolean delete() throws PersistitException {
         if (!isClosed()) {
             throw new IllegalStateException("Volume must be closed before deletion");
@@ -235,10 +250,19 @@ public class Volume {
         return getStorage().getPath();
     }
 
+    /**
+     * @return page address of the first unused page in this <code>Volume</code>
+     */
     public long getNextAvailablePage() {
         return getStorage().getNextAvailablePage();
     }
 
+    /**
+     * @return number of pages allocated to this <code>Volume</code>. Note that
+     *         this method reflects the current length of the volume file, but
+     *         on sparse file systems the disk space needed to store new pages
+     *         may not yet have been allocated.
+     */
     public long getExtendedPageCount() {
         return getStorage().getExtentedPageCount();
     }
@@ -287,7 +311,7 @@ public class Volume {
     }
 
     /**
-     * Returns an array of all currently defined <code>NewTree</code> names.
+     * Returns an array of all currently defined <code>Tree</code> names.
      * 
      * @return The array
      * 
@@ -339,7 +363,7 @@ public class Volume {
     }
 
     /**
-     * Indicates whether this <code>Volume</code> prohibits updates.
+     * Indicate whether this <code>Volume</code> prohibits updates.
      * 
      * @return <code>true</code> if this Volume prohibits updates.
      */
@@ -418,8 +442,8 @@ public class Volume {
     /**
      * Store an Object with this Volume for the convenience of an application.
      * 
-     * @param the
-     *            object to be cached for application convenience.
+     * @param appCache
+     *            the object to be cached for application convenience.
      */
     public void setAppCache(Object appCache) {
         _appCache.set(appCache);

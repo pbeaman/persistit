@@ -30,12 +30,16 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 
-import com.persistit.exception.PersistitInterruptedException;
-import com.persistit.util.Util;
-
 /**
  * The default implementation of logging for Persistit. Writes log messages to a
- * file and/or System.err.
+ * file and/or System.err. Many applications will uses one of the logging
+ * adapter classes instead of this class to connect Persistit's log output to an
+ * existing infrastructure.
+ * 
+ * @see ApacheCommonsLogAdapter
+ * @see JDK14LoggingAdapter
+ * @see Log4JAdapter
+ * @see Slf4jAdapter
  * 
  * @version 1.0
  */
@@ -86,8 +90,9 @@ public class DefaultPersistitLogger implements PersistitLogger {
      * Writes a message to the log file and also displays high-significance
      * messages to <code>System.err</code>.
      * 
-     * @param logTemplate
-     *            Ignored in this implementation
+     * @param level
+     *            PersistitLevel at which this message should be logged.
+     *            (Ignored in this implementation.)
      * @param message
      *            The message to write
      */

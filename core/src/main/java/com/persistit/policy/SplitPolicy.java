@@ -30,21 +30,52 @@ import com.persistit.Buffer;
 import com.persistit.Exchange.Sequence;
 
 /**
- * @author pbeaman
+ * Policies for determining the balance between left and right pages when
+ * insertion causes a page to split.
+ * 
+ * @author peter
  */
 public abstract class SplitPolicy {
+    /**
+     * Allocate as many records as possible to the left page
+     */
     public final static SplitPolicy LEFT_BIAS = new Left();
+    /**
+     * Allocate as many records as possible to the right page
+     */
     public final static SplitPolicy RIGHT_BIAS = new Right();
+    /**
+     * Allocate as records evenly between left and right pages
+     */
     public final static SplitPolicy EVEN_BIAS = new Even();
+    /**
+     * Allocate about 2/3 of records to the left and 1/3 to the right page
+     */
     public final static SplitPolicy NICE_BIAS = new Nice();
+    /**
+     * Equivalent to {@link #LEFT90_BIAS} or {{@link #RIGHT90_BIAS} when records
+     * are being inserted in sequential key order, otherwise equivalent to
+     * {@link #NICE_BIAS}
+     */
     public final static SplitPolicy PACK_BIAS = new Pack();
-    public final static SplitPolicy LEFT90 = new Left90();
-    public final static SplitPolicy RIGHT90 = new Right90();
+
+    /**
+     * Allocate all records to the left page until it is about 90% full, then
+     * allocate remaining records to the right page. Like LEFT_BIAS except this
+     * policy attempts to leave the left page 10% empty.
+     */
+    public final static SplitPolicy LEFT90_BIAS = new Left90();
+    /**
+     * Allocate all records to the right page until it is about 90% full, then
+     * allocate remaining records to the right page. Like RIGHT_BIAS except this
+     * policy attempts to leave the right page 10% empty.
+     */
+    public final static SplitPolicy RIGHT90_BIAS = new Right90();
 
     final static int KEYBLOCK_LENGTH = 4;
 
-    private final static SplitPolicy[] POLICIES = { LEFT_BIAS, RIGHT_BIAS, EVEN_BIAS, NICE_BIAS, PACK_BIAS, LEFT90,
-            RIGHT90 };
+    private final static SplitPolicy[] POLICIES = { LEFT_BIAS, RIGHT_BIAS, EVEN_BIAS, NICE_BIAS, PACK_BIAS,
+            LEFT90_BIAS, RIGHT90_BIAS };
 
     private final static float PACK_SHOULDER = 0.9f;
 
@@ -91,10 +122,12 @@ public abstract class SplitPolicy {
      * @param splitBest
      *            the previous best-fit result from this method, or 0 if there
      *            is no candidate split location yet.
+     * @param sequence
+     *            current sequential insert state
      * @return measure of goodness of fit.
      */
     public abstract int splitFit(Buffer buffer, int kbOffset, int insertAt, boolean replace, int leftSize,
-            int rightSize, int currentSize, int virtualSize, int capacity, int splitInfo, Sequence sequence);
+            int rightSize, int currentSize, int virtualSize, int capacity, int splitBest, Sequence sequence);
 
     private static class Left extends SplitPolicy {
 
