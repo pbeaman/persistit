@@ -32,11 +32,22 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.persistit.util.Util;
 
 /**
- * Collection of <code>AtomicLong</code> counters representing for interesting
- * statistics in a {@link Tree}. The {@link #save} and {@link #load} methods are
- * designed to serialize and deserialize evolving versions of this class.
- * Therefore it should be relatively to add and remove in new versions of
- * Persistit.
+ * <p>
+ * Collection of <code>AtomicLong</code> counters representing interesting
+ * statistics in a {@link Tree}. The {@link #store} and {@link #load} methods
+ * are designed to serialize and deserialize evolving versions of this class,
+ * therefore it is possible to add and remove new counters while remaining
+ * compatible with prior versions.
+ * </p>
+ * <p>
+ * Currently implemented counters include:
+ * <ul>
+ * <li>Fetch</li>
+ * <li>Traverse</li>
+ * <li>Store</li>
+ * <li>Remove</li>
+ * </ul>
+ * </p>
  * 
  * @author peter
  */
@@ -47,8 +58,6 @@ public class TreeStatistics {
     private final AtomicLong _traverseCounter = new AtomicLong();
     private final AtomicLong _storeCounter = new AtomicLong();
     private final AtomicLong _removeCounter = new AtomicLong();
-    private final AtomicLong _mvvCounter = new AtomicLong();
-    private final AtomicLong _mvvOverhead = new AtomicLong();
 
     private final AtomicBoolean _dirty = new AtomicBoolean();
     /*
@@ -59,10 +68,10 @@ public class TreeStatistics {
      * its position.
      */
     private final AtomicLong[] _statsArray = new AtomicLong[] { _fetchCounter, _traverseCounter, _storeCounter,
-            _removeCounter, _mvvCounter, _mvvOverhead };
+            _removeCounter };
 
     private final static String[] _statsArrayNames = new String[] { "fetchCounter", "traverseCounter", "storeCounter",
-            "removeCounter", "mvvCounter", "mvvOverhead" };
+            "removeCounter" };
 
     @Override
     public String toString() {
@@ -85,7 +94,7 @@ public class TreeStatistics {
     /**
      * @return the count of {@link Exchange#fetch} operations, including
      *         {@link Exchange#fetchAndStore} and
-     *         {@link Exchange#fetchAndRemove} operations.
+     *         {@link Exchange#fetchAndRemove} operations
      */
     public long getFetchCounter() {
         return _fetchCounter.get();
@@ -93,7 +102,7 @@ public class TreeStatistics {
 
     /**
      * @return the count of {@link Exchange#traverse} operations including
-     *         {@link Exchange#next} and {@link Exchange#_previous}.
+     *         {@link Exchange#next} and {@link Exchange#previous}
      */
     public long getTraverseCounter() {
         return _traverseCounter.get();
@@ -101,8 +110,7 @@ public class TreeStatistics {
 
     /**
      * @return the count of {@link Exchange#store} operations, including
-     *         {@link Exchange#fetchAndStore} and
-     *         {@link Exchange#incrementValue} operations.
+     *         {@link Exchange#fetchAndStore}
      */
     public long getStoreCounter() {
         return _storeCounter.get();
@@ -110,26 +118,10 @@ public class TreeStatistics {
 
     /**
      * @return the count of {@link Exchange#remove} operations, including
-     *         {@link Exchange#fetchAndRemove} operations.
+     *         {@link Exchange#fetchAndRemove} operations
      */
     public long getRemoveCounter() {
         return _removeCounter.get();
-    }
-
-    /**
-     * @return Count of records in this <code>Tree</code> having multi-version
-     *         values.
-     */
-    public long getMvvCounter() {
-        return _mvvCounter.get();
-    }
-
-    /**
-     * @return Overhead bytes consumed by multi-version values that will be
-     *         removed by pruning.
-     */
-    public long getMvvOverhead() {
-        return _mvvOverhead.get();
     }
 
     boolean isDirty() {
@@ -142,7 +134,7 @@ public class TreeStatistics {
 
     /**
      * @return Approximate size in bytes of the overhead space consumed in this
-     *         <code>Tree</code> by multi-version-values.
+     *         <code>Tree</code> by multi-version-values
      */
 
     void reset() {
@@ -150,8 +142,6 @@ public class TreeStatistics {
         _traverseCounter.set(0);
         _storeCounter.set(0);
         _removeCounter.set(0);
-        _mvvCounter.set(0);
-        _mvvOverhead.set(0);
         setDirty(true);
     }
 
@@ -172,16 +162,6 @@ public class TreeStatistics {
 
     void bumpRemoveCounter() {
         _removeCounter.incrementAndGet();
-        setDirty(true);
-    }
-
-    void bumpMvvCounter() {
-        _mvvCounter.incrementAndGet();
-        setDirty(true);
-    }
-
-    void bumpMvvOverhead(final int delta) {
-        _mvvOverhead.addAndGet(delta);
         setDirty(true);
     }
 

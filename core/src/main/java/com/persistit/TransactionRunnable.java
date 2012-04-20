@@ -34,7 +34,7 @@ import com.persistit.exception.RollbackException;
  * scope of a {@link Transaction}. Use this interface in conjunction with the
  * {@link Transaction#run} method.
  * 
- * @author pbeaman
+ * @author peter
  * @version 1.0
  */
 public interface TransactionRunnable {
@@ -53,8 +53,8 @@ public interface TransactionRunnable {
      * {@link Exchange#fetch} and {@link Exchange#store} may also throw
      * <code>RollbackException</code>s when executed within a transaction; the
      * application logic implementing this method should generally not catch
-     * <code>PersistitException<code>s, including
-     * <code>RollbackException<code>s.  The the calling code in
+     * <code>PersistitException</code>, including
+     * <code>RollbackException</code>.  The the calling code in
      * <code>Transaction</code> is designed to handle them.
      * </p>
      * 

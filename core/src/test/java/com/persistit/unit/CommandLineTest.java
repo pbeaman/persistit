@@ -37,18 +37,19 @@ import org.junit.Test;
 import com.persistit.CLI;
 import com.persistit.Management;
 import com.persistit.PersistitMap;
+import com.persistit.TestShim;
 import com.persistit.util.Util;
 
 public class CommandLineTest extends PersistitUnitTestCase {
 
     @Test
     public void testCliParser() throws Exception {
-        assertNotNull(CLI.parseTask(_persistit, "backup file=somefile -a -y -z"));
-        assertNotNull(CLI.parseTask(_persistit, "save trees=persistit file=somefile"));
-        assertNotNull(CLI.parseTask(_persistit, "load trees=persistit:*{1:2} file=somefile -t -n"));
-        assertNull(CLI.parseTask(_persistit, "open datapath=somefile"));
+        assertNotNull(TestShim.parseTask(_persistit, "backup file=somefile -a -y -z"));
+        assertNotNull(TestShim.parseTask(_persistit, "save trees=persistit file=somefile"));
+        assertNotNull(TestShim.parseTask(_persistit, "load trees=persistit:*{1:2} file=somefile -t -n"));
+        assertNull(TestShim.parseTask(_persistit, "open datapath=somefile"));
         try {
-            CLI.parseTask(_persistit, "backup file=somefile -s -y -z wrong=parameter");
+            TestShim.parseTask(_persistit, "backup file=somefile -s -y -z wrong=parameter");
             fail();
         } catch (Exception e) {
             // okay

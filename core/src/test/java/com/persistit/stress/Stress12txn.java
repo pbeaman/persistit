@@ -167,6 +167,7 @@ public class Stress12txn extends StressBase {
         }
         try {
             if (value.isType(String.class)) {
+                _sb.setLength(0);
                 value.getString(_sb);
                 return _sb.length();
             } else {

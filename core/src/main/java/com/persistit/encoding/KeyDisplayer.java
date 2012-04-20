@@ -32,13 +32,13 @@ import com.persistit.exception.ConversionException;
 /**
  * <p>
  * An extension of {@link KeyCoder} that adds the {@link #displayKeySegment}
- * method. This method populates a supplied <code>StringBuilder</code> with a
+ * method. This method populates a supplied <code>Appendable</code> with a
  * displayable, human-readable representation of the Object value that was
  * formerly written to a {@link Key} by this <code>KeyDisplayer</code>.
  * </p>
  * <p>
  * The {@link Key#toString toString} method and
- * {@link Key#decodeDisplayable(boolean, StringBuilder) decodeDisplayable}
+ * {@link Key#decodeDisplayable(boolean, Appendable, CoderContext) decodeDisplayable}
  * methods of <code>Value</code> preferentially use the registered
  * <code>KeyDisplayer</code>, if present, to generate a String representation of
  * an object value encoded in a <code>Key</code>.
@@ -63,7 +63,8 @@ public interface KeyDisplayer extends KeyCoder {
      *            are to be retrieved
      * 
      * @param target
-     *            An object into which the key segment is to be written
+     *            An @{link Appendable} object into which the key segment is to
+     *            be written
      * 
      * @param clazz
      *            The class of the object that was originally encoded into
@@ -77,7 +78,7 @@ public interface KeyDisplayer extends KeyCoder {
      * 
      * @throws ConversionException
      */
-    public void displayKeySegment(Key key, StringBuilder target, Class<?> clazz, CoderContext context)
+    public void displayKeySegment(Key key, Appendable target, Class<?> clazz, CoderContext context)
             throws ConversionException;
 
 }

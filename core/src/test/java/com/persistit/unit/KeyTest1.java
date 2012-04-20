@@ -176,7 +176,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     public void test3() {
         final Key key1 = new Key(_persistit);
-        final Key key2 = new Key(_persistit);
 
         System.out.print("test3 ");
         for (int index = 0; index < TEST_FLOATS.length; index++) {
@@ -248,7 +247,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     public void test5() {
         final Key key1 = new Key(_persistit);
-        final Key key2 = new Key(_persistit);
 
         System.out.print("test5 ");
         for (int index = 0; index < TEST_DOUBLES.length; index++) {
@@ -405,7 +403,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     public void test8() {
         final Key key1 = new Key(_persistit);
-        final Key key2 = new Key(_persistit);
 
         System.out.print("test8 ");
         final int start = Integer.MIN_VALUE;
@@ -426,7 +423,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     public void test9() {
         final Key key1 = new Key(_persistit);
-        final Key key2 = new Key(_persistit);
 
         System.out.print("test9 ");
 
@@ -456,7 +452,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     public void test10() {
         final Key key1 = new Key(_persistit);
-        final Key key2 = new Key(_persistit);
 
         System.out.print("test10 ");
 
@@ -656,7 +651,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     public void testIndexTo() {
         final Key key1 = new Key(_persistit);
-        final Key key2 = new Key(_persistit);
         key1.clear().append("a").append("b").append("c").append("d");
         assertEquals("a", key1.indexTo(0).decodeString());
         assertEquals("b", key1.indexTo(1).decodeString());
@@ -674,7 +668,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     public void testIsNull() {
         final Key key1 = new Key(_persistit);
-        final Key key2 = new Key(_persistit);
         key1.clear().append(null);
         assertTrue("seg0 is null: " + key1, key1.indexTo(0).isNull());
         key1.clear().append(1);

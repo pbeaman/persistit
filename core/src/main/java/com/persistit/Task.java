@@ -39,11 +39,11 @@ import com.persistit.util.Util;
 /**
  * Abstract superclass of classes that perform long-running utility operations,
  * such as export, import and integrity check. Concrete classes should
- * frequently call the poll() method to allow users to stop, suspend or view
- * progress. Concrete classes should post all progress messages to the message
- * log by calling postMessage.
+ * frequently call the {@link #poll()} method to allow users to stop, suspend or view
+ * progress and should post all progress messages to the message
+ * log by calling {@link #postMessage(String, int)}.
  * 
- * @author Peter Beaman
+ * @author peter
  * @version 1.0
  */
 public abstract class Task implements Runnable {
@@ -294,15 +294,14 @@ public abstract class Task implements Runnable {
     }
 
     /**
-     * Sets up a <code>Task</code>. This method calls the task-specific
-     * {@link #setupTask} method to finish setup.
+     * Sets up a <code>Task</code>.
      * 
+     * @param taskId
+     *            unique identifier for this task invocation
      * @param description
      *            Description of this task
      * @param owner
      *            Hostname and/or username
-     * @param args
-     *            Task-specific arguments
      * @param maxTime
      *            Maximum wall-clock duration, in milliseconds, that Task will
      *            be allowed to run
@@ -398,7 +397,7 @@ public abstract class Task implements Runnable {
     /**
      * Sets a <code>PrintWriter</code> to receive posted messages.
      * 
-     * @param ps
+     * @param pw
      *            The <code>PrintWriter</code>
      */
     public void setMessageWriter(PrintWriter pw) {
@@ -473,7 +472,7 @@ public abstract class Task implements Runnable {
             }
         }
     }
-    
+
     protected void endMessage(int level) {
         if (level <= _messageLogVerbosity && _messageWriter != null) {
             _messageWriter.println();

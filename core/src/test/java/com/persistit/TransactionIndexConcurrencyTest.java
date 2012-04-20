@@ -77,14 +77,6 @@ public class TransactionIndexConcurrencyTest extends TestCase {
         }
     }
 
-    static class TestRunnable implements Runnable {
-
-        public void run() {
-
-        }
-
-    }
-
     static class Txn {
         static int counter = 0;
         int id = ++counter;

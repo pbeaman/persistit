@@ -36,6 +36,12 @@ import java.util.StringTokenizer;
 import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 
+/**
+ * A structure holding all the specification details for a {@link Volume}.
+ * 
+ * @author peter
+ * 
+ */
 public class VolumeSpecification {
 
     private final static String ATTR_NAME = "name";
@@ -52,8 +58,6 @@ public class VolumeSpecification {
     private final static String ATTR_INITIAL_PAGES = "initialPages";
     private final static String ATTR_EXTENSION_PAGES = "extensionPages";
     private final static String ATTR_MAXIMUM_PAGES = "maximumPages";
-
-    private final static String ATTR_VERSION = "version";
 
     private String path;
     private String name = null;

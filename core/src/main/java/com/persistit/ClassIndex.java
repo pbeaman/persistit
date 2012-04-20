@@ -32,8 +32,6 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.RollbackException;
-import com.persistit.exception.TransactionFailedException;
 
 /**
  * <p>
@@ -42,7 +40,7 @@ import com.persistit.exception.TransactionFailedException;
  * <code>Value</code> encodes an <code>Object</code>, rather than recording the
  * object's full class name, it stores an integer-valued handle. The handle is
  * associated by the <code>ClassIndex</code> to the class name. This mechanism
- * minimizes the storage of redudant information in the potentially numerous
+ * minimizes the storage of redundant information in the potentially numerous
  * stored instances of the same class.
  * </p>
  * <p>
@@ -62,6 +60,7 @@ class ClassIndex {
 
     private final static String BY_HANDLE = "byHandle";
     private final static String BY_NAME = "byName";
+    private final static String NEXT_ID = "nextId";
     final static String CLASS_INDEX_TREE_NAME = "_classIndex";
 
     private AtomicInteger _size = new AtomicInteger();
@@ -72,6 +71,8 @@ class ClassIndex {
             INITIAL_CAPACITY);
     private ClassInfoEntry _knownNull = null;
 
+    private int _testIdFloor = Integer.MIN_VALUE;
+    
     /**
      * A structure holding a ClassInfo, plus links to other related
      * <code>ClassInfoEntry</code>s.
@@ -253,8 +254,8 @@ class ClassIndex {
                         //
                         // Store a new ClassInfo record
                         //
-                        ex.clear().append("nextId").fetch();
-                        handle = value.isDefined() ? value.getInt() + 1 : 65;
+                        ex.clear().append(NEXT_ID).fetch();
+                        handle = Math.max(_testIdFloor, value.isDefined() ? value.getInt() + 1 : 65);
                         value.clear().put(handle);
                         ex.store();
 
@@ -352,6 +353,23 @@ class ClassIndex {
 
     private void releaseExchange(Exchange ex) {
         _persistit.releaseExchange(ex);
+    }
+    
+    /**
+     * For unit tests only. Next class ID handle will be at least
+     * as large as this.
+     * @param id
+     */
+    void setTestIdFloor(final int id) {
+        _testIdFloor = id;
+    }
+    
+    /**
+     * For unit tests only.  Clears all entries.
+     * @throws PersistitException
+     */
+    void clearAllEntries() throws PersistitException {
+        getExchange().removeAll();
     }
 
 }

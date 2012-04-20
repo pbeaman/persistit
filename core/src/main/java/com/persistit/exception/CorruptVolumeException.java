@@ -29,9 +29,8 @@ package com.persistit.exception;
 import com.persistit.util.Debug;
 
 /**
- * Thrown by {@link com.persistit.Volume} if the volume file being opened is
- * corrupt. Generally it will be necessary to restore a backup copy of the
- * volume file to resolve this.
+ * Thrown if Persistit attempts to open a corrupt volume file. Generally it will
+ * be necessary to restore a backup copy of the volume file to resolve this.
  * 
  * @version 1.0
  */

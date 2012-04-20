@@ -26,7 +26,6 @@
 
 package com.persistit;
 
-import static com.persistit.Buffer.ENABLE_LOCK_MANAGER;
 import static com.persistit.Buffer.EXACT_MASK;
 import static com.persistit.Buffer.HEADER_SIZE;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
@@ -51,9 +50,8 @@ import static com.persistit.Key.LT;
 import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
-import static com.persistit.util.ThreadSequencer.sequence;
 import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_A;
-import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_B;
+import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,8 +109,7 @@ import com.persistit.util.Util;
  * Additional methods of <code>Exchange</code> include {@link #fetchAndStore
  * fetchAndStore} and {@link #fetchAndRemove fetchAndRemove} which atomically
  * modify the database and return the former value associated with the current
- * <code>Key</code>, and {@link #incrementValue} which atomically increments an
- * integer value associated with the current <code>Key</code>.
+ * <code>Key</code>.
  * </p>
  * <p>
  * <h3>Exchange is Not Threadsafe</h3>
@@ -200,7 +197,7 @@ public class Exchange {
         public int getLength() {
             return _foundLength;
         }
-        
+
         public boolean foundVersion() {
             return _foundVersion != MVV.VERSION_NOT_FOUND;
         }
@@ -492,12 +489,12 @@ public class Exchange {
         _splitPolicy = _persistit.getDefaultSplitPolicy();
         _joinPolicy = _persistit.getDefaultJoinPolicy();
         _treeHolder.verifyReleased();
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.verify();
-        }
     }
 
-    void initCache() {
+    /**
+     * Drop all cached optimization information
+     */
+    public void initCache() {
         for (int level = 0; level < MAX_TREE_DEPTH; level++) {
             if (_levelCache[level] != null)
                 _levelCache[level].invalidate();
@@ -1050,7 +1047,7 @@ public class Exchange {
         Buffer buffer = null;
         checkLevelCache();
         LevelCache lc = _levelCache[0];
-        buffer = reclaimQuickBuffer(lc, writer);
+        buffer = quicklyReclaimBuffer(lc, writer);
 
         if (buffer == null) {
             return searchTree(key, 0, writer);
@@ -1229,7 +1226,7 @@ public class Exchange {
                 LevelCache lc = _levelCache[currentLevel];
 
                 if (lc._page == pageAddress) {
-                    buffer = reclaimQuickBuffer(lc, writer);
+                    buffer = quicklyReclaimBuffer(lc, writer);
                 }
 
                 if (buffer == null) {
@@ -1402,8 +1399,8 @@ public class Exchange {
 
                 /*
                  * Can't save the old pointer as the state may have changed
-                 * since the last claim, could have even been de-allocated,
-                 * and just as equally can't hold onto the new one either.
+                 * since the last claim, could have even been de-allocated, and
+                 * just as equally can't hold onto the new one either.
                  */
                 oldLongRecordPointerMVV = 0;
                 if (!committed && newLongRecordPointerMVV != 0) {
@@ -1445,7 +1442,7 @@ public class Exchange {
                     Debug.$assert0.t(buffer == null);
                     int foundAt = -1;
                     LevelCache lc = _levelCache[level];
-                    buffer = reclaimQuickBuffer(lc, true);
+                    buffer = quicklyReclaimBuffer(lc, true);
 
                     if (buffer != null) {
                         //
@@ -1506,12 +1503,11 @@ public class Exchange {
                              */
                             byte[] spareBytes = _spareValue.getEncodedBytes();
                             int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
-                            spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(),
-                                    false, prunedVersions);
-
+                            spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false,
+                                    prunedVersions);
 
                             final TransactionStatus tStatus = _transaction.getTransactionStatus();
-                            final int tStep = _transaction.getCurrentStep();
+                            final int tStep = _transaction.getStep();
 
                             if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
                                 /*
@@ -1716,7 +1712,7 @@ public class Exchange {
         }
         return keyExisted;
     }
-    
+
     private long timestamp() {
         return _persistit.getTimestampAllocator().updateTimestamp();
     }
@@ -1854,7 +1850,7 @@ public class Exchange {
         }
     }
 
-    private Buffer reclaimQuickBuffer(LevelCache lc, boolean writer) throws PersistitException {
+    private Buffer quicklyReclaimBuffer(LevelCache lc, boolean writer) throws PersistitException {
         Buffer buffer = lc._buffer;
         if (buffer == null)
             return null;
@@ -1915,9 +1911,6 @@ public class Exchange {
      */
     public boolean traverse(Direction direction, boolean deep) throws PersistitException {
         boolean result = traverse(direction, deep, Integer.MAX_VALUE);
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.verify();
-        }
         return result;
     }
 
@@ -2045,7 +2038,7 @@ public class Exchange {
                 // by previous operation.
                 //
                 if (buffer == null && lc._keyGeneration == _key.getGeneration()) {
-                    buffer = reclaimQuickBuffer(lc, false);
+                    buffer = quicklyReclaimBuffer(lc, false);
                     foundAt = lc._foundAt;
                 }
                 //
@@ -2658,10 +2651,13 @@ public class Exchange {
      * assumed, but not required, to be an MVV. The correct version is
      * determined by the current transactions start timestamp. If no transaction
      * is active, the highest committed version is returned.
-     *
-     * <p><b>Note</b>: This method only determines the visible version and
-     * copies it into <code>value</code>, or clears it if there isn't one.
-     * It may still be a LONG_RECORD or AntiValue</p>.
+     * 
+     * <p>
+     * <b>Note</b>: This method only determines the visible version and copies
+     * it into <code>value</code>, or clears it if there isn't one. It may still
+     * be a LONG_RECORD or AntiValue
+     * </p>
+     * .
      * 
      * @param value
      *            The <code>Value</code> into which the value should be fetched.
@@ -2679,7 +2675,7 @@ public class Exchange {
         final int step;
         if (_transaction.isActive()) {
             status = _transaction.getTransactionStatus();
-            step = _transaction.getCurrentStep();
+            step = _transaction.getStep();
         } else {
             status = null;
             step = 0;
@@ -2744,12 +2740,17 @@ public class Exchange {
     }
 
     /**
-     * Helper for fully pulling a value out of a Buffer. That is, if
-     * the value is a LONG_RECORD it will also be fetched.
-     * @param buffer Buffer to read from.
-     * @param value Value to write to.
-     * @param foundAt Location within <code>buffer</code>.
-     * @param minimumBytes Minimum amount of LONG_RECORD to fetch. If &lt;0, the
+     * Helper for fully pulling a value out of a Buffer. That is, if the value
+     * is a LONG_RECORD it will also be fetched.
+     * 
+     * @param buffer
+     *            Buffer to read from.
+     * @param value
+     *            Value to write to.
+     * @param foundAt
+     *            Location within <code>buffer</code>.
+     * @param minimumBytes
+     *            Minimum amount of LONG_RECORD to fetch. If &lt;0, the
      *            <code>value</code> will contain just the descriptor portion.
      * @throws PersistitException
      *             As thrown from any internal method.
@@ -2760,12 +2761,12 @@ public class Exchange {
         buffer.fetch(foundAt, value);
         /*
          * We must fetch the full LONG_RECORD, if needed, while buffer is
-         * claimed from calling code so that it can't be de-allocated
-         * as we are reading it.
+         * claimed from calling code so that it can't be de-allocated as we are
+         * reading it.
          */
         fetchFixupForLongRecords(value, minimumBytes);
         if (!_ignoreMVCCFetch) {
-            if(MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
+            if (MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
                 buffer.enqueuePruningAction(_tree.getHandle());
                 visible = mvccFetch(value, minimumBytes);
                 fetchFixupForLongRecords(value, minimumBytes);
@@ -2786,8 +2787,8 @@ public class Exchange {
      * @param value
      *            The value as found on the page.
      * @param minimumBytes
-     *            If >= 0 and stored value is a LONG_RECORD, fetch at least
-     *            this many bytes.
+     *            If >= 0 and stored value is a LONG_RECORD, fetch at least this
+     *            many bytes.
      * @throws PersistitException
      *             As thrown from {@link #search(Key, boolean)}
      */
@@ -2877,7 +2878,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public void removeTree() throws PersistitException {
-        
+
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
@@ -2978,9 +2979,6 @@ public class Exchange {
 
         final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, fetchFirst);
         _treeHolder.verifyReleased();
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.verify();
-        }
         return result;
     }
 
@@ -3026,9 +3024,6 @@ public class Exchange {
 
         final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, false);
         _treeHolder.verifyReleased();
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.verify();
-        }
         return result;
     }
 
@@ -3616,7 +3611,7 @@ public class Exchange {
     boolean prune(final Key key1, final Key key2) throws PersistitException {
         Buffer buffer = null;
         boolean pruned = false;
-        
+
         Debug.$assert1.t(_tree.isValid());
         try {
             search(key1, true);
@@ -4031,8 +4026,8 @@ public class Exchange {
     /**
      * Store an Object with this Exchange for the convenience of an application.
      * 
-     * @param the
-     *            object to be cached for application convenience.
+     * @param appCache
+     *            the object to be cached for application convenience.
      */
     public void setAppCache(Object appCache) {
         _appCache = appCache;

@@ -81,6 +81,7 @@ import com.persistit.logging.LogBase;
 import com.persistit.logging.PersistitLogger;
 import com.persistit.mxbeans.AlertMonitorMXBean;
 import com.persistit.mxbeans.BufferPoolMXBean;
+import com.persistit.mxbeans.CleanupManagerMXBean;
 import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.mxbeans.JournalManagerMXBean;
 import com.persistit.mxbeans.MXBeanWrapper;
@@ -96,31 +97,28 @@ import com.persistit.util.UtilControl;
 
 /**
  * <p>
- * Creates and manages the the runtime environment for a Persistit&trade;
- * database. To use <code>Persistit</code>, an application invokes one of the
- * static {@link #initialize} methods to load a set of properties that govern
- * Persistit's behavior, and to initialize its memory structures. When
- * terminating, the application should invoke the static {@link #close} method
- * to complete all database writes, close all files and relinquish all buffer
- * memory.
+ * Create and manage the runtime environment for a Persistit&trade; database. To
+ * use Persistit an application
+ * <ul>
+ * <li>constructs a Persistit instance when it starts up</li>
+ * <li>calls one of the {@link #initialize} methods to set up a configuration
+ * and initialize the memory structures and background threads</li>
+ * <li>uses various method to acquire {@link Exchange} and {@link Transaction}
+ * instances to perform work,</li>
+ * <li>calls one of the {@link #close()} methods to gracefully release all
+ * memory resources and shut down the background threads.</li>
+ * </ul>
+ * </p>
+ * Generally an application will have no more than one Persistit instance,
+ * treating it as a singleton. However, the application is responsible for
+ * holding a reference to that instance and calling {@link #close()} when
+ * finished with it. Persistit's background threads are not daemon threads, and
+ * an application that does not call <code>close</code> therefore will not exit
+ * normally.
  * </p>
  * <p>
- * Once initialized, there is a single <code>Persistit</code> instance available
- * from the {@link #getInstance} method. Various non-static methods are
- * available on this instance. The {@link #close} method releases the
- * <code>Persistit</code> instance, allowing its memory to be released.
- * </p>
- * <p>
- * An application interacts with Persistit by creating {@link Exchange} objects
- * and invoking their methods.
- * </p>
- * <p>
- * During initialization this class optionally creates a small Swing UI
- * containing various useful diagnostic views of internal state. To request this
- * utility, include the command-line parameter
- * <code>-Dcom.persistit.showgui=true</code>, or specify the property
- * </code>showgui=true</code> in the properties file supplied to the
- * {@link #initialize} method.
+ * Persistit takes a large variety of configuration properties.  These are
+ * specified through the <code>initalize</code> method.
  * </p>
  * 
  * @version 1.1
@@ -361,6 +359,10 @@ public class Persistit {
 
     private final static int MAX_FATAL_ERROR_MESSAGES = 10;
 
+    /**
+     * An Exception created when Persistit detects a fatal internal error
+     * such as database corruption.
+     */
     public static class FatalErrorException extends RuntimeException {
 
         final String _threadName = Thread.currentThread().getName();
@@ -462,7 +464,8 @@ public class Persistit {
 
     private final Map<ObjectName, Object> _mxbeans = new TreeMap<ObjectName, Object>();
 
-    private final List<AlertMonitorMXBean> _alertMonitors = Collections.synchronizedList(new ArrayList<AlertMonitorMXBean>());
+    private final List<AlertMonitorMXBean> _alertMonitors = Collections
+            .synchronizedList(new ArrayList<AlertMonitorMXBean>());
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
@@ -827,9 +830,9 @@ public class Persistit {
             monitor.setObjectName(on);
             emitter = monitor;
         }
-            MXBeanWrapper wrapper = new MXBeanWrapper(mbean, mbeanInterface, emitter);
-            server.registerMBean(wrapper, on);
-        
+        MXBeanWrapper wrapper = new MXBeanWrapper(mbean, mbeanInterface, emitter);
+        server.registerMBean(wrapper, on);
+
         _logBase.mbeanRegistered.log(on);
         _mxbeans.put(on, mbean);
         if (mbean instanceof AlertMonitorMXBean) {
@@ -866,7 +869,8 @@ public class Persistit {
 
     /**
      * Replaces substitution variables in a supplied string with values taken
-     * from the properties available to Persistit (see {@link getProperty}).
+     * from the properties available to Persistit (see {@link #getProperties()}
+     * ).
      * 
      * @param text
      *            String in in which to make substitutions
@@ -1021,8 +1025,8 @@ public class Persistit {
      * @param propertyName
      *            The property name
      * @param value
-     *            Value to set, or
-     *            <code>null<code> to remove an existing property
+     *            Value to set, or <code>null</code> to remove an existing
+     *            property
      */
     public void setProperty(final String propertyName, final String value) {
         if (value == null) {
@@ -1504,19 +1508,6 @@ public class Persistit {
     }
 
     /**
-     * Return the default timeout for operations on an <code>Exchange</code>.
-     * The application may override this default value for an instance of an
-     * <code>Exchange</code> through the {@link Exchange#setTimeout(long)}
-     * method. The default timeout may be specified through the
-     * <code>com.persistit.defaultTimeout</code> property.
-     * 
-     * @return The default timeout value, in milliseconds.
-     */
-    public long getDefaultTimeout() {
-        return _defaultTimeout;
-    }
-
-    /**
      * @return The {@link SplitPolicy} that will by applied by default to newly
      *         created or allocated {@link Exchange}s.
      */
@@ -1724,7 +1715,9 @@ public class Persistit {
      * order from oldest to youngest.
      * 
      * @param max
-     * @return
+     * @return status of the <code>max</code> longest-running transactions, in
+     *         order from oldest to youngest, reported as a String with one line
+     *         per transaction.
      */
     public String transactionReport(final int max) {
         long[] timestamps = _transactionIndex.oldestTransactions(max);
@@ -1760,8 +1753,6 @@ public class Persistit {
      * @throws IOException
      * @throws PersistitException
      * @throws IOException
-     * @return <code>true</code> if Persistit was initialized and this
-     *         invocation closed it, otherwise false.
      */
     public void close() throws PersistitException {
         close(true);
@@ -1820,8 +1811,6 @@ public class Persistit {
      * @throws IOException
      * @throws PersistitException
      * @throws IOException
-     * @return <code>true</code> if Persistit was initialized and this
-     *         invocation closed it, otherwise false.
      */
     public void close(final boolean flush) throws PersistitException {
         if (_initialized.get() && !_closed.get()) {
@@ -2209,8 +2198,11 @@ public class Persistit {
     }
 
     /**
-     * Set the current default transaction commit property by name. See
-     * {@link #setDefaultTransactionCommitPolicy(CommitPolicy)}.
+     * Set the current default transaction commit property by name. This policy
+     * is applied to transactions that call {@link Transaction#commit()}. Note
+     * that {@link Transaction#commit(CommitPolicy)} permits control on a
+     * per-transaction basis. The supplied policy value must be one of "HARD",
+     * "GROUP" or "SOFT".
      * 
      * @param policyName
      *            The policy name: "SOFT", "HARD" or "GROUP"
@@ -2386,7 +2378,7 @@ public class Persistit {
     /**
      * Replaces the current logger implementation.
      * 
-     * @see com.persistit.logging.AbstractPersistitLogger
+     * @see com.persistit.logging.DefaultPersistitLogger
      * @see com.persistit.logging.JDK14LoggingAdapter
      * @see com.persistit.logging.Log4JAdapter
      * @param logger
@@ -2862,8 +2854,7 @@ public class Persistit {
             "script|string|Pathname of CLI script to execute", };
 
     /**
-     * Perform various utility functions. Specify arguments on the command line
-     * conforming to {@value #ARG_TEMPLATE}. Options:
+     * Perform various utility functions.
      * <ul>
      * <li>If the cliport=nnnn argument is set, then this method starts a CLI
      * server on the specified port.</li>

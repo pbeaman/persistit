@@ -78,7 +78,7 @@ public interface IOMeterMXBean {
     public long getQuiescentIOthreshold();
 
     /**
-     * @param quiescentIOthreshold
+     * @param quiescentIO
      *            the quiescentIOthreshold to set
      */
     @Description("Disk I/O scheduling parameter in bytes per second specifying threshold "
@@ -92,7 +92,7 @@ public interface IOMeterMXBean {
     public long getIoRate();
 
     /**
-     * Path for file into which IO events should be logged, or <code>null</code>
+     * Set the path for file into which IO events should be logged, or <code>null</code>
      * to disable IO logging.
      * 
      * @param toFile
@@ -102,10 +102,8 @@ public interface IOMeterMXBean {
     public void setLogFile(final String toFile) throws IOException;
 
     /**
-     * Path for file into which IO events should be logged, or <code>null</code>
+     * @return Path for file into which IO events should be logged, or <code>null</code>
      * if IO logging is disabled.
-     * 
-     * @return
      */
     @Description("Path for diagnostic I/O log file - normally null")
     public String getLogFile();

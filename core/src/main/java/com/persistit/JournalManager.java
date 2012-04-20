@@ -288,7 +288,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     /**
-     * Copy dynamic variables into a {@linkManagement.JournalInfo} structure.
+     * Copy dynamic variables into a {@link Management.JournalInfo} structure.
      * 
      * @param info
      */
@@ -488,12 +488,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     /**
-     * Computes an "urgency" factor that determines how vigorously the copyBack
+     * Compute an "urgency" factor that determines how vigorously the JOURNAL_COPIER
      * thread should perform I/O. This number is computed on a scale of 0 to 10;
      * larger values are intended make the thread work harder. A value of 10
      * suggests the copier should run flat-out.
      * 
-     * @return
+     * @return the JOURNAL_COPIER urgency on a scale of 0 to 10
      */
     @Override
     public synchronized int urgency() {

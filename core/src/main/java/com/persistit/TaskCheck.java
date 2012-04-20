@@ -31,6 +31,14 @@ import com.persistit.CLI.Cmd;
 import com.persistit.Management.TaskStatus;
 import com.persistit.util.Util;
 
+/**
+ * A <code>Task</code> which simply checks the status of another <code>Task</code>.
+ * The {@link CLI} can invoke this to poll for completion of a long-running task
+ * such as <code>IntegrityCheck</code>.
+ *  
+ * @author peter
+ *
+ */
 public class TaskCheck extends Task {
 
     private String _status = "not started";

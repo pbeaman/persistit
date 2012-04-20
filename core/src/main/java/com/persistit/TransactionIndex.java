@@ -50,7 +50,7 @@ import com.persistit.util.Debug;
  * 
  * @author peter
  */
-public class TransactionIndex implements TransactionIndexMXBean {
+class TransactionIndex implements TransactionIndexMXBean {
 
     /**
      * Thread name of the polling task
@@ -149,7 +149,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
     private volatile ActiveTransactionCache _atCache;
 
     private AtomicLong _deadlockCounter = new AtomicLong();
-    
+
     private AtomicLong _accumulatorSnapshotRetryCounter = new AtomicLong();
 
     private AtomicLong _accumulatorCheckpointRetryCounter = new AtomicLong();
@@ -625,7 +625,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
 
     /**
      * <p>
-     * Determine whether there exists a registered transaction that has neither
+     * Detect whether there exists a registered transaction that has neither
      * committed nor aborted having a starting timestamp <code>ts</code> such
      * that <code>ts1</code> &lt; <code>ts</code> &lt; <code>ts2</code>.
      * </p>
@@ -634,16 +634,19 @@ public class TransactionIndex implements TransactionIndexMXBean {
      * <code>true</code> value for a transaction which then immediately before
      * the caller acts on the result value either commits or aborts. However,
      * the converse is not true. Provided <code>ts2</code> is a valid timestamp
-     * value created by the {@link TimestampAllocator}, then if there exists a
-     * concurrent transaction with a start timestamp in the specified range,
-     * this method is guaranteed to return <code>true</code>
+     * value created by the <code>TimestampAllocator</code>, then if there
+     * exists a concurrent transaction with a start timestamp in the specified
+     * range, this method is guaranteed to return <code>true</code>
      * </p>
      * 
      * @param ts1
+     *            first timestamp
      * @param ts2
-     * @return <code>true</code> if there is an
+     *            second timestamp
+     * @return <code>true</code> if there exists a concurrent transaction that
+     *         started between ts1 and ts2
      */
-    boolean hasConcurrentTransaction(long ts1, long ts2) {
+    public boolean hasConcurrentTransaction(long ts1, long ts2) {
         return _atCache.hasConcurrentTransaction(ts1, ts2);
     }
 
@@ -1258,11 +1261,11 @@ public class TransactionIndex implements TransactionIndexMXBean {
             _activeTransactionCachePollTask = null;
         }
     }
-    
+
     long incrementAccumulatorSnapshotRetryCounter() {
         return _accumulatorSnapshotRetryCounter.incrementAndGet();
     }
-    
+
     long incrementAccumulatorCheckpointRetryCounter() {
         return _accumulatorCheckpointRetryCounter.incrementAndGet();
     }

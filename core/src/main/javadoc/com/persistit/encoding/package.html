@@ -48,23 +48,18 @@ Encoding and decoding of objects to and from <tt>Value</tt>s.
 </p>
 <p>
 These mechanisms are each slightly different because the correct 
-collation of key values depends on the encoding of <tt>Strings</tt> and 
+collation of key values depends on the encoding of primitive values and
 <tt>Objects</tt> into <tt>Key</tt>s, whereas collation is not an issue
-for the encoding of <tt>Value</tt>s.  Strings are handled differently
-in <tt>Key</tt>s from other objects because string collation depends 
-primarily on locale, while the encoding of other classes is primarily an
-application design issue.  The encoding of <tt>Key</tt>s also differs 
+for the encoding of <tt>Value</tt>s. The encoding of <tt>Key</tt>s also differs 
 from the encoding of <tt>Value</tt>s because although collation is not
 an issue for <tt>Value</tt>s, generally the kinds of objects
 serialized into <tt>Value</tt>s will be much more complex than those
 usefully encoded into <tt>Key</tt>s.
 </p>
 <p>
-Logic for these three different uses is specified by three different
-interfaces, {@link com.persistit.encoding.KeyCoder},
-{@link com.persistit.encoding.KeyStringCoder}, and
-{@link com.persistit.encoding.ValueCoder}.  (Note that a <tt>KeyStringCoder</tt>
-is actually a subinterface of <tt><a href="#_renderers">KeyRenderer</a></tt>). 
+Logic for these two different uses is specified by twp different
+interfaces, {@link com.persistit.encoding.KeyCoder} and
+{@link com.persistit.encoding.ValueCoder}. 
 Each of these has methods to translate an <tt>Object</tt> to and from an array
 of bytes.
 </p>

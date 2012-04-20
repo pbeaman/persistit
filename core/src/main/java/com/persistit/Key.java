@@ -36,7 +36,6 @@ import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.KeyDisplayer;
 import com.persistit.encoding.KeyRenderer;
-import com.persistit.encoding.KeyStringCoder;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.MissingKeySegmentException;
@@ -130,13 +129,7 @@ import com.persistit.util.Util;
  * </p>
  * <p>
  * The default string-encoding algorithm does not support localized collation.
- * Specialized collation can be added through a custom
- * {@link com.persistit.encoding.KeyStringCoder}. To use a
- * <code>KeyStringEncoder</code>, attach it to the <code>Key</code> with the
- * {@link #setKeyStringCoder setKeyStringCoder} method. Note that once
- * custom-coded Strings have been inserted as keys into the Persistit database,
- * the same <code>KeyStringCoder</code> must be attached to the <code>Key</code>
- * for proper decoding.
+ * TODO - add collation information here - TODO
  * </p>
  * <a name="_ObjectEncoding">
  * <h3>Object Encoding</h3>
@@ -173,13 +166,6 @@ import com.persistit.util.Util;
  * All overridden object types sort <i>after</i> all other value types. Ordering
  * among various custom types is determined by the custom encoding algorithm's
  * implementation. See {@link com.persistit.encoding.CoderManager} for details.
- * </p>
- * <p>
- * While it is technically possible to override default String encoding using a
- * <code>KeyCoder</code>, <code>KeyStringCoder</code> should be used for this
- * purpose. A <code>KeyCoder</code> is concerned with application logic, whereas
- * <code>KeyStringCoder</code> supports localization. It is preferable to
- * separate these concerns.
  * </p>
  * <a name="_keySegments">
  * <h3>Key Segments</h3>
@@ -374,7 +360,7 @@ import com.persistit.util.Util;
  * {@link #append(short)} ... {@link #append(Object)}, {@link #to(boolean)},
  * {@link #to(byte)} {@link #to(short)} ... {@link #to(Object)}. These methods
  * all modify the current state of the key. As a convenience, these methods all
- * return the <code>Key</code> so support method call chaining.
+ * return the <code>Key</code> to support method call chaining.
  * </p>
  * <p>
  * Methods used to decode key values are {@link #reset}, {@link #indexTo},
@@ -411,40 +397,56 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 public final class Key implements Comparable<Object> {
-    /**
-     * Indicates for {@link Exchange#traverse traverse} that the next larger key
-     * is to be returned. Indicates for {@link Exchange#remove remove} that a
-     * range of keys following but not including the specified key is to be
-     * removed.
-     */
-    public static final Direction GT = new Direction("GT", 3);
 
     /**
-     * Indicates for {@link Exchange#traverse traverse} that the specified key,
-     * if it exists or else the next larger key is to be returned. Indicates for
-     * {@link Exchange#remove remove} that a range of keys including and
-     * following the specified key is to be removed.
+     * Enumeration of possible qualifiers for the {@link Exchange#traverse
+     * traverse} and {@link Exchange#remove(Key.Direction) remove} methods.
+     * Values include {@link #EQ}, {@link #GT}, {@link #GTEQ}, {@link #LT} and
+     * {@link #LTEQ}.
      */
-    public static final Direction GTEQ = new Direction("GTEQ", 4);
 
-    /**
-     * Indicates for {@link Exchange#traverse travers} that the specified key,
-     * if it exists, is to be returned. Indicates for {@link Exchange#remove
-     * remove} that only the specified key is to be removed.
-     */
-    public static final Direction EQ = new Direction("EQ", 0);
+    public enum Direction {
+        /**
+         * Indicates for {@link Exchange#traverse traverse} that only the
+         * specified key, if it exists, is to be returned. Indicates for
+         * {@link Exchange#remove remove} that only the specified key is to be
+         * removed.
+         */
+        EQ,
+        /**
+         * Indicates for {@link Exchange#traverse traverse} that the next
+         * smaller key is to be returned. Not valid for {@link Exchange#remove
+         * remove}.
+         */
+        LT,
+        /**
+         * Indicates for {@link Exchange#traverse traverse} that the specified
+         * key, if it exists, or else the next smaller key is to be returned.
+         * Not valid for {@link Exchange#remove remove}.
+         */
+        LTEQ,
+        /**
+         * Indicates for {@link Exchange#traverse traverse} that the next larger
+         * key is to be returned. Indicates for {@link Exchange#remove remove}
+         * that a range of keys following but not including the specified key is
+         * to be removed.
+         */
+        GT,
+        /**
+         * Indicates for {@link Exchange#traverse traverse} that the specified
+         * key, if it exists, or else the next larger key is to be returned.
+         * Indicates for {@link Exchange#remove remove} that a range of keys
+         * including and following the specified key is to be removed.
+         */
+        GTEQ
+    }
 
-    /**
-     * Indicates for {@link Exchange#traverse traverse} that the current key, if
-     * it exists or else the next smaller key is to be returned. Not valid for
-     * {@link Exchange#remove remove}.
-     */
-    public static final Direction LTEQ = new Direction("LTEQ", 2);
-    /**
-     * Indicates for {@link Exchange#traverse traverse} that the next smaller
-     * key is to be returned. Not valid for {@link Exchange#remove remove}.
-     */
-    public static final Direction LT = new Direction("LT", 1);
+    public static final Direction GT = Direction.GT;
+    public static final Direction GTEQ = Direction.GTEQ;
+    public static final Direction EQ = Direction.EQ;
+    public static final Direction LTEQ = Direction.LTEQ;
+    public static final Direction LT = Direction.LT;
+
     /**
      * Key that always occupies the left edge of any <code>Tree</code>
      */
@@ -620,7 +622,7 @@ public final class Key implements Comparable<Object> {
     private final static int EWIDTH_LONG = 9;
     private final static int EWIDTH_ULONG = 10;
 
-    private final static Class[] CLASS_PER_TYPE = {
+    private final static Class<?>[] CLASS_PER_TYPE = {
     /* 0 */null,
     /* 1 */EdgeValue.class,
     /* 2 */Object.class,
@@ -893,47 +895,15 @@ public final class Key implements Comparable<Object> {
     private int _depth;
     private int _maxSize;
     private long _generation;
-    private KeyStringCoder _stringCoder;
     private Persistit _persistit;
-
-    /**
-     * Enumeration of possible qualifiers for the {@link Exchange#traverse
-     * traverse} and {@link Exchange#remove(Key.Direction) remove} methods.
-     * Values include {@link #EQ}, {@link #GT}, {@link #GTEQ}, {@link #LT} and
-     * {@link #LTEQ}.
-     */
-    // TODO - why are Direction and EdgeValue Serializable at all?
-    // TODO - change to actual enums?
-    public static class Direction implements Serializable {
-        public static final long serialVersionUID = -6405708619069695188L;
-
-        private String _description;
-        private int _index;
-
-        private Direction(String description, int index) {
-            _description = description;
-            _index = index;
-        }
-
-        public String toString() {
-            return _description;
-        }
-
-        int getIndex() {
-            return _index;
-        }
-
-        public Object readResolve() {
-            return DIRECTIONS[_index];
-        }
-    }
 
     /**
      * Enumeration of special key segment values used to traverse from the first
      * or last key. At most one <code>EdgeValue</code> may be appended to a key,
      * but a key so constructed is not valid for the {@link Exchange#store
      * store} or {@link Exchange#fetch fetch} operations. See {@link #BEFORE}
-     * and {@link #AFTER}.
+     * and {@link #AFTER}. Serializable because these values can be transmitted
+     * via RMI.
      */
     public static class EdgeValue implements Serializable {
         public static final long serialVersionUID = -502106634184636556L;
@@ -982,7 +952,6 @@ public final class Key implements Comparable<Object> {
         key._size = _size;
         key._index = _index;
         key._depth = _depth;
-        key._stringCoder = _stringCoder;
         key._persistit = _persistit;
         key.bumpGeneration();
     }
@@ -1108,25 +1077,6 @@ public final class Key implements Comparable<Object> {
         }
         _index = index;
         return this;
-    }
-
-    /**
-     * Returns the current <code>KeyStringCoder</code>.
-     * 
-     * @return The <code>KeyStringCoder</code>
-     */
-    public KeyStringCoder getKeyStringCoder() {
-        return _stringCoder;
-    }
-
-    /**
-     * Replaces the current <code>KeyStringCoder</code>.
-     * 
-     * @param coder
-     *            The new <code>KeyStringCoder</code>
-     */
-    public void setKeyStringCoder(KeyStringCoder coder) {
-        _stringCoder = coder;
     }
 
     /**
@@ -1509,19 +1459,19 @@ public final class Key implements Comparable<Object> {
         try {
             for (int depth = 0; _index < _size; depth++) {
                 if (depth > 0)
-                    sb.append(",");
-                decodeDisplayable(true, sb);
+                    Util.append(sb, ",");
+                decodeDisplayable(true, sb, null);
             }
-            sb.append("}");
+            Util.append(sb, "}");
             switch (nudged) {
             case LEFT:
-                sb.append('-');
+                Util.append(sb, '-');
                 break;
             case RIGHT:
-                sb.append('+');
+                Util.append(sb, '+');
                 break;
             case DOWN:
-                sb.append("*");
+                Util.append(sb, "*");
                 break;
             case NO:
                 // no annotation
@@ -2029,14 +1979,10 @@ public final class Key implements Comparable<Object> {
             return appendAfter();
         }
 
-        Class cl = object.getClass();
+        Class<?> cl = object.getClass();
 
-        if (cl == String.class) {
-            return appendString((String) object, context);
-        }
-
-        if (cl == StringBuilder.class) {
-            return appendString((StringBuilder) object, context);
+        if (CharSequence.class.isAssignableFrom(cl)) {
+            return appendString((CharSequence) object, context);
         }
 
         if (cl == Boolean.class) {
@@ -2088,10 +2034,8 @@ public final class Key implements Comparable<Object> {
         }
 
         KeyCoder coder = _persistit.lookupKeyCoder(cl);
-        {
-            if (coder != null) {
-                return appendByKeyCoder(object, cl, coder, context);
-            }
+        if (coder != null) {
+            return appendByKeyCoder(object, cl, coder, context);
         }
 
         throw new ConversionException("Object class " + object.getClass().getName() + " can't be used in a Key");
@@ -2609,8 +2553,7 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Decodes the next key segment as a <code>String</code>, advances the index
-     * to the next key segment and returns the result. This method uses the
-     * {@link KeyStringCoder} if there is one.
+     * to the next key segment and returns the result.
      * 
      * @return The String value
      * @throws ConversionException
@@ -2618,64 +2561,24 @@ public final class Key implements Comparable<Object> {
      */
     public String decodeString() {
         StringBuilder sb = new StringBuilder();
-        decodeString(false, sb, null);
-        return sb.toString();
-    }
-
-    /**
-     * Decodes the next key segment as a <code>String</code>, advances the index
-     * to the next key segment and returns the result. This method uses the
-     * {@link KeyStringCoder} if there is one.
-     * 
-     * @param context
-     *            An application-specified value that may assist a
-     *            {@link KeyStringCoder}. The context is passed to the
-     *            {@link KeyStringCoder#decodeKeySegment} method.
-     * @return The String value
-     * @throws ConversionException
-     *             if the next key segment value is not a String.
-     */
-    public String decodeString(CoderContext context) {
-        StringBuilder sb = new StringBuilder();
-        decodeString(false, sb, context);
+        decodeString(false, sb);
         return sb.toString();
     }
 
     /**
      * Decodes the next key segment as a <code>String</code>, appends the result
-     * to the supplied <code>StringBuilder</code> and advance the index to the
-     * next key segment. This method uses the <code>Key</code>'s
-     * {@link KeyStringCoder} if there is one.
+     * to the supplied <code>Appendable</code> and advance the index to the next
+     * key segment.
      * 
      * @param sb
-     *            The <code>StringBuilder</code>
-     * 
+     *            The <code>Appendable</code>
+     * @return The supplied <code>Appendable</code> to permit operation
+     *         chaining.
      * @throws ConversionException
      *             if the next key segment value is not a String.
      */
-    public void decodeString(StringBuilder sb) {
-        decodeString(false, sb, null);
-    }
-
-    /**
-     * Decodes the next key segment as a <code>String</code>, appends the result
-     * to the supplied <code>StringBuilder</code> and advances the index to the
-     * next key segment. This method uses the <code>Key</code>'s
-     * {@link KeyStringCoder} if there is one.
-     * 
-     * @param sb
-     *            The <code>StringBuilder</code>
-     * 
-     * @param context
-     *            An application-specified value that may assist a
-     *            {@link KeyStringCoder}. The context is passed to the
-     *            {@link KeyStringCoder#decodeKeySegment} method.
-     * 
-     * @throws ConversionException
-     *             if the next key segment value is not a String.
-     */
-    public void decodeString(StringBuilder sb, CoderContext context) {
-        decodeString(false, sb, context);
+    public Appendable decodeString(Appendable sb) {
+        return decodeString(false, sb);
     }
 
     /**
@@ -2896,7 +2799,11 @@ public final class Key implements Comparable<Object> {
         }
 
         if (type == TYPE_STRING) {
-            return decodeString();
+            if (target != null && Appendable.class.isAssignableFrom(target.getClass())) {
+                return decodeString((Appendable) target);
+            } else {
+                return decodeString();
+            }
         }
 
         if (type == TYPE_DATE) {
@@ -2929,7 +2836,7 @@ public final class Key implements Comparable<Object> {
      * @throws ConversionException
      *             if the encoded value is malformed.
      */
-    public Class decodeType() {
+    public Class<?> decodeType() {
         int type = getTypeCode();
 
         if (type >= TYPE_CODER_MIN && type <= TYPE_CODER_MAX) {
@@ -2957,34 +2864,12 @@ public final class Key implements Comparable<Object> {
      */
     public String decodeDisplayable(boolean quoted) {
         StringBuilder sb = new StringBuilder();
-        decodeDisplayable(quoted, sb);
+        decodeDisplayable(quoted, sb, null);
         return sb.toString();
     }
 
     /**
-     * Decodes the next key segment as a displayable String and advances the
-     * index to the next key segment. This method appends the decoded String
-     * value to the supplied StringBuilder. If <code>quoted</code> is true, and
-     * if the segment value is a String, then the String value is surrounded by
-     * quote (") characters, and backslashes are inserted into the display
-     * string to quote any embedded any backslash or quote characters. This
-     * method is intended to generate a human-readable, canonical String
-     * representation for any type of key segment value.
-     * 
-     * @param quoted
-     *            <code>true</code> if the resulting string is to be quoted.
-     * @param sb
-     *            The <code>StringBuilder</code> to which the displayable String
-     *            is to be appended.
-     * @throws ConversionException
-     *             if the next key segment value is not a boolean.
-     */
-    public void decodeDisplayable(boolean quoted, StringBuilder sb) {
-        decodeDisplayable(quoted, sb, null);
-    }
-
-    /**
-     * Decodes the next key segment as a displayable String and advances the
+     * Decode the next key segment as a displayable String and advances the
      * index to the next key segment. This method appends the decoded String
      * value to the supplied StringBuilder. If <code>quoted</code> is true, and
      * if the segment value is a String, then the String value is surrounded by
@@ -2998,14 +2883,10 @@ public final class Key implements Comparable<Object> {
      * @param sb
      *            The <code>StringBuilder</code> to which the displayable string
      *            is to be appended.
-     * @param context
-     *            An application-specified value that may assist a
-     *            {@link KeyStringCoder}. The context is passed to the
-     *            {@link KeyStringCoder#renderKeySegment} method.
      * @throws ConversionException
      *             if the next key segment value is not a boolean.
      */
-    public void decodeDisplayable(boolean quoted, StringBuilder sb, CoderContext context) {
+    public void decodeDisplayable(boolean quoted, Appendable sb, CoderContext context) {
         if (_index >= _size)
             return;
 
@@ -3014,36 +2895,41 @@ public final class Key implements Comparable<Object> {
         // Handle special types.
         switch (type) {
         case TYPE_LEFT_EDGE:
-            sb.append("{left edge}");
+            Util.append(sb, "{left edge}");
             _index++;
             return;
 
         case TYPE_RIGHT_EDGE:
-            sb.append("{right edge}");
+            Util.append(sb, "{right edge}");
             _index++;
             return;
 
         case TYPE_BEFORE:
         case TYPE_AFTER:
-            sb.append(decodeBeforeAfter());
+            Util.append(sb, decodeBeforeAfter().toString());
             _index++;
             return;
 
         case TYPE_STRING:
-            if (quoted)
-                sb.append('\"');
-            decodeString(quoted, sb, context);
-            if (quoted)
-                sb.append('\"');
+            if (quoted) {
+                Util.append(sb, '\"');
+            }
+            decodeString(quoted, sb);
+            if (quoted) {
+                Util.append(sb, '\"');
+            }
             return;
 
         case TYPE_NULL:
-            sb.append(decodeNull()); // let system define the string form
+            decodeNull();
+            Util.append(sb, "null");
             return;
 
         case TYPE_BOOLEAN_FALSE:
         case TYPE_BOOLEAN_TRUE:
-            sb.append(decodeBoolean()); // let system define the string form
+            Util.append(sb, Boolean.toString(decodeBoolean())); // let system
+                                                                // define the
+                                                                // string form
             return;
 
         default:
@@ -3054,79 +2940,67 @@ public final class Key implements Comparable<Object> {
             return;
         }
 
-        Class cl = CLASS_PER_TYPE[type];
+        Class<?> cl = CLASS_PER_TYPE[type];
 
         if (cl == Byte.class) {
-            sb.append(PREFIX_BYTE);
-            sb.append((int) decodeByte());
+            Util.append(sb, PREFIX_BYTE);
+            Util.append(sb, Byte.toString(decodeByte()));
         }
 
         else if (cl == Short.class) {
-            sb.append(PREFIX_SHORT);
-            sb.append((int) decodeShort());
+            Util.append(sb, PREFIX_SHORT);
+            Util.append(sb, Short.toString(decodeShort()));
         }
 
         else if (cl == Character.class) {
-            // PDB 20050728 - makes char elements prettier in the string
-            // representation, but needs changes in parser.
-            // if (quoted)
-            // {
-            // sb.append('\'');
-            // Util.appendQuotedChar(sb, decodeChar());
-            // sb.append('\'');
-            // return;
-            // }
-            // else
-            // {
-            sb.append(PREFIX_CHAR);
-            sb.append((int) decodeChar());
-            // }
+            Util.append(sb, PREFIX_CHAR);
+            Util.append(sb, Integer.toString(decodeChar()));
         }
 
         else if (cl == Integer.class) {
-            sb.append(decodeInt());
+            Util.append(sb, Integer.toString(decodeInt()));
         }
 
         else if (cl == Long.class) {
-            sb.append(PREFIX_LONG);
-            sb.append(decodeLong());
+            Util.append(sb, PREFIX_LONG);
+            Util.append(sb, Long.toString(decodeLong()));
         }
 
         else if (cl == Float.class) {
-            sb.append(PREFIX_FLOAT);
-            sb.append(decodeFloat());
+            Util.append(sb, PREFIX_FLOAT);
+            Util.append(sb, Float.toString(decodeFloat()));
         }
 
         else if (cl == Double.class) {
-            sb.append(decodeDouble());
+            Util.append(sb, Double.toString(decodeDouble()));
         }
 
         else if (cl == BigInteger.class) {
-            sb.append(PREFIX_BIG_INTEGER);
-            sb.append(decode());
+            Util.append(sb, PREFIX_BIG_INTEGER);
+            Util.append(sb, decode().toString());
         }
 
         else if (cl == BigDecimal.class) {
-            sb.append(PREFIX_BIG_DECIMAL);
-            sb.append(decode());
+            Util.append(sb, PREFIX_BIG_DECIMAL);
+            Util.append(sb, decode().toString());
         }
 
         else if (cl == Boolean.class) {
-            sb.append(decodeBoolean());
+            Util.append(sb, Boolean.toString(decodeBoolean()));
         }
 
         else if (cl == Date.class) {
-            sb.append(PREFIX_DATE);
-            sb.append(SDF.format(decodeDate()));
+            Util.append(sb, PREFIX_DATE);
+            Util.append(sb, SDF.format(decodeDate()));
         }
 
         else if (cl == byte[].class) {
-            sb.append(PREFIX_BYTE_ARRAY);
-            sb.append(Util.bytesToHex(decodeByteArray()));
+            Util.append(sb, PREFIX_BYTE_ARRAY);
+            Util.append(sb, Util.bytesToHex(decodeByteArray()));
         }
 
         else {
-            sb.append("(?)");
+            Util.append(sb, "(?)");
             Util.bytesToHex(sb, _bytes, _index, _size - _index);
             _index = _size;
         }
@@ -3376,7 +3250,7 @@ public final class Key implements Comparable<Object> {
      *            the String to encode and append to the key.
      * @return This <code>Key</code>, to permit method call chaining
      */
-    private Key appendString(String s, CoderContext context) {
+    private Key appendString(CharSequence s, CoderContext context) {
         notLeftOrRightGuard();
         testValidForAppend();
         int strlen = s.length();
@@ -3385,93 +3259,24 @@ public final class Key implements Comparable<Object> {
         }
         int size = _size;
         _bytes[size++] = (byte) TYPE_STRING;
-        //
-        // TODO - Embody the default behavior in a default KeyStringCoder to
-        // to eliminate the if statement. Also provides a base implementation
-        // for developers to extend.
-        //
-        if (_stringCoder != null) {
-            try {
-                _size = size;
-                size = size - 1;
-                _stringCoder.appendKeySegment(this, s, context);
-                size = _size;
-            } finally {
-                _size = size;
-            }
-        } else {
-            for (int i = 0; i < strlen; i++) {
-                int c = s.charAt(i);
-                if (c <= 0x0001) {
-                    _bytes[size++] = (byte) (0x01);
-                    _bytes[size++] = (byte) (c + 0x0020);
-                } else if (c <= 0x007F) {
-                    _bytes[size++] = (byte) c;
-                } else if (c <= 0x07FF) {
-                    _bytes[size++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
-                    _bytes[size++] = (byte) (0x80 | ((c >> 0) & 0x3F));
-                } else {
-                    _bytes[size++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
-                    _bytes[size++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-                    _bytes[size++] = (byte) (0x80 | ((c >> 0) & 0x3F));
-                }
+
+        for (int i = 0; i < strlen; i++) {
+            int c = s.charAt(i);
+            if (c <= 0x0001) {
+                _bytes[size++] = (byte) (0x01);
+                _bytes[size++] = (byte) (c + 0x0020);
+            } else if (c <= 0x007F) {
+                _bytes[size++] = (byte) c;
+            } else if (c <= 0x07FF) {
+                _bytes[size++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
+                _bytes[size++] = (byte) (0x80 | ((c >> 0) & 0x3F));
+            } else {
+                _bytes[size++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
+                _bytes[size++] = (byte) (0x80 | ((c >> 6) & 0x3F));
+                _bytes[size++] = (byte) (0x80 | ((c >> 0) & 0x3F));
             }
         }
 
-        return endSegment(size);
-    }
-
-    /**
-     * Encode a String value into this Key using a modified UTF-8 format.
-     * Character values 0x0000 and 0x0001 in the String are represented by a two
-     * byte sequence. For character value c <= 0x0001, the encoding is the two
-     * byte sequence (0x01, 0x20 + (byte)c) This ensures that all bytes in the
-     * encoded form of the String are non-zero but still collate correctly.
-     * <p>
-     * This encoding does not provide localized collection capability. It merely
-     * collates Strings by the numeric values of their character codes.
-     * <p>
-     * <p>
-     * Note: this code is paraphrased from java.io.DataOutputStream.
-     * 
-     * @param s
-     *            a StringBuilder containing the String to encode and append to
-     *            the key.
-     * @return This <code>Key</code>, to permit method call chaining
-     */
-    private Key appendString(StringBuilder s, CoderContext context) {
-        notLeftOrRightGuard();
-        int strlen = s.length();
-        int size = _size;
-        _bytes[size++] = (byte) TYPE_STRING;
-        if (_stringCoder != null) {
-            try {
-                _size = size;
-                size = size - 1;
-                _stringCoder.appendKeySegment(this, s, context);
-                size = _size;
-            } finally {
-                _size = size;
-            }
-        } else {
-
-            for (int i = 0; i < strlen; i++) {
-                int c = s.charAt(i);
-                if (c <= 0x0001) {
-                    _bytes[size++] = (byte) (0x01);
-                    _bytes[size++] = (byte) (c + 0x0020);
-                } else if (c <= 0x007F) {
-                    _bytes[size++] = (byte) c;
-                } else if (c <= 0x07FF) {
-                    _bytes[size++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
-                    _bytes[size++] = (byte) (0x80 | ((c >> 0) & 0x3F));
-                } else {
-                    _bytes[size++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
-                    _bytes[size++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-                    _bytes[size++] = (byte) (0x80 | ((c >> 0) & 0x3F));
-                }
-            }
-        }
         return endSegment(size);
     }
 
@@ -3487,7 +3292,7 @@ public final class Key implements Comparable<Object> {
         return endSegment(size);
     }
 
-    private Key appendByKeyCoder(Object object, Class cl, KeyCoder coder, CoderContext context) {
+    private Key appendByKeyCoder(Object object, Class<?> cl, KeyCoder coder, CoderContext context) {
         int size = _size;
         try {
             int handle = _persistit.getClassIndex().lookupByClass(cl).getHandle();
@@ -3510,7 +3315,7 @@ public final class Key implements Comparable<Object> {
     private Object decodeByKeyCoder(Object target, CoderContext context) {
         int index = _index;
         int size = _size;
-        Class clazz = Object.class;
+        Class<?> clazz = Object.class;
         int segmentSize = 0;
         boolean unquoted = false;
         try {
@@ -3547,10 +3352,10 @@ public final class Key implements Comparable<Object> {
         }
     }
 
-    private void decodeDisplayableByKeyCoder(boolean quoted, StringBuilder sb, CoderContext context) {
+    private void decodeDisplayableByKeyCoder(boolean quoted, Appendable sb, CoderContext context) {
         int index = _index;
         int size = _size;
-        Class clazz;
+        Class<?> clazz;
         int segmentSize = 0;
         boolean unquoted = false;
         try {
@@ -3558,13 +3363,13 @@ public final class Key implements Comparable<Object> {
             clazz = _persistit.classForHandle(handle);
             KeyCoder coder = null;
             if (clazz == null) {
-                sb.append("(?handle=");
-                sb.append(handle);
-                sb.append(")");
+                Util.append(sb, "(?handle=");
+                Util.append(sb, Integer.toString(handle));
+                Util.append(sb, ")");
             } else {
-                sb.append("(");
-                sb.append(clazz.getName());
-                sb.append(")");
+                Util.append(sb, "(");
+                Util.append(sb, clazz.getName());
+                Util.append(sb, ")");
                 coder = _persistit.lookupKeyCoder(clazz);
             }
             segmentSize = unquoteNulls(index);
@@ -3575,13 +3380,13 @@ public final class Key implements Comparable<Object> {
             if (coder instanceof KeyDisplayer) {
                 ((KeyDisplayer) coder).displayKeySegment(this, sb, clazz, context);
             } else {
-                sb.append("{");
+                Util.append(sb, '{');
                 for (int depth = 0; _index < _size; depth++) {
                     if (depth > 0)
-                        sb.append(",");
+                        Util.append(sb, ',');
                     decodeDisplayable(quoted, sb, context);
                 }
-                sb.append("}");
+                Util.append(sb, '}');
             }
         } finally {
             _size = size;
@@ -3680,67 +3485,55 @@ public final class Key implements Comparable<Object> {
      * @param quoted
      * @param sb
      */
-    private void decodeString(boolean quoted, StringBuilder sb, CoderContext context) {
+    private Appendable decodeString(boolean quoted, Appendable sb) {
         int index = _index;
         int c1 = _bytes[index++] & 0xFF;
         if (c1 != TYPE_STRING) {
             throw new ConversionException("Invalid String lead-in byte (" + c1 + ") at position " + (index - 1)
                     + " in key");
         }
-        if (_stringCoder != null) {
-            try {
-                _index = index;
-                index--;
-                _stringCoder.renderKeySegment(this, sb, StringBuilder.class, context);
-                if (_bytes[_index++] != 0) {
-                    throw new ConversionException(_stringCoder.getClass().getName() + " returned incorrect length");
-                }
-                index = _index;
-            } finally {
-                _index = index;
-            }
-        } else {
-            while ((c1 = _bytes[index++] & 0xFF) != 0 && index <= _size) {
-                char c = 0;
-                // Handle encoded NUL and SOH bytes
-                if (c1 == 0x01) {
-                    int c2 = _bytes[index++] & 0xFF;
-                    if (c2 >= 0x0020 && c2 <= 0x0021) {
-                        c = (char) (c2 - 0x0020);
-                    } else {
-                        throw new ConversionException("String decoding exception at position " + (index - 1));
-                    }
-                }
 
-                // 7-bit ASCII
-                else if (c1 <= 0x7F) {
-                    c = (char) c1;
-                }
-
-                else if (c1 > 0xC0 && c1 <= 0xDF) {
-                    int c2 = _bytes[index++] & 0xFF;
-                    if (c2 >= 0x80 && c2 <= 0xBF) {
-                        c = (char) (((c1 & 0x1F) << 6) | ((c2 & 0x3F) << 0));
-                    } else {
-                        throw new ConversionException("String decoding exception at position " + (index - 1));
-                    }
-                } else if (c1 >= 0xE0 && c1 <= 0xEF) {
-                    int c2 = _bytes[index++] & 0xFF;
-                    int c3 = _bytes[index++] & 0xFF;
-                    if (c2 >= 0x80 && c2 <= 0xBF && c3 >= 0x80 && c3 <= 0xBF) {
-                        c = (char) (((c1 & 0x0F) << 12) | ((c2 & 0x3F) << 6) | ((c3 & 0x3F) << 0));
-                    }
+        while ((c1 = _bytes[index++] & 0xFF) != 0 && index <= _size) {
+            char c = 0;
+            // Handle encoded NUL and SOH bytes
+            if (c1 == 0x01) {
+                int c2 = _bytes[index++] & 0xFF;
+                if (c2 >= 0x0020 && c2 <= 0x0021) {
+                    c = (char) (c2 - 0x0020);
                 } else {
                     throw new ConversionException("String decoding exception at position " + (index - 1));
                 }
-                if (quoted) {
-                    Util.appendQuotedChar(sb, c);
+            }
+
+            // 7-bit ASCII
+            else if (c1 <= 0x7F) {
+                c = (char) c1;
+            }
+
+            else if (c1 > 0xC0 && c1 <= 0xDF) {
+                int c2 = _bytes[index++] & 0xFF;
+                if (c2 >= 0x80 && c2 <= 0xBF) {
+                    c = (char) (((c1 & 0x1F) << 6) | ((c2 & 0x3F) << 0));
                 } else {
-                    sb.append(c);
+                    throw new ConversionException("String decoding exception at position " + (index - 1));
                 }
+            } else if (c1 >= 0xE0 && c1 <= 0xEF) {
+                int c2 = _bytes[index++] & 0xFF;
+                int c3 = _bytes[index++] & 0xFF;
+                if (c2 >= 0x80 && c2 <= 0xBF && c3 >= 0x80 && c3 <= 0xBF) {
+                    c = (char) (((c1 & 0x0F) << 12) | ((c2 & 0x3F) << 6) | ((c3 & 0x3F) << 0));
+                }
+            } else {
+                throw new ConversionException("String decoding exception at position " + (index - 1));
+            }
+            if (quoted) {
+                Util.appendQuotedChar(sb, c);
+            } else {
+                Util.append(sb, c);
             }
         }
         _index = index;
+        return sb;
     }
 
     private Key endSegment(int size) {
@@ -3790,8 +3583,7 @@ public final class Key implements Comparable<Object> {
             _bytes[size++] = (byte) (0xC0 | ((handle >>> 12) & 0x3F));
             _bytes[size++] = (byte) (0xC0 | ((handle >>> 6) & 0x3F));
             _bytes[size++] = (byte) (0x80 | ((handle) & 0x3F));
-            // TODO - betch this is wrong
-            return 3;
+            return 6;
         }
     }
 

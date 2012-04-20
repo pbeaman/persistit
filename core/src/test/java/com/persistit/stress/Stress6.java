@@ -140,6 +140,7 @@ public class Stress6 extends StressBase {
                     final Value value = _exs.getValue();
                     boolean okay = false;
                     if (value.isDefined()) {
+                        _sb2.setLength(0);
                         value.getString(_sb2);
                         if (_sb2.length() == 0) {
                             okay = true;

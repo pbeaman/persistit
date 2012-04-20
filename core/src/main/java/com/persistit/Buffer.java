@@ -63,7 +63,7 @@ import com.persistit.util.Util;
 /**
  * <p>
  * Memory structure that holds and manipulates the state of a fixed-length
- * <i>page</i> of the database. Persistit manipulates the content of a page by
+ * page of a {@link Volume}. Persistit manipulates the content of a page by
  * copying it into a <code>Buffer</code>, reading and/or modifying modifying the
  * <code>Buffer</code>, and then writing the <code>Buffer</code>'s content back
  * into the page. There are several types of pages within the BTree structure -
@@ -273,8 +273,6 @@ public class Buffer extends SharedResource {
 
     public final static int MAX_KEY_RATIO = 16;
 
-    final static boolean ENABLE_LOCK_MANAGER = false;
-    
     private final static int BINARY_SEARCH_THRESHOLD = 6;
 
     abstract static class VerifyVisitor {
@@ -567,31 +565,20 @@ public class Buffer extends SharedResource {
             if (!isDirty()) {
                 _timestamp = _persistit.getCurrentTimestamp();
             }
-            if (ENABLE_LOCK_MANAGER) {
-                _pool._lockManager.registerClaim(this, writer);
-            }
             return true;
         } else {
             return false;
         }
     }
 
+    @Override
     void release() {
         if (Debug.ENABLED && isDirty() && (isDataPage() || isIndexPage())) {
             assertVerify();
         }
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.unregisterClaim(this);
-        }
         super.release();
     }
 
-    @Override
-    void releaseWriterClaim() {
-        if (ENABLE_LOCK_MANAGER) {
-            _pool._lockManager.registerDowngrade(this);
-        }
-    }
 
     void releaseTouched() {
         setTouched();
@@ -3641,6 +3628,7 @@ public class Buffer extends SharedResource {
                     if (valueByte == MVV.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
                             if (tree != null) {
+                                _mvvCount++;
                                 _persistit.getCleanupManager().offer(
                                         new CleanupAntiValue(tree.getHandle(), getPageAddress()));
                             }

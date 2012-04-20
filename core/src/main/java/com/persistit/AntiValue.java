@@ -33,7 +33,7 @@ import java.util.Arrays;
 /**
  * Represents the end of a key range to be removed. Used in Transactions.
  * 
- * @author Peter Beaman
+ * @author peter
  * @version 1.1
  */
 class AntiValue {

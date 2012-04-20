@@ -427,7 +427,7 @@ public class IntegrityCheck extends Task {
      * Control whether <code>IntegrityCheck</code> should attempt to prune pages
      * containing MVV values.
      * 
-     * @param fixHoles
+     * @param prune
      *            <code>true</code> to attempt to prune MVV values
      */
     public void setPruneEnabled(boolean prune) {

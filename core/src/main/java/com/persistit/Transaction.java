@@ -47,168 +47,230 @@ import com.persistit.util.Util;
 
 /**
  * <p>
- * Represents the transaction context for atomic units of work performed by
- * Persistit.
+ * Transaction context for atomic units of work performed by Persistit. Each
+ * Persistit thread typically uses one <code>Transaction</code> object for its
+ * lifetime. Within that context it may execute and commit many transactions.
  * </p>
  * <p>
  * The application determines when to {@link #begin}, {@link #commit},
  * {@link #rollback} and {@link #end} transactions. Once a transaction has
- * started, no update operation performed within its context will actually be
- * written to the database until <code>commit</code> is performed. At that
- * point, all the updates are written atomically - that is, completely or not at
- * all. If the application is abruptly terminated while <code>commit</code> is
- * writing updates to the database, they will be completed during recovery
- * processing when the Persistit is next initialized.
+ * started, no update operation performed within its context will be visible to
+ * other threads until <code>commit</code> is performed. At that point, all the
+ * updates become visible and durable.
+ * </p>
+ * <p>
+ * Persistit implements Multi-Version Concurrency Control (MVCC) with <a
+ * href="http://wikipedia.org/wiki/Snapshot_isolation">Snapshot Isolation</a>
+ * for high concurrency and throughput. This protocol is <i>optimistic</i> in
+ * that competing concurrent transactions run at full speed without locking, but
+ * can arrive in a state where not all transactions can be allowed to commit
+ * while preserving correct semantics. In such cases one or more of the
+ * transactions must roll back (abort) and retry. These topics are covered in
+ * greater detail below.
+ * </p>
+ * <p>
+ * The <code>Transaction</code> object itself is not thread-safe and may be
+ * accessed and used by only one thread at a time. However, the database
+ * operations being executed within the scope defined by <code>begin</code> and
+ * <code>end</code> are capable of highly concurrent execution.
  * </p>
  * <h2>Lexical Scoping</h2>
  * <p>
- * Applications using Persistit transactions must terminate the scope of any
- * transaction. To do this, applications must ensure that whenever the
- * <code>begin</code> method is called, there is a concluding invocation of the
- * <code>end</code> method. The <code>commit</code> and <code>rollback</code>
- * methods do not end the scope of a transaction; they merely signify the
- * transaction's outcome when <code>end</code> is invoked. Applications should
- * follow either the <a href="#_pattern1"><code>try/finally</code></a> or the <a
- * href="#_pattern2"> <code>TransactionRunnable</code></a> pattern to ensure
- * correctness.
+ * Applications must manage the scope of any transaction by ensuring that
+ * whenever the <code>begin</code> method is called, there is a concluding
+ * invocation of the <code>end</code> method. The <code>commit</code> and
+ * <code>rollback</code> methods do not end the scope of a transaction; they
+ * merely signify the transaction's intended outcome when <code>end</code> is
+ * invoked. Applications should follow either the <a href="#_pattern1">
+ * <code>try/finally</code></a> or the <a href="#_pattern2">
+ * <code>TransactionRunnable</code></a> pattern to ensure correctness.
  * </p>
  * <p>
- * <a name="diskVsMemoryCommit">
- * <h2>Memory and Disk Commits</h2>
- * A transaction is capable of performing either a <i>disk commit</i> or a
- * <i>memory commit</i>. A disk commit synchronously forces all pending database
- * updates to the volume files; a memory commit allows the normal lazy writing
- * mechanism to perform the writes. Memory commits are much faster because the
- * results of numerous update operations are often aggregated and written to
- * disk in a much smaller number of I/O operations. However, when using memory
- * commits, it is possible that the recovered state of a database after an
- * abrupt termination of the JVM will not contain transactions that were
- * committed shortly before the termination.
+ * <a name="commitPolicy"/>
+ * <h2>Commit Policy</h2>
+ * Persistit provides three policies that determine the durability of a
+ * transaction after it has executed the <code>commit</code> method. These are:
+ * <dl>
+ * <dt>{@link CommitPolicy#HARD}</dt>
+ * <dd>The <code>commit</code> method does not return until all updates created
+ * by the transaction have been written to non-volatile storage (e.g., disk
+ * storage).</dd>
+ * <dt>{@link CommitPolicy#GROUP}</dt>
+ * <dd>The <code>commit</code> method does not return until all updates created
+ * by the transaction have been written to non-volatile storage. In addition,
+ * the committing transaction waits briefly in an attempt to recruit other
+ * concurrently running transactions to write their updates with the same
+ * physical I/O operation.</dd>
+ * <dt>{@link CommitPolicy#SOFT}</dt>
+ * <dd>The <code>commit</code> method returns <i>before</i> the updates have
+ * been recorded on non-volatile storage. Persistit attempts to write them
+ * within 100 milliseconds, but this interval is not guaranteed.</dd>
+ * </dl>
+ * <p>
+ * You can specify a default policy in the Persistit initialization properties
+ * using the {@value com.persistit.Persistit#TRANSACTION_COMMIT_POLICY_NAME}
+ * property or under program control using
+ * {@link Persistit#setDefaultTransactionCommitPolicy} . The default policy
+ * applies to the {@link #commit()} method. You can override the default policy
+ * using {@link #commit(CommitPolicy)}.
  * </p>
  * <p>
- * For memory commits, the state of the database after restart will be such that
- * for any memory committed transaction T, either all or none of its
- * modifications will be present in the recovered database. Further, if a
- * transaction T2 reads or updates data that was written by any other
- * transaction T1, and if T2 is present in the recovered database, then so is
- * T1. Any transaction that was in progress, but had not been committed at the
- * time of the failure, is guaranteed not to be present in the recovered
- * database. Lazy writing writes all updated pages to disk within within a
- * reasonable period of time (several seconds), so that the likelihood of
- * missing data is relatively small. Thus the recovered database is consistent
- * with some valid execution schedule of committed transactions and is
- * <i>nearly</i> up to date - within seconds - of the abrupt termination. For
- * many applications this guarantee is sufficient for correct operation.
+ * HARD and GROUP ensure each transaction is written durably to non-volatile
+ * storage before the <code>commit</code> method returns. The difference is that
+ * GROUP can improve throughput somewhat when many transactions are running
+ * concurrently because the average number of I/O operations needed to commit N
+ * transactions can be smaller than N. However, for one or a small number of
+ * concurrent threads, GROUP reduces throughput because it works by introducing
+ * a delay to allow other concurrent transactions to commit within a single I/O
+ * operation.
  * </p>
- * <h2>Optimistic Concurrent Scheduling</h2>
  * <p>
- * Persistit normally schedules concurrently executing transactions
- * optimistically, meaning that Persistit does not implicitly lock any data
- * records that a transaction reads or writes. Instead, it allows each
- * transaction to proceed concurrently and then verifies that no other thread
- * has changed data that the transaction has relied upon before it commits. If
- * conflicting changes are found, then Persistit rolls back all changes
- * performed within the scope of the transaction and throws a
- * <code>RollbackException</code>. In most database applications, such a
- * collision is relatively rare, and the application can simply retry the
- * transaction with a high likelihood of success after a small number of
- * retries. To minimize the likelihood of collisions, applications should favor
- * short transactions with small numbers of database operations when possible
- * and practical.
+ * SOFT commits are generally much faster than HARD or GROUP commits, especially
+ * for single-threaded applications, because the results of numerous update
+ * operations can be aggregated and written to disk in a much smaller number of
+ * I/O operations. However, transactions written with the SOFT commit policy are
+ * not immediately durable and it is possible that the recovered state of a
+ * database will be missing transactions that were committed shortly before a
+ * crash.
  * </p>
- * <a name="_pattern1" /> <h3>The try/finally Pattern</h3>
+ * <p>
+ * For SOFT commits, the state of the database after restart is such that for
+ * any committed transaction T, either all or none of its modifications will be
+ * present in the recovered database. Further, if a transaction T2 reads or
+ * updates data that was written by any other transaction T1, and if T2 is
+ * present in the recovered database, then so is T1. Any transaction that was in
+ * progress, but had not been committed at the time of the failure, is
+ * guaranteed not to be present in the recovered database. SOFT commits are
+ * designed to be durable within 100 milliseconds after the commit returns.
+ * However, this interval is determined by computing the average duration of
+ * recent I/O operations to predict the completion time of the I/O that will
+ * write the transaction to disk, and therefore the interval cannot be
+ * guaranteed.
+ * </p>
+ * <h2>Optimistic Concurrent Scheduling - MVCC</h2>
+ * <p>
+ * Persistit schedules concurrently executing transactions optimistically,
+ * without locking any database records. Instead, Persistit uses a well-known
+ * protocol called Snapshot Isolation to achieve atomicity and isolation. While
+ * transactions are modifying data, Persistit maintains multiple versions of
+ * values being modified. Each version is labeled with the commit timestamp of
+ * the transaction that modified it. Whenever a transaction reads a value that
+ * has been modified by other transactions, it reads the latest version that was
+ * committed before its own start timestamp. In other words, all read operations
+ * are performed as if from a "snapshot" of the state of the database made at
+ * the transaction's start timestamp - hence the name "Snapshot Isolation."
+ * </p>
+ * <h3>Pruning</h3>
+ * <p>
+ * Given that all updates written through transactions are created as versions
+ * within the MVCC scheme, a large number of versions can accumulate over time.
+ * Persistit reduces this number through an activity called "version pruning."
+ * Pruning resolves the final state of each version by removing any versions
+ * created by aborted transactions and removing obsolete versions no longer
+ * needed by currently executing transactions. If a value contains only one
+ * version and the commit timestamp of the transaction that created it is before
+ * the start of any currently running transaction, that value is called
+ * <i>primordial</i>. The goal of pruning is to reduce almost all values in a
+ * Persistit Tree to their primordial states because updating and reading
+ * primordial values is more efficient than the handling required for multiple
+ * version values. Pruning happens automatically and is generally not visible to
+ * the application.
+ * </p>
+ * <h3>Rollbacks</h3>
+ * <p>
+ * Usually Snapshot Isolation allows concurrent transactions to commit without
+ * interference but this is not always the case. Two concurrent transactions
+ * that attempt to modify the same Persistit key-value pair before committing
+ * are said to have a "write-write dependency". To avoid anomalous results one
+ * of them must abort, rolling back any other updates it may have created, and
+ * retry. Persistit implements a "first updater wins" policy in which if two
+ * transactions attempt to update the same record, the first transaction "wins"
+ * by being allowed to continue, while the second transaction "loses" and is
+ * required to abort.
+ * </p>
+ * <p>
+ * Once a transaction has aborted, any subsequent database operation it attempts
+ * throws a {@link RollbackException}. Application code should generally catch
+ * and handle the <code>RollbackException</code>. Usually the correct and
+ * desired behavior is simply to retry the transaction. See <a
+ * href="#_pattern1"><code>try/finally</code></a> for a code pattern that
+ * accomplishes this.
+ * </p>
+ * <p>
+ * A transaction can also voluntarily roll back. For example, transaction logic
+ * could detect an error condition that it chooses to handle by throwing an
+ * exception back to the application. In this case the transaction should invoke
+ * the {@link #rollback} method to explicit declare its intent to abort the
+ * transaction.
+ * </p>
+ * <h3>Read-Only Transactions</h3>
+ * <p>
+ * Under Snapshot Isolation, transactions that read but do not modify data
+ * cannot generate any write-write dependencies and are therefore not subject to
+ * being rolled back because of the actions of other transactions. However, note
+ * that even if it modifies no data, a long-running transaction can force
+ * Persistit to retain old value versions for its duration in order to provide a
+ * snapshot view. This behavior can cause congestion and performance degradation
+ * by preventing very old values from being pruned. The degree to which this is
+ * a problem depends on the volume of update transactions being processed and
+ * the duration of long-running transactions.
+ * </p>
+ * 
+ * <a name="_pattern1"/> <h2>The try/finally/retry Code Pattern</h2>
  * <p>
  * The following code fragment illustrates a transaction executed with up to to
  * RETRY_COUNT retries. If the <code>commit</code> method succeeds, the whole
  * transaction is completed and the retry loop terminates. If after RETRY_COUNT
- * retries, <code>commit</code> has not been successfully completed, the
+ * retries <code>commit</code> has not been successfully completed, the
  * application throws a <code>TransactionFailedException</code>.
  * </p>
+ * 
  * <blockquote><code><pre>
  *     Transaction txn = Persistit.getTransaction();
  *     int remainingAttempts = RETRY_COUNT;
- *     for (;;)
- *     {
- *         txn.begin();         // Begins transaction scope
- *         try
- *         {
+ *     for (;;) {
+ *         txn.begin();         // Begin transaction scope
+ *         try {
  *             //
  *             // ...perform Persistit fetch, remove and store operations...
  *             //
  *             txn.commit();     // attempt to commit the updates
  *             break;            // Exit retry loop
  *         }
- *         catch (RollbackException re)
- *         {
- *             if (--remainingAttempts &lt; 0)
- *             {
+ *         catch (RollbackException re) {
+ *             if (--remainingAttempts &lt; 0) {
  *                 throw new TransactionFailedException(); 
  *             {
  *         }
- *         finally
- *         {
- *             txn.end();       // Ends transaction scope.  Implicitly 
- *                              // rolls back all updates unless
- *                              // commit has completed successfully.
+ *         finally {
+ *             txn.end();       // End transaction scope. Implicitly 
+ *                              // roll back all updates unless
+ *                              // commit completed successfully.
  *         }
  *     }
- * }
- * </pre></code></blockquote> </p> <a name="_pattern2" /> <h3>The
- * TransactionRunnable Pattern</h3>
+ * </pre></code></blockquote>
+ * 
+ * <a name="_pattern2" /> <h2>The TransactionRunnable Pattern</h2>
  * <p>
  * As an alternative, the application can embed the actual database operations
- * within an implementation of the {@link TransactionRunnable} interface and
- * invoke the {@link #run} method to execute it. The retry logic detailed in the
- * fragment shown above is handled automatically by <code>run</code>; it could
- * be rewritten as follows: <blockquote><code><pre>
+ * within a {@link TransactionRunnable} and invoke the {@link #run} method to
+ * execute it. The retry logic detailed in the fragment shown above is handled
+ * automatically by <code>run</code>; it could be rewritten as follows:
+ * 
+ * <blockquote><code><pre>
  *     Transaction txn = Persistit.getTransaction();
- *     txn.run(new TransactionRunnable()
- *     {
+ *     txn.run(new TransactionRunnable() {
  *         public void runTransaction()
- *         throws PersistitException, RollbackException
- *         {
+ *         throws PersistitException, RollbackException {
  *             //
  *             //...perform Persistit fetch, remove and store operations...
  *             //
  *         }
  *     }, RETRY_COUNT, 0);
  * </pre></code></blockquote>
+ * 
  * </p>
- * <p>
- * Optimistic concurrency control works well when the likelihood of conflicting
- * transactions - that is, concurrent execution of two or more transactions that
- * modify the same database records or that read records that other another
- * transaction is updating - is low. For most applications this assumption is
- * valid.
- * </p>
- * <p>
- * For best performance, applications in which multiple threads frequently
- * operate on overlapping data such that rollbacks are likely, the application
- * should use an external locking mechanism to prevent or reduce the likelihood
- * of collisions.
- * </p>
- * <a name="_pessimisticMode"/> <h3>Pessimistic Scheduling Mode</h3>
- * <p>
- * Persistit also provides an internal mechanism to ensure that every
- * transaction is eventually permitted to run to completion without rollback.
- * The <i>pessimistic retry threshold</i>, accessible through
- * {@link #getPessimisticRetryThreshold()} and
- * {@link #setPessimisticRetryThreshold(int)}, determines the maximum number of
- * retries allowed for a transaction using optimistic scheduling. Once the
- * number of times a transaction has been rolled back since the last successful
- * <code>commit</code> operation reaches this threshold, Persistit switches to
- * <i>pessimistic scheduling mode</i> in which the failing transaction is given
- * exclusive access to the Persistit database. To force a transaction to execute
- * in pessimistic mode on the first attempt, an application can set the
- * pessimistic retry threshold to zero.
- * </p>
- * <p>
- * An application can examine counts of commits, rollbacks and rollbacks since
- * the last successful commit using {@link #getCommittedTransactionCount()},
- * {@link #getRolledBackTransactionCount()} and
- * {@link #getRolledBackSinceLastCommitCount()}, respectively.
- * </p>
- * <a name="#_scopedCodePattern"/> <h2>Nested Transaction Scope</h2>
+ * <a name="_scopedCodePattern"/> <h2>Nested Transaction Scope</h2>
  * <p>
  * Persistit supports nested transactions by counting the number of nested
  * {@link #begin} and {@link #end} operations. Each invocation of
@@ -216,72 +278,145 @@ import com.persistit.util.Util;
  * <code>end</code> decrements the count. These methods are intended to be used
  * in a standard essential pattern, shown here, to ensure that the scope of of
  * the transaction is reliably determined by the lexical the structure of the
- * code rather than conditional logic: <blockquote>
- * 
- * <pre>
- * <code>
+ * code rather than conditional logic: <blockquote><code><pre>
  *     <b>txn.begin();</b>
- *     try
- *     {
- *         // application transaction logic here
+ *     try {
+ *         //
+ *         // Application transaction logic here, possibly including 
+ *         // invocation of methods that also call txn.begin() and
+ *         // txn.end().
+ *         //
  *         <b>txn.commit();</b>
- *     }
- *     finally
- *     {
+ *     } finally {
  *         <b>txn.end();</b>
  *     }
- * </code>
- * </pre>
- * 
- * </blockquote> This pattern ensures that the transaction scope is ended
- * properly regardless of whether the application code throws an exception or
- * completes and commits normally.
+ * </pre></code></blockquote>
+ * </p>
+ * <p>
+ * This pattern ensures that the transaction scope is ended properly regardless
+ * of whether the application code throws an exception or completes and commits
+ * normally.
  * </p>
  * <p>
  * The {@link #commit} method performs the actual commit operation only when the
- * current nested level count is 1. That is, if <code>begin</code> has been
- * invoked N times, then <code>commit</code> will actually commit the data only
- * if <code>end</code> has been invoked N-1 times. Thus data updated by an inner
- * (nested) transaction is never actually committed until the outermost
- * <code>commit</code> is called. This permits transactional code to invoke
- * other code (possibly an opaque library supplied by a third party) that may
- * itself <code>begin</code> and <code>commit</code> transactions.
+ * current nested level count (see {@link #getNestedTransactionDepth()}) is 1.
+ * That is, if <code>begin</code> has been invoked N times, then
+ * <code>commit</code> will actually commit the data only when <code>end</code>
+ * is invoked the Nth time. Data updated by an inner (nested) transaction is
+ * never actually committed until the outermost <code>commit</code> is called.
+ * This permits transactional code to invoke other code (possibly an opaque
+ * library supplied by a third party) that may itself <code>begin</code> and
+ * <code>commit</code> transactions.
  * </p>
  * <p>
- * Invoking {@link #rollback} removes all pending but uncommitted updates, marks
- * the current transaction scope as <i>rollback pending</i> and throws a
- * <code>RollbackException</code>. Any subsequent attempt to perform any
- * Persistit operation, including <code>commit</code> in the current transaction
- * scope, will fail with a <code>RollbackException</code>. The
- * <code>commit</code> method throws a <code>RollbackException</code> (and
- * therefore does not commit the pending updates) if either the transaction
- * scope is marked <i>rollback pending</i> by a prior call to
- * <code>rollback</code> or if the attempt to commit the updates would generate
- * an inconsistent database state.
+ * Invoking {@link #rollback} removes all pending but uncommitted updates and
+ * marks the current transaction scope as <i>rollback pending</i>. Any
+ * subsequent attempt to perform any Persistit operation, including
+ * <code>commit</code> in the current transaction scope, will fail with a
+ * <code>RollbackException</code>.
  * </p>
  * <p>
- * Application developers should beware that the <code>end</code> method
- * performs an implicit rollback if <code>commit</code> has not completed. If an
+ * Application developers should beware that the {@link #end} method performs an
+ * implicit rollback if <code>commit</code> has not completed. Therefore, if an
  * application fails to call <code>commit</code>, the transaction will silently
  * fail. The <code>end</code> method sends a warning message to the log
  * subsystem when this happens, but does not throw an exception. The
  * <code>end</code> method is designed this way to allow an exception thrown
  * within the application code to be caught and handled without being obscured
  * by a RollbackException thrown by <code>end</code>. But as a consequence,
- * developers must carefully verify that the <code>commit</code> method is
- * always invoked when the transaction completes normally. Upon completion of
- * the <code>end</code> method, an application can query whether a rollback
- * occurred with the {@link #getRollbackException()} method. This method returns
- * <code>null</code> if the transaction committed and ended normal; otherwise it
- * contains a {@link com.persistit.exception.RollbackException} whose stack
- * trace indicates the location of the implicit rollback.
+ * developers must carefully verify that the <code>end</code> method is always
+ * invoked whether or not the transaction completes normally.
+ * </p>
+ * <h2>Step Index: Controlling Visibility of Uncommitted Updates</h2>
+ * <p>
+ * By default, application logic within the scope of a transaction can read two
+ * kinds of values: those that were committed by other transactions prior to the
+ * start of the current transaction (from the "snapshot") and those that were
+ * modified by the transaction itself. However, in some applications it is
+ * useful to control the visibility of modifications made by the current
+ * transaction. For example, update queries that select records to update and
+ * then change the very values used as selection criteria can produce anomalous
+ * results. See <a
+ * href="http://en.wikipedia.org/wiki/Halloween_Problem">Halloween Problem</a>
+ * for a succinct description of this issue. Persistit provides a mechanism to
+ * control visibility of a transaction's own modifications to avoid this
+ * problem.
+ * </p>
+ * <p>
+ * While a transaction is executing, every updated value it generates is stored
+ * within a multi-version value and labeled with the transaction ID of the
+ * transaction that produced it <u>and</u> a small integer index (0-99) called
+ * the <i>step</i>.
+ * </p>
+ * <p>
+ * The current step index is an attribute of the <code>Transaction</code> object
+ * available from {@link #getStep}. The <code>begin</code> method resets its
+ * value to zero. An application can invoke {@link #incrementStep} to increment
+ * it, or {@link #setStep} to control its current value. Modifications created
+ * by the transaction are labeled with the current step value.
+ * </p>
+ * <p>
+ * When reading data, modifications created by the current transaction are
+ * visible to Persistit if and only if the step number they were assigned is
+ * less or equal to the <code>Transaction</code>'s current step number. An
+ * application can take advantage of this by controlling the current step index,
+ * for example, by reading data using step 0 while posting updates with a step
+ * value of 1.
+ * </p>
+ * <a name="_threadManagement" /> <h2>Thread Management</h2>
+ * <p>
+ * As noted above, a <code>Transaction</code> typically belongs to one thread
+ * for its entire lifetime and is <i>not</i> threadsafe. However, to support
+ * server applications which may manage a large number of sessions among a
+ * smaller number of threads, Persisit allows an application to manage sessions
+ * explicitly. See {@link Persistit#getSessionId()} and
+ * {@link Persistit#setSessionId(SessionId)}. The method
+ * {@link Persistit#getTransaction()} is sensitive to the thread's current
+ * <code>SessionId</code>, and therefore the following style of interaction is
+ * possible:
+ * <ul>
+ * <li>Thread T1 is assigned work for session S.</li>
+ * <li>Thread T1 invokes <code>begin</code>, does some work and then returns
+ * control to a client.</li>
+ * <li>Thread T2 receives additional work to perform on behalf of session S.</li>
+ * <li>Thread T2 sets its current SessionId to session S</li>
+ * <li>Thread T2 then uses {@link Persistit#getTransaction()} to acquire the
+ * same transaction context previously started by T1.</li>
+ * <li>Thread T2 does additional work and then calls <code>commit</code> and
+ * <code>end</code> to complete the transaction.</li>
+ * </ul>
+ * Applications that use this technique must be written carefully to ensure that
+ * multiple threads never execute with the same SessionId. Concurrent access to
+ * a <code>Transaction</code> or <code>Exchange</code> can cause serious errors,
+ * including database corruption.
+ * </p>
+ * <h2>Additional Notes</h2>
+ * <p>
+ * Optimistic concurrency control works well when the likelihood of conflicting
+ * transactions - that is, concurrent execution of two or more transactions that
+ * modify the same database records - is low. For most applications this
+ * assumption is valid.
+ * </p>
+ * <p>
+ * For best performance, applications in which multiple threads frequently
+ * operate on overlapping data such that roll-backs are likely, the application
+ * should implement its own locks to prevent or reduce the likelihood of
+ * collisions.
+ * </p>
+ * <p>
+ * An application can examine counts of commits, rollbacks and rollbacks since
+ * the last successful commit using {@link #getCommittedTransactionCount()},
+ * {@link #getRolledBackTransactionCount()} and
+ * {@link #getRolledBackSinceLastCommitCount()}, respectively.
+ * </p>
  * 
- * @author pbeaman
+ * @author peter
  * @version 1.1
  */
 public class Transaction {
-    final static int TRANSACTION_BUFFER_SIZE = 65536;
     final static int MAXIMUM_STEP = TransactionIndex.VERSION_HANDLE_MULTIPLIER - 1;
+
+    final static int TRANSACTION_BUFFER_SIZE = 65536;
 
     private static long _idCounter = 100000000;
 
@@ -311,12 +446,12 @@ public class Transaction {
 
     public static enum CommitPolicy {
         /**
-         * Committed transactions are flushed to durable within a fraction of a
-         * second but the Transaction#commit method returns before this is done.
-         * This policy is a compromise that offers much better throughput but does
-         * not provide durability for every committed transactions; some
-         * recently committed transactions may be lost after a crash/recovery
-         * cycle.
+         * The {@link Transaction#commit} method returns before all updates have
+         * been written to durable storage. This policy is a compromise that
+         * offers much better throughput, especially for sequential
+         * transactions, but does not provide durability for every committed
+         * transactions. Some recently committed transactions may be lost after
+         * a crash/recovery cycle.
          */
         SOFT,
         /**
@@ -390,7 +525,7 @@ public class Transaction {
 
     /**
      * Throws a {@link RollbackException} if this transaction context has a
-     * rollback transition pending.
+     * roll-back transition pending.
      * 
      * @throws RollbackException
      */
@@ -444,7 +579,7 @@ public class Transaction {
      * <code>begin</code> has been called. Application code should ensure that
      * every method that calls <code>begin</code> also invokes <code>end</code>
      * using a <code>try/finally</code> pattern described <a
-     * href="#_scopedCodePattern">above</a></code>.
+     * href="#_scopedCodePattern">above</a>.
      * 
      * @throws IllegalStateException
      *             if the current transaction scope has already been committed.
@@ -497,10 +632,10 @@ public class Transaction {
 
     /**
      * <p>
-     * Ends the current transaction scope. Application code should ensure that
+     * End the current transaction scope. Application code should ensure that
      * every method that calls <code>begin</code> also invokes <code>end</code>
      * using a <code>try/finally</code> pattern described in <a
-     * href="#_scopedCodePattern">above</a></code>.
+     * href="#_scopedCodePattern">above</a>.
      * </p>
      * <p>
      * This method implicitly rolls back any pending, uncommitted updates.
@@ -514,10 +649,7 @@ public class Transaction {
      *             if there is no current transaction scope.
      */
     public void end() {
-
-        if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
-        }
+        checkActive();
 
         if (_nestedDepth == 1) {
             //
@@ -564,9 +696,7 @@ public class Transaction {
      */
     public void rollback() {
 
-        if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
-        }
+        checkActive();
 
         if (_commitCompleted) {
             throw new IllegalStateException("Already committed " + this);
@@ -643,8 +773,8 @@ public class Transaction {
     }
 
     /**
-     * Commit to disk with {@link CommitPolicy} determined by the supplied boolean
-     * value. This method is obsolete and will be removed shortly.
+     * Commit to disk with {@link CommitPolicy} determined by the supplied
+     * boolean value. This method is obsolete and will be removed shortly.
      */
     @Deprecated
     public void commit(boolean toDisk) throws PersistitException {
@@ -700,9 +830,9 @@ public class Transaction {
      * 
      */
     public void commit(CommitPolicy policy) throws PersistitException {
-        if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
-        } else if (_commitCompleted) {
+        checkActive();
+
+        if (_commitCompleted) {
             throw new IllegalStateException("Already committed " + this);
         }
 
@@ -763,7 +893,7 @@ public class Transaction {
      * <code>RollbackException</code>. See
      * {@link #run(TransactionRunnable, int, long, boolean)} for retry handling.
      * This method commits the transaction to <a
-     * href="#diskVsMemoryCommit">memory</a>, which means that the update is not
+     * href="#commitPolicy">memory</a>, which means that the update is not
      * guaranteed to be durable.
      * </p>
      * 
@@ -945,11 +1075,7 @@ public class Transaction {
     /**
      * Return the number of times a transaction in this <code>Transaction</code>
      * context has rolled back since the last successful <code>commit</code>
-     * operations. When this count reaches the <i>pessimistic retry
-     * threshold</i>, Persistit switches to pessimistic mode on the next attempt
-     * to execute a transaction in this context. See <a
-     * href="#_pessimisticMode">pessimistic scheduling mode</a> for futher
-     * information.
+     * operations.
      * 
      * @return The count
      */
@@ -1105,15 +1231,14 @@ public class Transaction {
     }
 
     /**
-     * @return Get the current step index.
+     * @return the current step index.
      */
-    public int getCurrentStep() {
+    public int getStep() {
         return _step;
     }
 
     /**
-     * Set the current step index. Must be in the range [0,
-     * {@link #MAXIMUM_STEP}).
+     * Set the current step index. Must be in the range [0, 99].
      * <p>
      * Also see {@link #incrementStep()} for step semantics.
      * </p>
@@ -1130,19 +1255,25 @@ public class Transaction {
         return previous;
     }
 
+    void checkActive() {
+        if (!isActive()) {
+            throw new IllegalStateException("No transaction scope: begin() has not been called in " + this);
+        }
+    }
+
     /**
      * Increment this transaction's current step index. For any given step,
      * values written by updates within this transaction are visible (within
      * this transaction) only if they were written with earlier or equal step
      * indexes. In other words, a transaction that writes an update at step N
      * can see the result of that update when reading the database and any step
-     * <= N. This mechanism helps solve the "Halloween" problem in which a
+     * &lt;= N. This mechanism helps solve the "Halloween" problem in which a
      * SELECT query producing values to UPDATE should not be able to read back
      * those update values.
      * 
      * @throws IllegalStateException
-     *             if this method is called {@link #MAXIMUM_STEP} times or more
-     *             within the scope of one transaction.
+     *             if this method is called more than 99 times within the scope
+     *             of one transaction.
      * @return The previous value of the step.
      */
     public int incrementStep() {
@@ -1153,7 +1284,7 @@ public class Transaction {
         if (newStep < 0) {
             throw new IllegalStateException(this + " cannot have a step of " + newStep + ", less than 0");
         }
-        if (newStep >= MAXIMUM_STEP) {
+        if (newStep > MAXIMUM_STEP) {
             throw new IllegalStateException(this + " cannot have a step of " + newStep + ", greater than maximum "
                     + MAXIMUM_STEP);
         }
