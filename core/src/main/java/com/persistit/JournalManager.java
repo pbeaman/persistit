@@ -1222,6 +1222,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         _persistit.checkFatal();
         final long address = _writeBufferAddress;
         if (address != Long.MAX_VALUE && _writeBuffer != null) {
+            
+            assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
+                    "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
+                            .position(), _currentAddress);
+
             try {
                 if (_writeBuffer.position() > 0) {
                     final FileChannel channel = getFileChannel(address);
@@ -1269,9 +1274,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                             _writeBuffer.limit((int) remaining);
                         }
                     }
-                    assert _writeBuffer.position() + _writeBufferAddress == _currentAddress : String.format(
-                            "currentAddress=%,d writeBuffersAddress=%,d writeBuffer#position()=%,d", _currentAddress,
-                            _writeBufferAddress, _writeBuffer.position());
+                    
+                    assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
+                            "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
+                                    .position(), _currentAddress);
+
                     _persistit.getIOMeter().chargeFlushJournal(written, address);
                     return _writeBufferAddress;
                 }
