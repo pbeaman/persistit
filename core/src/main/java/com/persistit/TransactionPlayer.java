@@ -67,6 +67,8 @@ public class TransactionPlayer {
         void endTransaction(long address, long timestamp) throws PersistitException;
 
         void endRecovery(long address, long timestamp) throws PersistitException;
+        
+        boolean requiresLongRecordConversion();
 
     }
 
@@ -181,7 +183,9 @@ public class TransactionPlayer {
                         bb.flip();
                         position = 0;
                     }
-                    _support.convertToLongRecord(value, treeHandle, address, commitTimestamp);
+                    if (listener.requiresLongRecordConversion()) {
+                        _support.convertToLongRecord(value, treeHandle, address, commitTimestamp);
+                    }
                 }
 
                 listener.store(address, startTimestamp, exchange);

@@ -26,6 +26,7 @@
 
 package com.persistit;
 
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 import com.persistit.exception.InvalidKeyException;
@@ -163,5 +164,9 @@ public class TestShim {
     
     public static void clearAllClassIndexEntries(final Persistit persistit) throws PersistitException {
         persistit.getClassIndex().clearAllEntries();
+    }   
+
+    public static ByteBuffer getTransactionBuffer(Transaction txn) {
+        return txn.getTransactionBuffer();
     }
 }
