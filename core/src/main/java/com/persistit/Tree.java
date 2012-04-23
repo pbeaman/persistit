@@ -76,7 +76,7 @@ public class Tree extends SharedResource {
     private final Volume _volume;
     private volatile long _rootPageAddr;
     private volatile int _depth;
-    private AtomicLong _changeCount = new AtomicLong(-1);
+    private AtomicLong _changeCount = new AtomicLong(0);
     private AtomicReference<Object> _appCache = new AtomicReference<Object>();
     private AtomicInteger _handle = new AtomicInteger();
 

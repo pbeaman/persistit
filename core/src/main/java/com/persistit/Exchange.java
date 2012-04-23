@@ -4069,7 +4069,7 @@ public class Exchange {
         }
     }
 
-    public String toStringDetail() {
+    String toStringDetail() {
         final StringBuilder sb = new StringBuilder(toString());
         for (int level = 0; level < MAX_TREE_DEPTH; level++) {
             final LevelCache lc = _levelCache[level];

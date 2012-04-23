@@ -47,7 +47,7 @@ public class GetVersion {
      * @throws Exception
      */
     public static void main(String[] a) throws Exception {
-        System.out.println(new GetVersion("version/persistit_version"));
+        System.out.println(getVersionString());
     }
 
     /**
@@ -55,7 +55,7 @@ public class GetVersion {
      */
     public static String getVersionString() {
         try {
-            return new GetVersion("version/persistit_version").toString();
+            return new GetVersion("persistit_version").toString();
         } catch (IOException e) {
             return "UNKNOWN: " + e;
         }
@@ -65,7 +65,7 @@ public class GetVersion {
         InputStream in = null;
         BufferedReader reader = null;
         try {
-            in = ClassLoader.getSystemResourceAsStream(jarResource);
+            in = GetVersion.class.getResourceAsStream(jarResource);
             reader = new BufferedReader(new InputStreamReader(in));
             _version = reader.readLine();
         } catch (IOException e) {

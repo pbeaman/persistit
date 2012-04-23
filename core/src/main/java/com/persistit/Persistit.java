@@ -2063,7 +2063,7 @@ public class Persistit {
      * 
      * @throws IOException
      */
-    public void force() throws PersistitIOException {
+    public void force() throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
             return;
         }

@@ -163,12 +163,9 @@ abstract class VolumeStorage extends SharedResource {
     abstract void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
             VolumeClosedException, InUseException, PersistitInterruptedException;
 
-    abstract void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException, InUseException, PersistitInterruptedException;
+    abstract void writePage(final Buffer buffer) throws PersistitException;
 
-    abstract void writePage(final ByteBuffer bb, final long page) throws PersistitIOException,
-            InvalidPageAddressException, ReadOnlyVolumeException, VolumeClosedException, InUseException,
-            PersistitInterruptedException;
+    abstract void writePage(final ByteBuffer bb, final long page) throws PersistitException;
 
     abstract long allocNewPage() throws PersistitException;
 
