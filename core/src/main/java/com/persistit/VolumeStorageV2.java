@@ -463,8 +463,7 @@ class VolumeStorageV2 extends VolumeStorage {
         }
     }
 
-    void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException, PersistitInterruptedException, InUseException {
+    void writePage(final Buffer buffer) throws PersistitException {
         /*
          * Non-exclusive claim here intended to conflict with exclusive claim in
          * close and truncate

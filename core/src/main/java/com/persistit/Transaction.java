@@ -713,7 +713,7 @@ public class Transaction {
                  * Necessary to enable rollback pruning
                  */
                 flushTransactionBuffer(false);
-            } catch (PersistitIOException e) {
+            } catch (PersistitException e) {
                 _persistit.getLogBase().exception.log(e);
             } finally {
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
@@ -1129,7 +1129,7 @@ public class Transaction {
         }
     }
 
-    synchronized private void prepare(final int recordSize) throws PersistitIOException {
+    synchronized private void prepare(final int recordSize) throws PersistitException {
         if (recordSize > _buffer.remaining()) {
             flushTransactionBuffer(true);
         }
@@ -1139,7 +1139,7 @@ public class Transaction {
         }
     }
 
-    synchronized void flushTransactionBuffer(final boolean chain) throws PersistitIOException {
+    synchronized void flushTransactionBuffer(final boolean chain) throws PersistitException {
         if (_buffer.position() > 0 || _previousJournalAddress != 0) {
             long previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, _commitTimestamp, _previousJournalAddress);
@@ -1152,7 +1152,7 @@ public class Transaction {
         }
     }
 
-    synchronized void flushOnCheckpoint(final long timestamp) throws PersistitIOException {
+    synchronized void flushOnCheckpoint(final long timestamp) throws PersistitException {
         if (_startTimestamp > 0 && _startTimestamp < timestamp && _commitTimestamp == 0 && _buffer.position() > 0) {
             sequence(COMMIT_FLUSH_B);
 
@@ -1163,7 +1163,7 @@ public class Transaction {
     }
 
     synchronized void writeStoreRecordToJournal(final int treeHandle, final Key key, final Value value)
-            throws PersistitIOException {
+            throws PersistitException {
         final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
         prepare(recordSize);
         SR.putLength(_buffer, recordSize);
@@ -1176,7 +1176,7 @@ public class Transaction {
     }
 
     synchronized void writeDeleteRecordToJournal(final int treeHandle, final Key key1, final Key key2)
-            throws PersistitIOException {
+            throws PersistitException {
         int elisionCount = key2.firstUniqueByteIndex(key1);
         int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
         prepare(recordSize);
@@ -1191,7 +1191,7 @@ public class Transaction {
         _buffer.put(key2.getEncodedBytes(), elisionCount, key2.getEncodedSize() - elisionCount);
     }
 
-    synchronized void writeDeleteTreeToJournal(final int treeHandle) throws PersistitIOException {
+    synchronized void writeDeleteTreeToJournal(final int treeHandle) throws PersistitException {
         prepare(DT.OVERHEAD);
         JournalRecord.putLength(_buffer, DT.OVERHEAD);
         DT.putType(_buffer);
@@ -1199,7 +1199,7 @@ public class Transaction {
         _buffer.position(_buffer.position() + DT.OVERHEAD);
     }
 
-    synchronized void writeDeltaToJournal(final Delta delta) throws PersistitIOException {
+    synchronized void writeDeltaToJournal(final Delta delta) throws PersistitException {
         final int treeHandle = _persistit.getJournalManager().handleForTree(delta.getAccumulator().getTree());
         if (delta.getValue() == 1) {
             prepare(D0.OVERHEAD);

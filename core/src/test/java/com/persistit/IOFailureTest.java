@@ -313,6 +313,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         try {
             _persistit.initialize(properties);
+            fail("Expected CorruptJournalException");
         } catch (CorruptJournalException cje) {
             // expected
         }
@@ -320,7 +321,6 @@ public class IOFailureTest extends PersistitUnitTestCase {
 
         _persistit = new Persistit();
         _persistit.initialize(properties);
-
     }
     
     public void testPersistitIOExceptionReportsCauseMessage() throws Exception {
