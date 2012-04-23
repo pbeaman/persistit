@@ -59,7 +59,7 @@ Transaction txn = myExchange.getTransaction();
 // Perform the transaction with the following parameters:
 // - try to commit it up to 10 times
 // - delay 2 milliseconds before each retry
-// - commit to memory
+// - use the group commit durability policy
 //
 txn.run(new TransactionRunnable() {
     public void run() throws PersistitException {
@@ -68,12 +68,12 @@ txn.run(new TransactionRunnable() {
         myExchange.getValue().put("Second value");
         myExchange.clear().append(2).store();
     }
-}, 10, 2, CommitPolicuy.GROUP);
+}, 10, 2, CommitPolicy.GROUP);
 ----
 
-=== Mixing Transactional and Non-Transaction Operations
+=== Mixing Transactional and Non-Transactional Operations
 
-Database operations running outside the scope of an explicitly defined transaction are never subject to rollback and therefore do not require retry logic. However, such operations are also not guaranteed to be durable in the event of a system crash. Further, such operations are not isolated. Read operations performed outside of a transaction can read uncommitted updates, and updates performed outside of a transaction are visible within transactions. In other words, non-transactional reads and writes may break both the durability and isolation of concurrently executing transactions.  Therefore it is strongly recommended that in an application that relies on transactions, all interactions with the database should be transactional. 
+Database operations running outside the scope of an explicitly defined transaction are never subject to rollback and therefore do not require retry logic. However, such operations are also not guaranteed to be durable in the event of a system crash. Further, such operations are not isolated. Read operations performed outside of a transaction can read uncommitted updates, and updates performed outside of a transaction are visible within transactions. In other words, non-transactional reads and writes may break both the durability and isolation of concurrently executing transactions.  Therefore it is strongly recommended that in an application that relies on transactions, all interactions with the database should use transactions. 
 
 == Optimistic Transaction Scheduling
 
@@ -87,11 +87,11 @@ Persistit schedules concurrently executing transactions optimistically, without 
 
 === Pruning 
 
-Given that all updates written through transactions are created as versions within the MVCC scheme, a large number of versions can accumulate over time. Persistit reduces this proliferation through an activity called "pruning." Pruning resolves the final state of each version by removing any versions created by aborted transactions and removing obsolete versions no longer needed by currently executing transactions. If a value contains only one version and the commit timestamp of the transaction that created it is before the start of any currently running transaction, that value is called *primordial*. The goal of pruning is to reduce almost all values in the database to their primordial states because updating and reading primordial values is more efficient than than managing multiple version values. Pruning happens automatically and is generally not visible to the application.
+Given that all updates written through transactions are created as versions within the MVCC scheme, a large number of versions can accumulate over time. Persistit reduces this proliferation through an activity called "pruning." Pruning resolves the final state of each version by removing any versions created by aborted transactions and removing obsolete versions no longer needed by other transactions. If a value contains only one version and the commit timestamp of the transaction that created it is before the start of any currently running transaction, that value is called _primordial_. The goal of pruning is to reduce most or all values in the database to their primordial states because updating and reading primordial values is more efficient than than managing multiple version values. Pruning happens automatically and is generally not visible to the application.
 
 === Rollbacks
 
-Usually Snapshot Isolation allows concurrent transactions to commit without interference but this is not always the case. Two concurrent transactions that attempt to modify the same Persistit key-value pair before they commit are said to have a "write-write dependency". To avoid anomalous results one of them must abort, rolling back any other updates it may also have created, and retry. Persistit implements a "first updater wins" policy in which if two transactions attempt to update the same record, the first transaction "wins" by being allowed to continue, while the second transaction "loses" and is required to abort.
+Usually Snapshot Isolation allows concurrent transactions to commit without interference but this is not always the case. Two concurrent transactions that attempt to modify the same Persistit key/value pair before they commit are said to have a "write-write dependency". To avoid anomalous results one of them must abort, rolling back any other updates it may also have created, and retry. Persistit implements a "first updater wins" policy in which if two transactions attempt to update the same record, the first transaction "wins" by being allowed to continue, while the second transaction "loses" and is required to abort.
 
 Once a transaction has aborted, any subsequent database operation it attempts throws a +RollbackException+. Application code should catch and handle this Exception. Usually the correct and desired behavior is simply to retry the transaction as shown in the code samples above.
 
@@ -103,9 +103,9 @@ Under Snapshot Isolation, transactions that read but do not modify data cannot g
 
 === Snapshot Isolation is not Serializable
 
-It is well-known that transactions executing under SI are not necessarily serializable. Under SI, so-called *write-skew* anomalies can happen with transactions that have certain kinds of interactions.  Write-skew can be avoided by (a) explicit application-level locking or (b) structuring transactions to impose write-write dependencies where write-skew otherwise could occur.
+It is well-known that transactions executing under SI are not necessarily serializable. Under SI, so-called _write-skew_ anomalies can happen with transactions that have certain kinds of interactions.  Write-skew can be avoided by (a) explicit application-level locking or (b) structuring transactions to impose write-write dependencies where write-skew otherwise could occur.
 
-Note that many common transaction patterns, including those defined by the TPC-C benchmark, do not experience write-skew and therefore _are_ serilizable under SI.
+Note that many common transaction patterns, including those defined by the TPC-C benchmark, do not experience write-skew and therefore _are_ serializable under SI.
 
 == Durability Options: +CommitPolicy+
 
@@ -120,7 +120,7 @@ You can specify a default policy in the Persistit initialization properties usin
 
 HARD and GROUP ensure each transaction is written durably to non-volatile storage before the +commit+ method returns. The difference is that GROUP can improve throughput in multi-threaded applications because the average number of I/O operations needed to commit N transactions can be smaller than N. However, for one or a small number of concurrent threads, GROUP reduces throughput because it works by introducing a delay to allow other concurrent transactions to commit within a single I/O operation.
 
-SOFT commits are generally much faster than HARD or GROUP commits, especially for single-threaded applications, because the results of numerous transactions committed from from a single thread can be aggregated and written to disk in a single I/O operation. However, transactions written with the SOFT commit policy are not immediately durable and it is possible that the recovered state of a database will be missing transactions that reported they were committed shortly before a crash.
+SOFT commits are generally much faster than HARD or GROUP commits, especially for single-threaded applications, because the results of numerous transactions committed from a single thread can be aggregated and written to disk in a single I/O operation. However, transactions written with the SOFT commit policy are not immediately durable and it is possible that the recovered state of a database will be missing transactions that reported they were committed shortly before a crash.
 
 For SOFT commits, the state of the database after restart is such that for any committed transaction T, either all or none of its modifications will be present in the recovered database. Further, if a transaction T2 reads or updates data that was written by any other transaction T1, and if T2 is present in the recovered database, then so is T1. Any transaction that was in progress, but had not been committed at the time of the failure, is guaranteed not to be present in the recovered database. SOFT commits are designed to be durable within 100 milliseconds after +commit+ returns. However, this interval is determined by computing the average duration of recent I/O operations to predict the completion time of the I/O that will write the transaction to disk, and therefore the interval cannot be guaranteed.
 

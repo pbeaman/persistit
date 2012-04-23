@@ -61,7 +61,7 @@ import com.persistit.util.Util;
 
 /**
  * <p>
- * Encapsulate the serialized form of an <code>Object</code> or a primitive
+ * Encapsulates the serialized form of an <code>Object</code> or a primitive
  * value. To store data, the application modifies the <code>Exchange</code>'s
  * <code>Value</code> object and then invokes the {@link Exchange#store()}
  * operation to write the encoded value into the database. To fetch data, the

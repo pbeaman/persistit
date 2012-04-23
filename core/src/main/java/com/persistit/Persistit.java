@@ -1784,7 +1784,7 @@ public class Persistit {
      * <p>
      * Note that Persistit starts non-daemon threads that will keep a JVM from
      * exiting until you close Persistit. This is to ensure that all pending
-     * updates are written before the JVM exit. Therefore the recommended
+     * updates are written before the JVM exits. Therefore the recommended
      * pattern for initializing, using and then closing Persistit is:
      * <code><pre>
      *   try

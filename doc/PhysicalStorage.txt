@@ -1,57 +1,67 @@
 [[PhysicalStorage]]
 = Physical B-Tree Representation
 
-This section describes the physical structures used to represent Akiban Persistit records on disk and in memory.
+This chapter describes the physical structures used to represent Akiban Persistit records on disk and in memory.
 
 == Files
 
 Following is a directory listing illustrating a working Persistit database:
-[source]
+
 ----
--rw-r--r--. 1 demo demo  24G Feb  8 13:18 akiban_data
--rw-r--r--. 1 demo demo  48K Feb  8 13:19 akiban_system
--rw-r--r--. 1 demo demo 954M Feb  8 13:18 akiban_journal.000000000225
--rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000226
--rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000227
--rw-r--r--. 1 demo demo 662M Feb  8 13:19 akiban_journal.000000000228
+ -rw-r--r--. 1 demo demo  24G Feb  8 13:18 akiban_data
+ -rw-r--r--. 1 demo demo  48K Feb  8 13:19 akiban_system
+ -rw-r--r--. 1 demo demo 954M Feb  8 13:18 akiban_journal.000000000225
+ -rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000226
+ -rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000227
+ -rw-r--r--. 1 demo demo 662M Feb  8 13:19 akiban_journal.000000000228
 ----
-[source]
-This database contains two Volume files, +akiban_data+ and +akiban_system+ and four files that constitute part of the journal. As explained below, Persistit records are usually stored in a combination of volume and journal files.
+
+This database contains two _volume_ files, +akiban_data+ and +akiban_system+ and four files that constitute part of the _journal_. As explained below, Persistit records are usually stored in a combination of volume and journal files.
  
 == The Journal
 
-Persistit writes two major kinds of records to journal files.
-. For each committed update transaction, Persistit writes a record containing sufficient information to replay the transaction during recovery. For example, when Persistit stores a key/value pair during a transaction, it writes a record to the journal containing the key and the value.
-. Persistit also writes all updated page images to the journal. Some of these are eventually copied to volume files, as described below. This write/copy mechanism is critical to Persistit’s crash-recovery mechanism (see <<Recovery>>).
+The _journal_ is a set of files containing variable length records. The journal is append-only. New records are written only at the end; existing records are never overwritten. The journal consists of a numbered series of files having a configurable maximum size. When a journal file becomes full Persistit closes it and begins a new file with the next counter value. The maximum size of a journal file is determined by a configuration property called its block size.  The default block size value is 1,000,000,000 bytes which works well with today’s standard server hardware.
 
-The journal is append-only; new records are written only at the end. The journal consists of a numbered series of files having a configurable maximum size. When a journal file becomes full Persistit closes it and begins a new file with the next counter value. The maximum size of a journal file is determined by a configurable property called its block size.  The default block size value is 1,000,000,000 bytes which works well with today’s standard server hardware.
+Every record in the journal has a _journal address_ which is a 64-bit value. The journal address denotes which file contains the record and the record’s offset within that file. Journal addresses start at zero in a new database instance and grow perpetually. footnote:[Even on a system executing 1 million transactions per second the address space is large enough to last for hundreds of years.]
 
-As updates are applied, Persistit constantly appends new information- both transaction records and modified page images - to the end of the highest-numbered file. To prevent the aggregation of a large number of journal files Persistit also works constantly to copy or remove information from older journal files so that they can be deleted. The background thread responsible for this activity is called the +JOURNAL_COPIER+ thread. The JOURNAL_COPIER copies pages from the journal back into their home volume files, allowing old files to be deleted. Normally a Persistit system at rest will gradually copies all update page images and perform checkpoints so that only one small journal file remains. Applications can accelerate that process by calling the +com.persistit.copyBack+ method.
+Persistit writes two major types of records to journal files.
 
-The journal is critical to ensuring Persistit can recover structurally intact B-Trees and apply all committed transactions after a system failure. For this reason, any attempt to copy or back up a Persistit database must include both the volume and journal files.
+- For each committed update transaction, Persistit writes a record containing sufficient information to replay the transaction during recovery. For example, when Persistit stores a key/value pair during a transaction, it writes a record to the journal containing the key and the value.
+- Persistit also writes all updated page images to the journal. Some of these are eventually copied to volume files, as described below. This write/copy mechanism is critical to Persistit’s crash-recovery mechanism (see <<Recovery>>).
 
-The journal also plays a critical role during concurrent backup.  To back up a running Persistit database, the +com.persistit.BackupTask+ does the following:
-. Enables +appendOnly+ mode to suspend the copying of updates page images.
-. Copies the appropriate volume and journal files
-. Disables +appendOnly+ mode to allow JOURNAL_COPIER to continue.
+As updates are applied, Persistit constantly appends new information- both transaction records and modified page images - to the end of the highest-numbered file. To prevent the aggregation of a large number of journal files Persistit also works to copy or remove information from older journal files so that they can be deleted. The background thread responsible for this activity is called the +JOURNAL_COPIER+ thread. The JOURNAL_COPIER copies pages from the journal back into their home volume files, allowing old files to be deleted. Normally a Persistit system at rest will gradually copies all update page images and perform checkpoints so that only one small journal file remains. Applications can accelerate that process by calling the +com.persistit.Persistit.copyBack+ method.
+
+The journal is critical to ensuring Persistit can recover structurally intact B-Trees and apply all committed transactions after a system failure. For this reason, unless the JOURNAL_COPIER is entirely caught up, any attempt to save the state of a Persistit database must include both the volume and journal files.
+
+The journal also plays a critical role during concurrent backup. To back up a running Persistit database, the +com.persistit.BackupTask+ does the following:
+
+- Enables +appendOnly+ mode to suspend the copying of updated page images.
+- Copies the appropriate volume and journal files
+- Disables +appendOnly+ mode to allow JOURNAL_COPIER to continue.
  
 For more details on the journal, checkpoints and transactions, see <<Recovery>>. For more information on concurrent backup and other management tasks, see <<Managerment>>.
 
 == Pages and Volumes
 
-Persistit ultimately stores its data in one or more files called Volumes. Each volume may contain an arbitrary number of named B-Trees. Persistit manages volume files internally in sections called pages. Every page within one volume has the same size. The page size is configurable and may be 1K, 2K, 4K, 8K, 16K (recommended) bytes long. Once the page size for a volume has been established, it cannot be changed. See <<Configuration>> for details of how to assign the page size for a new volume.
+Persistit ultimately stores its data in one or more Volume files. Persistit manages volume files internally in sections called pages. Every page within one volume has the same size. The page size is configurable and may be 1K, 2K, 4K, 8K, 16K (recommended) bytes long. Once the page size for a volume has been established, it cannot be changed. See <<Configuration>> for details of how to assign the page size for a new volume.
 
 === Directory Tree
 
-Within a volume there can be an arbitrary number of B-Trees. (B-Trees are also called simply “trees” in this document.) A tree consists of a a data structure containing a _root page_, _index pages_ and _data pages_. The root page is either a data page (if the tree is contains only small number of records) or an index page. Persistit manages a potentially large number of trees by maintaining a tree of trees called +_directory+.  The +_directory+ tree contains the name, root page address, +com.persistit.Accumulator+ data and +com.persistit.TreeStatistics+ data for all the other trees in the volume.
+Within a volume there can be an unlimited number of B-Trees. (B-Trees are also called simply “trees” in this document.) A tree consists of a set of pages including a _root page_, _index pages_ and _data pages_. The root page can be data page if the tree is trivial and contains only small number of records. Usually the root page is an index page which contains references to other index pages which in turn may refer to data pages.
+
+Persistit manages a potentially large number of trees by maintaining a tree of trees called +_directory+.  The +_directory+ tree contains the name, root page address, +com.persistit.Accumulator+ data and +com.persistit.TreeStatistics+ data for all the other trees in the volume. The tree name +_directory+ is reserved and may not be used when creating an Exchange.
 
 === Data Pages
 
-A data page contains a representation of one or more variable-length key/value pairs. The number of key/value pairs depends on the page size, and the sizes of the serialized keys and values. The first key in each data page is stored in its entirety, while subsequent keys are stored with _prefix compression_ to reduce storage footprint and accelerate searches. Therefore the storage size of the second and subsequent keys in a data page depend on how many of the leading bytes of its serialized form match its predecessor. (See <<Key>> for information on how Persistit encodes logical Java values into a byte array used in the stored form.)
+A data page contains a representation of one or more variable-length key/value pairs. The number of key/value pairs depends on the page size, and the sizes of the serialized keys and values. The first key in each data page is stored in its entirety, while subsequent keys are stored with _prefix compression_ to reduce storage footprint and accelerate searches. Therefore the storage size of the second and subsequent keys in a data page depend on how many of the leading bytes of its serialized form match its predecessor. (See <<Key>> and <<Value>> for information on how Persistit encodes logical Java values into the byte arrays stored in a data page.)
 
 === Index Pages
 
-An index page has a structure similar to a data page except that instead of holding serialized value data, it instead contains page addresses of subordinate pages within the index.
+An index page has a structure similar to a data page except that instead of holding serialized value data, it instead contains page addresses of subordinate pages within the tree.
+
+****
+TODO - diagram of B-Tree, page layouts, etc
+****
 
 == The Buffer Pool
 

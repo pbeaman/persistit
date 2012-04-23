@@ -4,16 +4,16 @@
 
 Welcome!
 
+We have worked hard to make Akiban Persistit(TM) exceptionally fast, reliable, simple and lightweight. We hope you will enjoy learning more about it and using it.
+
 Akiban Persistit is a key/value data storage library written in Java(TM). Key features include:
 
-. support for highly concurrent transaction processing with multi-version concurrency control
-. optimized serialization and deserialization mechanism for Java primitives and objects
-. multi-segment (compound) keys to enable a natural logical key hierarchy
-. support long records (megabytes)
-. implementation of a persistent SortedMap
-. extensive management capability including command-line and GUI tools
-
-We have worked hard to make Akiban Persistit(TM) exceptionally fast, reliable, simple and lightweight. We hope you will enjoy learning more about it and using it.
+- support for highly concurrent transaction processing with multi-version concurrency control
+- optimized serialization and deserialization mechanism for Java primitives and objects
+- multi-segment (compound) keys to enable a natural logical key hierarchy
+- support for long records (megabytes)
+- implementation of a persistent SortedMap
+- extensive management capability including command-line and GUI tools
 
 This chapter briefly and informally introduces and demonstrates various Persistit features through examples. Subsequent chapters and the Javadoc API documentation provides a detailed reference guide to the product.
 
@@ -26,11 +26,7 @@ Unpack the distribution kit into a convenient directory using any unzip utility.
 jar xvzf akiban-persistit-core-3.xx.yy.zip
 ----
 
-Review the LICENSE.html and README.html files located in the root of the installation directory. Persistit is licensed under the Affero GPL License. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.
-
-=== Examples
-
-Review the +examples+ directory. Here you will find functional examples of varying complexity.
+Review the +LICENSE.html+ and +README.html+ files located in the root of the installation directory. Persistit is licensed under the XXXXXX XXXXXXX License. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.
 
 == Working with Persistit
 
@@ -38,70 +34,78 @@ Add the +akiban-persistit-core-3.xx.yy.jar+ from the +lib+ directory of the dist
 
 That's it. You are ready to work with Persistit.
 
+=== Examples
+
+Review the +examples+ directory. Here you will find functional examples of varying complexity.
+
+[horizontal]
++examples/HelloWorld+:: source code for the example illustrating this chapter
++examples/SimpleDemo+:: short, simple program similar to HelloWorld
++examples/SimpleBench+:: a small micro-benchmark measuring the speed of insert, traversal, random updates, etc.
++examples/SimpleTransaction+:: example demonstrating use of Persisit’s multi-version currency control (MVCC) transactions
++examples/FindFile+:: a somewhat larger example that uses Persistit as the backing store for file finder utility
++example/PersistitMapDemo+:: demonstration of the PersistitMap interface
+
 == HelloWorld
 
-Before going further let's honor tradition with a small program that stores, fetches and displays the phrase “Hello World.” In this program we will create a record with the key “Hello” and the value “World”. You will find +HelloWorld.java+ in the +examples/HelloWorld+ directory of the distribution kit.
+Before going further let's honor tradition with a small program that stores, fetches and displays the phrase “Hello World.” In this program we will create a record with the key “Hello” and the value “World”.
 
 .HelloWorld.java
 [source,java]
 ----
-import com.persistit.Persistit;
 import com.persistit.Exchange;
 import com.persistit.Key;
+import com.persistit.Persistit;
 
 public class HelloWorld {
-
-	public static void main(String[] args)
-	throws Exception {
-    	// Construct a Persistit object.  All memory resources and threads
-    	// allocated by Persistit are referenced through this object.
-    	//
-   	Persistit db = new Persistit();
-     // Read configuration from persistit.properties, allocate
-     // buffers, open Volume(s), and perform recovery processing
-     // as needed.
-     //
-     db.initialize();
-	try {
-        	//
-        	// Acquire an Exchange, which is a thread-private facade for
-        	// accessing data in a Persistit Tree. This Exchange will
-        	// access a Tree called "greetings" in a Volume called
-        	// "hwdemo". It will create a new Tree by that name
-        	// if one does not already exist.
-        	//
-        	Exchange dbex = db.getExchange("hwdemo", "greetings", true);
-        	//
-        	// Set up the Value field of the Exchange.
-        	//
-        	dbex.getValue().put("World");
-        	//
-        	// Set up the Key field of the Exchange.
-        	//
-        	dbex.getKey().append("Hello");
-        	//
-        	// Ask Persistit to put this key/value pair into the Tree.  
-        	//
-        	dbex.store();
-        	//
-        	// Prepare to traverse all the keys in the Tree (of which there
-        	// is currently only one) and for each key display its value.
-        	//
-        	dbex.getKey().to(Key.BEFORE);
-        	while (dbex.next())         	{
-            	System.out.println(
-                	dbex.getKey().indexTo(0).decode() + " " +
-                	dbex.getValue().get());
-        	}
-        	db.releaseExchange(dbex);
-    	} finally {
-        	// Always close Persistit. If the application does not do
-        	// this, Persistit's background threads will prevent the JVM from
-        	// terminating.
-        	//
-        	db.close();
-    	}
-	}
+    public static void main(String[] args) throws Exception {
+        Persistit db = new Persistit();
+        try {
+            // Read configuration from persistit.properties, allocate
+            // buffers, open Volume, and perform recovery processing
+            // if necessary.
+            //
+            db.initialize();
+            //
+            // Create an Exchange, which is a thread-private facade for
+            // accessing data in a Persistit Tree. This Exchange will
+            // access a Tree called "greetings" in a Volume called
+            // "hwdemo". It will create a new Tree by that name
+            // if one does not already exist.
+            //
+            Exchange dbex = db.getExchange("hwdemo", "greetings", true);
+            //
+            // Set up the Value field of the Exchange.
+            //
+            dbex.getValue().put("World");
+            //
+            // Set up the Key field of the Exchange.
+            //
+            dbex.getKey().append("Hello");
+            //
+            // Ask Persistit to put this key/value pair into the Tree.
+            // Until this point, the changes to the Exchange are local
+            // to this thread.
+            //
+            dbex.store();
+            //
+            // Prepare to traverse all the keys in the Tree (of which there
+            // is currently only one!) and for each key display its value.
+            //
+            dbex.getKey().to(Key.BEFORE);
+            while (dbex.next()) {
+                System.out.println(dbex.getKey().indexTo(0).decode() + " "
+                        + dbex.getValue().get());
+            }
+            db.releaseExchange(dbex);
+        } finally {
+            // Always close Persistit. If the application does not do
+            // this, Persistit's background threads will keep the JVM from
+            // terminating.
+            //
+            db.close();
+        }
+    }
 }
 ----
 
@@ -111,14 +115,14 @@ Although +HelloWorld.java+ is not very useful, it demonstrates several of the ba
 
 === Initialization and Configuration
 
-Before accessing any data, +HelloWorld.java+ calls one of the +com.persistit.Persistit#initialize+ methods of +com.persistit.Persistit+. This sets up the memory configuration for buffers and the path names of Persistit volume files. Alternative versions of the initialize method accept configuration information from a java.util.Properties object, from a specified properties file, or by default from a file named +persistit.properties+.
+Before accessing any data, +HelloWorld.java+ calls one of the +com.persistit.Persistit#initialize+ methods of +com.persistit.Persistit+. This sets up the memory configuration for buffers and the path names of Persistit volume and journal files. Alternative versions of the initialize method accept configuration information from a +java.util.Properties+ object, from a specified properties file, or by default from the file named +persistit.properties+.
 
 In this example, +persistit.properties+ looks like this:
 
 ----
 datapath=.
 buffer.count.8192=32
-volume.1=${datapath}/hwdemo.v00,create,pageSize:8192,\
+volume.1=${datapath}/hwdemo,create,pageSize:8192,\
 	initialPages:5,extensionPages:5,maximumPages:100000
 journalpath=${datapath}/hwdemo_journal
 ----
@@ -171,7 +175,12 @@ A Key value serves as the unique identifier for key/value pair - or record - in 
 
 Key instances are mutable. Your application typically changes an Exchange's Key in preparation for fetching or retrieving data. In particular, you can append, remove or replace one or more values in a Key. Each value you append is called a segment. You append multiple segments to implement concatenated keys. See com.persistit.Key for additional information on constructing key values and the ordering of key traversal within a tree.
 
-The +HelloWorld.java+ example appends “Hello” as the sole segment of a key being inserted into the database.
+The +HelloWorld.java+ example appends “Hello” to the Exchange’s Key object in this line:
+
+[source,java]
+----
+            dbex.getKey().append("Hello");
+----
 
 === Values
 
@@ -183,11 +192,28 @@ Numerous methods allow you to serialize and deserialize primitive and object val
 
 [source,java]
 ----
+            dbex.getValue().put("World");
+----
+serializes the string “World” into the backing byte array of the Exchange’s Value object and
+
+[source,java]
+----
             	System.out.println(
                 	dbex.getKey().indexTo(0).decode() + " " +
                 	dbex.getValue().get());
 ----
-decodes and prints an object value from the Key and another object value from the Value. Value has methods such as +getInt+, +getLong+, +getByteArray+ to decode primitive and array values directly.
+deserializes and prints an object value from the Key and another object value from the Value. Value has methods such as +getInt+, +getLong+, +getByteArray+ to decode primitive and array values directly.
+
+=== Storing and Fetching Data
+
+Finally, it is these two methods that actually cause the Exchange object to share data with the B-Tree, making it persistent and potentially available to other threads:
+
+[source,java]
+----
+            dbex.store();
+            ...
+            while (dbex.next()) { ... }
+----
 
 === Closing Persistit
 

@@ -278,7 +278,7 @@ You will find an example with a KeyFilter in the examples/FindFileDemo directory
 
 In addition to low-level access methods on keys and values, Persistit provides com.persistit.PersistitMap, which implements the +java.util.SortedMap interface+. PersistitMap uses the Persistit database as a backing store so that key/value pairs are persistent, potentially shared with all threads, and limited in number only by disk storage.
 
-Keys and Values for PersistitMap must conform to the constraints described above under <<Keys>> and <<Values>>.
+Keys and Values for PersistitMap must conform to the constraints described above under <<Key>> and <<Value>>.
 
 The constructor for PersistitMap takes an Exchange as its sole parameter. All key/value pairs of the Map are stored within the tree identified by this Exchange. The Key supplied by the Exchange becomes the root of a logical tree. For example:
 

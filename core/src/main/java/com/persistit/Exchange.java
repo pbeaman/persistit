@@ -948,7 +948,7 @@ public class Exchange {
     /**
      * Return the Persistit instance from which this Exchange was created.
      * 
-     * @return The <code>Persistit<code> instance.
+     * @return The <code>Persistit</code> instance.
      */
     public Persistit getPersistitInstance() {
         return _persistit;
