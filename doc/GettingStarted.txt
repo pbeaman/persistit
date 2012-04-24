@@ -161,7 +161,7 @@ Each Exchange is implicitly associated with a +com.persistit.Key+ and a +com.per
 - Modify the Key and then perform a +com.persistit.Exchange#remove+ operation.
 - Optionally modify the Key, perform a +com.persistit.Exchange#next+, +com.persistit.Exchange#previous+ or +com.persistit.Exchange#traverse+ operation, then read the resulting Key and/or Value.
 
-These four methods and their variants provide the foundation for using Persistit.
+These methods and their variants provide the foundation for using Persistit.
 
 === Records
 
@@ -171,9 +171,9 @@ When you store a record, Persistit searches for a previously stored record havin
 
 === Keys
 
-A Key value serves as the unique identifier for key/value pair - or record - in a tree. A key value consists of a sequence of one or more Java values encoded into an array of bytes stored in the volume file.
+A Key contains a unique identifier for key/value pair - or record - in a tree. The identifier consists of a sequence of one or more Java values encoded into an array of bytes stored in the volume file.
 
-Key instances are mutable. Your application typically changes an Exchange's Key in preparation for fetching or retrieving data. In particular, you can append, remove or replace one or more values in a Key. Each value you append is called a segment. You append multiple segments to implement concatenated keys. See com.persistit.Key for additional information on constructing key values and the ordering of key traversal within a tree.
+Key instances are mutable. Your application typically changes an Exchange's Key in preparation for fetching or retrieving data. In particular, you can append, remove or replace one or more values in a Key. Each value you append is called a _key segment_. You append multiple key segments to implement concatenated keys. See +com.persistit.Key+ for additional information on constructing keys and the ordering of key traversal within a tree.
 
 The +HelloWorld.java+ example appends “Hello” to the Exchange’s Key object in this line:
 
@@ -182,13 +182,15 @@ The +HelloWorld.java+ example appends “Hello” to the Exchange’s Key object
             dbex.getKey().append("Hello");
 ----
 
+The result is a key with a single key segment.
+
 === Values
 
 A Value object represents the serialized state of a Java object or a primitive value. It is a staging area for data being transferred from or to the database by +fetch+, +traverse+ and +store+ operations.
 
-A Value is mutable. The +fetch+ and +traverse+ operations modify the state of an Exchange's Value to represent the value associated with some Key. Your application executes methods to modify the state of the Value in preparation for storing new data values into the database.
+Value instances are mutable. The +fetch+ and +traverse+ operations modify the state of an Exchange's Value instance to represent the value associated with some Key. Your application executes methods to modify the state of the Value instance in preparation for storing new data values into the database.
 
-Numerous methods allow you to serialize and deserialize primitive and object values into and from a Value object. For example, in +HelloWorld.java+, the statement
+Numerous methods allow you to serialize and deserialize primitives values and objects into and from a Value object. For example, in +HelloWorld.java+, the statement
 
 [source,java]
 ----
@@ -202,11 +204,11 @@ serializes the string “World” into the backing byte array of the Exchange’
                 	dbex.getKey().indexTo(0).decode() + " " +
                 	dbex.getValue().get());
 ----
-deserializes and prints an object value from the Key and another object value from the Value. Value has methods such as +getInt+, +getLong+, +getByteArray+ to decode primitive and array values directly.
+deserializes and prints an object value from the Key and another object value from the Value. Value also has methods such as +getInt+, +getLong+, +getByteArray+ to decode primitive and array values directly.
 
 === Storing and Fetching Data
 
-Finally, it is these two methods that actually cause the Exchange object to share data with the B-Tree, making it persistent and potentially available to other threads:
+Finally, it is these two methods in +HelloWorld.java+ that cause the Exchange object to share data with the B-Tree, making it persistent and potentially available to other threads:
 
 [source,java]
 ----
@@ -217,7 +219,9 @@ Finally, it is these two methods that actually cause the Exchange object to shar
 
 === Closing Persistit
 
-Persistit creates one or more background threads that lazily write data to the Volume files and perform other maintenance activities. Be sure to invoke the +close+ method to allow these threads to finish their work and exit properly. The pattern illustrated in +HelloWorld.java+, using a _try/finally_ block to invoke close, is strongly recommended.
+Persistit creates one or more background threads that lazily write data to the Volume files and perform other maintenance activities. Be sure to invoke the +com.persistit.Persistit.close+ method to allow these threads to finish their work and exit properly. The pattern illustrated in +HelloWorld.java+, using a _try/finally_ block to invoke +close+, is strongly recommended.
+
+The +close+ flushes all data from 
 
 
 == Additional Topics

@@ -1,9 +1,9 @@
 [[Transactions]]
 = Transactions
 
-Akiban Persistit supports transactions with multi-version concurrency control (MVCC) using a protocol called Snapshot Isolation (SI). An application *begins*, *commits* or *rolls back* the current transaction scope explicitly, executing multiple database operations in an atomic, consistent, isolated and durable (ACID) manner.
+Akiban Persistit supports transactions with multi-version concurrency control (MVCC) using a protocol called Snapshot Isolation (SI). An application calls +com.persistit.Transaction#begin+, +com.persistit.Transaction#commit+, +com.persistit.Transaction#rollback# and +com.persistit.Transaction#end+ methods to control the current transaction scope explicitly.  A Transaction allows an application to execute multiple database operations in an atomic, consistent, isolated and durable (ACID) manner.
 
-Applications manage transactions through an instance of a +com.persistit.Transaction+ object. +Transaction+ does not represent a single transaction, but is instead a context in which a thread may perform many sequential transactions. The general pattern is that the application gets the current thread’s +Transaction+ instance, calls its +begin+ method, performs work, then calls +commit+ followed by +end+.  The thread uses the same +Transaction+ instance repeatedly. Generally each thread has one +Transaction+ that lasts for the entire life of the thread, but see com.persistit.Transaction#_threadManagement[Thread Management] for a mechanism that allows a transaction to be serviced by multiple threads. 
+Applications manage transactions through an instance of a +com.persistit.Transaction+ object. +Transaction+ does not represent a single transaction, but is instead a context in which a thread may perform many sequential transactions. The general pattern is that the application gets the current thread’s +Transaction+ instance, calls its +begin+ method, performs work, calls +commit+ and finally +end+.  The thread uses the same +Transaction+ instance repeatedly. Generally each thread has one +Transaction+ that lasts for the entire life of the thread (but see com.persistit.Transaction#_threadManagement[Thread Management] for a mechanism that allows a transaction to be serviced by multiple threads). 
 
 == Using Transactions
 
@@ -16,8 +16,7 @@ The following code fragment performs two store operations within the scope of a 
 //
 Transaction txn = myExchange.getTransaction();
 int remainingRetries = RETRY_COUNT;
-Boolean done = false;
-while (!done) {
+for (;;) {
     txn.begin();
     try {
         myExchange.getValue().put("First value");
@@ -26,7 +25,7 @@ while (!done) {
         myExchange.clear().append(2).store();
         // Required to commit the transaction
         txn.commit();
-        done = true;
+        break;
     } catch (RollbackException re) {
         // perform any special rollback handling
         // allow loop to repeat until commit succeeds or retries
@@ -43,7 +42,7 @@ while (!done) {
 }
 ----
 
-This example catches +com.persistit.exception.RollbackException+, which can be thrown by any Persistit operation within the scope of a transaction, including +commit+. Any code explicitly running within the scope of a transaction should be designed to handle rollbacks.
+This example catches +com.persistit.exception.RollbackException+ which can be thrown by any Persistit operation within the scope of a transaction, including +commit+. Any code explicitly running within the scope of a transaction should be designed to handle rollbacks.
 
 This example also uses a _try/finally_ block to ensure every call to +begin+ has a matching call to +end+. This code pattern is mandatory: it is critical to correct transaction nesting behavior.
 
@@ -77,9 +76,9 @@ Database operations running outside the scope of an explicitly defined transacti
 
 == Optimistic Transaction Scheduling
 
-To achieve high performance and scalability, Persistit supports an optimistic transaction scheduling protocol called MVCC with http://wikipedia.org/wiki/Snapshot_isolation[Snapshot Isolation]. Under this protocol multiple threads are permitted to execute transactions at full speed without blocking until a potentially inconsistent state is recognized. At that point a transaction suspected of causing the inconsistent state is rolled back.
+To achieve high performance and scalability, Persistit supports an optimistic transaction scheduling protocol called MVCC with http://wikipedia.org/wiki/Snapshot_isolation[Snapshot Isolation]. Under this protocol multiple threads are permitted to execute transactions at full speed without blocking until a potentially inconsistent state is recognized. At that point a transaction suspected of causing the inconsistent state is automatically forced to roll back.
 
-Optimistic scheduling works because transactions usually do not collide, especially when individual database operations are fast, and so in practice transactions are seldom rolled back. But because any transaction may automatically be rolled back at any point, applications must be designed carefully to avoid unintended side-effects. For example, a transaction should never perform non-repeatable or externally visible operations such as file or network I/O within its scope.
+Optimistic scheduling works because transactions usually do not collide, especially when individual database operations are fast, and so in practice transactions are seldom rolled back. But because any transaction may be rolled back at any point, applications must be designed carefully to avoid unintended side-effects. For example, a transaction should never perform non-repeatable or externally visible operations such as file or network I/O within its scope.
 
 === Snapshot Isolation
 
@@ -103,7 +102,7 @@ Under Snapshot Isolation, transactions that read but do not modify data cannot g
 
 === Snapshot Isolation is not Serializable
 
-It is well-known that transactions executing under SI are not necessarily serializable. Under SI, so-called _write-skew_ anomalies can happen with transactions that have certain kinds of interactions.  Write-skew can be avoided by (a) explicit application-level locking or (b) structuring transactions to impose write-write dependencies where write-skew otherwise could occur.
+It is well-known that transactions executing under SI are not necessarily serializable. Under SI, so-called _write-skew_ anomalies can happen with transactions that have certain kinds of interactions.  Write-skew can be avoided by (a) explicit application-level locking or (b) structuring transactions to add write-write dependencies where write-skew otherwise could occur.
 
 Note that many common transaction patterns, including those defined by the TPC-C benchmark, do not experience write-skew and therefore _are_ serializable under SI.
 
@@ -118,7 +117,7 @@ Persistit provides three policies that determine the durability of a transaction
 
 You can specify a default policy in the Persistit initialization properties using the +txnpolicy+ property or under program control using +com.persistit.Persistit#setDefaultTransactionCommitPolicy+. The default policy applies whenever the application calls the +commit()+ method. You can override the default policy using +commit(CommitPolicy)+.
 
-HARD and GROUP ensure each transaction is written durably to non-volatile storage before the +commit+ method returns. The difference is that GROUP can improve throughput in multi-threaded applications because the average number of I/O operations needed to commit N transactions can be smaller than N. However, for one or a small number of concurrent threads, GROUP reduces throughput because it works by introducing a delay to allow other concurrent transactions to commit within a single I/O operation.
+HARD and GROUP ensure each transaction is written durably to non-volatile storage before the +commit+ method returns. The difference is that GROUP can improve throughput in multi-threaded applications because the average number of I/O operations needed to commit _N_ transactions can be smaller than _N_. However, for one or a small number of concurrent threads, GROUP reduces throughput because it works by introducing a delay to allow other concurrent transactions to commit within a single I/O operation.
 
 SOFT commits are generally much faster than HARD or GROUP commits, especially for single-threaded applications, because the results of numerous transactions committed from a single thread can be aggregated and written to disk in a single I/O operation. However, transactions written with the SOFT commit policy are not immediately durable and it is possible that the recovered state of a database will be missing transactions that reported they were committed shortly before a crash.
 
@@ -128,14 +127,13 @@ For SOFT commits, the state of the database after restart is such that for any c
 
 A nested transaction occurs when code that is already executing within the scope of a transaction executes the +begin+ method to start a new transaction. This might happen, for example, if an application’s transaction logic calls a method that also uses transactions. In this case, the commit processing of the inner transaction scope is deferred until the outermost transaction commits. At that point, all the updates performed within the inner and outer transaction scopes are committed to the database. Similarly, a rollback initiated by the inner transaction causes both it and the outermost transaction to roll back.
 
-
 == Accumulators
 
 Consider an application in which concurrently running transactions share a counter. For example, suppose each transaction is responsible for allocating a unique integer as a primary key for a database record. One way to do this would be to store the counter in a Persistit key/value pair, reading the value at the start of each transaction and committing an update at the end.
 
 The problem with this approach is that under SI, concurrent transactions running in a multi-threaded application would experience very frequent write-write dependencies on the counter value; in fact, the only way to complete any transactions would be serially, one at a time.
 
-Persistit provides the +com.persistit.Accumulator+ class to avoid this problem.  An accumulator is designed to manage contributions from multiple concurrent transactions without causing write-write dependencies. Accumulators are durable in the sense that each transaction’s contribution is made durable with the transaction itself, and Persistit automatically recovers a correct state for each Accumulator even in the event of a system crash.
+Persistit provides the +com.persistit.Accumulator+ class to avoid this problem.  An accumulator is designed to manage contributions from multiple concurrent transactions without causing write-write dependencies. Accumulators are durable in the sense that each transaction’s contribution is made durable with the transaction itself, and Persistit automatically recovers a correct state for each Accumulator in the event of a system crash.
 
 There are four types of accumulator in Persistit. Each a concrete subclass of the abstract +com.persistit.Accumulator+ class:
 
@@ -163,17 +161,17 @@ try {
 }
 ----
 
-The value 17 is simply an index number between 0 and 63, inclusive.  The application is responsible for allocating and managing accumulator indexes.
+The value 17 is simply an arbitrary index number between 0 and 63, inclusive. The application is responsible for allocating and managing accumulator indexes.
 
 The snapshot value of an accumulator obtained through +com.persistit.Accumulator#getSnapshotValue()+ is the value computed from all updates contributed by transactions that had committed at the time the current transaction started, plus the transaction’s own as-yet uncommitted updates. In other words, the snapshot value of the accumulator is consistent with the snapshot view of all other data visible within the transaction.
 
 An accumulator has two ways of accessing its accumulated value:
 
 [horizontal]
-+getSnapshotValue()+:: Is a value computed from updates that were committed at the start of the current transaction.
++getSnapshotValue()+:: Is a value computed from updates that were committed at the start of the current transaction. This method may be called only within the scope of a Transaction.
 +getLiveValue()+:: Is an ephemeral value reflecting all updates performed by all transactions, including concurrent and aborted transactions.
 
-The snapshot value is a precise, consistent tally, while the live value is approximate. For a +SumAccumulator+ or +SeqAccumulator+, if all updates are have non-negative arguments, then the live value value is always greater than or equal to the snapshot value.
+The snapshot value is a precise, consistent tally, while the live value is approximate. For a +SumAccumulator+, +MaxAccumulator+ or +SeqAccumulator+, if all updates are have non-negative arguments, then the live value is always greater than or equal to the snapshot value.
 
 === SeqAccumulator
 
