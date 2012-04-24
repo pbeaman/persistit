@@ -36,7 +36,7 @@ import com.persistit.KeyState;
  * <p>
  * A simple cache for deserialized objects. This cache is loosely patterned
  * after WeakHashMap, except that an entry is eligible to be removed when the
- * value associated with a key is weakly referenced, not the key.
+ * value associated with a key is softly referenced, not the key.
  * </p>
  * <p>
  * Note: although many of the methods of this class take an argument of type

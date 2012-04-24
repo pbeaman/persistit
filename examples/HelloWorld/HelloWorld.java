@@ -32,13 +32,13 @@ public class HelloWorld {
     public static void main(String[] args) throws Exception {
         Persistit db = new Persistit();
         try {
-            // Reads configuration from persistit.properties, allocates
+            // Read configuration from persistit.properties, allocates
             // buffers, opens Volume(s), and performs recovery processing
             // if necessary.
             //
             db.initialize();
             //
-            // Creates an Exchange, which is a thread-private facade for
+            // Create an Exchange, which is a thread-private facade for
             // accessing data in a Persistit Tree. This Exchange will
             // access a Tree called "greetings" in a Volume called
             // "hwdemo". It will create a new Tree by that name
@@ -54,9 +54,7 @@ public class HelloWorld {
             //
             dbex.getKey().append("Hello");
             //
-            // Ask Persistit to put this key/value pair into the Tree.
-            // Until this point, the changes to the Exchange are local
-            // to this thread.
+            // Ask Persistit to store this key/value pair into the Tree.
             //
             dbex.store();
             //
@@ -65,8 +63,8 @@ public class HelloWorld {
             //
             dbex.getKey().to(Key.BEFORE);
             while (dbex.next()) {
-                System.out.println(dbex.getKey().indexTo(0).decode() + " "
-                        + dbex.getValue().get());
+                System.out.println(dbex.getKey().reset().decode() 
+                        + " " + dbex.getValue().get());
             }
             db.releaseExchange(dbex);
         } finally {

@@ -51,7 +51,7 @@ To build FindFile:
 	
 	- or -
 	
-	javac -classpath ../../target/akiban-persistit-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar FindFile.java
+	javac -classpath ../../core/target/akiban-persistit-xx.yy.zz-SNAPSHOT-jar-with-dependencies-and-tests.jar FindFile.java
 
 To run FindFile:
 
@@ -59,7 +59,7 @@ To run FindFile:
 	
 	- or -
 	
-	java -classpath ../../target/akiban-persistit-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar;. FindFile
+	java -classpath ../../core/target/akiban-persistit-xx.yy.zz-SNAPSHOT-jar-with-dependencies-and-tests.jar;. FindFile
 
 Persistit will place a volume file in paths specified by persistit.properties.
 You can change the location of these files by modifying the datapath property 

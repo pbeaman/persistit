@@ -49,14 +49,14 @@
 				<directory>src/main/resources</directory>
 				<filtering>true</filtering>
 				<includes>
-					<include>version/persistit_version</include>
+					<include>com/persistit/persistit_version</include>
 				</includes>
 			</resource>
 			<resource>
 				<directory>src/main/resources</directory>
 				<filtering>false</filtering>
 				<excludes>
-					<exclude>version/persistit_version</exclude>
+					<exclude>com/persistit/persistit_version</exclude>
 				</excludes>
 			</resource>
 		</resources>

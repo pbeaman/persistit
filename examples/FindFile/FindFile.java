@@ -57,15 +57,15 @@ import com.persistit.exception.PersistitException;
 
 /**
  * <p>
- * Demonstrates KeyFilter, Exchange pooling and use of Persistit within a Swing
- * application. This application presents a simple UI that lets you (a) load a
- * list of file names from a text file, and (b) find subsets of that list by
- * typing partial matches with wildcards. For example, you can find all
- * instances of files named "read.me" by searching for "*read.me". The search is
- * made fast by indexing each name by its regular spelling, and by its reversed
- * spelling. Thus all "*read.me" files can be found by traversing the keys of
- * the reversed-spelling index from "em.daer" to "em.daes". This program uses a
- * KeyFilter to simplify this step.
+ * Demonstrates KeyFilter, Exchange pooling and use of Persistit within a
+ * JFC/Swing application. This application presents a simple UI that lets you
+ * load a list of file names from a text file or directory path, and then find
+ * subsets of that list by typing partial matches with wildcards. For example,
+ * you can find all instances of files named "read.me" by searching for
+ * "*read.me". The search is made fast by indexing each name by its regular
+ * spelling, and by its reversed spelling. Thus all "*read.me" files can be
+ * found by traversing the keys of the reversed-spelling index from "em.daer" to
+ * "em.daer". This program uses a KeyFilter to simplify this step.
  * </p>
  * <p>
  * This program can either read a list of file names from a file or traverse
@@ -92,7 +92,7 @@ public class FindFile extends JPanel {
     private Persistit persistit;
 
     /**
-     * Constructs a Swing JPanel with a simple layout for loading, clearing and
+     * Construct a Swing JPanel with a simple layout for loading, clearing and
      * searching for lists of files.
      * 
      * @param defaultFileName
@@ -144,8 +144,8 @@ public class FindFile extends JPanel {
 
     /**
      * <p>
-     * Searches for all file names that match a specified wildcard expression.
-     * The wildcard expression may contain "*" to represent zero or more arbitry
+     * Search for all file names that match a specified wildcard expression. The
+     * wildcard expression may contain "*" to represent zero or more arbitry
      * characters and "?" to represent exactly one arbitrary character. For
      * example, the expression "/opt/*java" finds files in subdirectories of
      * /opt that end with the four letters "java". To test for matches, this
@@ -246,7 +246,7 @@ public class FindFile extends JPanel {
     }
 
     /**
-     * Loads a list of files supplied in a text file. The work is done in a
+     * Load a list of files supplied in a text file. The work is done in a
      * separate thread; the worker thread periodically updates a progress bar.
      */
     private void doLoad() {
@@ -266,7 +266,7 @@ public class FindFile extends JPanel {
     }
 
     /**
-     * Removes all the file names previously loaded into the index. This is
+     * Remove all the file names previously loaded into the index. This is
      * performed in a separate thread.
      * 
      */
@@ -280,15 +280,14 @@ public class FindFile extends JPanel {
     }
 
     /**
-     * Populates the DefaultListModel with file names that match the specified
-     * pattern. Updates a progress bar while searching.
+     * Populate the DefaultListModel with file names that match the specified
+     * pattern and update a progress bar while searching.
      * 
      * @param fixed
      * @param pattern
      * @param forward
      */
-    private void traverseFileNames(String fixed, Pattern pattern,
-            boolean forward) {
+    private void traverseFileNames(String fixed, Pattern pattern, boolean forward) {
         currentCount = 0;
         estimatedTotalCount = 1000;
         final ArrayList selectedFileNames = new ArrayList();
@@ -304,8 +303,7 @@ public class FindFile extends JPanel {
             KeyFilter filter = new KeyFilter(ex.getKey());
             if (fixed.length() != 0) {
                 String end = fixed.substring(0, fixed.length() - 1)
-                        + new Character(
-                                (char) (fixed.charAt(fixed.length() - 1) + 1));
+                        + new Character((char) (fixed.charAt(fixed.length() - 1) + 1));
                 //
                 // append a Term that selects only the range accepted by the
                 // fixed portion of the name.
@@ -375,8 +373,7 @@ public class FindFile extends JPanel {
                 loadFromTextFile(file, sb);
             }
             time = System.currentTimeMillis() - time;
-            System.out.println("Took " + time + "ms to load " + currentCount
-                    + " file names");
+            System.out.println("Took " + time + "ms to load " + currentCount + " file names");
             adjustProgressBar(0, 0);
         } catch (IOException ioe) {
             ioe.printStackTrace();
@@ -385,8 +382,7 @@ public class FindFile extends JPanel {
         }
     }
 
-    private void loadFromDirectory(File dir, StringBuilder sb, int depth)
-            throws IOException {
+    private void loadFromDirectory(File dir, StringBuilder sb, int depth) throws IOException {
         if (dir.exists()) {
             loadOneLine(dir.getPath(), sb);
             File[] files = dir.listFiles();
@@ -404,8 +400,7 @@ public class FindFile extends JPanel {
         }
     }
 
-    private void loadFromTextFile(File file, StringBuilder sb)
-            throws IOException {
+    private void loadFromTextFile(File file, StringBuilder sb) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(file));
         for (;;) {
             String line = reader.readLine();
@@ -443,8 +438,8 @@ public class FindFile extends JPanel {
     }
 
     /**
-     * Parses and indexes the file name from one line of the source text file.
-     * For Linix/Unix ls command, this involves recognizing lines that introduce
+     * Parse and index a file name from one line of the source text file. For
+     * Linix/Unix ls command, this involves recognizing lines that introduce
      * subdirectories.
      * 
      * @param line
@@ -503,8 +498,7 @@ public class FindFile extends JPanel {
             adjustProgressBar(currentCount, estimatedTotalCount);
 
             if (currentCount % 10000 == 0) {
-                System.out.println(Thread.currentThread() + " has loaded "
-                        + currentCount + " file names");
+                System.out.println(Thread.currentThread() + " has loaded " + currentCount + " file names");
             }
         }
         currentCount++;
@@ -535,7 +529,7 @@ public class FindFile extends JPanel {
     }
 
     /**
-     * Enables or disables a component. This is invoked by worker threads so it
+     * Enable or disable a component. This is invoked by worker threads so it
      * must call SwingUtilities.invokeLater to enqueue the action to run on the
      * Swing event dispatch thread.
      * 
@@ -591,8 +585,7 @@ public class FindFile extends JPanel {
                             System.out.println("Closing Persistit");
                             persistit.close();
                         } catch (PersistitException pe) {
-                            System.err
-                                    .println("PersistitException during close");
+                            System.err.println("PersistitException during close");
                             pe.printStackTrace();
                         }
                     }

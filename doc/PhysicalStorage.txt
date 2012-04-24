@@ -1,32 +1,81 @@
 [[PhysicalStorage]]
 = Physical B-Tree Representation
 
-This section describes the physical structures used to represent records on disk and in memory.
+This chapter describes the physical structures used to represent Akiban Persistit records on disk and in memory.
 
-== Pages
+== Files
 
-Akiban Persistit stores its data in one or more files called Volumes. Each volume may contain an arbitrary number of named B-Trees. Persistit manages volume files internally in sections called pages. Each page is the same size within a volume. The page size is configurable and may be 1K, 2K, 4K, 8K (the default size) or 16K bytes long. Once the page size for a volume has been established, it cannot be changed. These settings are defined by properties supplied to the +Persistit.initialize+ method. See <<Configuration>> for complete details.)
+Following is a directory listing illustrating a working Persistit database:
 
-== Volumes
+----
+ -rw-r--r--. 1 demo demo  24G Feb  8 13:18 akiban_data
+ -rw-r--r--. 1 demo demo  48K Feb  8 13:19 akiban_system
+ -rw-r--r--. 1 demo demo 954M Feb  8 13:18 akiban_journal.000000000225
+ -rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000226
+ -rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000227
+ -rw-r--r--. 1 demo demo 662M Feb  8 13:19 akiban_journal.000000000228
+----
 
-Within a Volume there may be an arbitrary number B-Trees. (B-Trees are also known as balanced trees or simply Trees in this document.) In Persistit, a tree is a data structure comprising a root page and subordinate index and data pages. A data page contains a representation of an arbitrary number of key/value pairs. An index page contains a representation of an arbitrary number of keys, each associated with a subordinate index or data page having related information. Data pages are leaf pages because they have no children while index pages are non-leaf pages because they must have children.
-
-The defining characteristic of a B-Tree is that it is height-balanced: the length of the path from the root page to any leaf page is the same. Persistit trees typically range from 1 to 5 levels in depth; the upper bound on tree depth is 20. Each Volume contains a special directory Tree used to identify all other Trees in the Volume. The directory Tree is implicitly used whenever Persistit creates, removes or enumerates the Trees in a volume.
-
+This database contains two _volume_ files, +akiban_data+ and +akiban_system+ and four files that constitute part of the _journal_. As explained below, Persistit records are usually stored in a combination of volume and journal files.
+ 
 == The Journal
 
-Persistit writes all updated pages to the _journal_. The journal is append-only; new records are written only at the end. The journal consists of a numbered series of files having a configurable maximum size. When a journal file becomes full Persistit closes it and begins a new file with the next counter value. In normal operation an independent Copier thread copies pages from the journal back into their home Volume files, allowing old files to be deleted.
+The _journal_ is a set of files containing variable length records. The journal is append-only. New records are written only at the end; existing records are never overwritten. The journal consists of a numbered series of files having a configurable maximum size. When a journal file becomes full Persistit closes it and begins a new file with the next counter value. The maximum size of a journal file is determined by a configuration property called its block size.  The default block size value is 1,000,000,000 bytes which works well with today’s standard server hardware.
 
-The journal is critical to ensuring Persistit can recover structurally intact B-Trees and apply any committed transactions after a system failure. (For more details on the journal, checkpoints and transactions, see <<Recovery>>.)
+Every record in the journal has a _journal address_ which is a 64-bit value. The journal address denotes which file contains the record and the record’s offset within that file. Journal addresses start at zero in a new database instance and grow perpetually. footnote:[Even on a system executing 1 million transactions per second the address space is large enough to last for hundreds of years.]
+
+Persistit writes two major types of records to journal files.
+
+- For each committed update transaction, Persistit writes a record containing sufficient information to replay the transaction during recovery. For example, when Persistit stores a key/value pair during a transaction, it writes a record to the journal containing the key and the value.
+- Persistit also writes all updated page images to the journal. Some of these are eventually copied to volume files, as described below. This write/copy mechanism is critical to Persistit’s crash-recovery mechanism (see <<Recovery>>).
+
+As updates are applied, Persistit constantly appends new information- both transaction records and modified page images - to the end of the highest-numbered file. To prevent the aggregation of a large number of journal files Persistit also works to copy or remove information from older journal files so that they can be deleted. The background thread responsible for this activity is called the +JOURNAL_COPIER+ thread. The JOURNAL_COPIER copies pages from the journal back into their home volume files, allowing old files to be deleted. Normally a Persistit system at rest will gradually copies all update page images and perform checkpoints so that only one small journal file remains. Applications can accelerate that process by calling the +com.persistit.Persistit.copyBack+ method.
+
+The journal is critical to ensuring Persistit can recover structurally intact B-Trees and apply all committed transactions after a system failure. For this reason, unless the JOURNAL_COPIER is entirely caught up, any attempt to save the state of a Persistit database must include both the volume and journal files.
+
+The journal also plays a critical role during concurrent backup. To back up a running Persistit database, the +com.persistit.BackupTask+ does the following:
+
+- Enables +appendOnly+ mode to suspend the copying of updated page images.
+- Copies the appropriate volume and journal files
+- Disables +appendOnly+ mode to allow JOURNAL_COPIER to continue.
+ 
+For more details on the journal, checkpoints and transactions, see <<Recovery>>. For more information on concurrent backup and other management tasks, see <<Managerment>>.
+
+== Pages and Volumes
+
+Persistit ultimately stores its data in one or more Volume files. Persistit manages volume files internally in sections called pages. Every page within one volume has the same size. The page size is configurable and may be 1K, 2K, 4K, 8K, 16K (recommended) bytes long. Once the page size for a volume has been established, it cannot be changed. See <<Configuration>> for details of how to assign the page size for a new volume.
+
+=== Directory Tree
+
+Within a volume there can be an unlimited number of B-Trees. (B-Trees are also called simply “trees” in this document.) A tree consists of a set of pages including a _root page_, _index pages_ and _data pages_. The root page can be data page if the tree is trivial and contains only small number of records. Usually the root page is an index page which contains references to other index pages which in turn may refer to data pages.
+
+Persistit manages a potentially large number of trees by maintaining a tree of trees called +_directory+.  The +_directory+ tree contains the name, root page address, +com.persistit.Accumulator+ data and +com.persistit.TreeStatistics+ data for all the other trees in the volume. The tree name +_directory+ is reserved and may not be used when creating an Exchange.
+
+=== Data Pages
+
+A data page contains a representation of one or more variable-length key/value pairs. The number of key/value pairs depends on the page size, and the sizes of the serialized keys and values. The first key in each data page is stored in its entirety, while subsequent keys are stored with _prefix compression_ to reduce storage footprint and accelerate searches. Therefore the storage size of the second and subsequent keys in a data page depend on how many of the leading bytes of its serialized form match its predecessor. (See <<Key>> and <<Value>> for information on how Persistit encodes logical Java values into the byte arrays stored in a data page.)
+
+=== Index Pages
+
+An index page has a structure similar to a data page except that instead of holding serialized value data, it instead contains page addresses of subordinate pages within the tree.
+
+****
+TODO - diagram of B-Tree, page layouts, etc
+****
 
 == The Buffer Pool
 
-Persistit maintains a cache of page copies in memory called the buffer pool. The buffer pool is a critical resource in reducing disk I/O and providing good runtime performance. Specifically, after performing a relatively expensive disk operation to read a copy of a page into the buffer pool, Persistit retains that copy to allow potentially many fetch and update operations to be performed against keys and values stored in that page.
+Persistit maintains a cache of page copies in memory called the _buffer pool_. The buffer pool is a critical resource in reducing disk I/O and providing good run-time performance. After performing a relatively expensive disk operation to read a copy of a page into the buffer pool, Persistit retains that copy to allow potentially many fetch and update operations to be performed against keys and values stored in that page.
 
-Persistit optimizes update operations by writing updated database pages lazily, generally a few seconds to minutes after the update has been performed on the in-memory copy of the page cached in the buffer pool. By performing its writes lazily, Persistit allows many update operations to be completed on each page before invoking a relatively expensive disk operation to write the updated version of the page to the Volume.
+Persistit optimizes update operations by writing updated database pages lazily, generally a few seconds to minutes after the update has been performed on the in-memory copy of the page cached in the buffer pool. By writing lazily, Persistit allows many update operations to be completed on each page before incurring a relatively expensive disk I/O operation to write the updated version of the page to the Volume.
 
-A Buffer Pool is a collection of buffers allocated from the heap for the duration of Persistit’s operation. In Persistit 2.1 all buffers are allocated when the embedding application invokes one of the initialize methods of com.persistit.Persistit and are released when the application invokes close. There is one buffer pool for each buffer size specified in the configuration properties.
+In Persistit the buffer pool is a collection of buffers allocated from the heap for the duration of Persistit’s operation. The buffers are allocated by the +com.persistit.Persistit#initialize+ method and are released when the application invokes close. Because buffers are allocated for the life of the Persistit instance, they impose no garbage collection overhead. (However, especially when using large buffer pool allocation in a JVM with a large heap, there are some special memory configuration issues to consider.  See <<Configuration>> for details.)
 
-Persistit allocated buffers from but buffer pool on a least-recently-used (LRU)  basis. Most applications exhibit behavior in which data, having been accessed once, is read or updated several more times before the application moves to a different area of the database (locality of reference). LRU is an allocation strategy the yields reasonably good overall throughput by maintaining pages that are likely to be used again in the buffer pool in preference to pages that have not been used for a relatively long time.
+Persistit allocates buffers from the buffer pool in approximately  least-recently-used (LRU) order. Most applications exhibit behavior in which data, having been accessed once, is read or updated several more times before the application moves to a different area of the database (locality of reference). LRU is an allocation strategy the yields reasonably good overall throughput by maintaining pages that are likely to be used again in the buffer pool in preference to pages that have not been used for a relatively long time.
 
 Generally, allocating more buffers in the buffer pool increases the likelihood that a page will be found in the pool rather than having to be reloaded from disk. Since disk I/O is relatively expensive, this means that enlarging the buffer pool is a good strategy for reducing disk I/O and thereby increasing throughput. Persistit is designed to manage extremely large buffer pools very efficiently, so if memory is available, it is generally a good strategy to maximum buffer pool size.
+
+== Tools
+
+The command-line interface (see <<CLI>>) includes tools you can use to examine pages in volumes and records in the journal. Two of these include the +view+ and +journal+ tasks. The +journal+ command displays journal records selected within an address range, by type, by page address, and using other selection criteria in a readable form.  The +view+ command displays the contents of pages selected by page address or key from a volume.
+

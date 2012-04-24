@@ -6,101 +6,106 @@ Welcome!
 
 We have worked hard to make Akiban Persistit(TM) exceptionally fast, reliable, simple and lightweight. We hope you will enjoy learning more about it and using it.
 
-This document briefly and informally introduces and demonstrates various Persistit features through examples. The Javadoc API documentation provides a detailed reference guide to the product.
+Akiban Persistit is a key/value data storage library written in Java(TM). Key features include:
 
+- support for highly concurrent transaction processing with multi-version concurrency control
+- optimized serialization and deserialization mechanism for Java primitives and objects
+- multi-segment (compound) keys to enable a natural logical key hierarchy
+- support for long records (megabytes)
+- implementation of a persistent SortedMap
+- extensive management capability including command-line and GUI tools
+
+This chapter briefly and informally introduces and demonstrates various Persistit features through examples. Subsequent chapters and the Javadoc API documentation provides a detailed reference guide to the product.
 
 == Download and Install
 
-Download +akiban-persistit-2.3.zip+ from http://www.akiban.com/persistit/download.html.
+Download +akiban-persistit-3.xx.yy.zip+ from http://www.akiban.com/persistit/download.html.
 
 Unpack the distribution kit into a convenient directory using any unzip utility. For example, use +jar+ to unpack the distribution kit to the current working directory as follows:
 ----
-jar xvzf akiban-persistit-core-2.3.zip
+jar xvzf akiban-persistit-core-3.xx.yy.zip
 ----
 
-Review the LICENSE.html and README.html files located in the root of the installation directory. Persistit is licensed under the Affero GPL License. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree, remove and destroy all copies of the software in your possession immediately.
-
-=== Examples
-
-Review the examples directory. Here you will find functional examples of varying complexity.
+Review the +LICENSE.html+ and +README.html+ files located in the root of the installation directory. Persistit is licensed under the XXXXXX XXXXXXX License. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.
 
 == Working with Persistit
 
-Add the +akiban-persistit-core-2.3.jar+ from the +lib+ directory of the distribution kit to your project's classpath. For example, copy it to +jre/lib/ext+ in your Java Runtime Environment, or add it to your classpath environment variable. 
+Add the +akiban-persistit-core-3.xx.yy.jar+ from the +lib+ directory of the distribution kit to your project's classpath. For example, copy it to +jre/lib/ext+ in your Java Runtime Environment, or add it to your classpath environment variable. 
 
 That's it. You are ready to work with Persistit.
 
+=== Examples
+
+Review the +examples+ directory. Here you will find functional examples of varying complexity.
+
+[horizontal]
++examples/HelloWorld+:: source code for the example illustrating this chapter
++examples/SimpleDemo+:: short, simple program similar to HelloWorld
++examples/SimpleBench+:: a small micro-benchmark measuring the speed of insert, traversal, random updates, etc.
++examples/SimpleTransaction+:: example demonstrating use of Persisit’s multi-version currency control (MVCC) transactions
++examples/FindFile+:: a somewhat larger example that uses Persistit as the backing store for file finder utility
++example/PersistitMapDemo+:: demonstration of the PersistitMap interface
+
 == HelloWorld
 
-Before going further let's honor tradition with a small program that stores, fetches and displays the phrase “Hello World.” In this program we will create a record with the key “Hello” and the value “World”. You will find +HelloWorld.java+ in the examples/HelloWorld directory of the distribution kit.
+Before going further let's honor tradition with a small program that stores, fetches and displays the phrase “Hello World.” In this program we will create a record with the key “Hello” and the value “World”.
 
 .HelloWorld.java
 [source,java]
 ----
-import com.persistit.Persistit;
 import com.persistit.Exchange;
 import com.persistit.Key;
+import com.persistit.Persistit;
 
-public class HelloWorld
-{
-	public static void main(String[] args)
-	throws Exception
-	{
-    	// Construct a Persistit object.  All memory resources and threads
-    	// allocated by Persistit are referenced through this object.
-    	//
-   	 Persistit db = new Persistit();
-    	try
-    	{
-        	// Read configuration from persistit.properties, allocate
-        	// buffers, open Volume(s), and perform recovery processing
-        	// as needed.
-        	//
-        	db.initialize();
-        	//
-        	// Acquire an Exchange, which is a thread-private facade for
-        	// accessing data in a Persistit Tree. This Exchange will
-        	// access a Tree called "greetings" in a Volume called
-        	// "hwdemo". It will create a new Tree by that name
-        	// if one does not already exist.
-        	//
-        	Exchange dbex = db.getExchange("hwdemo", "greetings", true);
-        	//
-        	// Set up the Value field of the Exchange.
-        	//
-        	dbex.getValue().put("World");
-        	//
-        	// Set up the Key field of the Exchange.
-        	//
-        	dbex.getKey().append("Hello");
-        	//
-        	// Ask Persistit to put this key/value pair into the Tree.  
-        	// Until this point, the changes to the Exchange are local
-        	// to this thread.
-        	//
-        	dbex.store();
-        	//
-        	// Prepare to traverse all the keys in the Tree (of which there
-        	// is currently only one!) and for each key display its value.
-        	//
-        	dbex.getKey().to(Key.BEFORE);
-        	while (dbex.next())
-        	{
-            	System.out.println(
-                	dbex.getKey().indexTo(0).decode() + " " +
-                	dbex.getValue().get());
-        	}
-        	db.releaseExchange(dbex);
-    	}
-    	finally
-    	{
-        	// Always close Persistit. If the application does not do
-        	// this, Persistit's background threads will keep the JVM from
-        	// terminating.
-        	//
-        	db.close();
-    	}
-	}
+public class HelloWorld {
+    public static void main(String[] args) throws Exception {
+        Persistit db = new Persistit();
+        try {
+            // Read configuration from persistit.properties, allocate
+            // buffers, open Volume, and perform recovery processing
+            // if necessary.
+            //
+            db.initialize();
+            //
+            // Create an Exchange, which is a thread-private facade for
+            // accessing data in a Persistit Tree. This Exchange will
+            // access a Tree called "greetings" in a Volume called
+            // "hwdemo". It will create a new Tree by that name
+            // if one does not already exist.
+            //
+            Exchange dbex = db.getExchange("hwdemo", "greetings", true);
+            //
+            // Set up the Value field of the Exchange.
+            //
+            dbex.getValue().put("World");
+            //
+            // Set up the Key field of the Exchange.
+            //
+            dbex.getKey().append("Hello");
+            //
+            // Ask Persistit to put this key/value pair into the Tree.
+            // Until this point, the changes to the Exchange are local
+            // to this thread.
+            //
+            dbex.store();
+            //
+            // Prepare to traverse all the keys in the Tree (of which there
+            // is currently only one!) and for each key display its value.
+            //
+            dbex.getKey().to(Key.BEFORE);
+            while (dbex.next()) {
+                System.out.println(dbex.getKey().indexTo(0).decode() + " "
+                        + dbex.getValue().get());
+            }
+            db.releaseExchange(dbex);
+        } finally {
+            // Always close Persistit. If the application does not do
+            // this, Persistit's background threads will keep the JVM from
+            // terminating.
+            //
+            db.close();
+        }
+    }
 }
 ----
 
@@ -110,17 +115,19 @@ Although +HelloWorld.java+ is not very useful, it demonstrates several of the ba
 
 === Initialization and Configuration
 
-Before accessing any data, +HelloWorld.java+ calls one of the +com.persistit.Persistit#initialize+ methods of +com.persistit.Persistit+. This sets up the memory configuration for buffers and the path names of Persistit volume files. Alternative versions of the initialize method accept configuration information from a java.util.Properties object, from a specified properties file, or from the default file named persistit.properties.
+Before accessing any data, +HelloWorld.java+ calls one of the +com.persistit.Persistit#initialize+ methods of +com.persistit.Persistit+. This sets up the memory configuration for buffers and the path names of Persistit volume and journal files. Alternative versions of the initialize method accept configuration information from a +java.util.Properties+ object, from a specified properties file, or by default from the file named +persistit.properties+.
 
 In this example, +persistit.properties+ looks like this:
 
 ----
 datapath=.
 buffer.count.8192=32
-volume.1=${datapath}/hwdemo.v00,create,pageSize:8192,\
+volume.1=${datapath}/hwdemo,create,pageSize:8192,\
 	initialPages:5,extensionPages:5,maximumPages:100000
 journalpath=${datapath}/hwdemo_journal
 ----
+
+See <<Configuration>> for additional information about Persistit configuration properties.
 
 === Volumes and Trees
 
@@ -130,59 +137,66 @@ Each volume may contain an unlimited number of named trees. Each tree within a v
 
 +HelloWorld.java+ stores its key/value pair in a tree called “greetings” in a volume named “hwdemo”. This is specified by constructing an Exchange.
 
-== Exchanges
+=== Exchanges
 
 The +com.persistit.Exchange+ class is the primary facade for interacting with Persistit data. It is so-named because it allows an application to exchange information with the database. An Exchange provides methods for storing, deleting, fetching and traversing key/value pairs.
 
-To create an Exchange you supply a volume name and a tree name to its constructor. For example, the method
+The method
 
 [source,java]
 ----
 Exchange dbex = db.getExchange("hwdemo", "greetings", true);
 ----
 
-in +HelloWorld.java+ finds a volume named hwdemo and attempts to find a tree in it named greetings. If there is no such tree, the constructor optionally creates it.
+in +HelloWorld.java+ finds a volume named "hwdemo" and attempts to find a tree in it named "greetings". If there is no such tree, +getExchange+ creates it.
 
-The +com.persistit.Persistit#getExchange+ and +com.persistit.Persistit#releaseExchange+ methods maintain a pool of reusable Exchange objects designed for use by multi-threaded applications such as web applications. If a suitable exchange already exists, +getExchange+ returns it; otherwise it constructs a new one.
+Methods +com.persistit.Persistit#getExchange+ and +com.persistit.Persistit#releaseExchange+ maintain a pool of reusable Exchange objects designed for use by multi-threaded applications such as web applications. If a suitable exchange already exists, +getExchange+ returns it; otherwise it constructs a new one.
 
-The Exchange looks up the volume name "hwdemo" by matching it against the volumes specified in the configuration. The match is based on the simple file name of the volume after removing its final dotted suffix.  For example, the volume name +hwdemo+ matches the volume specification +${datapath}/hwdemo.v00+.
+The Exchange looks up the volume name “hwdemo” by matching it against the volumes specified in the configuration. The match is based on the simple file name of the volume after removing its final dotted suffix.  For example, the volume name “hwdemo” matches the volume specification +${datapath}/hwdemo.v00+.
 
 Each Exchange is implicitly associated with a +com.persistit.Key+ and a +com.persistit.Value+. Typically you work with an Exchange in one of the following patterns:
 
-- Modify the Key, modify the Value and then perform a +store+ operation.
-- Modify the Key, perform a +fetch+ operation and then read the Value.
-- Modify the Key and then perform a +remove+ operation.
-- Optionally modify the Key, perform a +next+, +prev+ or +traverse+ operation, then read the resulting Key and/or Value.
+- Modify the Key, modify the Value and then perform a +com.persistit.Exchange#store+ operation.
+- Modify the Key, perform a +com.persistit.Exchange#fetch+ operation and then read the Value.
+- Modify the Key and then perform a +com.persistit.Exchange#remove+ operation.
+- Optionally modify the Key, perform a +com.persistit.Exchange#next+, +com.persistit.Exchange#previous+ or +com.persistit.Exchange#traverse+ operation, then read the resulting Key and/or Value.
 
-These four methods, with variations, provide the foundation for using Persistit.
+These methods and their variants provide the foundation for using Persistit.
 
 === Records
 
-In Persistit, a database record consists of a Key and a Value. We use the terms “record” and “key/value pair” interchangeably.
+In Persistit, a database record consists of a Key and a Value. The terms “record” and “key/value pair” are used interchangeably.
 
-When you store a record, Persistit searches for a previously stored record having the same key.  If there is such a record, Persistit replaces its value.  If there is no such record, Persistit inserts a new one.  Like a Java Map, Persistit stores at most one value per key, and every record in a Tree has a unique key value.
-
-=== Concurrent Operations on Exchanges
-
-An Exchange is a transient object local to one thread. An application creates an Exchange, modifies its state and then invokes various methods to atomically synchronize the state of the Exchange with the underlying database volume. Instances of Exchange are not thread-safe; however multiple instances in different threads can execute database operations on overlapping data. Persistit performs these operations concurrently in a thread-safe manner.
-
-Because Persistit permits concurrent operations by multiple threads, there is no guarantee that the underlying database will remain unchanged after an Exchange fetches or modifies its data. However, each operation on an Exchange is atomic. This means the inputs and outputs of each method are consistent with some valid state of the underlying Persistit backing store at some instant in time. The Exchange’s Value and Key objects represent that consistent state even if another thread subsequently modifies the database. Transactions, described below, allow multiple database operations to be performed atomically and consistently.
+When you store a record, Persistit searches for a previously stored record having the same key. If there is such a record, Persistit replaces its value.  If there is no such record, Persistit inserts a new one.  Like a Java Map, Persistit stores at most one value per key, and every record in a Tree has a unique key value.
 
 === Keys
 
-A Key value serves as the unique identifier for key/value pair - or record - in a tree. A key value consists of a sequence of one or more Java values encoded into an array of bytes stored in the volume file.
+A Key contains a unique identifier for key/value pair - or record - in a tree. The identifier consists of a sequence of one or more Java values encoded into an array of bytes stored in the volume file.
 
-Key instances are mutable. Your application typically changes an Exchange's Key in preparation for fetching or retrieving data. In particular, you can append, remove or replace one or more values in a Key. Each value you append is called a segment. You append multiple segments to implement concatenated keys. See com.persistit.Key for additional information on constructing key values and the ordering of key traversal within a tree.
+Key instances are mutable. Your application typically changes an Exchange's Key in preparation for fetching or retrieving data. In particular, you can append, remove or replace one or more values in a Key. Each value you append is called a _key segment_. You append multiple key segments to implement concatenated keys. See +com.persistit.Key+ for additional information on constructing keys and the ordering of key traversal within a tree.
 
-The +HelloWorld.java+ example appends “Hello” as the sole segment of a key being inserted into the database.
+The +HelloWorld.java+ example appends “Hello” to the Exchange’s Key object in this line:
+
+[source,java]
+----
+            dbex.getKey().append("Hello");
+----
+
+The result is a key with a single key segment.
 
 === Values
 
-A Value object represents the serialized state of a Java object or a primitive value. It is a staging area for data being transferred from or to the database by fetch, traverse and store operations.
+A Value object represents the serialized state of a Java object or a primitive value. It is a staging area for data being transferred from or to the database by +fetch+, +traverse+ and +store+ operations.
 
-A Value is mutable. The +fetch+ and +traverse+ operations modify the state of an Exchange's Value to represent the value associated with some Key. Your application executes methods to modify the state of the Value in preparation for storing new data values into the database.
+Value instances are mutable. The +fetch+ and +traverse+ operations modify the state of an Exchange's Value instance to represent the value associated with some Key. Your application executes methods to modify the state of the Value instance in preparation for storing new data values into the database.
 
-Numerous methods allow you to serialize and deserialize primitive and object values into and from a Value object. For example, in +HelloWorld.java+, the statement
+Numerous methods allow you to serialize and deserialize primitives values and objects into and from a Value object. For example, in +HelloWorld.java+, the statement
+
+[source,java]
+----
+            dbex.getValue().put("World");
+----
+serializes the string “World” into the backing byte array of the Exchange’s Value object and
 
 [source,java]
 ----
@@ -190,297 +204,52 @@ Numerous methods allow you to serialize and deserialize primitive and object val
                 	dbex.getKey().indexTo(0).decode() + " " +
                 	dbex.getValue().get());
 ----
-decodes and prints an object value from the Key and another object value from the Value. Value has methods such as +getInt+, +getLong+, +getByteArray+ to decode primitive and array values directly.
+deserializes and prints an object value from the Key and another object value from the Value. Value also has methods such as +getInt+, +getLong+, +getByteArray+ to decode primitive and array values directly.
 
-=== Storing Object Values
+=== Storing and Fetching Data
 
-Storing the state of an object in Persistit requires three steps:
-
-- Set up the Key,
-- Set up the Value,
-- Perform a store operation on the Exchange.
-
-Here's a code sample that illustrates this process:
+Finally, it is these two methods in +HelloWorld.java+ that cause the Exchange object to share data with the B-Tree, making it persistent and potentially available to other threads:
 
 [source,java]
 ----
-void storeMyObject(Exchange ex, Object keyValue, Object objectValue)
-throws PersistitException
-{
-	ex.getValue().put(objectValue);
-	ex.getKey().to(keyValue);
-	ex.store();
-}
+            dbex.store();
+            ...
+            while (dbex.next()) { ... }
 ----
-
-You can encode either primitive values or objects of any class in a Value. For example, +HelloWorld.java+ encode the strings “Hello” and “World” in a Key and Value, respectively. Persistit encodes each of these values into the arrays of bytes used to actually store the values in the database files.
-
-In general, Persistit uses one of four mechanisms to encode a Java value into a Value object:
-
-- If the value is a primitive type, or one of a small number of object classes such as java.lang.String and java.util.Date, Persistit uses its own internal, optimized serialization logic.
-- If there is a registered com.persistit.encoding.ValueCoder for the value's class, Persistit delegates to it.
-- If enabled, Persistit uses an accelerated serialization/deserialization mechanism to encode and decode objects.
-- Otherwise, for classes that implement java.io.Serializable, Persistit attempts to perform default Java serialization and deserialization.
-
-You can store either primitive values or objects of a limited set of classes in a Key. Because the byte-level encoding of a key determines the ordering of key/value pairs in a Tree, Persistit does not use Java serialization to encode key values. Instead, to support an object type of an arbitrary class within a Key, you must create and register a custom +com.persistit.encoding.KeyCoder+ for that class.
-
-See +com.persistit.Key+ and +com.persistit.Value+ for details on how Java values are encoded within keys and values, and Persistit Object Serialization for further details on Persistit's optimized serialization mechanism.
-
-=== Fetching Object Values
-
-Fetching an object value generally requires three steps in Persistit:
-
-- Set up the Key,
-- Perform a fetch operation on the Exchange.
-- Decode the Value.
-
-Here's a code sample that illustrates this process:
-
-[source,java]
-----
-Object fetchMyObject(Exchange ex, Object keyValue)
-throws PersistitException
-{
-	ex.getKey().to(keyValue);
-	ex.fetch();
-	return ex.getValue().get();
-}
-----
-
-The fetch operation copies the serialized byte array representing an object's state from an Exchange's Tree into its Value object, but does not deserialize it. To get an instance of an object having that state you call the get method. By default, each time you call get, Persistit creates a new object instance and loads its fields with data decoded from the Value. (However, you can use a +com.persistit.encoding.ValueRenderer+ to load updated state information into a pre-existing object instance.)
-
-Persistit does not intrinsically cache object values, nor does it track an object's state changes. However, you can use a +com.persistit.encoding.ObjectCache+ to cache object values. +ObjectCache+ is specifically designed to cache objects fetched from Persistit: it's implementation is similar to java.util.WeakHashMap, but with specific support for use of Persistit Key and KeyState objects as keys.
-
-=== Compound Operations
-
-The Exchange class also provides the methods +com.persistit.Exchange#fetchAndStore+, +com.persistit.Exchange#fetchAndRemove+ and +com.persistit.Exchange#incrementValue+. Each of these methods both retrieves and updates the state of the database atomically.  For example, fetchAndStore atomically stores a new value in the database and then modifies the Exchange's  Value to hold the previously stored value. You could execute separate fetch and store operations within the scope of a transaction to achieve the same result, but the compound operations require simpler internal transaction coordination and are therefore much faster.
 
 === Closing Persistit
 
-Persistit creates one or more background threads that lazily write data to the Volume files. Be sure to invoke the +close+ method to allow these threads to finish their work and exit properly. The pattern illustrated in +HelloWorld.java+, using a _try/finally_ block to invoke close, is strongly recommended.
+Persistit creates one or more background threads that lazily write data to the Volume files and perform other maintenance activities. Be sure to invoke the +com.persistit.Persistit.close+ method to allow these threads to finish their work and exit properly. The pattern illustrated in +HelloWorld.java+, using a _try/finally_ block to invoke +close+, is strongly recommended.
 
-== Using PersistitMap
+The +close+ flushes all data from 
+
+
+== Additional Topics
+
+=== PersistitMap
 
 A particularly easy way to get started with Persistit is to use its built-in +com.persistit.PersistitMap+ implementation. PersistitMap implements the +java.util.SortedMap+ interface, so it can directly replace +java.util.TreeMap+ or other kinds of Map in existing Java code.
 
-The primary difference is that all entries inserted into a PersistitMap are persistent: they are stored in the Persistit database and will be available after the application has shut down and restarted. In addition, the size of a PersistitMap is not limited by main memory. And finally, multiple threads can safely share data through instances of PersistitMap that are backed by a common Persistit database.
+See <<PersistitMap>>.
 
-To create a PersistitMap, you first need to initialize Persistit and create an Exchange. The constructor for PersistitMap uses the Exchange to determine the tree and ancestor key under which mapped data will be stored. The following code fragment from PersistitMapDemo.java, found in the examples/PersistitMapDemo directory of the distribution kit, sets up a PersistitMap.
+=== KeyFilters
 
-.Excerpt From PersistitMapDemo.java
-[source,java]
-----
-    final Persistit db = new Persistit();
-    	db.initialize();
-    	Exchange dbex = db.getExchange("persistit", "properties", true);
-    	//
-    	// Create a PersistitMap over this exchange.  The map will be
-    	// non-empty if this program has already been run previously.
-    	//
-    	PersistitMap persistitMap = new PersistitMap(dbex);
-----
+A +com.persistit.KeyFilter+ can be supplied to restrict the results traversal operation in a convenient and  
 
+=== Transactions
 
-A PersistitMap uses an Exchange to fetch and update data; it serializes and stores values in a Persistit Tree as described in the previous section.
+Persistit provides ACID Transaction support with multi-version concurrency control (MCC) and adjustable durability policy.
 
-See +com.persistit.PersistitMap+ for special considerations regarding concurrency, Comparator objects, exceptions and the +com.persistit.PersistitMap#putFast+ and +com.persistit.PersistitMap#removeFast+ methods.
+See <<Transactions>>.
 
-== Transactions
+=== Managing Persistit
 
-All Persistit database operations are either implicitly or explicitly performed within the scope of a transaction. In +HelloWorld.java+, where there are no begin, commit or end calls, each of the database calls operates implicitly within an independent transaction scope.
+Persistit provides several mechanisms for managing Persistit operation within an application. These include
 
-To incorporate several database operations into a single atomic unit of work requires explicit calls to +com.persistit.Transaction#start+, +com.persistit.Transaction#commit+ and +com.persistit.Transaction#end+ on a +com.persistit.Transaction+. The next example illustrates an explicitly defined transaction.
+- JMX MXBeans
+- The +com.persistit.Management+ object which provides programmatic access to many management operations
+- The +com.persistit.CLI+ object which provides a command-line interface for various management operations
+- The AdminUI tool which provides a graphical client interface for examining records and other resources
+- Logging interface design for easy embedding in host applications
 
-.Excerpt From SimpleTransaction.java
-[source,java]
-----
-	void transfer(Exchange ex, int accountNo1, int accountNo2, int delta)
-	throws PersistitException
-	{
-    	// A Transaction object is a context in which a transaction scope
-    	// begins, commits and ends.
-    	//
-    	Transaction txn = ex.getTransaction();
-    	int remainingAttempts = 5;
-    	//
-    	// Retry until successful commit or failure
-    	//
-    	for (;;)
-    	{
-        	// Start the scope of a transaction.
-        	//
-        	txn.begin();
-        	try
-        	{
-            	// Debit accountNo1.
-            	//
-            	ex.clear().append(accountNo1).fetch();
-            	int balance1 =
-                	ex.getValue().isDefined() ? ex.getValue().getInt() : 0;
-            	ex.getValue().put(balance1 - delta);
-            	ex.store();
-            	//
-            	// Credit accountNo2.
-            	//
-            	ex.clear().append(accountNo2).fetch();
-            	int balance2 =
-                	ex.getValue().isDefined() ? ex.getValue().getInt() : 0;
-            	ex.getValue().put(balance2 + delta);
-            	ex.store();
-            	//
-            	// Commit the transaction and finish the loop.
-            	//
-            	txn.commit();
-            	break;
-        	}
-        	catch (RollbackException rollbackException)
-        	{
-            	if (--remainingAttempts <= 0)
-            	{
-                	throw new TransactionFailedException();
-            	}
-        	}
-        	finally
-        	{
-            	// Every begin() must have a matching call to end().
-            	//
-            	txn.end();
-        	}
-    	}
-	}
-----
-
-You will find the complete program from which this excerpt is taken in the +examples/SimpleTransaction+ directory of the distribution kit.
-
-A +Transaction+ represents a context in which transactions are performed. Each thread acquires a unique, thread-local +Transaction+ instance when it first calls any method on +Exchange+. You begin, commit or rollback, and end a transaction scope within this context. There is one +Transaction+ instance per thread; once allocated, it lasts until the thread dies. Currently Persistit does not support transactions that span multiple threads.
-
-=== Optimistic Concurrent Control and Rollbacks
-
-Persistit uses an optimistic scheduling policy when executing transactions running concurrently in multiple threads. In general, optimistic scheduling provides much higher overall performance and throughput, but it also means that a transaction will occasionally reach a point where it cannot commit without creating an inconsistency in the database. When that happens, Persistit automatically rolls back the updates performed by the transaction and throws a com.persistit.exception.RollbackException. Generally, all transaction logic should include a provision for restarting execution, as illustrated by the for loop in SimpleTransaction.java when this happens.
-
-=== Mandatory +start+, +commit+, +end+ Pattern
-
-The program excerpt from SimpleTransaction.java illustrates a mandatory code pattern for ending a transaction. Any time a program calls begin, it must call end. You should always use a _try/finally_ block to ensure that this happens. This pattern is designed to allow clean handling of exceptions that might be thrown in the application code executed by the transaction. Since closing the transaction scope happens in the _finally_ block, it will always be executed even if the application fails with an exception.
-
-Another required element is that a transaction must always conclude by calling +commit+. Without +commit+, all updates performed within the scope of the transaction will be implicitly and silently rolled back by end, leading to a potentially confusing application failure. (To help diagnose such a failure, Persistit emit a log message whenever this happens.)
-
-=== Disk vs. Memory Commits
- 
-Persistit transactions may be committed either to disk or to memory. Committing to memory is much faster (by several orders of magnitude) because no disk I/O operation is required. However, a memory-committed transaction is not durable in the event of a power failure or system interruption. This may be a legitimate and useful compromise in many applications. Should a system fail, the recovered database will be consistent with some set of committed transactions, but will simply not include memory-committed transactions that were completed in the fraction of a second before failure.
-
-=== TransactionRunnable
-
-The +Transaction+ class offers an encapsulated method for executing transaction logic. You may embed the transaction logic in an implementation of com.persistit.TransactionRunnable and invoke it as shown here.
-
-[source,java]
-----
-	Transaction txn = exchange.getTransaction();
-	txn.run(new TransactionRunnable() {
-    	public void run()
-    	throws PersistitException {
-    	// transaction logic here
-    	}
-	}, 10, 2, true);
-}
-----
-
-The run method encapsulates the mandatory design pattern described above and automatically provides retry logic; in the example the transaction will be retried up to 10 times when rolled back, before each retry Persistit will pause for 2 milliseconds, and the transaction commit must be to disk rather than to memory.
-
-See +com.persistit.Transaction+ for further details on transactions, including concurrency, optimistic and pessimistic scheduling, transaction nesting and durable vs. non-durable commits.
-
-== Traversing and Querying Collections of Data
-
-An Exchange provides a number of methods for traversing a collection of records in the Persistit database. These include variations of the traverse method, and the convenience methods next and previous which call it. For all of these methods, Persistit does two things: it modifies the Exchange's Key object to reflect a new key that is either before or after the current key, and it modifies the Value associated with the Exchange to reflect the database value associated with that key.
-
-For example, this code from +HelloWorld.java+ prints out the key and value of each record in a tree:
-
-[source,java]
-----
-        	dbex.getKey().to(Key.BEFORE);
-        	while (dbex.next())
-        	{
-            	System.out.println(
-                	dbex.getKey().indexTo(0).decode() + " " +
-                	dbex.getValue().get());
-        	}
-----
-
-In general, the traversal methods let you find a key in a tree related to the key you supply. In Persistit programs you frequently prime a key value by appending either Key.BEFORE or Key.AFTER. A key containing either of these special values can never be stored in a tree; these are reserved to represent positions in key traversal order before the first valid key and after the last valid key, respectively. You then invoke next or previous, or any of the other traverse family variants, to enumerate keys within the tree.
-
-You can specify whether traversal is deep or shallow.  Deep traversal traverses the logical children (see com.persistit.Key) of a key.  Shallow traversal traverses only the logical siblings.
-
-=== Selecting key values with a KeyFilter
-
-A +com.persistit.KeyFilter+ defines a subset of the set of all possible key values. For example, a KeyFilter can select keys with certain fixed segment values, sets of values or ranges of values.  Calling +traverse+, +next+ or +previous+ with a KeyFilter efficiently traverses the subset of all keys in a Tree that match the filter.
-
-You construct a KeyFilter either by adding selection terms to it, or by calling the parseKeyFilter method of com.persistit.KeyParser to construct one from a string representation.  See +com.persistit.KeyFilter+ for details.
-
-You will find examples with KeyFilters in the examples/FindFileDemo and  examples/WebAppDemo directories.
-
-=== Applying a KeyFilter to a PersistitMap Iterator
-
-You can specify a KeyFilter for the Iterator returned by the keySet, entrySet and values methods of PersistitMap.  The KeyFilter restricts the range of keys traversed by the Iterator. To set the KeyFilter, you must cast the Iterator to the inner class PersistitMap.ExchangeIterator, as shown here:
-
-[source,java]
-----
-	PersistitMap map = new PersistitMap(exchange);
-	PersistitMap.ExchangeIterator iterator =
-    	(PersistitMap.ExchangeIterator)map.entrySet().iterator();
-	iterator.setFilterTerm(KeyFilter.rangeTerm("A", "M"));
-----
-
-In this example, the iterator will only access String-valued keys between “A” and “M”.
-
-== Managing Persistit
-
-Persistit provides an API for managing a running Persistit instance through the +com.persistit.Management+ interface. The +Management+ interface provides statistics and other information about numerous elements within Persistit.  Your application program can acquire a +Management+ instance as shown here:
-
-.Using the Management API
-[source,java]
-----
-	Management management = Persistit.getInstance().getManagement();
-	management.setUpdateSuspended(true);
-	Management.BufferPoolInfo[] array = management.getBufferPoolInfoArray();
-	for (int index = 0; index < array.length; index++)
-	{
-    	System.out.println(
-        	"Hit ratio for buffers of size " +
-        	array[index].getBufferSize() + " is " +
-        	array[index].getHitRatio());
-	}
-----
-
-
-This example uses a +Management+ object to set the update suspended flag. When enabled, this setting suspends all threads attempting to update the Persistit database.  (Suspending updates can be useful when trying to diagnose application problems, to or create a snapshot of the Persistit database without shutting down the application.)  The example then displays the hit ratio for each buffer pool.  (The hit ratio indicates how frequently a page sought in the buffer pool is actually found there.)
-
-Many attributes and methods of the Management class are also available through a +com.persistit.ManagementMXBean+.  If the +jmx+ configuration property is _true_, Persistit registers a ManagementMXBean instances with the platform MBean server. When so registered, you can access the bean through a JMX client such as +jconsole+.
-
-Separately, the Management can be accessed through RMI.  The RMI interface is allows remotely connecting an instance of the AdminUI management utility.
-
-=== AdminUI Utility Program
-
-AdminUI uses a JFC/Swing interface and requires a display, mouse and keyboard to operate.  For headless servers you can launch AdminUI on a workstation and use the remote interface to connect to the server. Launch it as shown here:
-
-[source,java]
-----
-java -jar akiban-persistit-ui-2.3.jar
-- or -
-java -cp akiban-persistit-core-2.3.jar com.persistit.ui.AdminUI
-----
-
-Click on File->Connect to supply the host name and port of the RMI registry specified for the remote interface.  For example, if a Persistit instance is running on a host named +alpha+, and if you launched the application with the property setting +rmiport=1099+ in the configuration, then specify +alpha:1099+, or just +alpha+ (because 1099 is the default port for RMI) in the connect dialog.
-
-You can also lauch AdminUI within the same JVM running Persistit by specifying the configuration property +showgui=true+.
-
-****
-You can insert configuration properties from the Java command line by prepending +com.persistit.+ For example, add +-Dcom.persistit.showgui=true+ to enable AdminUI from the command line, without modifying the configuration properties file.
-****
-AdminUI has a tabbed interface with the following area:
-
-[HORIZONTAL]
-Summary Tab:: View the sizes and growth parameters of each volume, buffer pool utilization, Journal status and utilization, license and other management information.
-Buffers Tab:: Give a detailed view of the Persistit buffer pool.  You can select specific buffer sizes and states, and you can sort the information by any column of the table.
-Trees Tab:: Lets you view information about all the Trees in any Volume. It also lets you scroll through a list view of all the data (or a subset specified by KeyFilter) in any Tree.  Selecting a Key or Value in the list displays the object in the Inspector pane.  The Inspector lets you drill down on fields within selected Key or Value.
-Tasks Tab:: Starts and monitors potentially long-running utility tasks. You can launch tasks to import or export data to or from a save file, or to check the integrity of the B-tree structure of one or more trees. These tasks are launched as independent threads on the system hosting the Persistit database.
-
-See <<Management>> for more information on measuring and managing performance of a running Persistit-based application.
+See <<Management>>.

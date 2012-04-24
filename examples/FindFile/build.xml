@@ -35,14 +35,32 @@
            source="1.5" 
            target="1.5"
            srcdir="."
-    	   destdir="."
-    	   classpath="../../core/target/akiban-persistit-core-2.5.1-SNAPSHOT-jar-with-dependencies-and-tests.jar" />
+    	   destdir=".">
+           <classpath>
+              <fileset dir="../../core/target">
+                 <include name="akiban-persistit-core-*-with-dependencies-and-tests.jar"/>
+              </fileset>
+           </classpath>
+    </javac>  
+</target>
+    <target name="run" depends="compile">
+    <java  fork="true" classname="FindFile">
+           <classpath>
+              <fileset dir="../../core/target">
+                 <include name="akiban-persistit-core-*-with-dependencies-and-tests.jar"/>
+              </fileset>
+              <pathelement location="." />
+           </classpath>
+     </java>
   </target>
 
-  <target name="run" depends="compile">
-    <java  fork="true"
-           classname="FindFile"
-           classpath="../../core/target/akiban-persistit-core-2.5.1-SNAPSHOT-jar-with-dependencies-and-tests.jar;." />
+  <target name="clean">
+    <delete>
+      <fileset dir=".">
+       <include name="*.class" />
+       <include name="ffdemo*" />
+      </fileset>
+    </delete>
   </target>
   
 </project>
