@@ -25,9 +25,16 @@
  */
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import javax.management.MBeanServer;
 import javax.management.Notification;
 import javax.management.NotificationListener;
+
+import org.junit.Test;
 
 import com.persistit.AlertMonitor.AlertLevel;
 import com.persistit.AlertMonitor.Event;
@@ -76,19 +83,19 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
     }
 
     class AggregatingEvent extends Event {
-        
+
         AggregatingEvent(LogItem logItem, Object... args) {
             super(logItem, args);
         }
-        
+
         protected void added(final History h) {
             _added++;
         }
-        
+
         protected void removed(final History h) {
             _removed++;
         }
-        
+
     }
 
     @Override
@@ -97,6 +104,7 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
         _persistit.getLogBase().configure(new MockPersistitLogger());
     }
 
+    @Test
     public void testPostEvents() throws Exception {
         AlertMonitor monitor = _persistit.getAlertMonitor();
         for (int index = 0; index < 100; index++) {
@@ -134,6 +142,7 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
         assertEquals("Level should be NORMAL", AlertLevel.NORMAL.toString(), monitor.getAlertLevel());
     }
 
+    @Test
     public void testChangeHistoryLength() throws Exception {
         AlertMonitor monitor = _persistit.getAlertMonitor();
         for (int index = 0; index < 100; index++) {
@@ -149,6 +158,7 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
         assertEquals("Total of 101-5 events removed", 101 - 5, _removed);
     }
 
+    @Test
     public void testNotifications() throws Exception {
         AlertMonitor monitor = _persistit.getAlertMonitor();
         MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();

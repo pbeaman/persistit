@@ -26,11 +26,15 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Random;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
+import org.junit.Test;
 
 import com.persistit.BufferPool.BufferHolder;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -43,6 +47,7 @@ public class BufferPoolTest extends PersistitUnitTestCase {
      * 
      * @throws Exception
      */
+    @Test
     public void testInvalidatedBuffers() throws Exception {
         final Volume vol = _persistit.createTemporaryVolume();
         final Exchange ex = _persistit.getExchange(vol, "BufferPoolTest", true);
@@ -63,6 +68,7 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         buffer1.release();
     }
 
+    @Test
     public void testSelectDirtyBuffers() throws Exception {
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
@@ -99,19 +105,19 @@ public class BufferPoolTest extends PersistitUnitTestCase {
             pool.setFlushTimestamp(1000);
         }
     }
-    
-    
+
+    @Test
     public void testAddSelectedBuffer() throws Exception {
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
-        
+
         int total = 100;
         final int[] priorities = new int[total];
         BufferHolder[] holders = new BufferHolder[total];
         for (int i = 0; i < holders.length; i++) {
             holders[i] = new BufferHolder();
         }
-        
+
         final Random random = new Random(1);
         final SortedSet<Integer> sorted = new TreeSet<Integer>();
         int count = 0;
@@ -130,7 +136,7 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         }
         assertEquals("Arrays should be full", total, count);
         Integer[] sortedArray = sorted.toArray(new Integer[sorted.size()]);
-        
+
         for (int i = 0; i < count; i++) {
             int s = sortedArray[sortedArray.length - i - 1];
             int r = priorities[i];
@@ -142,10 +148,10 @@ public class BufferPoolTest extends PersistitUnitTestCase {
             assertTrue(holder.getPage() > page);
             page = holder.getPage();
         }
-        
+
         for (int i = 0; i < count; i++) {
             BufferHolder holder = holders[i];
-            for (int j = i+1; j < count; j++) {
+            for (int j = i + 1; j < count; j++) {
                 assertTrue("Scrambled holders", holder != holders[j]);
             }
         }

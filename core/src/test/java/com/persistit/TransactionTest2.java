@@ -26,15 +26,13 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.PrintStream;
 import java.util.Random;
 
-import org.junit.Ignore;
+import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Key;
-import com.persistit.Transaction;
-import com.persistit.TransactionRunnable;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
@@ -52,7 +50,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
     final static Object LOCK = new Object();
 
     final static CommitPolicy policy = CommitPolicy.SOFT;
-    
+
     static int _threads = 5;
     static int _iterationsPerThread = 25000;
     static int _accounts = 5000;
@@ -105,8 +103,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         test1();
     }
 
-    // Temporarily ignored for Persistit 2.1
-    @Ignore
+    @Test
     public void test1() throws Exception {
         //
         // An Exchange for the Tree containing account "balances".
@@ -173,7 +170,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 final int accountNo2 = random.nextInt(_accounts);
 
                 int delta = random.nextInt(10000);
-//                final int delta = 1;
+                // final int delta = 1;
 
                 transfer(accountEx, accountNo1, accountNo2, delta);
                 synchronized (LOCK) {

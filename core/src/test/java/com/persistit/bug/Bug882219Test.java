@@ -26,6 +26,8 @@
 
 package com.persistit.bug;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.InterruptedIOException;
 import java.util.Timer;
 import java.util.TimerTask;

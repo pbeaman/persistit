@@ -37,8 +37,8 @@ import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.TestShim;
 import com.persistit.Transaction;
-import com.persistit.TransactionRunnable;
 import com.persistit.Transaction.CommitPolicy;
+import com.persistit.TransactionRunnable;
 import com.persistit.Value.Version;
 import com.persistit.exception.PersistitException;
 import com.persistit.test.TestResult;
@@ -75,7 +75,7 @@ public class Stress8txn extends StressBase {
     static boolean _consistencyCheckDone;
     int _size;
     int _seed;
-    
+
     int _mvvReports;
 
     @Override
@@ -164,7 +164,7 @@ public class Stress8txn extends StressBase {
                     final int acct1 = random(0, _size);
                     final int acct2 = random(0, _size);
                     op.setup(acct1, acct2);
-                    final int passes = txn.run(op, 100, 5,  CommitPolicy.SOFT);
+                    final int passes = txn.run(op, 100, 5, CommitPolicy.SOFT);
                     if (passes > 10) {
                         verboseln("pass count=" + passes);
                     }
@@ -204,7 +204,7 @@ public class Stress8txn extends StressBase {
             return 1;
         }
         if (r < 900) {
-            return  2;
+            return 2;
         }
         if (r < 950) {
             return 3;
@@ -343,7 +343,6 @@ public class Stress8txn extends StressBase {
         }
     }
 
-
     private class Operation5 extends Operation {
         /**
          * Perform consistency check across an A account
@@ -405,7 +404,7 @@ public class Stress8txn extends StressBase {
                     final int valueC = getAccountValue(exc);
                     exc.fetch();
                     Key key2 = new Key(exc.getKey());
-                    
+
                     final int valueCC = getAccountValue(exc);
 
                     Debug.$assert1.t(valueC == valueCC);
@@ -420,7 +419,7 @@ public class Stress8txn extends StressBase {
                         final int valueC1 = getAccountValue(exc);
                         exc.fetch();
                         Key key2 = new Key(exc.getKey());
-                        
+
                         final int valueCC1 = getAccountValue(exc);
 
                         Debug.$assert1.t(valueC1 == valueCC1);
@@ -522,7 +521,7 @@ public class Stress8txn extends StressBase {
         Key key = _exs.getKey();
         _exs.clear().append("stress8txn");
         while (_exs.next(true) && key.getDepth() > 1 && key.reset().decodeString().equals("stress8xtn")) {
-            List<Version> versions =  _exs.getValue().unpackMvvVersions();
+            List<Version> versions = _exs.getValue().unpackMvvVersions();
             for (final Version v : versions) {
                 List<String> list1 = byTc.get(v.getCommitTimestamp());
                 if (list1 == null) {
@@ -530,7 +529,7 @@ public class Stress8txn extends StressBase {
                     byTc.put(v.getCommitTimestamp(), list1);
                 }
                 list1.add(key.toString() + ": " + describe(v));
-                
+
                 List<String> list2 = byTs.get(v.getCommitTimestamp());
                 if (list2 == null) {
                     list2 = new ArrayList<String>();
@@ -544,7 +543,7 @@ public class Stress8txn extends StressBase {
         TestShim.ignoreMVCC(false, _exs);
         return sb.toString();
     }
-    
+
     private String describe(Version v) {
         if (v.getValue().isDefined() && v.getValue().isType(String.class)) {
             return v.toString().split("\\:")[0] + ":" + v.getValue().getString().length() + "$";
@@ -552,13 +551,13 @@ public class Stress8txn extends StressBase {
             return v.toString();
         }
     }
-    
+
     private void mvvReportMap(Map<Long, List<String>> map, String title, StringBuilder sb) {
         sb.append(String.format("%s\n\n", title));
         for (final Map.Entry<Long, List<String>> entry : map.entrySet()) {
             sb.append(String.format("%,15d ", entry.getKey()));
             boolean first = true;
-            for (String s: entry.getValue()) {
+            for (String s : entry.getValue()) {
                 if (!first) {
                     sb.append(String.format("%16s", ""));
                 } else {

@@ -26,6 +26,8 @@
 
 package com.persistit.bug;
 
+import static org.junit.Assert.assertTrue;
+
 import java.util.Properties;
 
 import org.junit.Test;

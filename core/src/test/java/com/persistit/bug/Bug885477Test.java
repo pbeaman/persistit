@@ -26,6 +26,10 @@
 
 package com.persistit.bug;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
 
 import com.persistit.Exchange;
@@ -48,7 +52,7 @@ public class Bug885477Test extends PersistitUnitTestCase {
         ex.clear().append(1).append(10).store();
         ex.clear().append(1).append(20).store();
         ex.clear().append(2).append(30).store();
-        
+
         ex.clear().append(1);
         assertTrue(ex.traverse(Key.GTEQ, false));
         assertEquals(1, ex.getKey().decodeInt());
@@ -62,7 +66,7 @@ public class Bug885477Test extends PersistitUnitTestCase {
         ex.append(30);
         assertFalse(ex.hasChildren());
         assertTrue(ex.isValueDefined());
-        
+
     }
 
     @Test
@@ -73,7 +77,7 @@ public class Bug885477Test extends PersistitUnitTestCase {
         ex.clear().append(1).append(10).store();
         ex.clear().append(1).append(20).store();
         ex.clear().append(2).append(30).store();
-        
+
         ex.clear().append(1);
         assertTrue(ex.traverse(Key.GTEQ, false));
         assertEquals(1, ex.getKey().decodeInt());
@@ -81,10 +85,10 @@ public class Bug885477Test extends PersistitUnitTestCase {
         ex.clear().append(2);
         assertTrue(ex.traverse(Key.LTEQ, false));
         assertEquals(2, ex.getKey().decodeInt());
-        
+
         assertTrue(ex.hasChildren());
         assertFalse(ex.isValueDefined());
-        
+
         txn.commit();
         txn.end();
     }

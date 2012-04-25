@@ -28,15 +28,17 @@ package com.persistit.bug;
 
 import java.util.Properties;
 
+import org.junit.Test;
+
 import com.persistit.Exchange;
 import com.persistit.Persistit;
 import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
 
-
 public class Bug932097Test extends PersistitUnitTestCase {
 
+    @Test
     public void testInjectedAbortTransactionStatus() throws Exception {
         /*
          * Create a bunch of incomplete transactions
@@ -61,10 +63,10 @@ public class Bug932097Test extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.initialize(properties);
         /*
-         * To exploit the bug, register a bunch of new transactions which will draw
-         * the TransactionStatus instances freed after recovery finishes its rollback
-         * processing. With bug, we expect to see a 60-second pause followed by
-         * an assertion.
+         * To exploit the bug, register a bunch of new transactions which will
+         * draw the TransactionStatus instances freed after recovery finishes
+         * its rollback processing. With bug, we expect to see a 60-second pause
+         * followed by an assertion.
          */
         for (int i = 1; i <= 1000; i++) {
             _persistit.setSessionId(TestShim.newSessionId());

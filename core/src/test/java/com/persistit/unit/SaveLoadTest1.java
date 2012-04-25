@@ -26,9 +26,13 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.TreeMap;
+
+import org.junit.Test;
 
 import com.persistit.PersistitMap;
 import com.persistit.StreamLoader;
@@ -37,6 +41,7 @@ import com.persistit.exception.PersistitException;
 
 public class SaveLoadTest1 extends PersistitUnitTestCase {
 
+    @Test
     public void test1() throws PersistitException, IOException {
         System.out.print("test1 ");
         final TreeMap<Integer, String> tmap = new TreeMap<Integer, String>();

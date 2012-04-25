@@ -26,7 +26,12 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.lang.ref.WeakReference;
+
+import org.junit.Test;
 
 import com.persistit.CleanupManager.CleanupAction;
 import com.persistit.exception.PersistitException;
@@ -77,6 +82,7 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
 
     }
 
+    @Test
     public void testCleanupHappens() throws Exception {
         for (int i = 1; i <= 500; i++) {
             cm().offer(new CleanupMockAction(i));
@@ -90,6 +96,7 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
         assertEquals(499, cm().getPerformedCount());
     }
 
+    @Test
     public void testOverflow() throws Exception {
         for (int i = 1; i <= CleanupManager.DEFAULT_QUEUE_SIZE * 2; i++) {
             cm().offer(new CleanupMockAction(i));
@@ -103,6 +110,7 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
         assertEquals(0, cm().getEnqueuedCount());
     }
 
+    @Test
     public void testMemoryReleasedOnCrash() throws Exception {
         final WeakReference<Persistit> ref = new WeakReference<Persistit>(_persistit);
         CleanupManager cm = cm();

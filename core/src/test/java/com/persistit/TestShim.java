@@ -156,14 +156,14 @@ public class TestShim {
         return MVV.storeVersion(target, targetOffset, targetLength, targetLimit, versionHandle, source, sourceOffset,
                 sourceLength);
     }
-    
+
     public static void setClassIndexTestIdFloor(final Persistit persistit, final int id) {
         persistit.getClassIndex().setTestIdFloor(id);
     }
-    
+
     public static void clearAllClassIndexEntries(final Persistit persistit) throws PersistitException {
         persistit.getClassIndex().clearAllEntries();
-    }   
+    }
 
     public static ByteBuffer getTransactionBuffer(Transaction txn) {
         return txn.getTransactionBuffer();

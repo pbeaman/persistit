@@ -47,7 +47,7 @@ public class UnitTestProperties {
         final Properties p = new Properties();
         p.setProperty("datapath", DATA_PATH);
         p.setProperty("buffer.count.16384", "20");
-        p.setProperty("volume.1", "${datapath}/"+VOLUME_NAME+",create,"
+        p.setProperty("volume.1", "${datapath}/" + VOLUME_NAME + ",create,"
                 + "pageSize:16384,initialPages:100,extensionPages:100," + "maximumPages:25000");
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
@@ -64,7 +64,7 @@ public class UnitTestProperties {
         final Properties p = new Properties();
         p.setProperty("datapath", DATA_PATH);
         p.setProperty("buffer.count.16384", "2000");
-        p.setProperty("volume.1", "${datapath}/"+VOLUME_NAME+",create,"
+        p.setProperty("volume.1", "${datapath}/" + VOLUME_NAME + ",create,"
                 + "pageSize:16384,initialPages:100,extensionPages:100," + "maximumPages:100000,alias:persistit");
         p.setProperty("volume.2", "${datapath}/persistit_system,create,"
                 + "pageSize:16384,initialPages:100,extensionPages:100," + "maximumPages:100000,alias:_system");
@@ -100,7 +100,7 @@ public class UnitTestProperties {
         final Properties p = new Properties();
         p.setProperty("datapath", DATA_PATH);
         p.setProperty("buffer.memory.16384", memSpecification);
-        p.setProperty("volume.1", "${datapath}/"+VOLUME_NAME+",create,"
+        p.setProperty("volume.1", "${datapath}/" + VOLUME_NAME + ",create,"
                 + "pageSize:16384,initialPages:100,extensionPages:100," + "maximumPages:25000");
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");

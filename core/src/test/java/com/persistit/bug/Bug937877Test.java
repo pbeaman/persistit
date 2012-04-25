@@ -31,6 +31,9 @@ import static com.persistit.util.ThreadSequencer.addSchedules;
 import static com.persistit.util.ThreadSequencer.disableSequencer;
 import static com.persistit.util.ThreadSequencer.enableSequencer;
 import static com.persistit.util.ThreadSequencer.sequencerHistory;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Transaction;
@@ -41,12 +44,13 @@ public class Bug937877Test extends PersistitUnitTestCase {
 
     /**
      * Test for a race condition that probably caused 937877. This test depends
-     * on strategic placement of {@link ThreadSequencer#sequence(int)} statements
-     * in the Transaction class. If those statements are moved or modified, this
-     * test will probably need to be changed.
+     * on strategic placement of {@link ThreadSequencer#sequence(int)}
+     * statements in the Transaction class. If those statements are moved or
+     * modified, this test will probably need to be changed.
      * 
      * @throws Exception
      */
+    @Test
     public void testCommitRaceCondition() throws Exception {
 
         enableSequencer(true);

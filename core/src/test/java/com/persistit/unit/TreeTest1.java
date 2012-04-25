@@ -26,13 +26,18 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
+
+import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
 
 public class TreeTest1 extends PersistitUnitTestCase {
 
+    @Test
     public void test1() throws Exception {
         System.out.print("test1 ");
         Exchange exchange = _persistit.getExchange("persistit", "NewTree", true);
@@ -56,6 +61,7 @@ public class TreeTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() throws Exception {
         System.out.print("test2 ");
         final Exchange[] exchanges = new Exchange[1000];

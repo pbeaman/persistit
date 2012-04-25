@@ -26,6 +26,9 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
@@ -36,7 +39,6 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Management;
-import com.persistit.Persistit;
 import com.persistit.Value;
 import com.persistit.Volume;
 import com.persistit.exception.PersistitException;
@@ -422,7 +424,7 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
         // File should be there
         assertEquals(1, new File(_persistit.getConfiguration().getProperty("datapath")).listFiles(ff).length);
     }
-    
+
     @Test
     public void testMaxSize() throws Exception {
         _persistit.getConfiguration().setTmpVolMaxSize(64 * 1024 * 1024);
@@ -436,10 +438,10 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
         for (int index = 0; index < 1000000; index++) {
             full1 = full2 = true;
             try {
-            ex1.to(index).store();
-            full1 = false;
-            ex2.to(index).store();
-            full2 = false;
+                ex1.to(index).store();
+                full1 = false;
+                ex2.to(index).store();
+                full2 = false;
             } catch (VolumeFullException e) {
                 assertTrue(!full1);
                 assertTrue(full2);

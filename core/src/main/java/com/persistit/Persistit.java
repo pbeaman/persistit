@@ -626,11 +626,11 @@ public class Persistit {
 
     void initializeBufferPools() {
         for (final BufferMemorySpecification specification : _configuration.getBuffers()) {
-            final int buffers = specification.computeBufferCount(getAvailableHeap());
-            if (buffers > 0) {
+            final int poolSize = specification.computeBufferCount(getAvailableHeap());
+            if (poolSize > 0) {
                 final int bufferSize = specification.getBufferSize();
-                _logBase.allocateBuffers.log(buffers, bufferSize);
-                BufferPool pool = new BufferPool(buffers, bufferSize, this);
+                _logBase.allocateBuffers.log(poolSize, bufferSize);
+                BufferPool pool = new BufferPool(poolSize, bufferSize, this);
                 _bufferPoolTable.put(bufferSize, pool);
                 registerBufferPoolMXBean(bufferSize);
             }

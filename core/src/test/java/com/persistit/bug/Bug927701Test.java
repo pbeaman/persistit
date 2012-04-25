@@ -26,11 +26,15 @@
 
 package com.persistit.bug;
 
+import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
 
+import com.persistit.Exchange;
+import com.persistit.JournalManager;
+import com.persistit.TestShim;
+import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
-
-import com.persistit.*;
 
 /**
  * Failure detected during TPCC testing. Upon restarting server, the following
@@ -101,7 +105,7 @@ public class Bug927701Test extends PersistitUnitTestCase {
          */
         abortingTxn.rollback();
         // abortingTxn.end();
-//        TestShim.flushTransactionBuffer(abortingTxn);
+        // TestShim.flushTransactionBuffer(abortingTxn);
         /*
          * Wait for JournalManager call to pruneObsoleteTransactions
          */

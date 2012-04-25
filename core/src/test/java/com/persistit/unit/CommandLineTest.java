@@ -26,6 +26,12 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.PrintWriter;
@@ -79,7 +85,7 @@ public class CommandLineTest extends PersistitUnitTestCase {
         waitForCompletion(taskId(status));
 
         assertEquals(300, pmap.size());
-        
+
         status = management.launch("jquery -T -V -v page=1");
         waitForCompletion(taskId(status));
 
@@ -96,7 +102,8 @@ public class CommandLineTest extends PersistitUnitTestCase {
 
         final String datapath = _persistit.getConfiguration().getProperty("datapath");
         final String rmiport = _persistit.getConfiguration().getProperty("rmiport");
-        final StringReader stringReader = new StringReader(String.format("help\nopen datapath=%s rmiport=%s\nicheck -v\n", datapath, rmiport));
+        final StringReader stringReader = new StringReader(String.format(
+                "help\nopen datapath=%s rmiport=%s\nicheck -v\n", datapath, rmiport));
         final BufferedReader reader = new BufferedReader(stringReader);
         final StringWriter stringWriter = new StringWriter();
         final PrintWriter writer = new PrintWriter(stringWriter);
@@ -104,7 +111,7 @@ public class CommandLineTest extends PersistitUnitTestCase {
         final String result = stringWriter.toString();
         assertTrue(result.contains("data"));
     }
-    
+
     private long taskId(final String status) {
         return Long.parseLong(status);
     }
@@ -120,7 +127,7 @@ public class CommandLineTest extends PersistitUnitTestCase {
             } else {
                 return;
             }
-            
+
             Thread.sleep(500);
         }
         throw new IllegalStateException("Task " + taskId + " did not compelete within 10 seconds");

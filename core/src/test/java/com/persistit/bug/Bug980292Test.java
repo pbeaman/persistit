@@ -26,7 +26,11 @@
 
 package com.persistit.bug;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Properties;
+
+import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Persistit;
@@ -53,6 +57,7 @@ public class Bug980292Test extends PersistitUnitTestCase {
         return persistit.getExchange(UnitTestProperties.VOLUME_NAME, TREE_NAME, true);
     }
 
+    @Test
     public void testBug980292() throws Exception {
         final Exchange ex = getExchange(_persistit);
         final Transaction txn = ex.getTransaction();
@@ -63,7 +68,8 @@ public class Bug980292Test extends PersistitUnitTestCase {
         ex.getValue().put(new byte[50000]);
         ex.to("a").store();
         /*
-         * Now add enough other records to force out a chain of transaction buffers.
+         * Now add enough other records to force out a chain of transaction
+         * buffers.
          */
         ex.getValue().put(RED_FOX);
         for (int i = 0; i < TestShim.getTransactionBuffer(txn).capacity() * 2 / RED_FOX.length(); i++) {

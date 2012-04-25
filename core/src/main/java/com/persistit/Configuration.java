@@ -382,15 +382,16 @@ public class Configuration {
             if (bufferSize == -1) {
                 return 0;
             }
-            long allocation = (long) ((availableHeapMemory - reservedMemory) * fraction);
-            allocation = Math.min(Math.max(minimumMemory, allocation), maximumMemory);
+            long maximumAvailable = (long) ((availableHeapMemory - reservedMemory) * fraction);
+            long allocation = Math.min(maximumAvailable, maximumMemory);
             int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
             int buffers = Math.max(minimumCount, Math.min(maximumCount, (int) (allocation / bufferSizeWithOverhead)));
             if (buffers < BufferPool.MINIMUM_POOL_COUNT || buffers > BufferPool.MAXIMUM_POOL_COUNT
-                    || buffers * bufferSizeWithOverhead > allocation) {
+                    || buffers * bufferSizeWithOverhead > maximumAvailable
+                    || buffers * bufferSizeWithOverhead < minimumMemory) {
                 throw new IllegalArgumentException(String.format(
-                        "Invalid buffer pool configuration: %,d buffers in %sb of available memory", buffers, Persistit
-                                .displayableLongValue(allocation)));
+                        "Invalid buffer pool configuration: %,d buffers in %sb of maximum available memory", buffers,
+                        Persistit.displayableLongValue(maximumAvailable)));
             }
             return buffers;
         }
@@ -492,7 +493,7 @@ public class Configuration {
         setSerialOverride(getProperty(SERIAL_OVERRIDE_PROPERTY_NAME));
         setShowGUI(getBooleanProperty(SHOW_GUI_PROPERTY_NAME, false));
         setSplitPolicy(getProperty(SPLIT_POLICY_PROPERTY_NAME));
-        setSysVolume(getProperty(SYSTEM_VOLUME_PROPERTY_NAME));
+        setSysVolume(getProperty(SYSTEM_VOLUME_PROPERTY_NAME, DEFAULT_SYSTEM_VOLUME_NAME));
 
         loadPropertiesBufferSpecifications();
         loadPropertiesVolumeSpecifications();
@@ -857,8 +858,10 @@ public class Configuration {
             float fraction = 1.0f;
 
             final String[] terms = propertyValue.split(",", 4);
+
             if (terms.length > 0 && !terms[0].isEmpty()) {
                 minimum = parseLongProperty(propertyName, terms[0]);
+                maximum = minimum;
             }
             if (terms.length > 1 && !terms[1].isEmpty()) {
                 maximum = parseLongProperty(propertyName, terms[1]);

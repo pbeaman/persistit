@@ -26,10 +26,15 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.Date;
 import java.util.Properties;
 
 import junit.framework.AssertionFailedError;
+
+import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
@@ -38,6 +43,7 @@ import com.persistit.exception.PersistitException;
 
 public class TransactionTest3 extends PersistitUnitTestCase {
 
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
 
@@ -99,6 +105,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() throws PersistitException {
         System.out.print("test2 ");
         final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
@@ -160,6 +167,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() throws PersistitException {
         System.out.print("test3 ");
         final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
@@ -294,6 +302,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test4() throws PersistitException {
         System.out.print("test4 ");
         final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
@@ -398,6 +407,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test5() throws PersistitException {
         System.out.print("test5 ");
         final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);

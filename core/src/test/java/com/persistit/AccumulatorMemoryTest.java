@@ -26,6 +26,8 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertTrue;
+
 import java.util.WeakHashMap;
 
 import org.junit.Test;
@@ -33,7 +35,6 @@ import org.junit.Test;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class AccumulatorMemoryTest extends PersistitUnitTestCase {
-
 
     @Test
     public void testReleaseMemory() throws Exception {

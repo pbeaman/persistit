@@ -26,6 +26,9 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+
 import java.util.List;
 
 import org.junit.Test;
@@ -63,8 +66,8 @@ public class ValueTest7 extends PersistitUnitTestCase {
         Value v = new Value(_persistit);
         for (int i = 1; i < 5; i++) {
             v.put(RED_FOX + "_" + i);
-            int s = TestShim.storeVersion(value.getEncodedBytes(), 0, value.getEncodedSize(), 100000, i,
-                    v.getEncodedBytes(), 0, v.getEncodedSize());
+            int s = TestShim.storeVersion(value.getEncodedBytes(), 0, value.getEncodedSize(), 100000, i, v
+                    .getEncodedBytes(), 0, v.getEncodedSize());
             value.setEncodedSize(s);
         }
         List<Version> versions = value.unpackMvvVersions();

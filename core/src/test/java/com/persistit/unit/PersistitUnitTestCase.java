@@ -30,15 +30,16 @@ import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.Properties;
 
-import junit.framework.TestCase;
+import org.junit.After;
+import org.junit.Before;
 
 import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
 
-public abstract class PersistitUnitTestCase extends TestCase {
+public abstract class PersistitUnitTestCase {
 
     private final static long TEN_SECONDS = 10L * 1000L * 1000L * 1000L;
-    
+
     protected final static String RED_FOX = "The quick red fox jumped over the lazy brown dog.";
 
     protected Persistit _persistit = new Persistit();
@@ -47,18 +48,18 @@ public abstract class PersistitUnitTestCase extends TestCase {
         return UnitTestProperties.getProperties(cleanup);
     }
 
-    @Override
+    @Before
     public void setUp() throws Exception {
         checkNoPersistitThreads();
         _persistit.initialize(getProperties(true));
     }
 
-    @Override
+    @After
     public void tearDown() throws Exception {
         final WeakReference<Persistit> ref = new WeakReference<Persistit>(_persistit);
         _persistit.close(false);
         _persistit = null;
-        
+
         if (!doesRefBecomeNull(ref)) {
             System.out.println("Persistit has a leftover strong reference");
         }
@@ -109,7 +110,7 @@ public abstract class PersistitUnitTestCase extends TestCase {
         _persistit = new Persistit();
         _persistit.initialize(properties);
     }
-    
+
     public static boolean doesRefBecomeNull(final WeakReference<?> ref) throws InterruptedException {
         long expires = System.nanoTime() + TEN_SECONDS;
         while (ref.get() != null && System.nanoTime() < expires) {

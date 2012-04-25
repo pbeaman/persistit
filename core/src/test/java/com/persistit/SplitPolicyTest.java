@@ -26,7 +26,12 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.Random;
+
+import org.junit.Test;
 
 import com.persistit.Exchange.Sequence;
 import com.persistit.policy.SplitPolicy;
@@ -34,6 +39,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 public class SplitPolicyTest extends PersistitUnitTestCase {
 
+    @Test
     public void testLeftBias() {
         Buffer nullBuffer = null;
         int mockLeftSize = 20;
@@ -50,6 +56,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         assertEquals(mockLeftSize, measure);
     }
 
+    @Test
     public void testRightBias() {
         Buffer nullBuffer = null;
         int mockRightSize = 20;
@@ -66,6 +73,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         assertEquals(mockRightSize, measure);
     }
 
+    @Test
     public void testEvenBias() {
         Buffer nullBuffer = null;
         int mockRightSize = 20;
@@ -102,6 +110,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         assertEquals(11, measure);
     }
 
+    @Test
     public void testNiceBias() {
         Buffer nullBuffer = null;
         int mockRightSize = 20;
@@ -138,6 +147,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         assertEquals(17, measure);
     }
 
+    @Test
     public void testPackBias() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "SplitPolicyTest", true);
         ex.getValue().put("aaabbbcccdddeee");
@@ -220,6 +230,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         return best;
     }
 
+    @Test
     public void testPackBiasPacking() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "SplitPolicyTest", true);
         final Random random = new Random(1);
@@ -267,9 +278,4 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         return used / total;
     }
 
-    @Override
-    public void runAllTests() throws Exception {
-        // TODO Auto-generated method stub
-
-    }
 }

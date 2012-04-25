@@ -30,6 +30,7 @@ import static com.persistit.util.SequencerConstants.RECOVERY_PRUNING_SCHEDULE;
 import static com.persistit.util.ThreadSequencer.addSchedules;
 import static com.persistit.util.ThreadSequencer.disableSequencer;
 import static com.persistit.util.ThreadSequencer.enableSequencer;
+import static org.junit.Assert.assertNull;
 
 import java.util.Properties;
 
@@ -65,9 +66,9 @@ public class Bug942669Test extends PersistitUnitTestCase {
     // -rw-r--r-- 1 akiban akiban 954M Feb 27 11:09 akiban_journal.000000001349
 
     /**
-     * Test for a possible race condition examined in diagnosing 942669. Note that file
-     * 1535 is empty, suggesting that the JOURNAL_COPIER thread decided it was
-     * obsolete and deleted it. Hypothesis:
+     * Test for a possible race condition examined in diagnosing 942669. Note
+     * that file 1535 is empty, suggesting that the JOURNAL_COPIER thread
+     * decided it was obsolete and deleted it. Hypothesis:
      * 
      * 1. RecoveryManager pruned an aborted transaction
      * 
@@ -91,7 +92,7 @@ public class Bug942669Test extends PersistitUnitTestCase {
      */
     @Test
     public void testRecoveryRace() throws Exception {
-        
+
         /*
          * Create a journal with an uncommitted transaction
          */
@@ -108,17 +109,15 @@ public class Bug942669Test extends PersistitUnitTestCase {
         _persistit.crash();
         Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
-        
-        
+
         enableSequencer(true);
         addSchedules(RECOVERY_PRUNING_SCHEDULE);
-        
+
         _persistit.initialize(properties);
         _persistit.copyBackPages();
         disableSequencer();
     }
-    
-   
+
     /**
      * Note that journal file 1345 has a length of zero. The issue is that
      * JournalManager.pruneObsoleteTransactions is attempting to prune two
@@ -130,6 +129,7 @@ public class Bug942669Test extends PersistitUnitTestCase {
      * IllegalArgumentException in the JOURNAL_COPIER thread.
      */
 
+    @Test
     public void testResurrectedTransactions() throws Exception {
         /*
          * Create a journal with an uncommitted transaction
