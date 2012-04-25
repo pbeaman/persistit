@@ -197,7 +197,7 @@ public class VolumeSpecification {
                 } else {
                     String valueString = innerTokenizer.nextToken().trim();
                     boolean bad = false;
-                    long value = Persistit.parseLongProperty(attr, valueString, 0, Long.MAX_VALUE);
+                    long value = Configuration.parseLongProperty(attr, valueString);
 
                     if (ATTR_PAGE_SIZE.equals(attr)) {
                         if (value < Integer.MAX_VALUE && value > 0 && Volume.isValidPageSize((int) value)) {

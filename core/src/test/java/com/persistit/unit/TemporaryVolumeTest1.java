@@ -414,18 +414,18 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
 
         };
         // File should not be there
-        assertEquals(0, new File(_persistit.getProperty("datapath")).listFiles(ff).length);
+        assertEquals(0, new File(_persistit.getConfiguration().getProperty("datapath")).listFiles(ff).length);
         ex.getValue().put(RED_FOX);
         for (int index = 0; index < 1000000; index++) {
             ex.to(index).store();
         }
         // File should be there
-        assertEquals(1, new File(_persistit.getProperty("datapath")).listFiles(ff).length);
+        assertEquals(1, new File(_persistit.getConfiguration().getProperty("datapath")).listFiles(ff).length);
     }
     
     @Test
     public void testMaxSize() throws Exception {
-        _persistit.setProperty(Persistit.TEMPORARY_VOLUME_MAX_SIZE, "64K");
+        _persistit.getConfiguration().setTmpVolMaxSize(64 * 1024 * 1024);
         Volume volume2 = _persistit.createTemporaryVolume();
         final Exchange ex1 = _persistit.getExchange(_volume, "T2", true);
         final Exchange ex2 = _persistit.getExchange(volume2, "T2", true);

@@ -101,7 +101,7 @@ class VolumeStorageT2 extends VolumeStorage {
     synchronized FileChannel getChannel() throws PersistitIOException {
         if (_channel == null) {
             try {
-                final String directoryName = _persistit.getProperty(Persistit.TEMPORARY_VOLUME_DIR_NAME, null);
+                final String directoryName = _persistit.getConfiguration().getTmpVolDir();
                 final File directory = directoryName == null ? null : new File(directoryName);
                 final File file = File.createTempFile(TEMP_FILE_PREFIX, null, directory);
                 _path = file.getPath();
@@ -121,8 +121,7 @@ class VolumeStorageT2 extends VolumeStorage {
      * @throws PersistitException
      */
     void create() throws PersistitException {
-        final long maxSize = _persistit.getLongProperty(Persistit.TEMPORARY_VOLUME_MAX_SIZE, Long.MAX_VALUE,
-                4 * Buffer.MAX_BUFFER_SIZE, Long.MAX_VALUE);
+        final long maxSize = _persistit.getConfiguration().getTmpVolMaxSize();
         _maxPages = maxSize / _volume.getStructure().getPageSize();
         _path = TEMP_FILE_UNCREATED_NAME;
         _channel = null;

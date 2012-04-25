@@ -1209,15 +1209,12 @@ class ManagementImpl implements Management {
         _displayFilter = displayFilter;
     }
 
-    void register(String hostName, String rmiPortString, String serverPortString) {
+    void register(String hostName, int rmiPort, int serverPort) {
 
         try {
             ManagementImpl impl = (ManagementImpl) _persistit.getManagement();
-            int rmiPort = -1;
-            int serverPort = 0;
-            if (rmiPortString != null && rmiPortString.length() > 0) {
+            if (hostName == null && rmiPort != -1) {
                 try {
-                    rmiPort = Integer.parseInt(rmiPortString);
                     if (hostName == null) {
                         InetAddress addr = InetAddress.getLocalHost();
                         try {
@@ -1228,9 +1225,6 @@ class ManagementImpl implements Management {
                     }
                 } catch (NumberFormatException nfe) {
                 }
-            }
-            if (serverPortString != null && serverPortString.length() > 0) {
-                serverPort = Integer.parseInt(serverPortString);
             }
             if (rmiPort != -1 && _localRegistryPort != rmiPort) {
                 LocateRegistry.createRegistry(rmiPort);

@@ -42,36 +42,36 @@ public class MemoryAllocationTest extends TestCase {
 
     @Test
     public void testMemoryAllocationComputation() throws Exception {
-        Persistit persistit = new Persistit();
-        final long available = persistit.getAvailableHeap();
-        for (int bufferSize = 1024; bufferSize <= 16384; bufferSize *= 2) {
-            final String pname = PNAME + bufferSize;
-            final int bsize = Buffer.bufferSizeWithOverhead(bufferSize);
-            assertEquals(MEGA / bsize, persistit.computeBufferCountFromMemoryProperty(pname, "1M", bufferSize));
-            assertEquals(10 * MEGA / bsize, persistit.computeBufferCountFromMemoryProperty(pname, "10M,1G", bufferSize));
-            assertEquals((available - 64 * MEGA) / bsize, persistit.computeBufferCountFromMemoryProperty(pname,
-                    ",100G,64M", bufferSize));
-            assertEquals((available / 2) / bsize, persistit.computeBufferCountFromMemoryProperty(pname, ",100G,0,0.5",
-                    bufferSize));
-            assertEquals((available / 2) / bsize, persistit.computeBufferCountFromMemoryProperty(pname, ",,,0.5",
-                    bufferSize));
-            assertEquals(10 * MEGA / bsize, persistit.computeBufferCountFromMemoryProperty(pname, "10M,,,0.0",
-                    bufferSize));
-        }
+//        Persistit persistit = new Persistit();
+//        final long available = persistit.getAvailableHeap();
+//        for (int bufferSize = 1024; bufferSize <= 16384; bufferSize *= 2) {
+//            final String pname = PNAME + bufferSize;
+//            final int bsize = Buffer.bufferSizeWithOverhead(bufferSize);
+//            assertEquals(MEGA / bsize, persistit.computeBufferCountFromMemoryProperty(pname, "1M", bufferSize));
+//            assertEquals(10 * MEGA / bsize, persistit.computeBufferCountFromMemoryProperty(pname, "10M,1G", bufferSize));
+//            assertEquals((available - 64 * MEGA) / bsize, persistit.computeBufferCountFromMemoryProperty(pname,
+//                    ",100G,64M", bufferSize));
+//            assertEquals((available / 2) / bsize, persistit.computeBufferCountFromMemoryProperty(pname, ",100G,0,0.5",
+//                    bufferSize));
+//            assertEquals((available / 2) / bsize, persistit.computeBufferCountFromMemoryProperty(pname, ",,,0.5",
+//                    bufferSize));
+//            assertEquals(10 * MEGA / bsize, persistit.computeBufferCountFromMemoryProperty(pname, "10M,,,0.0",
+//                    bufferSize));
+//        }
     }
 
     @Test
     public void testAllocateAlmostEverything() throws Exception {
-        Persistit persistit = new Persistit();
-        final long available = persistit.getAvailableHeap();
-        Properties properties = new Properties();
-        properties.setProperty("buffer.memory.16384", "0,1T,64M,0.8");
-        persistit.initializeProperties(properties);
-        persistit.initializeBufferPools();
-        final MemoryUsage mu = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
-        long used = mu.getUsed();
-        System.out.printf("Initially available=%,d Used=%,d", available, used);
-        persistit.close();
+//        Persistit persistit = new Persistit();
+//        final long available = persistit.getAvailableHeap();
+//        Properties properties = new Properties();
+//        properties.setProperty("buffer.memory.16384", "0,1T,64M,0.8");
+//        persistit.initializeProperties(properties);
+//        persistit.initializeBufferPools();
+//        final MemoryUsage mu = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+//        long used = mu.getUsed();
+//        System.out.printf("Initially available=%,d Used=%,d", available, used);
+//        persistit.close();
     }
 
 }

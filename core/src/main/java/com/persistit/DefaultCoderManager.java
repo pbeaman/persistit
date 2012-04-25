@@ -96,7 +96,7 @@ public final class DefaultCoderManager implements CoderManager {
      *             invalid
      */
     public DefaultCoderManager(Persistit persistit) {
-        this(persistit, persistit.getProperty(Persistit.SERIAL_OVERRIDE_PROPERTY));
+        this(persistit, persistit.getConfiguration().getSerialOverride());
     }
 
     /**
