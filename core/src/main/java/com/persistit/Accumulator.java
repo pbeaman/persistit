@@ -628,6 +628,7 @@ public abstract class Accumulator {
         delta.setValue(selectValue(value, updated));
         delta.setStep(step);
         delta.setAccumulator(this);
+        checkpointNeeded();
         return updated;
     }
 
@@ -641,7 +642,7 @@ public abstract class Accumulator {
 
     @Override
     /**
-     * @return a formated reoort showing the Tree, index, type, and accumulated
+     * @return a formatted report showing the Tree, index, type, and accumulated
      *         values for this <code>Accumulator</code>.
      */
     public String toString() {
