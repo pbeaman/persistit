@@ -387,13 +387,31 @@ public class Configuration {
             int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
             int buffers = Math.max(minimumCount, Math.min(maximumCount, (int) (allocation / bufferSizeWithOverhead)));
             if (buffers < BufferPool.MINIMUM_POOL_COUNT || buffers > BufferPool.MAXIMUM_POOL_COUNT
-                    || buffers * bufferSizeWithOverhead > maximumAvailable
-                    || buffers * bufferSizeWithOverhead < minimumMemory) {
+                    || buffers * bufferSizeWithOverhead > maximumAvailable) {
                 throw new IllegalArgumentException(String.format(
                         "Invalid buffer pool configuration: %,d buffers in %sb of maximum available memory", buffers,
                         Persistit.displayableLongValue(maximumAvailable)));
             }
             return buffers;
+        }
+        
+        public String toString() {
+            StringBuilder sb = new StringBuilder("BufferMemorySpecification(");
+            sb.append(String.format("size=%d", bufferSize));
+            if (minimumCount == maximumCount) {
+                sb.append(String.format(",count=%,d", minimumCount));
+            } else  if ( minimumCount != 0 || maximumCount != Integer.MAX_VALUE) {
+                sb.append(String.format(",minCount=%,d,maxCount=%,d", minimumCount, maximumCount));
+            }
+            if (minimumMemory != 0 || maximumMemory != Long.MAX_VALUE || reservedMemory != 0 || fraction != 1.0f) {
+                sb.append(String.format(",minMem=%s,maxMem=%s,reserved=%s,fraction=%f",
+                        Persistit.displayableLongValue(minimumMemory),
+                        Persistit.displayableLongValue(maximumMemory),
+                        Persistit.displayableLongValue(reservedMemory),
+                        fraction));
+            }
+            sb.append(')');
+            return sb.toString();
         }
     }
 
