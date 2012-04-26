@@ -390,25 +390,23 @@ public class Configuration {
                     || buffers * bufferSizeWithOverhead > maximumAvailable) {
                 throw new IllegalArgumentException(String.format(
                         "Invalid buffer pool configuration: %,d buffers in %sb of maximum available memory", buffers,
-                        Persistit.displayableLongValue(maximumAvailable)));
+                        displayableLongValue(maximumAvailable)));
             }
             return buffers;
         }
-        
+
         public String toString() {
             StringBuilder sb = new StringBuilder("BufferMemorySpecification(");
             sb.append(String.format("size=%d", bufferSize));
             if (minimumCount == maximumCount) {
-                sb.append(String.format(",count=%,d", minimumCount));
-            } else  if ( minimumCount != 0 || maximumCount != Integer.MAX_VALUE) {
-                sb.append(String.format(",minCount=%,d,maxCount=%,d", minimumCount, maximumCount));
+                sb.append(String.format(";count=%,d", minimumCount));
+            } else if (minimumCount != 0 || maximumCount != Integer.MAX_VALUE) {
+                sb.append(String.format(";minCount=%,d;maxCount=%,d", minimumCount, maximumCount));
             }
             if (minimumMemory != 0 || maximumMemory != Long.MAX_VALUE || reservedMemory != 0 || fraction != 1.0f) {
-                sb.append(String.format(",minMem=%s,maxMem=%s,reserved=%s,fraction=%f",
-                        Persistit.displayableLongValue(minimumMemory),
-                        Persistit.displayableLongValue(maximumMemory),
-                        Persistit.displayableLongValue(reservedMemory),
-                        fraction));
+                sb.append(String.format(";minMem=%s;maxMem=%s;reserved=%s;fraction=%f",
+                        displayableLongValue(minimumMemory), displayableLongValue(maximumMemory),
+                        displayableLongValue(reservedMemory), fraction));
             }
             sb.append(')');
             return sb.toString();
@@ -794,45 +792,41 @@ public class Configuration {
      *            The string representation, e.g., "100K".
      * @return The numeric value of the supplied String, as a long.
      * @throws IllegalArgumentException
-     *             if the supplied String is not a valid integer representation,
-     *             or is outside the supplied bounds.
+     *             if the supplied String is not a valid integer representation.
      */
     static long parseLongProperty(String propName, String str) {
-        long result = Long.MIN_VALUE;
-        long multiplier = 1;
-        if (str.length() > 1) {
-            switch (str.charAt(str.length() - 1)) {
-            case 't':
-            case 'T':
-                multiplier = TERA;
-                break;
-            case 'g':
-            case 'G':
-                multiplier = GIGA;
-                break;
-            case 'm':
-            case 'M':
-                multiplier = MEGA;
-                break;
-            case 'k':
-            case 'K':
-                multiplier = KILO;
-                break;
+        if (str != null) {
+            try {
+                long multiplier = 1;
+                if (str.length() > 1) {
+                    switch (str.charAt(str.length() - 1)) {
+                    case 't':
+                    case 'T':
+                        multiplier = TERA;
+                        break;
+                    case 'g':
+                    case 'G':
+                        multiplier = GIGA;
+                        break;
+                    case 'm':
+                    case 'M':
+                        multiplier = MEGA;
+                        break;
+                    case 'k':
+                    case 'K':
+                        multiplier = KILO;
+                        break;
+                    }
+                }
+                String sstr = str;
+                if (multiplier > 1) {
+                    sstr = str.substring(0, str.length() - 1);
+                }
+                return Long.parseLong(sstr) * multiplier;
+            } catch (NumberFormatException nfe) {
             }
         }
-        String sstr = str;
-        if (multiplier > 1) {
-            sstr = str.substring(0, str.length() - 1);
-        }
-
-        try {
-            result = Long.parseLong(sstr) * multiplier;
-        }
-
-        catch (NumberFormatException nfe) {
-            throw new IllegalArgumentException("Invalid number '" + str + "' for property " + propName);
-        }
-        return result;
+        throw new IllegalArgumentException("Invalid number '" + str + "' for property " + propName);
     }
 
     /**
@@ -854,11 +848,14 @@ public class Configuration {
      */
 
     static float parseFloatProperty(String propName, String str) {
-        try {
-            return Float.parseFloat(str);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid number '" + str + "' for property " + propName);
+        if (str != null) {
+            try {
+                return Float.parseFloat(str);
+            } catch (NumberFormatException e) {
+
+            }
         }
+        throw new IllegalArgumentException("Invalid number '" + str + "' for property " + propName);
     }
 
     void parseBufferMemorySpecification(final String propertyName, final String propertyValue) {
@@ -938,7 +935,11 @@ public class Configuration {
             scale++;
             v /= 1024;
         }
-        return String.format("%d%s", v, " KMGT".substring(scale, scale + 1));
+        if (scale == 0) {
+            return String.format("%,d", v);
+        } else {
+            return String.format("%,d%s", v, " KMGT".substring(scale, scale + 1));
+        }
     }
 
     /**

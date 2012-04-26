@@ -393,7 +393,7 @@ public class VolumeSpecification {
     }
 
     private String ds(final long pages) {
-        return Persistit.displayableLongValue(pages * pageSize);
+        return Configuration.displayableLongValue(pages * pageSize);
     }
 
     public String summary() {

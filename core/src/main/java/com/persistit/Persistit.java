@@ -2193,27 +2193,6 @@ public class Persistit {
         System.out.println("  " + icheck.toString(true));
     }
 
-    /**
-     * Provide a displayable version of a long value, preferable using one of
-     * the suffixes 'K', 'M', 'G', or 'T' to abbreviate values that are integral
-     * multiples of powers of 1,024.
-     * 
-     * @param value
-     *            to convert
-     * @return Readable format of long value
-     */
-    static String displayableLongValue(final long value) {
-        if (value <= 0) {
-            return String.format("%d", value);
-        }
-        long v = value;
-        int scale = 0;
-        while ((v / 1024) * 1024 == v && scale < 3) {
-            scale++;
-            v /= 1024;
-        }
-        return String.format("%d%s", v, " KMGT".substring(scale, scale + 1));
-    }
 
     static long availableHeap() {
         final MemoryUsage mu = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
