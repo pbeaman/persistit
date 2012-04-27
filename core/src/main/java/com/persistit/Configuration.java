@@ -270,7 +270,7 @@ public class Configuration {
         private int maximumCount;
         private long minimumMemory;
         private long maximumMemory;
-        private long reservedMemory ;
+        private long reservedMemory;
         private float fraction;
 
         private void reset() {
@@ -281,13 +281,13 @@ public class Configuration {
             maximumMemory = Long.MAX_VALUE;
             reservedMemory = 0;
             fraction = 1.0f;
-            
+
         }
-        
+
         private BufferMemorySpecification() {
             reset();
         }
-        
+
         /**
          * @return the bufferSize
          */
@@ -402,7 +402,8 @@ public class Configuration {
             int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
             int buffers = Math.max(minimumCount, Math.min(maximumCount, (int) (allocation / bufferSizeWithOverhead)));
             if (buffers < BufferPool.MINIMUM_POOL_COUNT || buffers > BufferPool.MAXIMUM_POOL_COUNT
-                    || buffers * bufferSizeWithOverhead > maximumAvailable) {
+                    || buffers * bufferSizeWithOverhead > maximumAvailable
+                    || (buffers + 1) * bufferSizeWithOverhead < minimumMemory) {
                 throw new IllegalArgumentException(String.format(
                         "Invalid buffer pool configuration: %,d buffers in %sb of maximum available memory", buffers,
                         displayableLongValue(maximumAvailable)));
@@ -954,7 +955,7 @@ public class Configuration {
         if (scale == 0) {
             return String.format("%d", v);
         } else {
-            return String.format("%d%s", v, "KMGT".substring(scale-1, scale));
+            return String.format("%d%s", v, "KMGT".substring(scale - 1, scale));
         }
     }
 
