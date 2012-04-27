@@ -256,23 +256,38 @@ public class Configuration {
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
     private final static CommitPolicy DEFAULT_TRANSACTION_COMMIT_POLICY = CommitPolicy.SOFT;
 
-    private final static long KILO = 1024;
-    private final static long MEGA = KILO * KILO;
-    private final static long GIGA = MEGA * KILO;
-    private final static long TERA = GIGA * KILO;
+    public final static long KILO = 1024;
+    public final static long MEGA = KILO * KILO;
+    public final static long GIGA = MEGA * KILO;
+    public final static long TERA = GIGA * KILO;
 
-    private final static int[] BUFFER_SIZES = { 1024, 2048, 4096, 8192, 16384 };
+    public final static int[] BUFFER_SIZES = { 1024, 2048, 4096, 8192, 16384 };
 
     public static class BufferMemorySpecification {
 
-        private int bufferSize = -1;
-        private int minimumCount = 0;
-        private int maximumCount = Integer.MAX_VALUE;
-        private long minimumMemory = 0;
-        private long maximumMemory = Long.MAX_VALUE;
-        private long reservedMemory = 0;
-        private float fraction = 1.0f;
+        private int bufferSize;
+        private int minimumCount;
+        private int maximumCount;
+        private long minimumMemory;
+        private long maximumMemory;
+        private long reservedMemory ;
+        private float fraction;
 
+        private void reset() {
+            bufferSize = -1;
+            minimumCount = 0;
+            maximumCount = Integer.MAX_VALUE;
+            minimumMemory = 0;
+            maximumMemory = Long.MAX_VALUE;
+            reservedMemory = 0;
+            fraction = 1.0f;
+            
+        }
+        
+        private BufferMemorySpecification() {
+            reset();
+        }
+        
         /**
          * @return the bufferSize
          */
@@ -399,12 +414,12 @@ public class Configuration {
             StringBuilder sb = new StringBuilder("BufferMemorySpecification(");
             sb.append(String.format("size=%d", bufferSize));
             if (minimumCount == maximumCount) {
-                sb.append(String.format(";count=%,d", minimumCount));
+                sb.append(String.format(",count=%d", minimumCount));
             } else if (minimumCount != 0 || maximumCount != Integer.MAX_VALUE) {
-                sb.append(String.format(";minCount=%,d;maxCount=%,d", minimumCount, maximumCount));
+                sb.append(String.format(",minCount=%d,maxCount=%d", minimumCount, maximumCount));
             }
             if (minimumMemory != 0 || maximumMemory != Long.MAX_VALUE || reservedMemory != 0 || fraction != 1.0f) {
-                sb.append(String.format(";minMem=%s;maxMem=%s;reserved=%s;fraction=%f",
+                sb.append(String.format(",minMem=%s,maxMem=%s,reserved=%s,fraction=%f",
                         displayableLongValue(minimumMemory), displayableLongValue(maximumMemory),
                         displayableLongValue(reservedMemory), fraction));
             }
@@ -862,6 +877,7 @@ public class Configuration {
         int bufferSize = bufferSizeFromPropertyName(propertyName);
         int index = bufferSizeIndex(bufferSize);
         BufferMemorySpecification spec = buffers[index];
+        spec.reset();
         if (propertyName.startsWith(BUFFERS_PROPERTY_NAME)) {
             int count = (int) parseLongProperty(propertyName, propertyValue);
             spec.setMaximumCount(count);
@@ -936,9 +952,9 @@ public class Configuration {
             v /= 1024;
         }
         if (scale == 0) {
-            return String.format("%,d", v);
+            return String.format("%d", v);
         } else {
-            return String.format("%,d%s", v, " KMGT".substring(scale, scale + 1));
+            return String.format("%d%s", v, "KMGT".substring(scale-1, scale));
         }
     }
 
