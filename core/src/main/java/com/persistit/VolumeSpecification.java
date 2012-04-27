@@ -151,7 +151,7 @@ public class VolumeSpecification {
      * 
      * <dt><code>bufferSize:<i>NNN</i></code></dt>
      * <dd>Specifies <i>NNN</i> as the volume's buffer size when creating a new
-     * volume. <i>NNN</i> must be 1024, 2048, 4096, 8192 or 16384</dd>.
+     * volume. <i>NNN</i> must be 1024, 2048, 4096, 8192 or 16384.</dd>
      * 
      * <dt><code>initialPages:<i>NNN</i></code></dt>
      * <dd><i>NNN</i> is the initial number of pages to be allocated when this

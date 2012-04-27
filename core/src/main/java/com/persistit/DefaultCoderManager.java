@@ -90,7 +90,8 @@ public final class DefaultCoderManager implements CoderManager {
      * <code>serialOverride</code> system configuration property to determine
      * which classes, if any, must employ standard Java serialization.
      * 
-     * @see #DefaultCoderManager(Persistit, String)
+     * @param persistit the Persistit instance
+     * 
      * @throws IllegalArgumentException
      *             if the format of the <code>serialOverride</code> property is
      *             invalid
@@ -105,6 +106,7 @@ public final class DefaultCoderManager implements CoderManager {
      * <code>patterns</code> string. See {@link #getSerialOverridePatterns()}
      * for details.
      * 
+     * @param persistit the Persistit instance
      * @param patterns
      *            Specifies class names of classes that always use standard Java
      *            serialization rather a custom <code>ValueCoder</code>

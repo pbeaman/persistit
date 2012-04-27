@@ -54,6 +54,7 @@ import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
 import javax.management.NotificationEmitter;
 import javax.management.ObjectName;
+import javax.naming.ConfigurationException;
 
 import com.persistit.Accumulator.AccumulatorRef;
 import com.persistit.CheckpointManager.Checkpoint;
@@ -402,7 +403,7 @@ public class Persistit {
      * Start time
      */
     private final long _startTime = System.currentTimeMillis();
-    private Configuration _configuration = new Configuration();
+    private Configuration _configuration;
 
     private final HashMap<Integer, BufferPool> _bufferPoolTable = new HashMap<Integer, BufferPool>();
     private final ArrayList<Volume> _volumes = new ArrayList<Volume>();
@@ -502,8 +503,11 @@ public class Persistit {
      * @throws Exception
      */
     public void initialize() throws PersistitException {
-        _configuration.readPropertiesFile();
-        initialize(_configuration);
+        if (!isInitialized()) {
+            Configuration configuration = new Configuration();
+            configuration.readPropertiesFile();
+            initialize(configuration);
+        }
     }
 
     /**
@@ -526,14 +530,11 @@ public class Persistit {
      * @throws IOException
      */
     public void initialize(String propertiesFileName) throws PersistitException {
-        _configuration.readPropertiesFile(propertiesFileName);
-        initialize(_configuration);
-    }
-
-    public void initialize(Properties properties) throws PersistitException {
-        _configuration.merge(properties);
-        _configuration.loadProperties();
-        initialize(_configuration);
+        if (!isInitialized()) {
+            Configuration configuration = new Configuration();
+            configuration.readPropertiesFile(propertiesFileName);
+            initialize(configuration);
+        }
     }
 
     /**
@@ -553,36 +554,65 @@ public class Persistit {
      * </p>
      * 
      * @param properties
-     *            The Properties object from which to initialize Persistit
+     *            The <code>Properties</code> instance from which to build the
+     *            configuration
      * @throws PersistitException
      * @throws IOException
      */
-    public void initialize(Configuration configuration) throws PersistitException {
-        _configuration = configuration;
-        boolean done = false;
-        try {
-            _closed.set(false);
+    public void initialize(Properties properties) throws PersistitException {
+        if (!isInitialized()) {
+            Configuration configuration = new Configuration(properties);
+            initialize(configuration);
+        }
+    }
 
-            initializeLogging();
-            initializeManagement();
-            initializeOther();
-            initializeRecovery();
-            initializeJournal();
-            initializeBufferPools();
-            initializeVolumes();
-            startJournal();
-            startBufferPools();
-            finishRecovery();
-            startCheckpointManager();
-            startTransactionIndexPollTask();
-            flush();
-            _checkpointManager.checkpoint();
-            startCleanupManager();
-            _initialized.set(true);
-            done = true;
-        } finally {
-            if (!done) {
-                releaseAllResources();
+    /**
+     * <p>
+     * Initialize Persistit using the supplied {@link Configuration}. If
+     * Persistit has already been initialized, this method does nothing. This
+     * method is threadsafe; if multiple threads concurrently attempt to invoke
+     * this method, one of the threads will actually perform the initialization
+     * and the other threads will do nothing.
+     * </p>
+     * <p>
+     * Note that Persistit starts non-daemon threads that will keep a JVM from
+     * exiting until {@link #close} is invoked. This is to ensure that all
+     * pending updates are written before the JVM exit.
+     * </p>
+     * 
+     * @param configuration
+     *            The <code>Configuration</code> from which to initialize
+     *            Persistit
+     * @throws PersistitException
+     * @throws IOException
+     */
+    public synchronized void initialize(Configuration configuration) throws PersistitException {
+        if (!isInitialized()) {
+            _configuration = configuration;
+            try {
+                _closed.set(false);
+
+                initializeLogging();
+                initializeManagement();
+                initializeOther();
+                initializeRecovery();
+                initializeJournal();
+                initializeBufferPools();
+                initializeVolumes();
+                startJournal();
+                startBufferPools();
+                finishRecovery();
+                startCheckpointManager();
+                startTransactionIndexPollTask();
+                flush();
+                _checkpointManager.checkpoint();
+                startCleanupManager();
+                _initialized.set(true);
+            } finally {
+                if (!isInitialized()) {
+                    releaseAllResources();
+                    _configuration = null;
+                }
             }
         }
     }
@@ -1047,8 +1077,8 @@ public class Persistit {
      * results that can be recreated in the event the system restarts.
      * <p />
      * The temporary volume page size is can be specified by the configuration
-     * property <code>tmpvolpagesize</code>. The default value is determined by the
-     * {@link BufferPool} having the largest page size.
+     * property <code>tmpvolpagesize</code>. The default value is determined by
+     * the {@link BufferPool} having the largest page size.
      * <p />
      * The backing store file for a temporary volume is created in the directory
      * specified by the configuration property <code>tmpvoldir</code>, or if
@@ -1171,17 +1201,17 @@ public class Persistit {
     public Configuration getConfiguration() {
         return _configuration;
     }
-    
+
     @Deprecated
     public Properties getProperties() {
         return _configuration.getProperties();
     }
-    
+
     @Deprecated
     public String getProperty(final String key) {
         return _configuration.getProperty(key);
     }
-    
+
     @Deprecated
     public String substituteProperties(String text, Properties properties) {
         return _configuration.substituteProperties(text, properties, 0);
@@ -2192,7 +2222,6 @@ public class Persistit {
         }
         System.out.println("  " + icheck.toString(true));
     }
-
 
     static long availableHeap() {
         final MemoryUsage mu = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();

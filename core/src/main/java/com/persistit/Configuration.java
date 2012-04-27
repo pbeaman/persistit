@@ -48,6 +48,8 @@ import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PropertiesNotFoundException;
+import com.persistit.logging.DefaultPersistitLogger;
+import com.persistit.logging.PersistitLevel;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.util.Util;
@@ -76,6 +78,19 @@ import com.persistit.util.Util;
  * name and then constructs a <code>Configuration</code> from the loaded
  * <code>Properties</code>.
  * </ul>
+ * </p>
+ * <p>
+ * When parsing <code>Properties</code> values this class implements a simple
+ * substitution mechanism so that, for example, a common directory path may be
+ * referenced by multiple properties as shown here: <code><pre>
+ * datapath = /var/lib/persistit
+ * journalpath = ${datapath}/akiban_journal
+ * volume.1=${datapath}/hwdemo,create,pageSize:16K,\
+ *              initialSize:10M,extensionSize:10M,maximumSize:1G 
+ * </pre></code>
+ * 
+ * In this example the property named <code>datapath</code> has no special
+ * meaning other than as a substitution parameter.
  * </p>
  * 
  * @author peter
@@ -275,12 +290,24 @@ public class Configuration {
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
     private final static CommitPolicy DEFAULT_TRANSACTION_COMMIT_POLICY = CommitPolicy.SOFT;
 
+    /**
+     * 1,024
+     */
     public final static long KILO = 1024;
+    /**
+     * 1,024 * {@value #KILO}
+     */
     public final static long MEGA = KILO * KILO;
+    /**
+     * 1,024 * {@value #MEGA}
+     */
     public final static long GIGA = MEGA * KILO;
+    /**
+     * 1,024 * {@value #GIGA}
+     */
     public final static long TERA = GIGA * KILO;
 
-    private final static int[] BUFFER_SIZES = { 1024, 2048, 4096, 8192, 16384 };
+    private final static int[] BUFFER_SIZES = validBufferSizes();
     private final static int MAX_RECURSION_COUNT = 20;
 
     /**
@@ -288,14 +315,13 @@ public class Configuration {
      * Configuration constraints that determine the number of
      * <code>Buffer</code>s in a {@link BufferPool}. There is one permanent
      * <code>BufferPoolConfiguration</code> instance for each valid buffer size:
-     * 1024, 2048, 4096, 8192 and 16384. The
-     * {@link Configuration#getBufferPoolMap()} method provides access to these,
-     * where the map key is the buffer size.
+     * 1024, 2048, 4096, 8192 and 16384. The {@link #getBufferPoolMap()} method
+     * provides access to these, where the map key is the buffer size.
      * </p>
      * <p>
      * Each <code>BufferPoolConfiguration</code> specifies minimum and maximum
      * buffer count values, and four parameters used to allocate a buffers
-     * according to available memory. Values of <count>minimumCount</code> and
+     * according to available memory. Values of <code>minimumCount</code> and
      * <code>maximumCount</code> are absolute bounds; if the
      * <code>maximumCount</code> is zero then no buffers of the specified buffer
      * size will be allocated.
@@ -306,11 +332,11 @@ public class Configuration {
      * <li>Determine the maximum heap size by accessing the platform
      * MemoryMXBean, which in turn supplies the value given by the +-Xmx+ JVM
      * property.</li>
-     * <li>Subtract the value of
-     * <code>reservedMemory<code> size from the maximum heap size.</li>
+     * <li>Subtract the value of <code>reservedMemory</code> size from the
+     * maximum heap size.</li>
      * <li>Multiply the result by <code>fraction</code>.</li>
      * <li>Adjust the result to fall between the boundaries specified by
-     * <code>minimumMemory</code> and </code>maximumMemory</code>.</li>
+     * <code>minimumMemory</code> and <code>maximumMemory</code>.</li>
      * <li>Determine the buffer count by dividing the result by the memory
      * consumption per buffer</li>
      * <li>Adjust the buffer count to fall between the boundaries specified by
@@ -495,8 +521,9 @@ public class Configuration {
          * Both <code>minimumCount</code> and <code>maximumCount</code> are set
          * to this value. The supplied property value must be a valid integer or
          * an integer followed by "K", "M" or "G" for
-         * {@value Configuration#KILO}, {@value Configuration#MEGA}, or
-         * {@value Configuration#GIGA} as a multiplier.
+         * {@value com.persistit.Configuration#KILO},
+         * {@value com.persistit.Configuration#MEGA}, or
+         * {@value com.persistit.Configuration#GIGA} as a multiplier.
          * 
          * @param bufferSize
          * @param propertyName
@@ -520,14 +547,14 @@ public class Configuration {
          * <code>reservedMemory</code> and <code>fraction</code> fields. These
          * values are separated by commas, and the first three may be specified
          * as blank for the default value, an integer, or an integer followed by
-         * by "K", "M" or "G" for {@value Configuration#KILO},
-         * {@value Configuration#MEGA}, or {@value Configuration#GIGA} as a
-         * multiplier.
+         * by "K", "M" or "G" for {@value com.persistit.Configuration#KILO},
+         * {@value com.persistit.Configuration#MEGA}, or
+         * {@value com.persistit.Configuration#GIGA} as a multiplier.
          * </p>
          * For example, the property value <code><pre>
-         *  ,8G,128M,.75
+         *  64M,8G,128M,.75
          * </pre></code> reserves 128M from available memory and then allocates
-         * 75% of the remainder up to 8Gb.
+         * 75% of the remainder up to 8Gb, but not less than 64Mb.
          * <p>
          * </p>
          * 
@@ -576,7 +603,6 @@ public class Configuration {
 
     private final Properties _properties = new Properties();
 
-    private long timeoutValue = DEFAULT_TIMEOUT_VALUE;
     private final Map<Integer, BufferPoolConfiguration> bufferPoolMap;
     private final List<VolumeSpecification> volumeSpecifications = new ArrayList<VolumeSpecification>();
     private String journalPath = DEFAULT_JOURNAL_PATH;
@@ -585,8 +611,6 @@ public class Configuration {
     private CommitPolicy commitPolicy = DEFAULT_TRANSACTION_COMMIT_POLICY;
     private JoinPolicy joinPolicy = DEFAULT_JOIN_POLICY;
     private SplitPolicy splitPolicy = DEFAULT_SPLIT_POLICY;
-    private boolean verbose;
-    private boolean readRetry;
     private String serialOverride;
     private boolean constructorOverride;
     private boolean showGUI;
@@ -682,11 +706,9 @@ public class Configuration {
         setJournalSize(getLongProperty(JOURNAL_BLOCKSIZE_PROPERTY_NAME, JournalManager.DEFAULT_BLOCK_SIZE));
         setLogFile(getProperty(LOGFILE_PROPERTY_NAME));
         setLogging(getProperty(LOGGING_PROPERTIES_NAME));
-        setTimeoutValue(getLongProperty(TIMEOUT_PROPERTY, DEFAULT_TIMEOUT_VALUE));
         setTmpVolDir(getProperty(TEMPORARY_VOLUME_DIR_PROPERTY_NAME));
         setTmpVolPageSize(getIntegerProperty(TEMPORARY_VOLUME_PAGE_SIZE_PROPERTY_NAME, 0));
         setTmpVolMaxSize(getLongProperty(TEMPORARY_VOLUME_MAX_SIZE_PROPERTY_NAME, MAXIMUM_TEMP_VOL_MAX_SIZE));
-        setReadRetry(getBooleanProperty(READ_RETRY_PROPERTY_NAME, false));
         setRmiHost(getProperty(RMI_REGISTRY_HOST_PROPERTY_NAME));
         setRmiPort((int) getLongProperty(RMI_REGISTRY_PORT_PROPERTY_NAME, 0));
         setRmiServerPort((int) getLongProperty(RMI_SERVER_PORT_PROPERTY_NAME, 0));
@@ -815,22 +837,32 @@ public class Configuration {
         return text;
     }
 
+    /**
+     * Return the <code>Properties</code> from which this
+     * <code>Configuration</code> was loaded. In a newly constructed instance,
+     * this <code>Properties</code> instance is empty.
+     * 
+     * @return the <code>Properties</code> from which this
+     *         <code>Configuration</code> was loaded
+     */
     public Properties getProperties() {
         return _properties;
     }
 
     /**
      * <p>
-     * Returns a property value, or <code>null</code> if there is no such
-     * property. The property is taken from one of the following sources:
+     * Return a property value for the supplied <code>propertyName</code>, or
+     * <code>null</code> if there is no such property. The property is taken
+     * from one of the following sources:
      * <ol>
      * <li>A system property having a prefix of "com.persistit.". For example,
-     * the property named "journalpath" can be supplied as the system property
-     * named com.persistit.journalpath. (Note: if the security context does not
-     * permit access to system properties, then system properties are ignored.)</li>
-     * <li>The supplied <code>Properties</code> object, which was either passed
-     * to the {@link #initialize(Properties)} method, or was loaded from the
-     * file named in the {@link #initialize(String)} method.</li>
+     * the property named <code>journalpath</code> can be supplied as the system
+     * property named <code>com.persistit.journalpath</code>. (Note: if the
+     * security context does not permit access to system properties then system
+     * properties are ignored.)</li>
+     * <li>The <code>Properties</code> object which was either passed to the
+     * {@link #Configuration(Properties)} or supplied by the
+     * {@link Persistit#initialize(Properties)} method.</li>
      * <li>The pseudo-property name <code>timestamp</code>. The value is the
      * current time formated by <code>SimpleDateFormat</code> using the pattern
      * yyyyMMddHHmm. (This pseudo-property makes it easy to specify a unique log
@@ -862,8 +894,8 @@ public class Configuration {
      * named com.persistit.journalpath. (Note: if the security context does not
      * permit access to system properties, then system properties are ignored.)</li>
      * <li>The supplied Properties object, which was either passed to the
-     * {@link #initialize(Properties)} method, or was loaded from the file named
-     * in the {@link #initialize(String)} method.</li>
+     * {@link Persistit#initialize(Properties)} method, or was loaded from the
+     * file named in the {@link Persistit#initialize(String)} method.</li>
      * <li>The pseudo-property name <code>timestamp</code>. The value is the
      * current time formated by <code>SimpleDateFormat</code> using the pattern
      * yyyyMMddHHmm. (This pseudo-property makes it easy to specify a unique log
@@ -913,8 +945,9 @@ public class Configuration {
     }
 
     /**
-     * Sets a property value in the Persistit Properties map. If the specified
-     * value is null then an existing property of the specified name is removed.
+     * Set a property value in the configuration <code>Properties</code> map. If
+     * the specified value is null then an existing property of the specified
+     * name is removed.
      * 
      * @param propertyName
      *            The property name
@@ -949,7 +982,7 @@ public class Configuration {
     /**
      * Interpret a property value as a long integer. Permits suffix values of
      * "K" for Kilo- and "M" for Mega-, "G" for Giga- and "T" for Tera-. For
-     * example, the supplied value of "100K" yields a parsed result of 102400.
+     * example, the property value "100K" yields a parsed result of 102400.
      * 
      * @param propName
      *            Name of the property, used in formating the Exception if the
@@ -969,7 +1002,8 @@ public class Configuration {
     /**
      * Parse a string as a long integer. Permits suffix values of "K" for Kilo-
      * and "M" for Mega-, "G" for Giga- and "T" for Tera-. For example, the
-     * supplied value of "100K" yields a parsed result of 102400.
+     * supplied <code>str</code> value of "100K" yields a parsed result of
+     * 102400.
      * 
      * @param propName
      *            Name of the property, used in formating the Exception if the
@@ -1032,7 +1066,6 @@ public class Configuration {
      *             if the supplied String is not a valid floating point
      *             representation, or is outside the supplied bounds.
      */
-
     static float parseFloatProperty(String propName, String str) {
         if (str != null) {
             try {
@@ -1089,19 +1122,24 @@ public class Configuration {
         }
     }
 
+    /**
+     * Return an array containing all valid {@link Buffer} sizes.
+     * 
+     * @return valid {@link Buffer} sizes
+     */
     public static int[] validBufferSizes() {
-        return BUFFER_SIZES.clone();
+        return new int[] { 1024, 2048, 4096, 8192, 16384 };
     }
 
     /**
-     * Parses a string value as either <i>true</i> or <i>false</i>.
+     * Parse and return a string value as either <i>true</i> or <i>false</i>.
      * 
      * @param propName
      *            Name of the property, used in formating the Exception if the
      *            value is invalid.
      * @param dflt
      *            The default value
-     * @return <i>true</i> or <i>false</i>
+     * @return <i>true</i> or <i>false</i> as specified by the property
      */
     public boolean getBooleanProperty(String propName, boolean dflt) {
         String str = getProperty(propName);
@@ -1116,6 +1154,17 @@ public class Configuration {
                 + " either \"true\" or \"false\"");
     }
 
+    /**
+     * Parse the supplied String as a {@link VolumeSpecification} after
+     * performing any available property value substitutions.
+     * 
+     * @param vstring
+     *            a specification string as defined in
+     *            {@link VolumeSpecification#VolumeSpecification(String)}.
+     * @return a <code>VolumeSpecification</code>
+     * @throws InvalidVolumeSpecificationException
+     * @see #getProperty(String)
+     */
     public VolumeSpecification volumeSpecification(final String vstring) throws InvalidVolumeSpecificationException {
         final VolumeSpecification volumeSpec = new VolumeSpecification(substituteProperties(vstring, _properties, 0));
         return volumeSpec;
@@ -1124,35 +1173,32 @@ public class Configuration {
     // -------------------------------------------
 
     /**
-     * @return the timeoutValue
-     */
-    public long getTimeoutValue() {
-        return timeoutValue;
-    }
-
-    /**
-     * @param timeoutValue
-     *            the timeoutValue to set
-     */
-    public void setTimeoutValue(long timeoutValue) {
-        this.timeoutValue = timeoutValue;
-    }
-
-    /**
-     * @return the buffers
+     * Return an an unmodifiable Map containing the
+     * <code>BufferPoolConfiguration</code> instances for each possible buffer
+     * size.
+     * 
+     * @return the map
      */
     public Map<Integer, BufferPoolConfiguration> getBufferPoolMap() {
         return bufferPoolMap;
     }
 
     /**
-     * @return the volumeSpecifications
+     * Return a List of <code>VolumeSpecification</code> instances for
+     * {@link Volume}s that Persistit should load or create during
+     * initialization. An application can add <code>VolumeSpecification</code>
+     * elements to this list before calling
+     * {@link Persistit#initialize(Configuration)}.
+     * 
+     * @return a List of <code>VolumeSpecification</code>s
      */
     public List<VolumeSpecification> getVolumeList() {
         return volumeSpecifications;
     }
 
     /**
+     * Return the value defined by {@link #setJournalPath(String)}
+     * 
      * @return the journalPath
      */
     public String getJournalPath() {
@@ -1160,14 +1206,32 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set the path name on which journal files will be created. Each journal
+     * file name will be created by adding a period followed by a twelve-digit
+     * number to this value. A typical value would be
+     * 
+     * <code><pre>
+     * ${datapath}/journal
+     * </pre></code>
+     * 
+     * Where the <code>datapath</code> property specifies a directory containing
+     * Persistit data files.
+     * </p>
+     * Default value is {@value #DEFAULT_JOURNAL_PATH} <br />
+     * Property name is {@value #JOURNAL_PATH_PROPERTY_NAME}
+     * 
      * @param journalPath
-     *            the journalPath to set
+     *            the path to set
+     * 
      */
     public void setJournalPath(String journalPath) {
         this.journalPath = journalPath;
     }
 
     /**
+     * Return the value defined by {@link #setJournalSize(long)}
+     * 
      * @return the journalSize
      */
     public long getJournalSize() {
@@ -1175,6 +1239,17 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set the maximum size of each journal file. When adding a record to a
+     * journal file would result in a file larger than this size, Persistit
+     * instead create a new journal file with a larger numeric suffix. The
+     * default size of 1,000,000,000 has been tested extensively on current
+     * server-class configurations and is recommended.
+     * </p>
+     * Default size is
+     * {@value com.persistit.mxbeans.JournalManagerMXBean#DEFAULT_BLOCK_SIZE} <br/>
+     * Property name is {@value #JOURNAL_BLOCKSIZE_PROPERTY_NAME}
+     * 
      * @param journalSize
      *            the journalSize to set
      */
@@ -1184,13 +1259,24 @@ public class Configuration {
     }
 
     /**
-     * @return the sysVolume
+     * Return the value defined by {@link #setSysVolume(String)}
+     * 
+     * @return the system volume name
      */
     public String getSysVolume() {
         return sysVolume;
     }
 
     /**
+     * <p>
+     * Set the system volume name attribute. The system volume is used by
+     * {@link DefaultCoderManager} and others to store metadata about objects
+     * encoded in Persistit. The value should specify a valid volume name or
+     * alias. If a configuration contains only one volume then by default it is
+     * also selected as the system volume.
+     * </p>
+     * Property name is {@value #SYSTEM_VOLUME_PROPERTY_NAME}
+     * 
      * @param sysVolume
      *            the sysVolume to set
      */
@@ -1199,45 +1285,78 @@ public class Configuration {
     }
 
     /**
-     * @return the tmpVolDir
+     * Return the value defined by {@link #setTmpVolDir(String)}
+     * 
+     * @return the temporary volume directory
      */
     public String getTmpVolDir() {
         return tmpVolDir;
     }
 
     /**
+     * <p>
+     * Set the name of a directory where backing files to hold temporary volumes
+     * are created when needed. By default such files are created as
+     * system-defined temporary files.
+     * </p>
+     * Property name is {@value #TEMPORARY_VOLUME_DIR_PROPERTY_NAME}
+     * 
      * @param tmpVolDir
-     *            the tmpVolDir to set
+     *            the temporary volume directory to set
      */
     public void setTmpVolDir(String tmpVolDir) {
         this.tmpVolDir = tmpVolDir;
     }
 
     /**
-     * @return the tmpVolPageSize
+     * Return the value defined by {@link #setTmpVolPageSize(int)}
+     * 
+     * @return the default temporary volume page size
      */
     public int getTmpVolPageSize() {
         return tmpVolPageSize;
     }
 
     /**
+     * <p>
+     * Set the default page size for newly created temporary volumes. In the
+     * normal case where Persistit has only one {@link BufferPool} it is
+     * unnecessary to set this value because Persistit implicitly selects the
+     * buffer size for that pool. However, in a configuration with multiple
+     * buffer pools, this attribute selects which one to use.
+     * </p>
+     * Property name is {@value #TEMPORARY_VOLUME_PAGE_SIZE_PROPERTY_NAME}
+     * 
      * @param tmpVolPageSize
-     *            the tmpVolPageSize to set
+     *            the default temporary volume page size to set
      */
     public void setTmpVolPageSize(int tmpVolPageSize) {
         this.tmpVolPageSize = tmpVolPageSize;
     }
 
     /**
-     * @return the tmpVolMaxSize
+     * Return the value defined by {@link #setTmpVolMaxSize(long)};
+     * 
+     * @return the maximum size in bytes to which a temporary volume file may
+     *         grow
      */
     public long getTmpVolMaxSize() {
         return tmpVolMaxSize;
     }
 
     /**
+     * <p>
+     * Set the maximum temporary volume file size in bytes. This method
+     * specifies a constraint on file growth to avoid runaway disk utilization.
+     * </p>
+     * <p>
+     * Default value is Long.MAX_VALUE<br />
+     * Property name is {@value #TEMPORARY_VOLUME_MAX_SIZE_PROPERTY_NAME}
+     * </p>
+     * 
      * @param tmpVolMaxSize
-     *            the tmpVolMaxSize to set
+     *            the maximum size in bytes to which a temporary volume file may
+     *            grow to set
      */
     public void setTmpVolMaxSize(long tmpVolMaxSize) {
         Util.rangeCheck(tmpVolMaxSize, MINIMUM_TEMP_VOL_MAX_SIZE, MAXIMUM_TEMP_VOL_MAX_SIZE);
@@ -1245,6 +1364,8 @@ public class Configuration {
     }
 
     /**
+     * Return the value defined by {@link #setCommitPolicy(CommitPolicy)}
+     * 
      * @return the commitPolicy
      */
     public CommitPolicy getCommitPolicy() {
@@ -1252,8 +1373,19 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set the default {@link com.persistit.Transaction.CommitPolicy}. The
+     * string value must be one of "HARD", "GROUP" or "SOFT" (case is
+     * insensitive).
+     * </p>
+     * <p>
+     * Default value is {@value #DEFAULT_TRANSACTION_COMMIT_POLICY} <br />
+     * Property name is {@value #COMMIT_POLICY_PROPERTY_NAME}
+     * </p>
+     * 
      * @param policyName
      *            Name of the commitPolicy the commitPolicy to set
+     * @see com.persistit.Transaction#commit()
      */
     public void setCommitPolicy(String policyName) {
         if (policyName != null) {
@@ -1262,14 +1394,27 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set the default {@link com.persistit.Transaction.CommitPolicy}. The value
+     * must be one of {@value com.persistit.Transaction.CommitPolicy#HARD},
+     * {@value com.persistit.Transaction.CommitPolicy#GROUP},
+     * {@value com.persistit.Transaction.CommitPolicy#SOFT},
+     * </p>
+     * <p>
+     * Default value is {@value #DEFAULT_TRANSACTION_COMMIT_POLICY}
+     * </p>
+     * 
      * @param commitPolicy
-     *            the commitPolicy to set
+     *            the commitPolicy to set * @see
+     *            com.persistit.Transaction#commit()
      */
     public void setCommitPolicy(CommitPolicy commitPolicy) {
         this.commitPolicy = commitPolicy;
     }
 
     /**
+     * Return the value defined by {@link #setJoinPolicy(JoinPolicy)}
+     * 
      * @return the joinPolicy
      */
     public JoinPolicy getJoinPolicy() {
@@ -1277,9 +1422,19 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set the default policy for balancing content between two pages when keys
+     * are removed. The {@link Exchange#setJoinPolicy(JoinPolicy)} may be used
+     * to override this behavior in a particular <code>Exchange</code>.
+     * </p>
+     * <p>
+     * Default value is {@value #DEFAULT_JOIN_POLICY} <br />
+     * Property name is {@value #JOIN_POLICY_PROPERTY_NAME}
+     * </p>
      * 
      * @param policyName
-     *            Name of the JoinPoliy to set
+     *            Name of the <code>JoinPolicy</code> to set, one of "LEFT",
+     *            "RIGHT" or "EVEN" (the default).
      */
     public void setJoinPolicy(String policyName) {
         if (policyName != null) {
@@ -1288,14 +1443,25 @@ public class Configuration {
     }
 
     /**
-     * @param joinPolicy
-     *            the joinPolicy to set
+     * <p>
+     * Set the default policy for balancing content between two pages when keys
+     * are removed. The {@link Exchange#setJoinPolicy(JoinPolicy)} may be used
+     * to override this behavior in a particular <code>Exchange</code>.
+     * </p>
+     * <p>
+     * Default value is {@value #DEFAULT_JOIN_POLICY}
+     * </p>
+     * 
+     * @param policyName
+     *            the <code>JoinPolicy<code> to set
      */
     public void setJoinPolicy(JoinPolicy joinPolicy) {
         this.joinPolicy = joinPolicy;
     }
 
     /**
+     * Return the value defined by {@link #setSplitPolicy(SplitPolicy)}.
+     * 
      * @return the splitPolicy
      */
     public SplitPolicy getSplitPolicy() {
@@ -1303,8 +1469,20 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set the default policy for balancing content between two pages when a
+     * page is split. The {@link Exchange#setSplitPolicy(SplitPolicy) may be
+     * used to override this behavior in a particular <code>Exchange</code>.
+     * </p>
+     * <p>
+     * Default value is {@value #DEFAULT_SPLIT_POLICY} <br />
+     * Property name is {@value #SPLIT_POLICY_PROPERTY_NAME}
+     * </p>
+     * 
      * @param policyName
-     *            Name of the splitPolicy to set
+     *            Name of the <code>SplitPolicy</code> to set.
+     * 
+     * @see SplitPolicy
      */
     public void setSplitPolicy(String policyName) {
         if (policyName != null) {
@@ -1313,59 +1491,54 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set the default policy for balancing content between two pages when a
+     * page is split. The {@link Exchange#setSplitPolicy(SplitPolicy) may be
+     * used to override this behavior in a particular <code>Exchange</code>.
+     * </p>
+     * <p>
+     * Default value is {@value #DEFAULT_SPLIT_POLICY}
+     * </p>
+     * 
      * @param splitPolicy
-     *            the splitPolicy to set
+     *            the <code>SplitPolicy</code> to set.
+     * 
+     * @see SplitPolicy
      */
     public void setSplitPolicy(SplitPolicy splitPolicy) {
         this.splitPolicy = splitPolicy;
     }
 
     /**
-     * @return the verbose
-     */
-    public boolean isVerbose() {
-        return verbose;
-    }
-
-    /**
-     * @param verbose
-     *            the verbose to set
-     */
-    public void setVerbose(boolean verbose) {
-        this.verbose = verbose;
-    }
-
-    /**
-     * @return the readRetry
-     */
-    public boolean isReadRetry() {
-        return readRetry;
-    }
-
-    /**
-     * @param readRetry
-     *            the readRetry to set
-     */
-    public void setReadRetry(boolean readRetry) {
-        this.readRetry = readRetry;
-    }
-
-    /**
-     * @return the serialOverride
+     * Return the value defined by {@link #setSerialOverride(String)}.
+     * 
+     * @return the serial override pattern
      */
     public String getSerialOverride() {
         return serialOverride;
     }
 
     /**
+     * <p>
+     * Set a pattern that identifies classes to be serialized using standard
+     * Java serialization rather than Persistit's default serialization. TODO
+     * Link to Serialization section of user_guide.html.
+     * </p>
+     * <p>
+     * Default value is <code>null</code><br />
+     * Property name is {@value #SERIAL_OVERRIDE_PROPERTY_NAME}
+     * </p>
      * @param serialOverride
-     *            the serialOverride to set
+     *            the serial override pattern to set
+     * @see DefaultCoderManager
      */
     public void setSerialOverride(String serialOverride) {
         this.serialOverride = serialOverride;
     }
 
     /**
+     * Return the value defined by {@link #setConstructorOverride(boolean)}.
+     * 
      * @return the constructorOverride
      */
     public boolean isConstructorOverride() {
@@ -1373,6 +1546,19 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set whether Persistit should require and use every serialized object to
+     * have a public no-argument constructor. If so, then that constructor is
+     * used when deserializing in the {@link DefaultObjectCoder}; if not then
+     * Persistit uses private methods within the JDK to emulate standard Java
+     * serialization logic. TODO Link to Serialization section of
+     * user_guide.html.
+     * </p>
+     * <p>
+     * Default value is <code>false</code><br />
+     * Property name is {@value #CONSTRUCTOR_OVERRIDE_PROPERTY_NAME}
+     * </p>
+     * 
      * @param constructorOverride
      *            the constructorOverride to set
      */
@@ -1381,6 +1567,8 @@ public class Configuration {
     }
 
     /**
+     * Return the value defined by {@link #setShowGUI(boolean)}
+     * 
      * @return the showGUI
      */
     public boolean isShowGUI() {
@@ -1388,29 +1576,52 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set the boolean value that determines whether Persistit starts up an
+     * attached instance of the AdminUI tool during initialization.
+     * </p>
+     * <p>
+     * Default value is <code>false</code><br />
+     * Property name is {@value #SHOW_GUI_PROPERTY_NAME}
+     * </p>
      * @param showGUI
-     *            the showGUI to set
+     *            <code>true</code> to start the AdminUI
      */
     public void setShowGUI(boolean showGUI) {
         this.showGUI = showGUI;
     }
 
     /**
-     * @return the logging
+     * Return the value defined by {@link #setLogging(String)}
+     * 
+     * @return the log detail level
      */
     public String getLogging() {
         return logging;
     }
 
     /**
+     * <p>
+     * Set the logging detail level for {@link DefaultPersistitLogger}. This
+     * parameter has effect only if <code>DefaultPersistitLogger</code> is in
+     * use; it has no effect on any of the logging adapters.
+     * </p>
+     * <p>
+     * Default value is {@value PersistitLevel#INFO}<br />
+     * Property name is {@value #LOGGING_PROPERTIES_NAME}
+     * </p>
+     * 
      * @param logging
-     *            the logging to set
+     *            log detail level, one of "NONE", "TRACE", "DEBUG", "INFO",
+     *            "WARNING", "ERROR".
+     * @see Persistit#setPersistitLogger(com.persistit.logging.PersistitLogger)
      */
     public void setLogging(String logging) {
         this.logging = logging;
     }
 
     /**
+     * Return the value defined by {@link #setLogFile(String)}
      * @return the logFile
      */
     public String getLogFile() {
@@ -1418,6 +1629,16 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set the file name to which {@link DefaultPersistitLogger} writes log
+     * entries. This parameter has effect only if
+     * <code>DefaultPersistitLogger</code> is in use; it has no effect on any of
+     * the logging adapters.
+     * </p>
+     * <p>
+     * Default value is <code>null</code> - no log file is created</br />
+     * Property value is {@value #LOGFILE_PROPERTY_NAME}
+     * </p>
      * @param logFile
      *            the logFile to set
      */
