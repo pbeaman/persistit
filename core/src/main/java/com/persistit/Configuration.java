@@ -1197,7 +1197,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setJournalPath(String)}
+     * Return the value defined by {@link #setJournalPath}
      * 
      * @return the journalPath
      */
@@ -1230,7 +1230,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setJournalSize(long)}
+     * Return the value defined by {@link #setJournalSize}
      * 
      * @return the journalSize
      */
@@ -1259,7 +1259,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setSysVolume(String)}
+     * Return the value defined by {@link #setSysVolume}
      * 
      * @return the system volume name
      */
@@ -1275,7 +1275,10 @@ public class Configuration {
      * alias. If a configuration contains only one volume then by default it is
      * also selected as the system volume.
      * </p>
-     * Property name is {@value #SYSTEM_VOLUME_PROPERTY_NAME}
+     * <p>
+     * Default value is determined by volume specifications</br /> Property name
+     * is {@value #SYSTEM_VOLUME_PROPERTY_NAME}
+     * </p>
      * 
      * @param sysVolume
      *            the sysVolume to set
@@ -1285,7 +1288,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setTmpVolDir(String)}
+     * Return the value defined by {@link #setTmpVolDir}
      * 
      * @return the temporary volume directory
      */
@@ -1299,6 +1302,8 @@ public class Configuration {
      * are created when needed. By default such files are created as
      * system-defined temporary files.
      * </p>
+     * Default value is <code>null</code> meaning the system-assigned temporary
+     * file path is used<br />
      * Property name is {@value #TEMPORARY_VOLUME_DIR_PROPERTY_NAME}
      * 
      * @param tmpVolDir
@@ -1309,7 +1314,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setTmpVolPageSize(int)}
+     * Return the value defined by {@link #setTmpVolPageSize}
      * 
      * @return the default temporary volume page size
      */
@@ -1325,6 +1330,8 @@ public class Configuration {
      * buffer size for that pool. However, in a configuration with multiple
      * buffer pools, this attribute selects which one to use.
      * </p>
+     * <p>
+     * Default value is determined by buffer pool configuration <br />
      * Property name is {@value #TEMPORARY_VOLUME_PAGE_SIZE_PROPERTY_NAME}
      * 
      * @param tmpVolPageSize
@@ -1335,7 +1342,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setTmpVolMaxSize(long)};
+     * Return the value defined by {@link #setTmpVolMaxSize};
      * 
      * @return the maximum size in bytes to which a temporary volume file may
      *         grow
@@ -1350,7 +1357,7 @@ public class Configuration {
      * specifies a constraint on file growth to avoid runaway disk utilization.
      * </p>
      * <p>
-     * Default value is Long.MAX_VALUE<br />
+     * Default value is @link {@link Long#MAX_VALUE} <br />
      * Property name is {@value #TEMPORARY_VOLUME_MAX_SIZE_PROPERTY_NAME}
      * </p>
      * 
@@ -1364,7 +1371,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setCommitPolicy(CommitPolicy)}
+     * Return the value defined by {@link #setCommitPolicy}
      * 
      * @return the commitPolicy
      */
@@ -1375,11 +1382,10 @@ public class Configuration {
     /**
      * <p>
      * Set the default {@link com.persistit.Transaction.CommitPolicy}. The
-     * string value must be one of "HARD", "GROUP" or "SOFT" (case is
-     * insensitive).
+     * string value must be one of "HARD", "GROUP" or "SOFT" (case insensitive).
      * </p>
      * <p>
-     * Default value is {@value #DEFAULT_TRANSACTION_COMMIT_POLICY} <br />
+     * Default value is SOFT <br />
      * Property name is {@value #COMMIT_POLICY_PROPERTY_NAME}
      * </p>
      * 
@@ -1395,25 +1401,24 @@ public class Configuration {
 
     /**
      * <p>
-     * Set the default {@link com.persistit.Transaction.CommitPolicy}. The value
-     * must be one of {@value com.persistit.Transaction.CommitPolicy#HARD},
-     * {@value com.persistit.Transaction.CommitPolicy#GROUP},
-     * {@value com.persistit.Transaction.CommitPolicy#SOFT},
+     * Set the default {@link Transaction.CommitPolicy} used by the
+     * {@link Transaction#commit()} method.
      * </p>
      * <p>
-     * Default value is {@value #DEFAULT_TRANSACTION_COMMIT_POLICY}
+     * Default value is SOFT
      * </p>
      * 
      * @param commitPolicy
-     *            the commitPolicy to set * @see
-     *            com.persistit.Transaction#commit()
+     *            the commitPolicy to set
+     * 
+     * 
      */
     public void setCommitPolicy(CommitPolicy commitPolicy) {
         this.commitPolicy = commitPolicy;
     }
 
     /**
-     * Return the value defined by {@link #setJoinPolicy(JoinPolicy)}
+     * Return the value defined by {@link #setJoinPolicy}
      * 
      * @return the joinPolicy
      */
@@ -1428,13 +1433,13 @@ public class Configuration {
      * to override this behavior in a particular <code>Exchange</code>.
      * </p>
      * <p>
-     * Default value is {@value #DEFAULT_JOIN_POLICY} <br />
+     * Default value is EVEN<br />
      * Property name is {@value #JOIN_POLICY_PROPERTY_NAME}
      * </p>
      * 
      * @param policyName
      *            Name of the <code>JoinPolicy</code> to set, one of "LEFT",
-     *            "RIGHT" or "EVEN" (the default).
+     *            "RIGHT" or "EVEN" (case insensitive)
      */
     public void setJoinPolicy(String policyName) {
         if (policyName != null) {
@@ -1449,18 +1454,18 @@ public class Configuration {
      * to override this behavior in a particular <code>Exchange</code>.
      * </p>
      * <p>
-     * Default value is {@value #DEFAULT_JOIN_POLICY}
+     * Default value is EVEN
      * </p>
      * 
-     * @param policyName
-     *            the <code>JoinPolicy<code> to set
+     * @param joinPolicy
+     *            the <code>JoinPolicy</code> to set
      */
     public void setJoinPolicy(JoinPolicy joinPolicy) {
         this.joinPolicy = joinPolicy;
     }
 
     /**
-     * Return the value defined by {@link #setSplitPolicy(SplitPolicy)}.
+     * Return the value defined by {@link #setSplitPolicy}.
      * 
      * @return the splitPolicy
      */
@@ -1471,11 +1476,11 @@ public class Configuration {
     /**
      * <p>
      * Set the default policy for balancing content between two pages when a
-     * page is split. The {@link Exchange#setSplitPolicy(SplitPolicy) may be
+     * page is split. The {@link Exchange#setSplitPolicy(SplitPolicy)} may be
      * used to override this behavior in a particular <code>Exchange</code>.
      * </p>
      * <p>
-     * Default value is {@value #DEFAULT_SPLIT_POLICY} <br />
+     * Default value is PACK<br />
      * Property name is {@value #SPLIT_POLICY_PROPERTY_NAME}
      * </p>
      * 
@@ -1493,11 +1498,11 @@ public class Configuration {
     /**
      * <p>
      * Set the default policy for balancing content between two pages when a
-     * page is split. The {@link Exchange#setSplitPolicy(SplitPolicy) may be
+     * page is split. The {@link Exchange#setSplitPolicy(SplitPolicy)} may be
      * used to override this behavior in a particular <code>Exchange</code>.
      * </p>
      * <p>
-     * Default value is {@value #DEFAULT_SPLIT_POLICY}
+     * Default value is PACK
      * </p>
      * 
      * @param splitPolicy
@@ -1510,7 +1515,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setSerialOverride(String)}.
+     * Return the value defined by {@link #setSerialOverride}.
      * 
      * @return the serial override pattern
      */
@@ -1528,6 +1533,7 @@ public class Configuration {
      * Default value is <code>null</code><br />
      * Property name is {@value #SERIAL_OVERRIDE_PROPERTY_NAME}
      * </p>
+     * 
      * @param serialOverride
      *            the serial override pattern to set
      * @see DefaultCoderManager
@@ -1537,7 +1543,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setConstructorOverride(boolean)}.
+     * Return the value defined by {@link #setConstructorOverride}.
      * 
      * @return the constructorOverride
      */
@@ -1547,9 +1553,9 @@ public class Configuration {
 
     /**
      * <p>
-     * Set whether Persistit should require and use every serialized object to
-     * have a public no-argument constructor. If so, then that constructor is
-     * used when deserializing in the {@link DefaultObjectCoder}; if not then
+     * Control Persistit should require and use every serialized object to have
+     * a public no-argument constructor. If so, then that constructor is used
+     * when deserializing in the {@link DefaultObjectCoder}; if not then
      * Persistit uses private methods within the JDK to emulate standard Java
      * serialization logic. TODO Link to Serialization section of
      * user_guide.html.
@@ -1567,7 +1573,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setShowGUI(boolean)}
+     * Return the value defined by {@link #setShowGUI}
      * 
      * @return the showGUI
      */
@@ -1577,13 +1583,14 @@ public class Configuration {
 
     /**
      * <p>
-     * Set the boolean value that determines whether Persistit starts up an
-     * attached instance of the AdminUI tool during initialization.
+     * Control whether Persistit starts up an attached instance of the AdminUI
+     * tool during initialization.
      * </p>
      * <p>
      * Default value is <code>false</code><br />
      * Property name is {@value #SHOW_GUI_PROPERTY_NAME}
      * </p>
+     * 
      * @param showGUI
      *            <code>true</code> to start the AdminUI
      */
@@ -1592,7 +1599,7 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setLogging(String)}
+     * Return the value defined by {@link #setLogging}
      * 
      * @return the log detail level
      */
@@ -1607,7 +1614,7 @@ public class Configuration {
      * use; it has no effect on any of the logging adapters.
      * </p>
      * <p>
-     * Default value is {@value PersistitLevel#INFO}<br />
+     * Default value is INFO<br />
      * Property name is {@value #LOGGING_PROPERTIES_NAME}
      * </p>
      * 
@@ -1621,7 +1628,8 @@ public class Configuration {
     }
 
     /**
-     * Return the value defined by {@link #setLogFile(String)}
+     * Return the value defined by {@link #setLogFile}
+     * 
      * @return the logFile
      */
     public String getLogFile() {
@@ -1639,6 +1647,7 @@ public class Configuration {
      * Default value is <code>null</code> - no log file is created</br />
      * Property value is {@value #LOGFILE_PROPERTY_NAME}
      * </p>
+     * 
      * @param logFile
      *            the logFile to set
      */
@@ -1647,6 +1656,8 @@ public class Configuration {
     }
 
     /**
+     * Return the value defined by {@link #setRmiHost}
+     * 
      * @return the rmiHost
      */
     public String getRmiHost() {
@@ -1654,6 +1665,16 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set the URL of an Remote Method Invocation registry. If nun-null,
+     * Persistit registers its a server for its {@link Management} interface at
+     * the specified external registry.
+     * </p>
+     * <p>
+     * Default value is <code>null</code></br /> Property value is
+     * {@value #RMI_REGISTRY_HOST_PROPERTY_NAME}
+     * </p>
+     * 
      * @param rmiHost
      *            the rmiHost to set
      */
@@ -1662,6 +1683,8 @@ public class Configuration {
     }
 
     /**
+     * Return the value defined by {@link #setRmiPort}.
+     * 
      * @return the rmiPort
      */
     public int getRmiPort() {
@@ -1669,6 +1692,20 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Set a port number on which Persistit will create a temporary Remote
+     * Method Invocation registry. If non-zero Persistit creates a registry and
+     * registers a {@link Management} server on it. This allows remote access to
+     * management facilities within Persistit and permits the AdminUI utility to
+     * attach to and manage a Persistit instance running on a headless server.
+     * Specifying a non-zero value of this attribute is incompatible with
+     * setting a non-null value in {@link #setRmiHost(String)}.
+     * </p>
+     * <p>
+     * Default value is 0<br />
+     * Property name is {@value #RMI_REGISTRY_PORT_PROPERTY_NAME}
+     * </p>
+     * 
      * @param rmiPort
      *            the rmiPort to set
      */
@@ -1677,6 +1714,8 @@ public class Configuration {
     }
 
     /**
+     * Return the value defined by {@link #setRmiServerPort(int)}.
+     * 
      * @return the rmiServerPort
      */
     public int getRmiServerPort() {
@@ -1684,6 +1723,15 @@ public class Configuration {
     }
 
     /**
+     * <p>
+     * Define a port to be used with an external RMI registry defined by
+     * {@link #setRmiHost}. If zero, the registry uses an anonymous port.
+     * </p>
+     * <p>
+     * Default value is 0 <br />
+     * Property name is {@value #RMI_SERVER_PORT_PROPERTY_NAME}
+     * </p>
+     * 
      * @param rmiServerPort
      *            the rmiServerPort to set
      */
@@ -1692,13 +1740,25 @@ public class Configuration {
     }
 
     /**
-     * @return the jmx
+     * Return the value defined by {@link #setJmxEnabled(boolean)}.
+     * 
+     * @return whether JMX will be enabled during initialization
      */
     public boolean isJmxEnabled() {
         return jmx;
     }
 
     /**
+     * <p>
+     * Control whether Persistit registers JMX MXBeans with the platform MBean
+     * server during initialization. Enables access to performance and other
+     * data by JConsole, VisualVM and JMX clients.
+     * </p>
+     * <p>
+     * Default value is <code>false</code><br />
+     * Property name is {@link #ENABLE_JMX_PROPERTY_NAME}
+     * </p>
+     * 
      * @param jmx
      *            the jmx to set
      */
@@ -1707,13 +1767,26 @@ public class Configuration {
     }
 
     /**
-     * @return the appendOnly
+     * Return the value defined by {@link #setAppendOnly}
+     * @return the whether to start Persistit in append-only mode
      */
     public boolean isAppendOnly() {
         return appendOnly;
     }
 
     /**
+     * <p>
+     * Control whether Persistit starts in <i>append-only</i>. In this mode
+     * Persistit accumulates database updates in the journal without copying
+     * changes back into the volume files. This method changes only the initial
+     * state; use {@link Management#setAppendOnly(boolean)} method to change
+     * this behavior dynamically while the system is running.
+     * </p>
+     * <p>
+     * Default value is <code>false</code><br />
+     * Property name is {@value #APPEND_ONLY_PROPERTY}
+     * </p>
+     * 
      * @param appendOnly
      *            the appendOnly to set
      */
