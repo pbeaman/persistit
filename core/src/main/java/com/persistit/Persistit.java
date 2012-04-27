@@ -57,7 +57,7 @@ import javax.management.ObjectName;
 
 import com.persistit.Accumulator.AccumulatorRef;
 import com.persistit.CheckpointManager.Checkpoint;
-import com.persistit.Configuration.BufferMemorySpecification;
+import com.persistit.Configuration.BufferPoolConfiguration;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
@@ -625,10 +625,10 @@ public class Persistit {
     }
 
     void initializeBufferPools() {
-        for (final BufferMemorySpecification specification : _configuration.getBuffers()) {
-            final int poolSize = specification.computeBufferCount(getAvailableHeap());
+        for (final BufferPoolConfiguration config : _configuration.getBufferPoolMap().values()) {
+            final int poolSize = config.computeBufferCount(getAvailableHeap());
             if (poolSize > 0) {
-                final int bufferSize = specification.getBufferSize();
+                final int bufferSize = config.getBufferSize();
                 _logBase.allocateBuffers.log(poolSize, bufferSize);
                 BufferPool pool = new BufferPool(poolSize, bufferSize, this);
                 _bufferPoolTable.put(bufferSize, pool);
@@ -638,7 +638,7 @@ public class Persistit {
     }
 
     void initializeVolumes() throws PersistitException {
-        for (final VolumeSpecification volumeSpecification : _configuration.getVolumeSpecifications()) {
+        for (final VolumeSpecification volumeSpecification : _configuration.getVolumeList()) {
             _logBase.openVolume.log(volumeSpecification.getName());
             final Volume volume = new Volume(volumeSpecification);
             volume.open(this);

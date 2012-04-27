@@ -34,11 +34,14 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
+import java.util.TreeMap;
 
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.InvalidVolumeSpecificationException;
@@ -51,16 +54,32 @@ import com.persistit.util.Util;
 
 /**
  * <p>
- * Manages and stores a Persistit configuration. Fields of this class contain
- * the configuration data used when Persistit starts up. These elements can be
- * populated from a Properties object or set through the accessor methods.
+ * Configuration parameters used to determine locations of files, sizes of
+ * buffer pool and journal allocation, policies and other parameters required
+ * during Persistit initialization.
  * </p>
  * <p>
- * A <code>Config</code> is a lightweight object containing no references to the
- * main Persistit instance.
+ * An application can construct and set up a <code>Configuration</code> using
+ * <code>setXXX</code> methods directly. Alternatively, the configuration can be
+ * specified in a set of properties that are read and interpreted by the
+ * <code>Configuration</code>. This object is used directly or indirectly by the
+ * following methods:
+ * <ul>
+ * <li>{@link Persistit#initialize(Configuration)} - uses a supplied
+ * <code>Configuration</code> directly.</li>
+ * <li>{@link Persistit#initialize(Properties)} - creates and loads a
+ * <code>Configuration</code> from the supplied <code>Properties</code>.</li>
+ * <li>{@link Persistit#initialize(String)} - loads a properties file from the
+ * specified file name, and then constructs a <code>Configuration</code> from
+ * the loaded <code>Properties</code>.
+ * <li>{@link Persistit#initialize()} - loads a properties file from a default
+ * name and then constructs a <code>Configuration</code> from the loaded
+ * <code>Properties</code>.
+ * </ul>
  * </p>
  * 
- * @version 1.1
+ * @author peter
+ * 
  */
 public class Configuration {
     /**
@@ -261,11 +280,52 @@ public class Configuration {
     public final static long GIGA = MEGA * KILO;
     public final static long TERA = GIGA * KILO;
 
-    public final static int[] BUFFER_SIZES = { 1024, 2048, 4096, 8192, 16384 };
+    private final static int[] BUFFER_SIZES = { 1024, 2048, 4096, 8192, 16384 };
+    private final static int MAX_RECURSION_COUNT = 20;
 
-    public static class BufferMemorySpecification {
+    /**
+     * <p>
+     * Configuration constraints that determine the number of
+     * <code>Buffer</code>s in a {@link BufferPool}. There is one permanent
+     * <code>BufferPoolConfiguration</code> instance for each valid buffer size:
+     * 1024, 2048, 4096, 8192 and 16384. The
+     * {@link Configuration#getBufferPoolMap()} method provides access to these,
+     * where the map key is the buffer size.
+     * </p>
+     * <p>
+     * Each <code>BufferPoolConfiguration</code> specifies minimum and maximum
+     * buffer count values, and four parameters used to allocate a buffers
+     * according to available memory. Values of <count>minimumCount</code> and
+     * <code>maximumCount</code> are absolute bounds; if the
+     * <code>maximumCount</code> is zero then no buffers of the specified buffer
+     * size will be allocated.
+     * </p>
+     * <p>
+     * The memory-based parameters are used as follows:
+     * <ul>
+     * <li>Determine the maximum heap size by accessing the platform
+     * MemoryMXBean, which in turn supplies the value given by the +-Xmx+ JVM
+     * property.</li>
+     * <li>Subtract the value of
+     * <code>reservedMemory<code> size from the maximum heap size.</li>
+     * <li>Multiply the result by <code>fraction</code>.</li>
+     * <li>Adjust the result to fall between the boundaries specified by
+     * <code>minimumMemory</code> and </code>maximumMemory</code>.</li>
+     * <li>Determine the buffer count by dividing the result by the memory
+     * consumption per buffer</li>
+     * <li>Adjust the buffer count to fall between the boundaries specified by
+     * <code>minimumCount</code> and <code>maximumCount</code>.</li>
+     * </ul>
+     * </p>
+     * <p>
+     * These parameters may be set through the <code>set</code> and
+     * <code>get</code> methods, or by parsing a string property value using
+     * {@link #parseBufferCount(int, String, String)} or
+     * {@link #parseBufferMemory(int, String, String)}
+     */
+    public static class BufferPoolConfiguration {
 
-        private int bufferSize;
+        private final int bufferSize;
         private int minimumCount;
         private int maximumCount;
         private long minimumMemory;
@@ -274,17 +334,16 @@ public class Configuration {
         private float fraction;
 
         private void reset() {
-            bufferSize = -1;
             minimumCount = 0;
-            maximumCount = Integer.MAX_VALUE;
+            maximumCount = 0;
             minimumMemory = 0;
             maximumMemory = Long.MAX_VALUE;
             reservedMemory = 0;
             fraction = 1.0f;
-
         }
 
-        private BufferMemorySpecification() {
+        private BufferPoolConfiguration(final int size) {
+            bufferSize = size;
             reset();
         }
 
@@ -293,14 +352,6 @@ public class Configuration {
          */
         public int getBufferSize() {
             return bufferSize;
-        }
-
-        /**
-         * @param bufferSize
-         *            the bufferSize to set
-         */
-        public void setBufferSize(int bufferSize) {
-            this.bufferSize = bufferSize;
         }
 
         /**
@@ -393,8 +444,19 @@ public class Configuration {
             this.fraction = fraction;
         }
 
+        /**
+         * Compute the buffer count determined by the constraints of this
+         * <code>BufferPoolConfiguration</code> given the supplied
+         * availableHeapMemory.
+         * 
+         * @param availableHeapMemory
+         *            available memory, in bytes
+         * @return number of <code>Buffers</code> to allocate
+         * @throws IllegalArgumentException
+         *             if the allocation is infeasible
+         */
         public int computeBufferCount(final long availableHeapMemory) {
-            if (bufferSize == -1) {
+            if (maximumCount == 0) {
                 return 0;
             }
             long maximumAvailable = (long) ((availableHeapMemory - reservedMemory) * fraction);
@@ -412,7 +474,7 @@ public class Configuration {
         }
 
         public String toString() {
-            StringBuilder sb = new StringBuilder("BufferMemorySpecification(");
+            StringBuilder sb = new StringBuilder("BufferPoolConfiguration(");
             sb.append(String.format("size=%d", bufferSize));
             if (minimumCount == maximumCount) {
                 sb.append(String.format(",count=%d", minimumCount));
@@ -427,13 +489,96 @@ public class Configuration {
             sb.append(')');
             return sb.toString();
         }
+
+        /**
+         * Parse the supplied property value as an integer-valued buffer count.
+         * Both <code>minimumCount</code> and <code>maximumCount</code> are set
+         * to this value. The supplied property value must be a valid integer or
+         * an integer followed by "K", "M" or "G" for
+         * {@value Configuration#KILO}, {@value Configuration#MEGA}, or
+         * {@value Configuration#GIGA} as a multiplier.
+         * 
+         * @param bufferSize
+         * @param propertyName
+         * @param propertyValue
+         * @throws IllegalArgumentException
+         *             if the propertyValue is not in the form of a valid
+         *             Integer
+         */
+        public void parseBufferCount(final int bufferSize, final String propertyName, final String propertyValue) {
+            reset();
+            int count = (int) parseLongProperty(propertyName, propertyValue);
+            Util.rangeCheck(count, BufferPool.MINIMUM_POOL_COUNT, BufferPool.MAXIMUM_POOL_COUNT);
+            setMaximumCount(count);
+            setMinimumCount(count);
+        }
+
+        /**
+         * <p>
+         * Parse the supplied property value as a sequence of values to populate
+         * the <code>minimumMemory</code> <code>maximumMemory</code>,
+         * <code>reservedMemory</code> and <code>fraction</code> fields. These
+         * values are separated by commas, and the first three may be specified
+         * as blank for the default value, an integer, or an integer followed by
+         * by "K", "M" or "G" for {@value Configuration#KILO},
+         * {@value Configuration#MEGA}, or {@value Configuration#GIGA} as a
+         * multiplier.
+         * </p>
+         * For example, the property value <code><pre>
+         *  ,8G,128M,.75
+         * </pre></code> reserves 128M from available memory and then allocates
+         * 75% of the remainder up to 8Gb.
+         * <p>
+         * </p>
+         * 
+         * @param bufferSize
+         * @param propertyName
+         * @param propertyValue
+         */
+        public void parseBufferMemory(final int bufferSize, final String propertyName, final String propertyValue) {
+            reset();
+            long minimum = 0;
+            long maximum = Long.MAX_VALUE;
+            long reserved = 0;
+            float fraction = 1.0f;
+
+            final String[] terms = propertyValue.split(",", 4);
+
+            if (terms.length > 0 && !terms[0].isEmpty()) {
+                minimum = parseLongProperty(propertyName, terms[0]);
+                maximum = minimum;
+            }
+            if (terms.length > 1 && !terms[1].isEmpty()) {
+                maximum = parseLongProperty(propertyName, terms[1]);
+            }
+            if (terms.length > 2 && !terms[2].isEmpty()) {
+                reserved = parseLongProperty(propertyName, terms[2]);
+            }
+            if (terms.length > 3 && !terms[3].isEmpty()) {
+                fraction = parseFloatProperty(propertyName, terms[3]);
+                Util.rangeCheck(fraction, 0.0f, 1.0f);
+            }
+
+            if (minimum >= 0 && minimum <= maximum && maximum - minimum >= reserved && reserved >= 0) {
+                setMinimumMemory(minimum);
+                setMaximumMemory(maximum);
+                setReservedMemory(reserved);
+                setFraction(fraction);
+                setMinimumCount(0);
+                setMaximumCount(Integer.MAX_VALUE);
+            } else {
+                throw new IllegalArgumentException("Invalid BufferPool memory specification: " + propertyValue);
+            }
+
+        }
+
     }
 
     private final Properties _properties = new Properties();
 
     private long timeoutValue = DEFAULT_TIMEOUT_VALUE;
-    private BufferMemorySpecification[] buffers = new BufferMemorySpecification[BUFFER_SIZES.length];
-    private List<VolumeSpecification> volumeSpecifications = new ArrayList<VolumeSpecification>();
+    private final Map<Integer, BufferPoolConfiguration> bufferPoolMap;
+    private final List<VolumeSpecification> volumeSpecifications = new ArrayList<VolumeSpecification>();
     private String journalPath = DEFAULT_JOURNAL_PATH;
     private long journalSize;
     private String sysVolume = DEFAULT_SYSTEM_VOLUME_NAME;
@@ -456,10 +601,33 @@ public class Configuration {
     private int tmpVolPageSize;
     private long tmpVolMaxSize;
 
+    /**
+     * Construct a <code>Configuration</code> instance. This object may be
+     * passed to the {@link Persistit#initialize(Configuration)} method.
+     */
     public Configuration() {
-        for (int index = 0; index < BUFFER_SIZES.length; index++) {
-            buffers[index] = new BufferMemorySpecification();
+        Map<Integer, BufferPoolConfiguration> map = new TreeMap<Integer, BufferPoolConfiguration>();
+        for (int bufferSize : BUFFER_SIZES) {
+            map.put(bufferSize, new BufferPoolConfiguration(bufferSize));
         }
+        bufferPoolMap = Collections.unmodifiableMap(map);
+    }
+
+    /**
+     * Construct a <code>Configuration</code> instance and merge the supplied
+     * <code>Properties</code>. This object may be passed to the
+     * {@link Persistit#initialize(Configuration)} method.
+     * 
+     * @param properties
+     *            Properties from which configuration elements are parsed and
+     *            assigned. Property names unknown to Persistit are ignored.
+     * @throws IllegalArgumentException
+     *             of a property contains an invalid value
+     */
+    public Configuration(final Properties properties) throws InvalidVolumeSpecificationException {
+        this();
+        merge(properties);
+        loadProperties();
     }
 
     void readPropertiesFile() throws PersistitException {
@@ -488,23 +656,23 @@ public class Configuration {
         merge(properties);
     }
 
-    final static int bufferSizeIndex(final int bufferSize) {
-        for (int index = 0; index < BUFFER_SIZES.length; index++) {
-            if (BUFFER_SIZES[index] == bufferSize) {
-                return index;
+    final static void checkBufferSize(final int bufferSize) {
+        for (int size : BUFFER_SIZES) {
+            if (size == bufferSize) {
+                return;
             }
         }
-        return -1;
+        throw new IllegalArgumentException("Invalid buffer size: " + bufferSize);
     }
 
     void merge(final Properties properties) {
         for (final Enumeration<? extends Object> e = properties.propertyNames(); e.hasMoreElements();) {
             final String propertyName = (String) e.nextElement();
-            _properties.put(propertyName.toLowerCase(), properties.getProperty(propertyName));
+            _properties.put(propertyName, properties.getProperty(propertyName));
         }
     }
 
-    void loadProperties() throws PersistitException {
+    void loadProperties() throws InvalidVolumeSpecificationException {
         setAppendOnly(getBooleanProperty(APPEND_ONLY_PROPERTY, false));
         setCommitPolicy(getProperty(COMMIT_POLICY_PROPERTY_NAME));
         setConstructorOverride(getBooleanProperty(CONSTRUCTOR_OVERRIDE_PROPERTY_NAME, false));
@@ -541,19 +709,22 @@ public class Configuration {
             String countSpec = getProperty(countPropertyName);
             String memSpec = getProperty(memPropertyName);
             int count = 0;
+            final BufferPoolConfiguration bpc = bufferPoolMap.get(size);
 
             if (countSpec != null) {
-                parseBufferMemorySpecification(countPropertyName, countSpec);
+                bpc.parseBufferCount(size, countPropertyName, countSpec);
                 count++;
             }
             if (memSpec != null) {
-                parseBufferMemorySpecification(memPropertyName, memSpec);
+                bpc.parseBufferMemory(size, countPropertyName, memSpec);
                 count++;
             }
 
             if (count > 1) {
                 throw new IllegalArgumentException("Only one of " + countPropertyName + " and " + memPropertyName
                         + " may be specified");
+            } else if (count == 0) {
+                bpc.reset();
             }
         }
     }
@@ -581,9 +752,8 @@ public class Configuration {
             String[] s = propertyName.split("\\.");
             try {
                 int size = Integer.parseInt(s[2]);
-                if (bufferSizeIndex(size) != -1) {
-                    return size;
-                }
+                checkBufferSize(size);
+                return size;
             } catch (Exception e) {
                 // default to -1
             }
@@ -615,7 +785,7 @@ public class Configuration {
      * @param properties
      *            Properties containing substitution values
      * @param depth
-     *            Count of recursive calls - maximum depth is 20. Generall
+     *            Count of recursive calls - maximum depth is 20.
      * @return
      */
     String substituteProperties(String text, Properties properties, int depth) {
@@ -628,7 +798,7 @@ public class Configuration {
                 if (Util.isValidName(propertyName)) {
                     // sanity check to prevent stack overflow
                     // due to infinite loop
-                    if (depth > 20)
+                    if (depth > MAX_RECURSION_COUNT)
                         throw new IllegalArgumentException("property " + propertyName
                                 + " substitution cycle is too deep");
                     String propertyValue = getProperty(propertyName, depth + 1, properties);
@@ -658,9 +828,9 @@ public class Configuration {
      * the property named "journalpath" can be supplied as the system property
      * named com.persistit.journalpath. (Note: if the security context does not
      * permit access to system properties, then system properties are ignored.)</li>
-     * <li>The supplied Properties object, which was either passed to the
-     * {@link #initialize(Properties)} method, or was loaded from the file named
-     * in the {@link #initialize(String)} method.</li>
+     * <li>The supplied <code>Properties</code> object, which was either passed
+     * to the {@link #initialize(Properties)} method, or was loaded from the
+     * file named in the {@link #initialize(String)} method.</li>
      * <li>The pseudo-property name <code>timestamp</code>. The value is the
      * current time formated by <code>SimpleDateFormat</code> using the pattern
      * yyyyMMddHHmm. (This pseudo-property makes it easy to specify a unique log
@@ -874,46 +1044,6 @@ public class Configuration {
         throw new IllegalArgumentException("Invalid number '" + str + "' for property " + propName);
     }
 
-    void parseBufferMemorySpecification(final String propertyName, final String propertyValue) {
-        int bufferSize = bufferSizeFromPropertyName(propertyName);
-        int index = bufferSizeIndex(bufferSize);
-        BufferMemorySpecification spec = buffers[index];
-        spec.reset();
-        if (propertyName.startsWith(BUFFERS_PROPERTY_NAME)) {
-            int count = (int) parseLongProperty(propertyName, propertyValue);
-            spec.setMaximumCount(count);
-            spec.setMinimumCount(count);
-        } else if (propertyName.startsWith(BUFFER_MEM_PROPERTY_NAME)) {
-            long minimum = 0;
-            long maximum = Long.MAX_VALUE;
-            long reserved = 0;
-            float fraction = 1.0f;
-
-            final String[] terms = propertyValue.split(",", 4);
-
-            if (terms.length > 0 && !terms[0].isEmpty()) {
-                minimum = parseLongProperty(propertyName, terms[0]);
-                maximum = minimum;
-            }
-            if (terms.length > 1 && !terms[1].isEmpty()) {
-                maximum = parseLongProperty(propertyName, terms[1]);
-            }
-            if (terms.length > 2 && !terms[2].isEmpty()) {
-                reserved = parseLongProperty(propertyName, terms[2]);
-            }
-            if (terms.length > 3 && !terms[3].isEmpty()) {
-                fraction = parseFloatProperty(propertyName, terms[3]);
-            }
-            spec.setMinimumMemory(minimum);
-            spec.setMaximumMemory(maximum);
-            spec.setReservedMemory(reserved);
-            spec.setFraction(fraction);
-        } else {
-            throw new IllegalArgumentException("Invalid property name " + propertyName);
-        }
-        spec.setBufferSize(bufferSize);
-    }
-
     /**
      * Parse a String as a boolean value. The suppled value <code>str</code>
      * must be either <code>true</code> or <code>false</code>. The comparison is
@@ -957,6 +1087,10 @@ public class Configuration {
         } else {
             return String.format("%d%s", v, "KMGT".substring(scale - 1, scale));
         }
+    }
+
+    public static int[] validBufferSizes() {
+        return BUFFER_SIZES.clone();
     }
 
     /**
@@ -1007,14 +1141,14 @@ public class Configuration {
     /**
      * @return the buffers
      */
-    public BufferMemorySpecification[] getBuffers() {
-        return buffers;
+    public Map<Integer, BufferPoolConfiguration> getBufferPoolMap() {
+        return bufferPoolMap;
     }
 
     /**
      * @return the volumeSpecifications
      */
-    public List<VolumeSpecification> getVolumeSpecifications() {
+    public List<VolumeSpecification> getVolumeList() {
         return volumeSpecifications;
     }
 
