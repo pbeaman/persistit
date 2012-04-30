@@ -106,6 +106,11 @@ public interface JournalManagerMXBean {
     final static long DEFAULT_SLOW_IO_ALERT_THRESHOLD = 2000L;
     final static long MINIMUM_SLOW_ALERT_THRESHOLD = 100L;
     final static long MAXIMUM_SLOW_ALERT_THRESHOLD = Long.MAX_VALUE;
+    
+    /**
+     * File name appended when journal path specifies only a directory
+     */
+    final static String DEFAULT_JOURNAL_FILE_NAME = "persistit_journal";
     /**
      * Format expression defining the name of a journal file.
      */

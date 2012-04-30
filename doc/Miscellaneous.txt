@@ -1,7 +1,7 @@
 [[Miscellaneous]]
 = Miscellaneous Topics
 
-Following are some short items you may find useful as you explore Akiban Persistit.  Follow links to the API documentation for more details.
+Following are some short items you may find useful as you explore Akiban Persistit. Follow links to the API documentation for more details.
 
 == Histograms
 
@@ -9,24 +9,24 @@ The method +com.persistit.Exchange#computeHistogram+ class provides a way to sam
 
 == Temporary Volumes
 
-A Persistit temporary volume is a special kind of non-durable Volume that is simply deleted when Persistit is closed. The update mechanism for temporary volumes avoids writing to disk whenever possible. Temporary volumes are suitable for holding intermediate results of operations such as sorting data that may be arbitrarily large, but do not need to be saved.
+A Persistit temporary volume is a special kind of Volume that is deleted when Persistit is closed. The update mechanism for temporary volumes avoids writing to disk whenever possible, and its contents are not recoverable Persistit shuts down. Therefore in some cases database operations on temporary volumes are faster.
 
-The following example shows how to create and use a temporary volume:
+The primary use case for a temporary volume is an application that needs the unlimited size, but not the persistence of normal Persistit volumes.
 
-[source,java]
-----
-final Volume volume = persistit.createTemporaryVolume();
-final Exchange exchange = persistit.getExchange(volume, "myTree", true);
-
-... use the exchange ...
-
-volume.close();
-----
-
-The +com.persistit.Volume#close+ method closes the volume and (if it is a temporary volume) deletes its backing file. Alternatively, call the +com.persistit.Volume#truncate+ method to remove all data from the temporary volume if you intend to reuse the backing file.  (After calling +truncate+ or close+, any +Exchange+ instance previously created using that volume are not usable and should be discarded.)
-
-See com.persistit.Volume for details.
+See the +com.persistit.Persistit#createTemporaryVolume+ method for additional details.
 
 == Logging
 
-By default Persistit emits log messages to a file called persistit.log  and also writes high level log messages to System.out.  You can change this behavior by plugging in a different logging implementation. In particular, Persistit provides pluggable adapters for Apache Log4J and the Java logging API introduced in JDK 1.4. For details see the API documentation for com.persistit.logging.AbstractPersistitLogger.
+By default Persistit emits log messages to a file called persistit.log  and also writes high level log messages to System.out.  You can change this behavior by plugging in a different logging implementation. In particular, Persistit provides pluggable adapters for various other logging implementations, including Log4J, SLF4J, and the Java logging API introduced in JDK 1.4. For details see the API documentation for com.persistit.logging.AbstractPersistitLogger.
+
+Using one of these logging frameworks is simple.  For example, the following code connects Persistit to an application-supplied SLF4J logger:
+
+[source,java]
+----
+db.setPersistitLogger(new Slf4jAdapter(LOG))
+----
+
+where +db+ is the Persistit instance and +LOG+ is a Logger supplied by SLF4J. This method should be called before the +initialize+ method.
+
+
+

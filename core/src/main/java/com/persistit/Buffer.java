@@ -3299,7 +3299,7 @@ public class Buffer extends SharedResource {
     }
 
     static int bufferSizeWithOverhead(final int bufferSize) {
-        int fastIndexSize = ((bufferSize - HEADER_SIZE) / MAX_KEY_RATIO) * 4;
+        int fastIndexSize = ((bufferSize - HEADER_SIZE) / MAX_KEY_RATIO) * FastIndex.BYTES_PER_ENTRY;
         int fastIndexOverhead = (int) (fastIndexSize * BufferPool.FAST_INDEX_RATIO);
         return bufferSize + fastIndexOverhead + ESTIMATED_FIXED_BUFFER_OVERHEAD;
     }

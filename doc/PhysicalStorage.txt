@@ -27,7 +27,7 @@ Every record in the journal has a 64-bit integer _journal address_. The journal 
 
 Persistit writes two major types of records to journal files.
 
-- For each committed update transaction, Persistit writes a record containing sufficient information to replay the transaction during recovery. For example, when Persistit stores a key/value pair during a transaction, it writes a record to the journal containing the key and the value.
+- For each committed update transaction, Persistit writes a record containing sufficient information to replay the transaction during recovery. For example, when Persistit stores a key/value pair during a transaction, it writes a record to the journal containing the key and value.
 - Persistit also writes all updated page images to the journal. Some of these are eventually copied to volume files, as described below. This write/copy mechanism is critical to Persistit’s crash-recovery mechanism (see <<Recovery>>).
 
 As updates are applied, Persistit constantly appends new information- both transaction records and modified page images - to the end of the highest-numbered file. To prevent the aggregation of a large number of journal files Persistit also works to copy or remove information from older journal files so that they can be deleted. The background thread responsible for this activity is called the +JOURNAL_COPIER+ thread. The JOURNAL_COPIER copies pages from the journal back into their home volume files, allowing old files to be deleted. Normally a Persistit system at rest will gradually copies all update page images and perform checkpoints so that only one small journal file remains. Applications can accelerate that process by calling the +com.persistit.Persistit.copyBack+ method.
@@ -44,7 +44,7 @@ For more details on the journal, checkpoints and transactions, see <<Recovery>>.
 
 == Pages and Volumes
 
-Persistit ultimately stores its data in one or more Volume files. Persistit manages volume files internally in sections called pages. Every page within one volume has the same size. The page size is configurable and may be 1K, 2K, 4K, 8K, 16K (recommended) bytes long. Once the page size for a volume has been established, it cannot be changed. See <<Configuration>> for details of how to assign the page size for a new volume.
+Persistit ultimately stores its data in one or more Volume files. Persistit manages volume files internally in sections called pages. Every page within one volume has the same size. The page size is configurable and may be 1,024, 2,048, 4,096, 8,192, or 16,384 (recommended) bytes long. Once the page size for a volume has been established, it cannot be changed. See <<Configuration>> for details of how to assign the page size for a new volume.
 
 === Directory Tree
 
@@ -102,7 +102,7 @@ An application may require certainty at various points that all pending updates 
 [horizontal]
 +com.persistit.Persistit#flush+:: causes Persistit to write all pending updates to the journal. Upon successful completion of flush any pages that needed writing prior to the call to flush are guaranteed to have been written to their respective volume files.
 +com.persistit.Persistit#force+:: forces the underlying operating system to write pending updates from the operating system’s write-behind cache to the actual disk. (This operation relies on the underlying +java.io.Filechannel#force(boolean)+ method.)
-+com.persistit.Persistit.checkpoint+:: causes Persistit to allocate a new checkpoint timestamp and then wait for all updates that happened before that timestamp to be committed to disk.
++com.persistit.Persistit#checkpoint+:: causes Persistit to allocate a new checkpoint timestamp and then wait for all updates that happened before that timestamp to be committed to disk.
 
 However, typical applications, especially those using <<Transactions>>, do not need to invoke these methods. Once a Transaction is durable, so are all other transactions that occurred at timestamps earlier than the transaction’s commit timestamp and no other method calls are required.
 

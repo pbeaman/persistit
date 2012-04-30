@@ -1675,7 +1675,7 @@ public class Configuration {
 
     /**
      * <p>
-     * Set the URL of an Remote Method Invocation registry. If nun-null,
+     * Set the URL of an Remote Method Invocation registry. If non-null,
      * Persistit registers its a server for its {@link Management} interface at
      * the specified external registry.
      * </p>
