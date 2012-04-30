@@ -24,14 +24,12 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
+
+import static org.junit.Assert.assertEquals;
 
 import java.util.Properties;
 
-import com.persistit.Accumulator;
-import com.persistit.Exchange;
-import com.persistit.Persistit;
-import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;

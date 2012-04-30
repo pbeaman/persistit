@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
 
 import static org.junit.Assert.assertEquals;
 
@@ -33,7 +33,6 @@ import org.junit.Test;
 import com.persistit.Accumulator;
 import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -77,7 +76,7 @@ public class Bug920754Test extends PersistitUnitTestCase {
         txn.commit();
         txn.end();
         _persistit.checkpoint();
-        final Exchange dir = TestShim.directoryExchange(exchange.getVolume());
+        final Exchange dir = exchange.getVolume().getStructure().directoryExchange();
         exchange.removeTree();
         int keys = 0;
         dir.to(Key.BEFORE);

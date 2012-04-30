@@ -24,12 +24,11 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
 
 import org.junit.Test;
 
 import com.persistit.Exchange;
-import com.persistit.TestShim;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class Bug739533Test extends PersistitUnitTestCase {
@@ -87,8 +86,8 @@ public class Bug739533Test extends PersistitUnitTestCase {
      * @return
      */
     int maxValueSize(final Exchange exchange) {
-        return exchange.getVolume().getPageSize() - TestShim.BUFFER_INDEX_PAGE_OVERHEAD
-                - TestShim.maxStorableKeySize(exchange.getVolume().getPageSize()) * 2;
+        return exchange.getVolume().getPageSize() - Buffer.INDEX_PAGE_OVERHEAD
+                - Key.maxStorableKeySize(exchange.getVolume().getPageSize()) * 2;
     }
 
 }

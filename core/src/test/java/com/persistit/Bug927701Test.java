@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
 
 import static org.junit.Assert.assertTrue;
 
@@ -32,7 +32,6 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.JournalManager;
-import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -69,7 +68,7 @@ public class Bug927701Test extends PersistitUnitTestCase {
     @Test
     public void testBug927701() throws Exception {
         final JournalManager jman = _persistit.getJournalManager();
-        TestShim.setMinimumPruningDelay(_persistit, 0);
+        _persistit.getCleanupManager().setMinimumPruningDelay(0);
         jman.setCopierInterval(1000);
         final long blockSize = jman.getBlockSize();
         /*

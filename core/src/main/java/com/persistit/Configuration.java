@@ -409,6 +409,15 @@ public class Configuration {
         public void setMaximumCount(int maximumCount) {
             this.maximumCount = maximumCount;
         }
+        
+        /**
+         * Set the minimum and maximum buffer count.
+         * @param count
+         */
+        public void setCount(int count) {
+            setMinimumCount(count);
+            setMaximumCount(count);
+        }
 
         /**
          * @return the minimumMemory

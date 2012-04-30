@@ -82,7 +82,7 @@ import com.persistit.util.Util;
  * @author peter
  * 
  */
-public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
+class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;
