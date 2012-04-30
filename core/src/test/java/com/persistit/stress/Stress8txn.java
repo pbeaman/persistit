@@ -28,18 +28,12 @@ package com.persistit.stress;
 
 import java.io.FileWriter;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.TransactionRunnable;
-import com.persistit.Value.Version;
 import com.persistit.exception.PersistitException;
 import com.persistit.test.TestResult;
 import com.persistit.util.ArgParser;
@@ -507,65 +501,10 @@ public class Stress8txn extends StressBase {
             PrintWriter pw = new PrintWriter(new FileWriter(fileName));
             pw.println(result);
             pw.println();
-            pw.println(mvvReport());
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    String mvvReport() throws PersistitException {
-        StringBuilder sb = new StringBuilder();
-        Map<Long, List<String>> byTc = new TreeMap<Long, List<String>>();
-        Map<Long, List<String>> byTs = new TreeMap<Long, List<String>>();
-        TestShim.ignoreMVCC(true, _exs);
-        Key key = _exs.getKey();
-        _exs.clear().append("stress8txn");
-        while (_exs.next(true) && key.getDepth() > 1 && key.reset().decodeString().equals("stress8xtn")) {
-            List<Version> versions = _exs.getValue().unpackMvvVersions();
-            for (final Version v : versions) {
-                List<String> list1 = byTc.get(v.getCommitTimestamp());
-                if (list1 == null) {
-                    list1 = new ArrayList<String>();
-                    byTc.put(v.getCommitTimestamp(), list1);
-                }
-                list1.add(key.toString() + ": " + describe(v));
 
-                List<String> list2 = byTs.get(v.getCommitTimestamp());
-                if (list2 == null) {
-                    list2 = new ArrayList<String>();
-                    byTs.put(v.getCommitTimestamp(), list2);
-                }
-                list2.add(key.toString() + ": " + describe(v));
-            }
-        }
-        mvvReportMap(byTc, "byTC", sb);
-        mvvReportMap(byTs, "byTS", sb);
-        TestShim.ignoreMVCC(false, _exs);
-        return sb.toString();
-    }
-
-    private String describe(Version v) {
-        if (v.getValue().isDefined() && v.getValue().isType(String.class)) {
-            return v.toString().split("\\:")[0] + ":" + v.getValue().getString().length() + "$";
-        } else {
-            return v.toString();
-        }
-    }
-
-    private void mvvReportMap(Map<Long, List<String>> map, String title, StringBuilder sb) {
-        sb.append(String.format("%s\n\n", title));
-        for (final Map.Entry<Long, List<String>> entry : map.entrySet()) {
-            sb.append(String.format("%,15d ", entry.getKey()));
-            boolean first = true;
-            for (String s : entry.getValue()) {
-                if (!first) {
-                    sb.append(String.format("%16s", ""));
-                } else {
-                    first = false;
-                }
-                sb.append(String.format("%s\n", s));
-            }
-        }
-        sb.append(String.format("\n\n"));
-    }
 }

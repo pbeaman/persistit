@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.unit;
+package com.persistit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -33,9 +33,9 @@ import java.util.List;
 
 import org.junit.Test;
 
-import com.persistit.TestShim;
 import com.persistit.Value;
 import com.persistit.Value.Version;
+import com.persistit.unit.PersistitUnitTestCase;
 
 public class ValueTest7 extends PersistitUnitTestCase {
 

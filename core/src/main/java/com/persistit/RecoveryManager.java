@@ -233,7 +233,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     private TransactionPlayer _player = new TransactionPlayer(new RecoveryTransactionPlayerSupport());
 
-    public static class DefaultRecoveryListener implements TransactionPlayerListener {
+    static class DefaultRecoveryListener implements TransactionPlayerListener {
         @Override
         public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
             exchange.store();
@@ -286,7 +286,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     }
 
-    public class DefaultRollbackListener implements TransactionPlayerListener {
+    class DefaultRollbackListener implements TransactionPlayerListener {
         @Override
         public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
             exchange.prune();

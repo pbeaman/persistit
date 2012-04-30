@@ -99,6 +99,12 @@ public class KeyHistogram {
 
     private long _pageBytesInUse = 0;
 
+    /**
+     * Element in a <code>KeyHistogram</code> that denotes the estimated number of keys
+     * in a histogram bucket. This class has two fields representing a key and a count.  The
+     * count indicates the estimated number of other keys less than this one in the
+     * tree level.
+     */
     public static class KeyCount {
 
         final byte[] _bytes;
@@ -110,10 +116,18 @@ public class KeyHistogram {
             _count = count;
         }
 
+        /**
+         * Get the key bytes
+         * @return the bytes of the key
+         */
         public byte[] getBytes() {
             return _bytes;
         }
 
+        /**
+         * Get the count
+         * @return the count
+         */
         public int getCount() {
             return _count;
         }
