@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
 
 import static org.junit.Assert.assertEquals;
 
@@ -34,7 +34,6 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Persistit;
-import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -72,7 +71,7 @@ public class Bug980292Test extends PersistitUnitTestCase {
          * buffers.
          */
         ex.getValue().put(RED_FOX);
-        for (int i = 0; i < TestShim.getTransactionBuffer(txn).capacity() * 2 / RED_FOX.length(); i++) {
+        for (int i = 0; i < txn.getTransactionBuffer().capacity() * 2 / RED_FOX.length(); i++) {
             ex.to(i).store();
         }
         _persistit.checkpoint();

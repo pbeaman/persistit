@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
 
 import java.util.Properties;
 
@@ -32,7 +32,6 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Persistit;
-import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -44,7 +43,7 @@ public class Bug932097Test extends PersistitUnitTestCase {
          * Create a bunch of incomplete transactions
          */
         for (int i = 1; i <= 1000; i++) {
-            _persistit.setSessionId(TestShim.newSessionId());
+            _persistit.setSessionId(new SessionId());
             final Transaction txn = _persistit.getTransaction();
             txn.begin();
             final Exchange ex = _persistit.getExchange("persistit", "test", true);
@@ -69,7 +68,7 @@ public class Bug932097Test extends PersistitUnitTestCase {
          * followed by an assertion.
          */
         for (int i = 1; i <= 1000; i++) {
-            _persistit.setSessionId(TestShim.newSessionId());
+            _persistit.setSessionId(new SessionId());
             final Transaction txn = _persistit.getTransaction();
             txn.begin();
             txn.commit();
