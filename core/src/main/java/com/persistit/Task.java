@@ -162,7 +162,7 @@ public abstract class Task implements Runnable {
      * Collection of messages posted by the task. Note we are using JDK1.1
      * ArrayList to help port to J2ME.
      */
-    protected ArrayList<String> _messageLog = new ArrayList<String>();
+    protected final ArrayList<String> _messageLog = new ArrayList<String>();
     /**
      * An optional PrintWriter - if not null, {@link #postMessage(String, int)}
      * writes messages to it.
@@ -602,10 +602,12 @@ public abstract class Task implements Runnable {
         ts.lastException = _lastException == null ? "none" : _lastException.toString();
         ts.statusSummary = getStatus();
         if (details) {
-            ts.newMessages = getMessages(0);
-            ts.statusDetail = getStatusDetail();
-            if (clearMessages)
-                cullMessages(Integer.MAX_VALUE);
+            synchronized (_messageLog) {
+                ts.newMessages = getMessages(0);
+                ts.statusDetail = getStatusDetail();
+                if (clearMessages)
+                    cullMessages(Integer.MAX_VALUE);
+            }
         }
     }
 
