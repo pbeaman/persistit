@@ -26,6 +26,8 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.text.SimpleDateFormat;

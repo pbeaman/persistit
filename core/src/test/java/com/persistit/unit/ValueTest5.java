@@ -26,7 +26,11 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.Serializable;
+
+import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.encoding.CoderManager;
@@ -74,6 +78,7 @@ public class ValueTest5 extends PersistitUnitTestCase {
         super.tearDown();
     }
 
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
         S s = new S(Job.COOK, Job.BOTTLEWASHER);

@@ -26,19 +26,25 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.persistit.exception.PersistitException;
-import com.persistit.unit.UnitTestProperties;
 import org.junit.Test;
 
 import com.persistit.Accumulator.Type;
+import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.unit.PersistitUnitTestCase;
+import com.persistit.unit.UnitTestProperties;
 
 public class AccumulatorTest extends PersistitUnitTestCase {
 
@@ -268,16 +274,16 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         for (int i = 0; System.currentTimeMillis() < stopTime; i++) {
             Thread.sleep(1);
             ti.updateActiveTransactionCache();
-                ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp(), accumulators);
-                long low = after.get();
-                long timestamp = _tsa.updateTimestamp();
-                elapsedNanos -= System.nanoTime();
-                long value = acc.getSnapshotValue(timestamp, 0);
-                elapsedNanos += System.nanoTime();
-                calls++;
-                long high = before.get();
-                assertTrue(low <= value);
-                assertTrue(value <= high);
+            ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp(), accumulators);
+            long low = after.get();
+            long timestamp = _tsa.updateTimestamp();
+            elapsedNanos -= System.nanoTime();
+            long value = acc.getSnapshotValue(timestamp, 0);
+            elapsedNanos += System.nanoTime();
+            calls++;
+            long high = before.get();
+            assertTrue(low <= value);
+            assertTrue(value <= high);
         }
         for (final Thread thread : threads) {
             thread.join();
@@ -363,14 +369,14 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     }
 
     /*
-     * bug979332:
-     * If a tree that has had accumulator activity is removed, a checkpoint
-     * occurs, and that same tree is recreated the accumulators would get
-     * initialized with the old, stale values.
-     *
-     * This was because the map in Persistit was not informed of the remove
-     * so the checkpoint proceeded to save data it didn't need to.
+     * bug979332: If a tree that has had accumulator activity is removed, a
+     * checkpoint occurs, and that same tree is recreated the accumulators would
+     * get initialized with the old, stale values.
+     * 
+     * This was because the map in Persistit was not informed of the remove so
+     * the checkpoint proceeded to save data it didn't need to.
      */
+    @Test
     public void testRecreateAccumulatorAfterCheckpoint() throws PersistitException {
         final int PASS_COUNT = 2;
         final int ROW_COUNT = 10;
@@ -383,18 +389,18 @@ public class AccumulatorTest extends PersistitUnitTestCase {
 
         for (int pass = 1; pass <= PASS_COUNT; ++pass) {
             Volume vol = _persistit.getVolume(TEST_VOLUME_NAME);
-            assertNull("Tree should not exist, pass"+pass, vol.getTree(TEST_TREE_NAME, false));
+            assertNull("Tree should not exist, pass" + pass, vol.getTree(TEST_TREE_NAME, false));
 
             Exchange ex = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
             Accumulator accum = ex.getTree().getAccumulator(ACCUM_TYPE, ACCUM_INDEX);
             Transaction txn = _persistit.getTransaction();
 
             txn.begin();
-            assertEquals("Initial accumulator value, pass"+pass, 0, accum.getSnapshotValue(txn));
+            assertEquals("Initial accumulator value, pass" + pass, 0, accum.getSnapshotValue(txn));
             txn.commit();
             txn.end();
 
-            for(int row = 0; row < ROW_COUNT; ++row) {
+            for (int row = 0; row < ROW_COUNT; ++row) {
                 txn.begin();
                 ex.clear().append(row);
                 accum.update(1, txn);
@@ -404,11 +410,11 @@ public class AccumulatorTest extends PersistitUnitTestCase {
 
             txn.begin();
             txn.commit();
-            assertEquals("Accumulator after inserts, pass"+pass, ROW_COUNT, accum.getSnapshotValue(txn));
+            assertEquals("Accumulator after inserts, pass" + pass, ROW_COUNT, accum.getSnapshotValue(txn));
             txn.end();
 
             ex.removeTree();
-            assertNotNull("Checkpoint after removeTree successful, pass"+pass, _persistit.checkpoint());
+            assertNotNull("Checkpoint after removeTree successful, pass" + pass, _persistit.checkpoint());
         }
     }
 }

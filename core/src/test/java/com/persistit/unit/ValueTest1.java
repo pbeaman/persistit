@@ -26,6 +26,9 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
@@ -33,6 +36,8 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.TreeMap;
+
+import org.junit.Test;
 
 import com.persistit.Value;
 import com.persistit.util.Util;
@@ -47,6 +52,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         private static final long serialVersionUID = 1L;
     }
 
+    @Test
     public void test1() {
         System.out.print("test1 ");
         final Value value = new Value(_persistit);
@@ -76,6 +82,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() {
         System.out.print("test2 ");
         final Value value = new Value(_persistit);
@@ -104,6 +111,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() {
         System.out.print("test3 ");
         final Value value = new Value(_persistit);
@@ -144,6 +152,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test4() {
         System.out.print("test4 ");
         final Value value = new Value(_persistit);
@@ -162,6 +171,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test5() {
         System.out.print("test5 ");
         final Value value = new Value(_persistit);
@@ -182,6 +192,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test6() {
         System.out.print("test6 ");
         final Value value = new Value(_persistit);
@@ -201,6 +212,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test7() {
         System.out.print("test7 ");
         final Value value = new Value(_persistit);
@@ -226,6 +238,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test8() {
         System.out.print("test8 ");
         final Value value = new Value(_persistit);
@@ -262,6 +275,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test9() {
         System.out.print("test9 ");
         final Object[] objects = new Object[8];
@@ -285,6 +299,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test10() {
         System.out.print("test10 ");
         final ArrayList list = new ArrayList();

@@ -26,6 +26,8 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -40,6 +42,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 public class StatisticsTaskTest extends PersistitUnitTestCase {
 
+    @Test
     public void testStatFormat() throws Exception {
         final Stat stat = new Stat("foo");
         stat.update(0, 1234);

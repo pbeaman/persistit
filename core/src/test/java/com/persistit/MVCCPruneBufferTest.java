@@ -26,11 +26,17 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.Test;
+
 import com.persistit.exception.PersistitException;
 import com.persistit.util.Util;
 
 public class MVCCPruneBufferTest extends MVCCTestBase {
 
+    @Test
     public void testPrunePrimordialAntiValues() throws PersistitException {
         trx1.begin();
 
@@ -65,6 +71,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         assertTrue("Pruning should liberate space", buffer1.getAvailableSize() > available);
     }
 
+    @Test
     public void testPruneCleanup() throws Exception {
         trx1.begin();
 
@@ -150,6 +157,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         assertEquals(0, antiValueCount3);
     }
 
+    @Test
     public void testComplexPruning() throws Exception {
         _persistit.getCheckpointManager().setCheckpointIntervalNanos(5000);
         final Thread[] threads = new Thread[500];
@@ -192,6 +200,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testDeadlock() throws Exception {
         final JournalManager jman = _persistit.getJournalManager();
         final Thread thread = new Thread(new Runnable() {

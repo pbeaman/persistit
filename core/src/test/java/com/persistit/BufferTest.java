@@ -26,6 +26,11 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertTrue;
+
+import org.junit.Ignore;
+import org.junit.Test;
+
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
 import com.persistit.ValueHelper.RawValueWriter;
@@ -45,6 +50,7 @@ public class BufferTest extends PersistitUnitTestCase {
     int leftShorten;
     int rightShorten;
 
+    @Test
     public void testSimpleSplitAndJoin() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "BufferTest", true);
         final StringBuilder sb = new StringBuilder();
@@ -89,6 +95,7 @@ public class BufferTest extends PersistitUnitTestCase {
         b2.release();
     }
 
+    @Test
     public void testProblematicJoins() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "BufferTest", true);
         final Buffer b1 = ex.getBufferPool().get(ex.getVolume(), 1, true, false);
@@ -117,6 +124,8 @@ public class BufferTest extends PersistitUnitTestCase {
     /*
      * Note: runs for about 3 minutes -- ignored for now
      */
+    @Ignore
+    @Test
     public void manyJoins() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "BufferTest", true);
         final Buffer b1 = ex.getBufferPool().get(ex.getVolume(), 1, true, false);

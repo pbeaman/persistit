@@ -48,7 +48,6 @@ public class TreeSelectorTest {
         assertTrue(ts.isTreeNameSelected("mydata", "anxedni"));
     }
 
-
     @Test
     public void simpleSelector() throws Exception {
         TreeSelector ts = TreeSelector.parseSelector("*data:*index", false, '\\');

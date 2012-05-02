@@ -28,6 +28,7 @@ package com.persistit.unit;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
+import org.junit.Test;
 
 import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
@@ -35,6 +36,7 @@ import com.persistit.logging.Log4JAdapter;
 
 public class Log4JLoggerTest extends PersistitUnitTestCase {
 
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
         System.out.println("- done");

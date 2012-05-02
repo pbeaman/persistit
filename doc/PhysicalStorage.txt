@@ -17,16 +17,17 @@ Following is a directory listing illustrating a working Persistit database:
 ----
 
 This database contains two _volume_ files, +akiban_data+ and +akiban_system+ and four files that constitute part of the _journal_. As explained below, Persistit records are usually stored in a combination of volume and journal files.
- 
+
+[[Journal]]
 == The Journal
 
 The _journal_ is a set of files containing variable length records. The journal is append-only. New records are written only at the end; existing records are never overwritten. The journal consists of a numbered series of files having a configurable maximum size. When a journal file becomes full Persistit closes it and begins a new file with the next counter value. The maximum size of a journal file is determined by a configuration property called its block size.  The default block size value is 1,000,000,000 bytes which works well with today’s standard server hardware.
 
-Every record in the journal has a _journal address_ which is a 64-bit value. The journal address denotes which file contains the record and the record’s offset within that file. Journal addresses start at zero in a new database instance and grow perpetually. footnote:[Even on a system executing 1 million transactions per second the address space is large enough to last for hundreds of years.]
+Every record in the journal has a 64-bit integer _journal address_. The journal address denotes which file contains the record and the record’s offset within that file. Journal addresses start at zero in a new database instance and grow perpetually. footnote:[Even on a system executing 1 million transactions per second the address space is large enough to last for hundreds of years.]
 
 Persistit writes two major types of records to journal files.
 
-- For each committed update transaction, Persistit writes a record containing sufficient information to replay the transaction during recovery. For example, when Persistit stores a key/value pair during a transaction, it writes a record to the journal containing the key and the value.
+- For each committed update transaction, Persistit writes a record containing sufficient information to replay the transaction during recovery. For example, when Persistit stores a key/value pair during a transaction, it writes a record to the journal containing the key and value.
 - Persistit also writes all updated page images to the journal. Some of these are eventually copied to volume files, as described below. This write/copy mechanism is critical to Persistit’s crash-recovery mechanism (see <<Recovery>>).
 
 As updates are applied, Persistit constantly appends new information- both transaction records and modified page images - to the end of the highest-numbered file. To prevent the aggregation of a large number of journal files Persistit also works to copy or remove information from older journal files so that they can be deleted. The background thread responsible for this activity is called the +JOURNAL_COPIER+ thread. The JOURNAL_COPIER copies pages from the journal back into their home volume files, allowing old files to be deleted. Normally a Persistit system at rest will gradually copies all update page images and perform checkpoints so that only one small journal file remains. Applications can accelerate that process by calling the +com.persistit.Persistit.copyBack+ method.
@@ -43,7 +44,7 @@ For more details on the journal, checkpoints and transactions, see <<Recovery>>.
 
 == Pages and Volumes
 
-Persistit ultimately stores its data in one or more Volume files. Persistit manages volume files internally in sections called pages. Every page within one volume has the same size. The page size is configurable and may be 1K, 2K, 4K, 8K, 16K (recommended) bytes long. Once the page size for a volume has been established, it cannot be changed. See <<Configuration>> for details of how to assign the page size for a new volume.
+Persistit ultimately stores its data in one or more Volume files. Persistit manages volume files internally in sections called pages. Every page within one volume has the same size. The page size is configurable and may be 1,024, 2,048, 4,096, 8,192, or 16,384 (recommended) bytes long. Once the page size for a volume has been established, it cannot be changed. See <<Configuration>> for details of how to assign the page size for a new volume.
 
 === Directory Tree
 
@@ -62,6 +63,49 @@ An index page has a structure similar to a data page except that instead of hold
 ****
 TODO - diagram of B-Tree, page layouts, etc
 ****
+[[Recovery]]
+== Recovery
+
+Akiban Persistit is designed, implemented and tested to ensure that whether the application shuts down gracefully or crashes without cleanly closing the database, the database remains structurally intact and internally consistent after restart.
+
+To do this, Persistit performs a process called _recovery_ every time it starts up.  The recovery process is generally very fast after a normal shutdown. However, it can take a considerable amount of time after a crash because many committed transactions may need to be executed.
+
+Recovery performs two major activities:
+
+- Restores all B-Trees to an internally consistent state with a known timestamp.
+- Replays all transaction that committed after that timestamp.
+- Prunes multi-version values belonging to certain aborted transactions (see <<Pruning>>).
+
+To accomplish this, Persistit writes all updates first to the <<Journal>>. Persistit also periodically writes _checkpoint_ records to the journal. During recovery, Persistit finds the last valid checkpoint written before shutdown or crash, restores B-Trees to state consistent with that checkpoint, and then replays transactions that committed after the checkpoint.
+
+Recovery depends on the availability of the volume and journal files as they existed prior to abrupt termination. If these are modified or destroyed outside of Persistit, successful recovery is unlikely.
+
+=== Timestamps and Checkpoints
+
+Persistit maintains a universal counter called the _timestamp_ counter. Every update operation assigns a new, larger timestamp, and every record in the journal includes the timestamp assigned to the operation writing the record. The timestamp counter is unrelated to clock time.  It is merely a counter.
+
+A _checkpoint_ is simply a timestamp for which a valid recovery is possible. Periodically Persistit chooses a timestamp to be a new checkpoint. Over time it then ensures that all pages updated before the checkpoint have been written to the journal, and then writes a checkpoint marker. By default checkpoints occur once every two minutes. Normal shutdown through +com.persistit.Persistit#close+ writes a final checkpoint to the journal regardless of when the last checkpoint cycle occurred. That final checkpoint is what allows recovery after a normal shutdown to be very fast.
+
+Upon start-up Persistit starts by finding the last valid checkpoint timestamp, and then recovers only those page images from the journal that were written prior to it. The result is that all B-Trees are internally consistent and contain all the updates that were issued and committed to disk before the checkpoint timestamp and none the occurred after the checkpoint timestamp.
+
+Then Persistit locates and reapplies all transaction records in the journal for transactions that committed after the last valid checkpoint timestamp. These transactions are reapplied to the database, with the result that:
+
+- The B-Tree index and data structures are intact. All store, fetch, remove and traverse operations will complete successfully. footnote:[Persistit provides the utility class com.persistit.IntegrityCheck to verify the integrity of a Volume.]
+- All committed transactions are present in the recovered database.  (See <<Transactions>> for durability determined by +CommitPolicy+.)
+
+For updates occurring outside of a transaction the resulting state is identical to some consistent, reasonably recent state prior to the termination. (“Reasonably recent” depends on the checkpoint interval, which by default is set to two minutes.)
+
+=== Flush/Force/Checkpoint
+
+An application may require certainty at various points that all pending updates have been fully written to disk. The +com.persistit.Persistit+ class provides three methods to ensure that updates have been written:
+
+[horizontal]
++com.persistit.Persistit#flush+:: causes Persistit to write all pending updates to the journal. Upon successful completion of flush any pages that needed writing prior to the call to flush are guaranteed to have been written to their respective volume files.
++com.persistit.Persistit#force+:: forces the underlying operating system to write pending updates from the operating system’s write-behind cache to the actual disk. (This operation relies on the underlying +java.io.Filechannel#force(boolean)+ method.)
++com.persistit.Persistit#checkpoint+:: causes Persistit to allocate a new checkpoint timestamp and then wait for all updates that happened before that timestamp to be committed to disk.
+
+However, typical applications, especially those using <<Transactions>>, do not need to invoke these methods. Once a Transaction is durable, so are all other transactions that occurred at timestamps earlier than the transaction’s commit timestamp and no other method calls are required.
+
 
 == The Buffer Pool
 
@@ -77,5 +121,5 @@ Generally, allocating more buffers in the buffer pool increases the likelihood t
 
 == Tools
 
-The command-line interface (see <<CLI>>) includes tools you can use to examine pages in volumes and records in the journal. Two of these include the +view+ and +journal+ tasks. The +journal+ command displays journal records selected within an address range, by type, by page address, and using other selection criteria in a readable form.  The +view+ command displays the contents of pages selected by page address or key from a volume.
+The command-line interface (see <<CLI>>) includes tools you can use to examine pages in volumes and records in the journal. Two of these include the +jview+ and +pview+ tasks. The +jview+ command displays journal records selected within an address range, by type, by page address, and using other selection criteria in a readable form.  The +pview+ command displays the contents of pages selected by page address or key from a volume, or by journal address from the journal.
 

@@ -26,6 +26,9 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 import java.util.Properties;
 
@@ -84,9 +87,9 @@ public class SimpleTest1 extends PersistitUnitTestCase {
             exchange.clear().append(sb);
             exchange.remove();
         }
-        
+
     }
-    
+
     private void fetch1a() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "SimpleTest1", false);
         final StringBuilder sb = new StringBuilder();
@@ -411,13 +414,13 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         assertEquals(length, length2);
         assertTrue(sb.toString().equals(sb2.toString()));
     }
-    
+
     @Test
     public void test6() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "SimpleTest1", true);
         exchange.removeAll();
         exchange.getValue().put(RED_FOX);
-        for (int i = 10000; --i >= 0; ) {
+        for (int i = 10000; --i >= 0;) {
             exchange.to(i).remove();
         }
         for (int i = 0; i < 10000; i++) {
@@ -426,10 +429,10 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         for (int i = 0; i < 10000; i++) {
             exchange.to(i).remove();
         }
-        for (int i = 10000; --i >= 0; ) {
+        for (int i = 10000; --i >= 0;) {
             exchange.to(i).store();
         }
-        for (int i = 10000; --i >= 0; ) {
+        for (int i = 10000; --i >= 0;) {
             exchange.to(i).remove();
         }
     }

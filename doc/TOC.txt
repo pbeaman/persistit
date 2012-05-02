@@ -12,7 +12,6 @@ Peter Beaman <pbeaman@akiban.com>
 @Transactions.txt
 @PhysicalStorage.txt
 @Configuration.txt
-@Recovery.txt
 @Management.txt
 @Security.txt
 @Serialization.txt

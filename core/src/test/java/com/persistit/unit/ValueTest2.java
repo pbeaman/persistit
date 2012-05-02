@@ -26,6 +26,9 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -34,6 +37,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
+
+import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Value;
@@ -57,7 +62,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         super.tearDown();
     }
 
-    // Make a pretty big TreeMap to serialize and check
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
 
@@ -87,6 +92,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
      * 
      */
 
+    @Test
     public void test2() throws PersistitException {
         System.out.print("test2 ");
         final Value value = _exchange.getValue();
@@ -235,6 +241,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() throws PersistitException {
         System.out.print("test3 ");
         testNullArray();
@@ -249,6 +256,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void testNullArray() {
         final Value value = _exchange.getValue();
         final Object[] o1 = new Object[10]; // leave null
@@ -273,6 +281,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
      * Tests array methods on byte[] and Byte[]
      * 
      */
+    @Test
     public void testByteArray() {
         final Value value = _exchange.getValue();
 
@@ -311,6 +320,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
      * Tests array methods on short[] and Short[]
      * 
      */
+    @Test
     public void testShortArray() {
         final Value value = _exchange.getValue();
 
@@ -349,6 +359,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
      * Tests array methods on char[] and Character[]
      * 
      */
+    @Test
     public void testCharArray() {
         final Value value = _exchange.getValue();
 
@@ -387,6 +398,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
      * Tests array methods on int[] and Integer[]
      * 
      */
+    @Test
     public void testIntArray() {
         final Value value = _exchange.getValue();
 
@@ -425,6 +437,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
      * Tests array methods on long[] and Long[]
      * 
      */
+    @Test
     public void testLongArray() {
         final Value value = _exchange.getValue();
 
@@ -463,6 +476,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
      * Tests array methods on float[] and Float[]
      * 
      */
+    @Test
     public void testFloatArray() {
         final Value value = _exchange.getValue();
 
@@ -501,6 +515,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
      * Tests array methods on double[] and Double[]
      * 
      */
+    @Test
     public void testDoubleArray() {
         final Value value = _exchange.getValue();
 
@@ -539,6 +554,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
      * Test multi-dimenional arrays
      * 
      */
+    @Test
     public void test4() throws PersistitException {
         System.out.print("test4 ");
         final Value value = _exchange.getValue();
@@ -591,6 +607,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test5() throws PersistitException {
         System.out.print("test5 ");
         final Value value = _exchange.getValue();
@@ -620,6 +637,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         private final static long serialVersionUID = 1L;
     }
 
+    @Test
     public void test6() throws PersistitException {
         System.out.print("test6 ");
         final String a1 = "a1";
@@ -662,6 +680,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test7() throws PersistitException {
         System.out.print("test7 ");
         final String a1 = "a1";
@@ -708,6 +727,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test8() throws PersistitException {
         System.out.print("test8 ");
         final String a1 = "a1";
@@ -754,6 +774,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test9() throws PersistitException {
         System.out.print("test9 ");
         final String[] strings = { "a", "b", "c" };
@@ -773,6 +794,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test10() throws PersistitException {
         System.out.print("test10 ");
         final Person p1 = new Person("Jones", "Mary", new Date(), 65000);

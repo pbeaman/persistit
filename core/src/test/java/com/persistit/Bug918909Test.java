@@ -24,7 +24,10 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Properties;
 
@@ -77,7 +80,7 @@ public class Bug918909Test extends PersistitUnitTestCase {
     public void testMultipleSmallAbortedEmptyTransactions() throws Exception {
         doTest(1, SMALL_RECORD_COUNT, TRANSACTION_COUNT);
     }
-    
+
     @Test
     public void testSmallAbortedInsertTransaction() throws Exception {
         doTest(SMALL_RECORD_COUNT / 2, SMALL_RECORD_COUNT, 1);

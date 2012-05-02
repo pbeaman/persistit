@@ -567,7 +567,7 @@ public class Util {
         return object == null ? null : object.toString();
     }
 
-    public static long rangeCheck(final int value, final int min, final int max) {
+    public static int rangeCheck(final int value, final int min, final int max) {
         if (value >= min && value <= max) {
             return value;
         }
@@ -600,6 +600,24 @@ public class Util {
                     value));
         }
     }
+    
+    public static float rangeCheck(final float value, final float min, final float max) {
+        if (value >= min && value <= max) {
+            return value;
+        }
+        if (min == Float.MIN_VALUE) {
+            throw new IllegalArgumentException(String.format("Value must be less than or equals to %,f: %,f", max,
+                    value));
+        }
+        if (max == Float.MAX_VALUE) {
+            throw new IllegalArgumentException(String.format("Value must be greater than or equal to %,f: %,f", min,
+                    value));
+        } else {
+            throw new IllegalArgumentException(String.format("Value must be between %f and %f, inclusive: ", min, max,
+                    value));
+        }
+    }
+    
     
     public static Pattern pattern(final String s, final boolean caseInsensitive) {
         final StringBuilder sb = new StringBuilder();

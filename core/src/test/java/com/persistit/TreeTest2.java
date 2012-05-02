@@ -26,6 +26,9 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 import java.util.Properties;
 
@@ -101,7 +104,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
             }
         }
     }
-    
+
     public static void pause(final String prompt) {
         System.out.print(prompt + "  Press ENTER to continue");
         System.out.flush();

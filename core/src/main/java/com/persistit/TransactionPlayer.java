@@ -46,7 +46,7 @@ import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 
-public class TransactionPlayer {
+class TransactionPlayer {
 
     interface TransactionPlayerListener {
 

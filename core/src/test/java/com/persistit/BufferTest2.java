@@ -26,10 +26,19 @@
 
 package com.persistit;
 
-import static com.persistit.Buffer.*;
+import static com.persistit.Buffer.EXACT_MASK;
+import static com.persistit.Buffer.FIXUP_MASK;
+import static com.persistit.Buffer.KEYBLOCK_LENGTH;
+import static com.persistit.Buffer.P_MASK;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import org.junit.Test;
+
 import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RebalanceException;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
@@ -66,6 +75,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         super.tearDown();
     }
 
+    @Test
     public void testPreviousKey() throws PersistitException {
         setUpPrettyFullBufferWithChangingEbc(RED_FOX.length());
         ex.getKey().clear().append(Key.AFTER);
@@ -78,7 +88,8 @@ public class BufferTest2 extends PersistitUnitTestCase {
             }
         }
     }
-    
+
+    @Test
     public void testFindKey() throws PersistitException {
         setUpPrettyFullBufferWithChangingEbc(RED_FOX.length());
         setUpDeepKey(10);
@@ -89,6 +100,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         assertFalse("Must not be an exact match", (foundAt & EXACT_MASK) != 0);
     }
 
+    @Test
     public void testJoinRightBias1() throws PersistitException {
         setUpPrettyFullBuffers(Buffer.PAGE_TYPE_INDEX_MIN, 0, false);
 
@@ -106,6 +118,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         assertTrue("Verify failed", b2.verify(null, null) == null);
     }
 
+    @Test
     public void testJoinRightBias2() throws PersistitException {
         setUpPrettyFullBuffers(Buffer.PAGE_TYPE_INDEX_MIN, 0, false);
 
@@ -123,6 +136,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         assertTrue("Verify failed", b2.verify(null, null) == null);
     }
 
+    @Test
     public void testJoinLeftBias2() throws PersistitException {
         setUpPrettyFullBuffers(Buffer.PAGE_TYPE_INDEX_MIN, 0, false);
 
@@ -140,6 +154,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         assertTrue("Verify failed", b2.verify(null, null) == null);
     }
 
+    @Test
     public void testJoinEvenBias1() throws PersistitException {
         setUpPrettyFullBuffers(Buffer.PAGE_TYPE_INDEX_MIN, 0, false);
 
@@ -157,6 +172,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         assertTrue("Verify failed", b2.verify(null, null) == null);
     }
 
+    @Test
     public void testJoinEvenBias2() throws PersistitException {
         setUpPrettyFullBuffers(Buffer.PAGE_TYPE_DATA, 30, false);
 
@@ -174,6 +190,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         assertTrue("Verify failed", b2.verify(null, null) == null);
     }
 
+    @Test
     public void testRebalanceException() throws Exception {
 
         setUpPrettyFullBuffers(Buffer.PAGE_TYPE_DATA, RED_FOX.length(), true);
@@ -206,6 +223,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         assertEquals("RebalanceException modified the page", avail2, b2.getAvailableSize());
     }
 
+    @Test
     public void testSplitAtEqualsInsertAt() throws Exception {
         b1.init(Buffer.PAGE_TYPE_DATA);
         b2.init(Buffer.PAGE_TYPE_DATA);
@@ -302,6 +320,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         assertTrue("Verify failed", b2.verify(null, null) == null);
     }
 
+    @Test
     public void testRemoveKeys() throws Exception {
         setUpPrettyFullBufferWithChangingEbc(6);
         setUpDeepKey(104);

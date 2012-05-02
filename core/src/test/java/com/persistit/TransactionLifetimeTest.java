@@ -26,18 +26,24 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
+import java.nio.ByteBuffer;
+
+import org.junit.Test;
+
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TreeNotFoundException;
 import com.persistit.unit.PersistitUnitTestCase;
 
-import java.nio.ByteBuffer;
-
 /**
- * Attempt to cover all cases from the pseudo graph below and ensure that
- * the TransactionIndex, JournalManger#_liveTransactionMap, and any k/v
- * stored are in the proper state after each step.
+ * Attempt to cover all cases from the pseudo graph below and ensure that the
+ * TransactionIndex, JournalManger#_liveTransactionMap, and any k/v stored are
+ * in the proper state after each step.
+ * 
  * <pre>
- *
+ * 
  *                     +--> abort -> (done)
  *                     |
  *          +-----+    +--> commit -> (done)
@@ -45,16 +51,16 @@ import java.nio.ByteBuffer;
  *          +-----+    +-> restart -> (done)
  *                     |
  *                     +-> checkpoint -> (out)
- *
- *
+ * 
+ * 
  *        (seq)        (seq)            (seq)
  *          |            |                |
  *  begin --+--> write --+--> writeMany --+--> write --> (seq)
- *
+ * 
  * </pre>
- *
- * Note that tests including a RESTART assume that any aborted transaction
- * was fully pruned and removed from the running state.
+ * 
+ * Note that tests including a RESTART assume that any aborted transaction was
+ * fully pruned and removed from the running state.
  */
 public class TransactionLifetimeTest extends PersistitUnitTestCase {
     private static final String VOLUME_NAME = "persistit";
@@ -69,159 +75,190 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
     }
 
+    @Test
     public void testBeginAbort() throws PersistitException {
         doTest(false, false, ABORT);
     }
 
+    @Test
     public void testBeginCommit() throws PersistitException, InterruptedException {
         doTest(false, false, COMMIT);
     }
 
+    @Test
     public void testBeginCheckpointAbort() throws PersistitException {
         doTest(false, false, CHECKPOINT, ABORT);
     }
 
+    @Test
     public void testBeginCheckpointCommit() throws PersistitException {
         doTest(false, false, CHECKPOINT, COMMIT);
     }
 
+    @Test
     public void testBeginWriteAbort() throws PersistitException {
         doTest(true, true, WRITE, ABORT);
     }
 
+    @Test
     public void testBeginWriteCommit() throws PersistitException {
         doTest(false, true, WRITE, COMMIT);
     }
 
+    @Test
     public void testBeginCheckpointWriteAbort() throws PersistitException {
         doTest(true, true, CHECKPOINT, WRITE, ABORT);
     }
 
+    @Test
     public void testBeginCheckpointWriteCommit() throws PersistitException {
         doTest(false, true, CHECKPOINT, WRITE, COMMIT);
     }
 
+    @Test
     public void testBeginWriteCheckpointAbort() throws PersistitException {
         doTest(true, true, WRITE, CHECKPOINT, ABORT);
     }
 
+    @Test
     public void testBeginWriteCheckpointCommit() throws PersistitException {
         doTest(false, true, WRITE, CHECKPOINT, COMMIT);
     }
 
+    @Test
     public void testBeginWriteCheckpointWriteAbort() throws PersistitException {
         doTest(true, true, WRITE, CHECKPOINT, WRITE, ABORT);
     }
 
+    @Test
     public void testBeginWriteCheckpointWriteCommit() throws PersistitException {
         doTest(false, true, WRITE, CHECKPOINT, WRITE, COMMIT);
     }
 
+    @Test
     public void testBeginWriteManyAbort() throws PersistitException {
         doTest(true, true, WRITE_MANY, ABORT);
     }
 
+    @Test
     public void testBeginWriteManyCommit() throws PersistitException {
         doTest(false, true, WRITE_MANY, COMMIT);
     }
 
+    @Test
     public void testBeginWriteManyCheckpointAbort() throws PersistitException {
         doTest(true, true, WRITE_MANY, CHECKPOINT, ABORT);
     }
 
+    @Test
     public void testBeginWriteManyCheckpointCommit() throws PersistitException {
         doTest(false, true, WRITE_MANY, CHECKPOINT, COMMIT);
     }
 
+    @Test
     public void testBeginWriteManyCheckpointWriteAbort() throws PersistitException {
         doTest(true, true, WRITE_MANY, CHECKPOINT, WRITE, ABORT);
     }
 
+    @Test
     public void testBeginWriteManyCheckpointWriteCommit() throws PersistitException {
         doTest(false, true, WRITE_MANY, CHECKPOINT, WRITE, COMMIT);
     }
 
+    @Test
     public void testBeginWriteManyCheckpointWriteManyAbort() throws PersistitException {
         doTest(true, true, WRITE_MANY, CHECKPOINT, WRITE_MANY, ABORT);
     }
 
+    @Test
     public void testBeginWriteManyCheckpointWriteManyCommit() throws PersistitException {
         doTest(false, true, WRITE_MANY, CHECKPOINT, WRITE_MANY, COMMIT);
     }
 
+    @Test
     public void testBeginRestart() throws PersistitException {
         doTest(false, false, RESTART);
     }
 
+    @Test
     public void testBeginAbortRestart() throws PersistitException {
         doTest(false, false, ABORT, RESTART);
     }
 
+    @Test
     public void testBeginCommitRestart() throws PersistitException {
         doTest(false, false, COMMIT, RESTART);
     }
 
+    @Test
     public void testBeginWriteAbortRestart() throws PersistitException {
         doTest(false, false, WRITE, ABORT, RESTART);
     }
 
+    @Test
     public void testBeginWriteCommitRestart() throws PersistitException {
         doTest(false, false, WRITE, COMMIT, RESTART);
     }
 
+    @Test
     public void testBeginWriteManyAbortRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, ABORT, RESTART);
     }
 
+    @Test
     public void testBeginWriteManyCommitRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, COMMIT, RESTART);
     }
 
+    @Test
     public void testBeginWriteCheckpointAbortRestart() throws PersistitException {
         doTest(false, false, WRITE, CHECKPOINT, ABORT, RESTART);
     }
 
+    @Test
     public void testBeginWriteCheckpointCommitRestart() throws PersistitException {
         doTest(false, false, WRITE, CHECKPOINT, COMMIT, RESTART);
     }
 
+    @Test
     public void testBeginWriteManyAbortCheckpointRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, ABORT, CHECKPOINT, RESTART);
     }
 
+    @Test
     public void testBeginWriteManyCommitCheckpointRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, COMMIT, CHECKPOINT, RESTART);
     }
 
+    @Test
     public void testBeginWriteManyCheckpointAbortRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, CHECKPOINT, ABORT, RESTART);
     }
 
+    @Test
     public void testBeginWriteManyCheckpointCommitRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, CHECKPOINT, COMMIT, RESTART);
     }
 
-    
     private static class Node {
         public Node(String description) {
             _description = description;
         }
-        
+
         @Override
         public String toString() {
             return _description;
         }
-        
+
         private final String _description;
     }
-    
-    private static final Node ABORT        = new Node("ABORT");
-    private static final Node COMMIT       = new Node("COMMIT");
-    private static final Node WRITE        = new Node("WRITE");
-    private static final Node WRITE_MANY   = new Node("WRITE_MANY");
-    private static final Node CHECKPOINT   = new Node("CHECKPOINT");
-    private static final Node RESTART      = new Node("RESTART");
-    
+
+    private static final Node ABORT = new Node("ABORT");
+    private static final Node COMMIT = new Node("COMMIT");
+    private static final Node WRITE = new Node("WRITE");
+    private static final Node WRITE_MANY = new Node("WRITE_MANY");
+    private static final Node CHECKPOINT = new Node("CHECKPOINT");
+    private static final Node RESTART = new Node("RESTART");
 
     private static int storeMoreThanTxnBuffer(Exchange ex, int writeCount) throws PersistitException {
         ByteBuffer txnBuffer = ex.getTransaction().getTransactionBuffer();
@@ -237,7 +274,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         }
         return writeCount;
     }
-    
+
     private void checkKeys(boolean shouldExist, int writeCount) throws PersistitException {
         Exchange ex = null;
         try {
@@ -265,14 +302,12 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
             _persistit.getTransactionIndex().cleanup();
             final TransactionStatus status = _persistit.getTransactionIndex().getStatus(ts);
             final boolean actualInTxnIndex = status != null;
-            assertEquals("TransactionStatus exists after " + desc + "  ",
-                         statusExists.booleanValue(), actualInTxnIndex);
+            assertEquals("TransactionStatus exists after " + desc + "  ", statusExists.booleanValue(), actualInTxnIndex);
         }
 
         if (liveMapExists != null) {
             final boolean actualInLiveMap = _persistit.getJournalManager().unitTestTxnExistsInLiveMap(ts);
-            assertEquals("Transaction in live map after " + desc + "  ",
-                         liveMapExists.booleanValue(), actualInLiveMap);
+            assertEquals("Transaction in live map after " + desc + "  ", liveMapExists.booleanValue(), actualInLiveMap);
         }
     }
 
@@ -287,13 +322,13 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         boolean currentInTxnIndex = true;
         boolean currentInLiveMap = false;
         String stateDescription = "BEGIN";
-        
+
         txn.begin();
         final long ts = txn.getStartTimestamp();
         try {
             for (Node curNode : nodes) {
                 stateDescription += "," + curNode;
-                
+
                 if (curNode == ABORT) {
                     txn.rollback();
                     aborted = true;
@@ -301,39 +336,33 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
                     currentInLiveMap = (writeCount > 0);
                     fullWriteCount += writeCount;
                     writeCount = 0;
-                }
-                else if (curNode == COMMIT) {
+                } else if (curNode == COMMIT) {
                     txn.commit();
                     committed = true;
                     currentInTxnIndex = false;
                     currentInLiveMap = (writeCount > 0);
                     fullWriteCount += writeCount;
                     writeCount = 0;
-                }
-                else if (curNode == WRITE) {
+                } else if (curNode == WRITE) {
                     ex.clear().append(KEY_PREFIX + writeCount);
                     ex.getValue().clear().put(VALUE_PREFIX + writeCount);
                     ex.store();
                     ++writeCount;
-                }
-                else if (curNode == WRITE_MANY) {
+                } else if (curNode == WRITE_MANY) {
                     writeCount = storeMoreThanTxnBuffer(ex, writeCount);
                     currentInLiveMap = true;
-                }
-                else if (curNode == CHECKPOINT) {
+                } else if (curNode == CHECKPOINT) {
                     CheckpointManager.Checkpoint cp = _persistit.checkpoint();
                     assertEquals("Checkpoint successfully written", true, cp != null);
                     currentInLiveMap = (!committed && writeCount > 0) || (aborted && writeCount == 0);
-                }
-                else if (curNode == RESTART) {
+                } else if (curNode == RESTART) {
                     txn = null;
                     ex = null;
                     currentInTxnIndex = false;
                     currentInLiveMap = false;
                     safeCrashAndRestoreProperties();
                     _persistit.getJournalManager().setRollbackPruningEnabled(false);
-                }
-                else {
+                } else {
                     fail("Unknown test node: " + curNode);
                 }
 

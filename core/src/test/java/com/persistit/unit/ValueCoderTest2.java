@@ -26,8 +26,13 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.lang.reflect.Array;
 import java.util.TreeMap;
+
+import org.junit.Test;
 
 import com.persistit.DefaultObjectCoder;
 import com.persistit.Exchange;
@@ -102,6 +107,7 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
         }
     }
 
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
         final Vehicle car1 = new Vehicle("c1", "Colt", 58, 4, 4, false);
@@ -149,6 +155,7 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() throws PersistitException {
         System.out.print("test2 ");
 
@@ -216,6 +223,7 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() throws PersistitException {
         System.out.print("test3 ");
 
