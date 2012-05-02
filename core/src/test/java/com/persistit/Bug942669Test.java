@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
+package com.persistit.bug;
 
 import static com.persistit.util.SequencerConstants.RECOVERY_PRUNING_SCHEDULE;
 import static com.persistit.util.ThreadSequencer.addSchedules;
@@ -38,6 +38,7 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Persistit;
+import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -143,7 +144,7 @@ public class Bug942669Test extends PersistitUnitTestCase {
         }
 
         _persistit.checkpoint();
-        _persistit.getJournalManager().rollover();
+        TestShim.rollover(_persistit.getJournalManager());
 
         txn.rollback();
         txn.end();

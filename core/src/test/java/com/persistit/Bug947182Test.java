@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
+package com.persistit.bug;
 
 import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_A;
 import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_B;
@@ -50,6 +50,7 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Persistit;
+import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -200,7 +201,7 @@ public class Bug947182Test extends PersistitUnitTestCase {
     }
 
     private static void storeLongMVV(Exchange ex) throws PersistitException {
-        final int size = ex.maxValueSize(ex.getKey().getEncodedSize()) - 1;
+        final int size = TestShim.maxStorableValueSize(ex, ex.getKey().getEncodedSize()) - 1;
         StringBuilder builder = new StringBuilder(size);
         while (builder.length() < size) {
             builder.append("0123456789");

@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
+package com.persistit.bug;
 
 import static com.persistit.util.SequencerConstants.COMMIT_FLUSH_SCHEDULE;
 import static com.persistit.util.ThreadSequencer.addSchedules;

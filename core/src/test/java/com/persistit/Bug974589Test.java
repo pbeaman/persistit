@@ -24,14 +24,14 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
-
-import static org.junit.Assert.assertEquals;
+package com.persistit.bug;
 
 import java.util.Properties;
 
-import org.junit.Test;
-
+import com.persistit.Accumulator;
+import com.persistit.Exchange;
+import com.persistit.Persistit;
+import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
@@ -51,7 +51,6 @@ public class Bug974589Test extends PersistitUnitTestCase {
         return persistit.getExchange(UnitTestProperties.VOLUME_NAME, TREE_NAME, true);
     }
 
-    @Test
     public void testBug980292() throws Exception {
         for (int loop = 1; loop < 5; loop++) {
             _persistit.checkpoint();

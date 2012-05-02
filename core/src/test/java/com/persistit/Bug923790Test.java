@@ -24,13 +24,14 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
+package com.persistit.bug;
 
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
 import com.persistit.Exchange;
+import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.util.Util;
@@ -105,9 +106,9 @@ public class Bug923790Test extends PersistitUnitTestCase {
         ex.to(-1).remove();
 
         Util.sleep(2000);
-        _persistit.getTimestampAllocator().allocateCheckpointTimestamp();
+        TestShim.allocateCheckpointTimestamp(_persistit);
         ex.to(1);
-        ex.prune();
+        TestShim.prune(ex);
         txn.begin();
         for (int i = 0; i < 200; i++) {
             ex.to(i).fetch();

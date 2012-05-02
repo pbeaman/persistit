@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
+package com.persistit.bug;
 
 import static org.junit.Assert.assertEquals;
 
@@ -35,6 +35,7 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Persistit;
 import com.persistit.RecoveryManager.DefaultRecoveryListener;
+import com.persistit.TestShim;
 import com.persistit.exception.MissingThreadException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TestException;
@@ -93,7 +94,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
         for (int i = 100000; i < 200000; i++) {
             ex.to(i).store();
         }
-        _persistit.getJournalManager().rollover();
+        TestShim.rollover(_persistit.getJournalManager());
         final Properties properties = _persistit.getProperties();
         _persistit.close();
 

@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit;
+package com.persistit.bug;
 
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
@@ -33,6 +33,7 @@ import org.junit.Test;
 
 import com.persistit.Buffer;
 import com.persistit.Exchange;
+import com.persistit.TestShim;
 import com.persistit.unit.PersistitUnitTestCase;
 
 /**
@@ -69,7 +70,7 @@ public class Bug790709Test extends PersistitUnitTestCase {
     @Test
     public void testRebalancePages1() throws Exception {
         Exchange ex = _persistit.getExchange("persistit", "Bug790709Test", true);
-        final int maxKeys = ex.getVolume().getPool().getMaxKeys();
+        final int maxKeys = TestShim.maxKeys(ex.getVolume());
         //
         // Create maxKeys keys in each of two pages. (There are
         // two because when we add the maxKey+1th key, the page
@@ -115,7 +116,7 @@ public class Bug790709Test extends PersistitUnitTestCase {
     @Test
     public void testRebalancePages2() throws Exception {
         Exchange ex = _persistit.getExchange("persistit", "Bug790709Test", true);
-        final int maxKeys = ex.getVolume().getPool().getMaxKeys();
+        final int maxKeys = TestShim.maxKeys(ex.getVolume());
         //
         // Create maxKeys keys in each of two pages. (There are
         // two because when we add the maxKey+1th key, the page
