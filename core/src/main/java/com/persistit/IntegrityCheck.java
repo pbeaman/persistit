@@ -301,9 +301,7 @@ public class IntegrityCheck extends Task {
             _currentTree = null;
             int faults = _faults.size();
             if (_csv) {
-                postMessage(String.format("\"%s\",\"%s\",", "*", "*"), LOG_NORMAL);
-                appendMessage(String.format("%d,", faults), LOG_NORMAL);
-                appendMessage(_counters.toCSV(), LOG_NORMAL);
+                postMessage(String.format("\"%s\",\"%s\",%d,%s", "*", "*", faults, _counters.toCSV()), LOG_NORMAL);
 
             } else {
                 postMessage("Total " + toString(), LOG_NORMAL);
@@ -787,9 +785,7 @@ public class IntegrityCheck extends Task {
         counters.difference(_counters);
         faults = _faults.size() - faults;
         if (_csv) {
-            postMessage(String.format("\"%s\",\"%s\",", resourceName(volume), "*"), LOG_NORMAL);
-            appendMessage(String.format("%d,", faults), LOG_NORMAL);
-            appendMessage(counters.toCSV(), LOG_NORMAL);
+            postMessage(String.format("\"%s\",\"%s\",%d,%s", resourceName(volume), "*", faults, counters.toCSV()), LOG_NORMAL);
         } else {
             postMessage("Volume " + resourceName(volume) + String.format(" Faults:%,3d ", faults) + counters.toString(), LOG_VERBOSE);
         }
@@ -807,10 +803,11 @@ public class IntegrityCheck extends Task {
      * @throws PersistitException
      */
     public boolean checkTree(Tree tree) throws PersistitException {
+        final String messageStart;
         if (_csv) {
-            postMessage(String.format("\"%s\",\"%s\",", tree.getVolume().getName(), tree.getName()), LOG_NORMAL);
+            messageStart = String.format("\"%s\",\"%s\"", tree.getVolume().getName(), tree.getName());
         } else {
-            postMessage("  Tree " + resourceName(tree) + " - ", LOG_VERBOSE);
+            messageStart = "  Tree " + resourceName(tree);
         }
         Counters treeCounters = new Counters(_counters);
         int faults = _faults.size();
@@ -845,7 +842,7 @@ public class IntegrityCheck extends Task {
                             offered++;
                         }
                     }
-                    appendMessage(" - enqueued " + offered + " for repair", LOG_NORMAL);
+                    postMessage("    - enqueued " + offered + " for repair", LOG_NORMAL);
                 }
             }
         } finally {
@@ -856,10 +853,9 @@ public class IntegrityCheck extends Task {
         treeCounters.difference(_counters);
 
         if (_csv) {
-            appendMessage(String.format("%d,", faults), LOG_NORMAL);
-            appendMessage(treeCounters.toCSV(), LOG_NORMAL);
+            postMessage(String.format("%s,%d,%s", messageStart, faults, treeCounters.toCSV()), LOG_NORMAL);
         } else {
-            appendMessage(String.format(" Faults:%,3d ", faults) + treeCounters.toString(), LOG_VERBOSE);
+            postMessage(String.format("%s - Faults:%,3d ", messageStart, faults) + treeCounters.toString(), LOG_VERBOSE);
         }
         return faults == 0;
     }
