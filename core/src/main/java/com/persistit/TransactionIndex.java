@@ -250,6 +250,9 @@ class TransactionIndex implements TransactionIndexMXBean {
                 if (bucket.getCurrent() != null || bucket.getLongRunning() != null) {
                     bucket.lock();
                     try {
+                        if (bucket.hasFloorMoved()) {
+                            bucket.reduce();
+                        }
                         for (TransactionStatus status = bucket.getCurrent(); status != null; status = status.getNext()) {
                             if (status.getTs() <= timestampAtStart && !status.isNotified()) {
                                 add(status.getTs());
