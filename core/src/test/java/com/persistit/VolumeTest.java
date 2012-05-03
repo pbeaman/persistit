@@ -26,6 +26,12 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.File;
 import java.io.RandomAccessFile;
 
@@ -76,9 +82,7 @@ public class VolumeTest extends PersistitUnitTestCase {
 
     @Test
     public void testCreateOpenVolume() throws Exception {
-        VolumeSpecification vs = validVolumeSpecification(_persistit.substituteProperties(
-                "${datapath}/vtest, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create", _persistit
-                        .getProperties()));
+        VolumeSpecification vs = validVolumeSpecification("${datapath}/vtest, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
         Volume volume1 = new Volume(vs);
         volume1.open(_persistit);
         long id = volume1.getId();
@@ -121,9 +125,7 @@ public class VolumeTest extends PersistitUnitTestCase {
 
     @Test
     public void testDeleteVolume() throws Exception {
-        VolumeSpecification vs = validVolumeSpecification(_persistit.substituteProperties(
-                "${datapath}/vtest, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create", _persistit
-                        .getProperties()));
+        VolumeSpecification vs = validVolumeSpecification("${datapath}/vtest, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
         Volume volume1 = new Volume(vs);
         volume1.open(_persistit);
         File file = new File(volume1.getPath());
@@ -135,10 +137,7 @@ public class VolumeTest extends PersistitUnitTestCase {
 
     @Test
     public void testDottedVolumeName() throws Exception {
-        VolumeSpecification vs = validVolumeSpecification(_persistit
-                .substituteProperties(
-                        "${datapath}/.thisStuffWontBeIgnored, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create",
-                        _persistit.getProperties()));
+        VolumeSpecification vs = validVolumeSpecification("${datapath}/.thisStuffWontBeIgnored, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
         Volume volume1 = _persistit.loadVolume(vs);
         Exchange ex = _persistit.getExchange(".thisStuffWontBeIgnored", "emptyTreeTest", true);
         assertEquals(ex.getVolume(), volume1);
@@ -178,7 +177,7 @@ public class VolumeTest extends PersistitUnitTestCase {
 
     private VolumeSpecification validVolumeSpecification(final String specification) throws Exception {
         try {
-            return new VolumeSpecification(specification);
+            return _persistit.getConfiguration().volumeSpecification(specification);
         } catch (InvalidVolumeSpecificationException e) {
             fail(specification + " should be valid: " + e);
             return null;

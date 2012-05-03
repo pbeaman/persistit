@@ -233,7 +233,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     private TransactionPlayer _player = new TransactionPlayer(new RecoveryTransactionPlayerSupport());
 
-    public static class DefaultRecoveryListener implements TransactionPlayerListener {
+    static class DefaultRecoveryListener implements TransactionPlayerListener {
         @Override
         public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
             exchange.store();
@@ -278,7 +278,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         public void endRecovery(long address, long timestamp) throws PersistitException {
             // Default: do nothing
         }
-        
+
         @Override
         public boolean requiresLongRecordConversion() {
             return true;
@@ -286,7 +286,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     }
 
-    public class DefaultRollbackListener implements TransactionPlayerListener {
+    class DefaultRollbackListener implements TransactionPlayerListener {
         @Override
         public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
             exchange.prune();
@@ -338,7 +338,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         public void endRecovery(long address, long timestamp) throws PersistitException {
             // Default: do nothing
         }
-        
+
         @Override
         public boolean requiresLongRecordConversion() {
             return false;
@@ -457,7 +457,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     }
 
     public void init(final String path) throws PersistitException {
-        _journalFilePath = new File(path).getAbsolutePath();
+        _journalFilePath = JournalManager.journalPath(path).getAbsolutePath();
         _readBuffer = ByteBuffer.allocate(_readBufferSize);
     }
 
@@ -829,11 +829,11 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     private long addressUp(final long address) {
         return ((address / _blockSize) + 1) * _blockSize;
     }
-    
+
     /*
-     * Bug 942669 - a transaction found during recovery that has a start address less than the
-     * base address recorded during the keystone checkpoint has already been pruned.  Simply ignore
-     * it during recovery.
+     * Bug 942669 - a transaction found during recovery that has a start address
+     * less than the base address recorded during the keystone checkpoint has
+     * already been pruned. Simply ignore it during recovery.
      */
     private boolean isZombieTransaction(final long address) {
         return address < _baseAddress;
@@ -1176,7 +1176,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             final long journalAddress = TM.getEntryJournalAddress(_readBuffer, index);
             final long lastRecordAddress = TM.getLastRecordAddress(_readBuffer, index);
 
-            if (!isZombieTransaction(journalAddress )) {
+            if (!isZombieTransaction(journalAddress)) {
                 TransactionMapItem ts = new TransactionMapItem(startTimestamp, journalAddress);
                 final Long key = Long.valueOf(startTimestamp);
                 ts.setCommitTimestamp(commitTimestamp);
@@ -1191,7 +1191,6 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             index++;
         }
     }
-
 
     void scanJournalEnd(final long address, final long timestamp, final int recordSize) throws PersistitIOException {
         if (recordSize != JE.OVERHEAD) {

@@ -26,6 +26,10 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.PrintWriter;
 import java.util.Properties;
 
@@ -188,7 +192,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         _persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
         _persistit.initialize(properties);
-        
+
         for (int i = 0; i < 10; i++) {
             final Exchange ex = _persistit.getExchange(_volumeName, "mvv" + i, true).append(Key.BEFORE);
             int count = 0;
@@ -202,8 +206,9 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
             }
         }
         assertTrue(_persistit.getTransactionIndex().getAbortedCount() > 0);
-        
-        IntegrityCheck icheck = (IntegrityCheck)IntegrityCheck.icheck("*", false, false, false, false, true, true, false);
+
+        IntegrityCheck icheck = (IntegrityCheck) IntegrityCheck.icheck("*", false, false, false, false, true, true,
+                false);
         icheck.setPersistit(_persistit);
         icheck.setMessageWriter(new PrintWriter(System.out));
 

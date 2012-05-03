@@ -217,8 +217,7 @@ public class DefaultValueCoder implements ValueRenderer {
                     final Field[] fields = (Field[]) list.toArray(new Field[list.size()]);
 
                     _valueBuilder = new Builder("value", fields, clientClass);
-                    lookupDefaultConstructor(persistit.getBooleanProperty(Persistit.CONSTRUCTOR_OVERRIDE_PROPERTY,
-                            false));
+                    lookupDefaultConstructor(persistit.getConfiguration().isConstructorOverride()                            );
                     lookupSerializationMethods();
                     return null;
                 }
@@ -262,8 +261,7 @@ public class DefaultValueCoder implements ValueRenderer {
                 @Override
                 public Object run() {
                     _valueBuilder = new Builder("value", fields, clientClass);
-                    lookupDefaultConstructor(persistit.getBooleanProperty(Persistit.CONSTRUCTOR_OVERRIDE_PROPERTY,
-                            false));
+                    lookupDefaultConstructor(persistit.getConfiguration().isConstructorOverride());
                     lookupSerializationMethods();
                     return null;
                 }

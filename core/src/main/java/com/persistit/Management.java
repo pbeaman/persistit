@@ -2128,6 +2128,9 @@ public interface Management extends Remote, ManagementMXBean {
         }
     }
 
+    /**
+     * Structure that describes the current state of the journal manager.
+     */
     public static class JournalInfo extends AcquisitionTimeBase {
         private static final long serialVersionUID = -6628208913672254686L;
 

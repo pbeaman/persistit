@@ -26,6 +26,8 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+
 import java.lang.reflect.Array;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -33,6 +35,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
+import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Value;
@@ -60,6 +64,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         super.tearDown();
     }
 
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
         final Value value = _exchange.getValue();
@@ -77,6 +82,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() {
         System.out.print("test2 ");
         final Value value = _exchange.getValue();
@@ -92,6 +98,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() {
         System.out.print("test3 ");
         final Value value = _exchange.getValue();
@@ -110,6 +117,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test4() {
         System.out.print("test4 ");
         final Value value = _exchange.getValue();

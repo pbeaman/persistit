@@ -26,6 +26,10 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -33,6 +37,8 @@ import java.nio.channels.FileChannel;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import org.junit.Test;
 
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.CorruptJournalException;
@@ -60,9 +66,10 @@ public class IOFailureTest extends PersistitUnitTestCase {
 
     private ErrorInjectingFileChannel errorInjectingChannel(final FileChannel channel) {
         final ErrorInjectingFileChannel eimfc = new ErrorInjectingFileChannel();
-        ((MediatedFileChannel)channel).setErrorInjectingChannelForTests(eimfc);
+        ((MediatedFileChannel) channel).setErrorInjectingChannelForTests(eimfc);
         return eimfc;
     }
+
     /**
      * Simulate IOException on attempt to append to the journal. This simulates
      * bug #878346. Sets an injected IOException on journal file .000000000001
@@ -72,9 +79,11 @@ public class IOFailureTest extends PersistitUnitTestCase {
      * 
      * @throws Exception
      */
+    @Test
     public void testJournalUnwritable() throws Exception {
         final Transaction txn = _persistit.getTransaction();
-        final ErrorInjectingFileChannel eifc = errorInjectingChannel( _persistit.getJournalManager().getFileChannel(BLOCKSIZE));
+        final ErrorInjectingFileChannel eifc = errorInjectingChannel(_persistit.getJournalManager().getFileChannel(
+                BLOCKSIZE));
         /*
          * Will cause any attempt to write into the second journal file to fail.
          */
@@ -130,6 +139,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
      * 
      * @throws Exception
      */
+    @Test
     public void testJournalUnreadable() throws Exception {
         final String reason = "Read Failure";
         store1(0);
@@ -194,6 +204,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
      * 
      * @throws Exception
      */
+    @Test
     public void testVolumeUnreadable() throws Exception {
         final String reason = "Read Failure";
         store1(0);
@@ -250,6 +261,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
 
     }
 
+    @Test
     public void testVolumeUnwritable() throws Exception {
         final String reason = "Write Failure";
         final Volume volume = _persistit.getVolume(_volumeName);
@@ -276,7 +288,8 @@ public class IOFailureTest extends PersistitUnitTestCase {
         copyBackEventuallySucceeds(start, reason);
         volume.getPool().invalidate(volume);
     }
-    
+
+    @Test
     public void testJournalEOFonRecovery() throws Exception {
         final Properties properties = _persistit.getProperties();
         final JournalManager jman = _persistit.getJournalManager();
@@ -322,7 +335,8 @@ public class IOFailureTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.initialize(properties);
     }
-    
+
+    @Test
     public void testPersistitIOExceptionReportsCauseMessage() throws Exception {
         final ErrorInjectingFileChannel eifc = errorInjectingChannel(_persistit.getJournalManager().getFileChannel(0));
         eifc.injectTestIOException(new IOException(RED_FOX), "w");
@@ -350,7 +364,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
             exchange.store();
         }
     }
-    
+
     private void copyBackEventuallySucceeds(final long start, final String reason) throws Exception {
         final long expires = System.currentTimeMillis() + 10000;
         boolean done = false;
@@ -365,8 +379,8 @@ public class IOFailureTest extends PersistitUnitTestCase {
         }
         long elapsed = System.currentTimeMillis() - start;
         assertTrue(done ? "Copyback took too long" : "Copyback did not complete", done && elapsed >= 2000);
-        assertEquals("Copyback did not move base address to end of journal", _persistit.getJournalManager().getCurrentAddress(), _persistit.getJournalManager()
-                .getBaseAddress());
+        assertEquals("Copyback did not move base address to end of journal", _persistit.getJournalManager()
+                .getCurrentAddress(), _persistit.getJournalManager().getBaseAddress());
     }
 
 }

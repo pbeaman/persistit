@@ -26,7 +26,9 @@
 
 package com.persistit.unit;
 
-import org.junit.Ignore;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
 
 import com.persistit.Exchange;
@@ -53,7 +55,6 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
 
     }
 
-    @Ignore
     @Test
     public void test1() throws PersistitException {
         System.out.print("test1");
@@ -89,7 +90,6 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         System.out.println(" - done");
     }
 
-    @Ignore
     @Test
     public void test2() throws PersistitException {
         System.out.print("test2");
@@ -110,7 +110,6 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         System.out.println(" - done");
     }
 
-    @Ignore
     @Test
     public void test3() throws PersistitException {
         System.out.print("test3");

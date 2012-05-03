@@ -39,7 +39,7 @@ public class StressRecoveryTxn1 implements TransactionType {
     @Override
     public void verifyTransaction(long ticketId) throws Exception {
         // TODO Auto-generated method stub
-        
+
     }
 
 }

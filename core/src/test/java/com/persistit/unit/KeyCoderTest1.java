@@ -26,6 +26,8 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -89,10 +91,10 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
                 + "(java.net.URL){\"http\",\"w\",8080,\"/z?userid=pb\"},\"c\"}");
         System.out.println("- done");
     }
-    
+
     @Test
     public void testKeyHandleEncodeDecode() throws Exception {
-        final int[] handles = {0, 0x1FE, 0x1FF, 0x200, 0x201, 0x7FFE, 0x7FFF, 0x8000, 0x8001, Integer.MAX_VALUE};
+        final int[] handles = { 0, 0x1FE, 0x1FF, 0x200, 0x201, 0x7FFE, 0x7FFF, 0x8000, 0x8001, Integer.MAX_VALUE };
         final KeyCoder coder = new TestKeyRenderer();
         final Key key1 = new Key(_persistit);
         final URL url1 = new URL("http://w/z");
@@ -100,7 +102,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
 
         for (int handle : handles) {
             registerCoderDefinedKeyHandle(coder, handle);
-            
+
             key1.clear();
             key1.append(url1);
             key1.append(url2);
@@ -119,7 +121,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
 
         }
     }
-    
+
     private void registerCoderDefinedKeyHandle(final KeyCoder coder, final int handle) throws PersistitException {
         TestShim.clearAllClassIndexEntries(_persistit);
         TestShim.setClassIndexTestIdFloor(_persistit, handle);

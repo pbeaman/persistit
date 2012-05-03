@@ -26,6 +26,10 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Random;
@@ -166,7 +170,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
                     throws PersistitException {
                 recoveredRowCount.addAndGet(value);
             }
-            
+
             @Override
             public boolean requiresLongRecordConversion() {
                 return true;
@@ -256,9 +260,9 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         for (int i = 0; i < threads.length; i++) {
             threads[i].join();
         }
-        
+
         _persistit.crash();
-        
+
         final Properties props = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(props);

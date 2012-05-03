@@ -153,6 +153,7 @@ import com.persistit.util.Debug;
 
 class FastIndex {
 
+    final static int BYTES_PER_ENTRY = 2;
     /**
      * The Findex array. One element per keyblock holds the crossCount,
      * runCount, ebc and db from the keyblock.

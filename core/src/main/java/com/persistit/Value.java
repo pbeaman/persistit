@@ -5087,7 +5087,7 @@ public final class Value {
         }
     }
 
-    public static class Version {
+    static class Version {
         private final long _versionHandle;
         private final long _commitTimestamp;
         private final Value _value;

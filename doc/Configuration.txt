@@ -1,102 +1,209 @@
 [[Configuration]]
 = Configuration
 
-To initialize Akiban Persistit the embedding application invokes one of the +initialize+ methods of +com.persistit.Persistit+, passing either a +java.util.Properties+ object or the name of a properties file from which the Properties object derives its content. For example
+To initialize Akiban Persistit the embedding application defines a configuration and then invokes one of the  +com.persistit.Persistit#initialize+ methods. The configuration defines parameters used to determine locations of files, sizes of buffer pool and journal files, policies and other elements required when Persistit starts up. These parameters are managed by the +com.persistit.Configuration+ class.
+
+An application can define the configuration in one of two equivalent ways:
+
+- Create a +com.persistit.Configuration+ instance and set its properties through methods such as +com.persistit.Configuration#setJournalPath+.
+- Specify properties by name in a +java.util.Properties+ instance and then pass the +Properties+ to a +Configuration+ constructor.
+
+The following code samples show different ways of using the +com.persistit.Persistit#initialize+ method to configure and start Persistit:
 
 [source,java]
 ----
 final Persistit db = new Persistit();
-db.initialize(properties);
+final Properties p = new Properties();
+p.setProperty("buffer.count.16384", "1000");
+p.setProperty("journalpath", "/home/akiban/data/journal");
+...
+db.initialize(p);
 ----
 
-creates and initializes a Persistit instance using supplied Properties values.
+[source,java]
+----
+final Persistit db = new Persistit();
+db.initialize("/home/akiban/my_config.properties");
+----
 
-The following properties are defined for Persistit. Other properties may also reside in the Properties object or its backing file; Persistit simply ignores any property not listed here.
+[source,java]
+----
+final Persistit db = new Persistit();
+final Configuration c = new Configuration();
+c.getBufferPoolMap().get(16384).setCount(1000);
+c.setJournalPath("/home/akiban/data/journal");
+...
+db.initialize(c);
+----
+
+There are three essential elements in a Persistit configuration:
+
+- Memory for the buffer pool(s)
+- Specifications for +com.persistit.Volume+ instances
+- Journal file path
+
+== Configuring the Buffer Pool
+
+During initialization Persistit allocates a fixed amount of heap memory for use as buffers. Depending on the application, it is usually desirable to allocate most of a server’s physical memory to the JVM heap (using the +-Xmx+ and +-Xms+ JVM options) and then to allocate a large fraction of the heap to Persistit buffers. The buffer pool allocation is determined during initialization and remains constant until the embedding application calls +com.persistit.Persistit#close+ to release all resources.
+
+The number of buffers, and therefore the heap memory consumed, is determined during initialization by the available heap memory and configuration parameters. The heap memory size is obtained from the platform MemoryMXBean which in turn supplies the value given by the +-Xmx+ JVM property. Configuration parameters are specified by a collection of five +com.persistit.Configuration.BufferPoolConfiguration+ objects, one for each of the possible buffer sizes 1,024, 2,048, 4,096, 8,192 and 16,384 bytes. The method +com.persistit.Configuration#getBufferPoolMap(int)+ gets the +BufferPoolConfiguration+ for a specified buffer size.
+
+A +BufferPoolConfiguration+ contains the following attributes:
 
 [horizontal]
-+buffer.count._SSSS_+:: where _SSSS_ is 1024, 2048, 4096, 8192 or 16384. This property specifies the number of buffers of the corresponding size that Persistit will allocate for its buffer pool. For example, +buffer.count.8192=100+ allocates 100 8Kb buffers. The value must be an integer greater than 7. The maximum count is limited by available memory. Each buffer consumes _SSSS_ bytes plus approximately 12.5% overhead. (Note that the size _SSSS_ must be given as an integer; a form such as +buffer.count.8K+ is invalid.)
-+buffer.memory._SSSS_+:: where _SSSS_ is 1024, 2048, 4096, 8192 or 16384. This property provides a way to specify the buffer pool size by heap memory consumption rather than count. This property and +buffer.count._SSSS_+ are mutually incompatible. Specify only one of these per buffer size. The memory specification format is described below.
-+volume._N_+:: where _N_ is an ordinal number 1, 2, etc. Specifies a Volume that Persistit is to manage. The value of this property is a specification string defined below. The ordinal number has no significance other than to provide a unique property name for each volume.
-+sysvolume+:: Identifies the system volume by name. The value name one of the volumes specified by the +volume._N_+ properties. The system volume holds class meta data for serialized objects.
-+journalpath+:: Path specification for the journal files. Each journal file name is constructed from this path plus a numeric suffix. These files are written to frequently and for maximum overall performance should be located on the fastest available physical disk drive (or SSD). These files are required for recovery after a system failure. Value defaults to +persistit_journal+ in the current working directory.
-+journalsize+:: Journal file block size. Default is 1,000,000,000 bytes. A new Persistit rolls over to a new journal file when this size is reached. Generally there is no reason to adjust this setting.
-+appendonly+:: True or false (default).  When true, Persistit’s journal starts up in _append-only_ mode in which modified pages are only written to the journal and not copied to their home volumes. As a consequence, all existing journal files are preserved, and new modifications are written only to newly created journal files. The append-only flag can also be enabled or disabled by application code and through the JMX and RMI interfaces.
-+verbose+:: True or false. If true, Persistit emits additional diagnostic log messages during its initialization. The default value is false.
-+rmiport+:: Specifies a port number on which Persistit will create a temporary Remote Method Invocation registry.  If this property is specified, Persistit creates a registry and register a com.persistit.Management server on it. This allows remote access to management facilities within Persistit and permits the Swing-based administrative utility to attach to and manage a Persistit instance running on a headless server. The rmihost and rmiport properties are mutually exclusive.
-+rmihost+:: Specifies the URL of an Remote Method Invocation registry.  If present, Persistit registers its a server for its com.persistit.Management interface at the specified external registry. The +rmihost+ and +rmiport+ properties are mutually exclusive.
-+jmx+::True of false. Specifies whether Persistit registers MXBeans with the platform MBean server. Set this value to +true+ to enable access from +jconsole+ and other management tools.
-+serialOverride+, +constructorOverride+:: Control aspects of object serialization. See <<Serialization>>.
-+showgui+:: True of False.  If true, Persistit attempts to create and display an instance of the AdminUI utility panel within the current JVM. (Alternatively, AdminUI uses RMI and can be launched and run remotely if +rmiport+ or +rmihost+ has been specified.
-+logfile+:: Name of a log file to which Persistit’s default logger will write diagnostic log entries. Applications generally install a logging adapter to reroute messages through Log4J, SLF4J or other logger. The +logfile+ property is used only when no adapter has been installed.
-+tvpagesize+:: Default page size for temporary volumes (see +com.persistit#createTemporaryVolume()+).
-+tvdirectory+:: Directory for temporary volume backing defaults. By default Persistit creates temporary volume files in the system temporary directory.
+minimumCount:: lower bound on the number of buffers. (Default is zero.)
+maximumCount:: upper bound on the number of buffers. (Default is zero.)
+minimumMemory:: lower bound on memory to allocate. (Default is zero bytes.)
+maximumMemory:: upper bound on memory to allocate. (Default is Long.MAX_VALUE bytes.)
+reservedMemory:: minimum number of bytes to reserve for use other than buffers.  (Default is zero.)
+fraction:: floating point value between 0.0f and 1.0f indicating how much of available memory too allocate.  (Default is 1.0f.)
 
-For all integer-valued properties, the suffix “K” may be used to represent kilo, “M” for mega, “G” for giga and “T” for tera. For example,
-“2M” represents the value 2,097,152.
+Persistit uses the following algorithm to determine the number of buffers to allocate for each buffer size:
 
-== Buffer Pool Memory Allocation
-
-Buffer pool memory can be specified in one of two ways:
-
-- +buffer.count._SSSS_+ =_count_
-- +buffer.memory._SSSS_+ =_min_,_max_,_reserved_,_fraction_
-
-where _SSSS_ is a buffer size, and must be one of “1024”, “2048”, “4096”, “8192”, “16384”.  The buffer size relates to volume page size: in order to open a volume having a page size of _SSSS_, the buffer pool must be configured to have buffers of the same size.
-
-The +buffer.memory._SSSS_+ property works by calculating a target heap memory allocation; it then divides that target by the size of each buffer (with its associated overhead) to derive the buffer count. The calculation is done as follows:
-
-. Determine the maximum heap size by accessing the platform MemoryMXBean, which in turn supplies the value given by the +-Xmx+ JVM property.
-. Subtract the _reserved_ size from the maximum heap size
-. Multiple the result by _fraction_
-. Bound the product between _min_ and _max_
-
-Example: an embedding application needs to reserve 128M for its own operations, and wants to give 75% of the remaining available heap space to a pool of 16K Persistit buffers up to a maximum buffer pool allocation of 8G.
+[source,java]
 ----
-buffer.memory.16384=,8G,128M,.75
-----
-Leaving _min_ and/or _max_ unspecified results in default minimum and maximum buffer counts of 7 and infinite (i.e., the buffer count will be constrained only by available memory). Leaving _reserved_ unspecified results in a default value of 0.
-
-Note that it is possible to allocate buffers having different page sizes, for example:
-
-----
-buffer.memory.2048=64M,512G,256M,.2
-buffer.memory.16384=64M,512G,256M,.5
+memoryToUse = fraction * (maxHeap - reservedMemory)
+memoryToUse = min(memoryToUse, maximumMemory)
+bufferCount = memoryToUse / bufferSizeWithOverhead
+bufferCount = max(minimumCount, min(maximumCount, count))
+if (bufferCount * bufferSize > maximumMemory) then FAIL
+if ((bufferCount + 1) * bufferSize < minimumMemory) then FAIL
+allocate bufferCount buffers
 ----
 
-In performing the target heap memory computation, the available memory is determined before _any_ buffers are allocated. In this example, approximately 70% of available memory (after the 256M reservation) will be allocated to buffers; 50% to 16K buffers and 20% to 2K buffers.
+In other words, Persistit computes a buffer count based on the memory parameters, bounds it by +minimumCount+ and +maximumCount+ and then checks whether the resulting allocation fits within the memory constraints. Note that +bufferSizeWithOverhead+ is about 14% larger than the buffer size; the additional memory is reserved for indexing data and other overhead associated with the buffer.
 
-The MemoryMXBean supplies as its maximum heap size value the size given by the +-Xmx+ JVM parameter. Use care to specify a value of +-Xmx+ that can actually be allocated on the server running the application. Otherwise Persistit will throw an +OutOfMemoryError+ during initialization when it it attempts to allocate a physically unavailable memory when using the +buffer.memory._SSSS_+ property to specify buffer pool allocation.
+Typically an application uses a single buffer size, specifying either an absolute count or memory-based constraints for that size. This can be done by setting the attributes of the appropriate +BufferPoolConfiguration+ object directly, or using Property values.
 
-== Volume Specification
+The property named +buffer.count._SSSS_+ where _SSSS_ is “1024”, “2048”, “4096”, “8192” or “16384” specifies an absolute count.  For example,
 
-Each volume specification in the configuration has the following form:
+----
+buffer.count.8192 = 10000
+----
 
-[horizontal]
-+volume._N_ = _path_[,_attrname_[:_attrvalue_]]...+:: where _N_ is an arbitrary integer, _path_ is the path specification of the volume file, and _attrnames_ include:
-- +name+: The name of this Volume. The name used within Persistit applications to construct +Exchange+ instances.  If unspecified, the +name+ is derived from the _path_ as the simple file name excluding its final dotted suffix. For example, the name derived from the path /a/b/c/ddd.eee is ddd.
-- +pageSize+: Fixed length of one page. Value must be one of 1024, 2048, 4096, 8192 or 16384. To open and use the Volume, the buffer pool must have available buffers of the same size.
+causes Persistit to allocate 10,000 buffers of size 8192.
+
+The property +buffer.memory._SSSS_+ specifies memory constraints as shown in this example
+
+----
+buffer.memory.8192 = 512K,20M,4M,0.6
+----
+
+where 512K, 20M, 4M and 0.6 are the +minimumMemory+, +maximumMemory+, +reservedMemory+ and +fraction+, respectively.
+
+The MemoryMXBean supplies as its maximum heap size value the size given by the +-Xmx+ JVM parameter.
+
+=== Heap Tuning
+
+This section pertains to the Oracle HotSpot(tm) Java virtual machine.
+
+****
+Buffer instances are long-lived objects. To avoid severe garbage collector overhead it is important for all of them to fit in the heap’s tenured generation. This issue becomes especially significant with multi-gigabyte heaps.
+****
+
+By default the HotSpot server JVM allocates 1/3 of the heap to the new generation and 2/3 to the tenured generation, meaning that allocating more than 2/3 of the heap to buffers will result in bad performance.
+
+You can increase the fraction by specifying +-XX:NewRatio=_N_+ where _N_ indicates the ratio of tenured generation space to new generation space, or by using the +-Xmn+ parameter to specify an absolute amount of memory for the new generation.  Also, setting +-Xms+ equal to +-Xmx+ will avoid numerous garbage collection cycles during the start-up process.
+
+See [http://www.oracle.com/technetwork/java/javase/gc-tuning-6-140523.html] for further information on tuning the heap and garbage collector for the HotSpot JVM.
+
+=== Multiple Buffer Pools
+
+In some cases it may be desirable to allocate two or more buffer pools having buffers of different sizes. For example, it may be beneficial to use a large number of small buffers to hold secondary index pages.
+
+When specifying multiple memory constraints for multiple buffer pools, the +fraction+ property applies to the available memory before any buffers are allocated. So, for example,
+
+
+----
+buffer.memory.2048=64M,512G,2G,.2
+buffer.memory.16384=64M,512G,2G,.5
+----
+
+results in two buffer pools having buffers of size 2,048 bytes and 16,384 bytes, respectively. Assuming that the +-Xmx+ value is 12G, then 2,048 byte buffers will be allocated to fill 20% of 10GByte, 16,384 byte buffers will be allocated to fill 50% of 10GByte, and approximately 5GByte (30% of 10GByte plus 2GByte reserved) will be available to application code.
+
+== Configuring Volumes
+
+Persistit creates and/or opens a set of database volume files during start-up. An application can create, open and close additional volumes, but it is often convenient for volumes to be defined in the confiuration, outside of application code.
+
+The +com.persistit.Configuration#getVolumeList+ method returns a List of +com.persistit.VolumeSpecification+ objects. An application can construct and add new +VolumeSpecification+ instances to this list before calling +com.persistit.Persistit#initialize(Configuration)+.  Alternatively, the application can define volume specifications as property values using the syntax:
+
++volume._N_ = _path_[,_attrname_[:_attrvalue_]]...+
+
+where _N_ is an arbitrary integer, _path_ is the path specification of the volume file, and _attrnames_ include:
+
+- +pageSize+: Fixed length unit representing one page. Value must be one of 1024, 2048, 4096, 8192 or 16384. To open and use the Volume, the buffer pool must have available buffers of the same size.
+
 - +create+: Persistit attempts to open an existing volume file with the specified _path_, or create a new one if the file does not exist.
-- +createOnly+: Persistit throws a VolumeAlreadyExistsException if the file specified by path already exists. Otherwise it creates a new file with the specified path.
+
+- +createOnly+: Persistit throw a VolumeAlreadyExistsException if the file specified by path already exists. Otherwise it creates a new file with the specified path.
+
 - +readOnly+: Opens a volume in read-only mode. An attempt to modify the volume results in a ReadOnlyVolumeException.
+
 - +initialPages+ or +initialSize+: Specifies the initial size of the newly created volume file, either as the count of pages or as the size in bytes.
+
 - +extensionPages+ or +extensionSize+: Specifies the extension size of the newly created volume, either as the count of pages or as the size in bytes. This is the size by which the volume file will expand when the volume needs to be enlarged.
+
 - +maximumPages+ or +maximumSize+: An upper limit on the number of pages this Volume may hold, either as the count of pages or as the size in bytes. An attempt to further enlarge the Volume will generate a VolumeFullException.
+
+- +alias+: The name of this Volume used in constructing +Exchange+ instances.  If unspecified, the name is the simple file name given in the _path_, not including its dotted suffix.
 
 For example:
 
 ----
-volume.1=/home/akiban/ffdemo.vol,create,pageSize:16K,\
+volume.1=/home/akiban/ffdemo,create,pageSize:16K,\
     initialSize:10M,extensionSize:10M,maximumSize:1G
 ----
 
-specifies a volume having the name “ffdemo” in the /home/akiban directory. A new volume will be created if there is no existing volume file, and when created it will have the initial, extension and maximum sizes of 10M, 10M and 1G, respectively. Its page size will be 16K, meaning that the configuration must also have a non-zero allocation of 16384 buffers.
+specifies a volume having the name “ffdemo” in the /home/akiban directory. A new volume will be created if there is no existing volume file, and when created it will have the initial, extension and maximum sizes of 10MByte, 10MByte and 1GByte, respectively. Its page size will be 16KByte, meaning that the configuration must also have a buffer pool of 16KByte buffers.
 
+=== System Volume
 
-== System Volume
+One volume in a Persistit configuration must be designated as the system volume. It contains class meta data for objects stored serialized in Persistit Values. When a configuration specifies only one volume, that volume implicitly becomes the system volume by default. However, when a configuration specifies multiple volumes, you must indicate which volume will serve as the system volume. There are two ways to do this. By default, Persistit looks for a unique volume named “_system”. You can simply create a volume whose file name is “_system”.
 
-One volume in a Persistit configuration must be designated as the system volume. It contains class meta data for objects stored serialized in Persistit Values. When a configuration specifies only one volume, that volume implicitly becomes the system volume. However, when a configuration specifies multiple volumes, you must specify which volume should be designated as the system volume. There are two ways to do this. By default, Persistit looks for a unique volume named “_system”. You can simply create a volume whose file name is “_system”.
+Alternatively, you can specify a system volume name explicitly with the +sysvolume+ property (or +com.persistit.Configuration#setSysVolume+). The value is the name or alias of the selected volume.
 
-Alternatively, you can specify a different volume name with the +sysvolume+ property. The value specified for this name should be the name of the volume chosen to be the system volume.
+== Configuring the Journal Path
+
+The <<Journal>> consists of a series of sequentially numbered files located in directory specified by the configuration parameter +journalpath+. The application can set this property by calling +com.persistit.Configuration#setJournalPath+ prior to initializing Persistit or through the property
+
+----
+journalpath=/ssd/data/my_app_journal
+---- 
+
+The value specified can be either a 
+
+- directory, in which case files named +persistit_journal._NNNNNNNNNNNN_+ will be created, 
+
+- or a file name, in which case journal files will be created by appending the suffix +._NNNNNNNNNNNN_+.
+
+=== Recommendations for Physical Media
+
+The journal is written by appending records to the end of the highest-numbered file. Read operations occur while copying page images from the journal to their home volume files. While copying, Persistit attempts to perform large sequential read operations from the journal. Read operations also occur at random when Persistit needs to reload the image of a previously evicted page.
+
+Because of these characteristics a modern SSD (solid disk drive) is ideally suited for maintaining the journal. If no SSD is available in the server, placing the journal on a different physical disk drive than the volume file(s) can significantly improve performance.
+
+== Other Configuration Parameters
+
+The following additional properties are defined for Persistit. Other properties may also reside in the Properties object or its backing file; Persistit simply ignores any property not listed here.
+
+[horizontal]
++journalsize+:: (+com.persistit.Configuration#setJournalSize+) Journal file block size. Default is 1,000,000,000 bytes. A new Persistit rolls over to a new journal file when this size is reached. Generally there is no reason to adjust this setting.
+
++appendonly+:: (+com.persistit.Configuration#setAppendOnly+) True or false (default).  When true, Persistit’s journal starts up in _append-only_ mode in which modified pages are only written to the journal and not copied to their home volumes. As a consequence, all existing journal files are preserved, and new modifications are written only to newly created journal files. The append-only flag can also be enabled or disabled by application code and through the JMX and RMI interfaces.
+
++rmiport+:: (+com.persistit.Configuration#setRmiPort+) Specifies a port number on which Persistit will create a temporary Remote Method Invocation registry.  If this property is specified, Persistit creates a registry and registers a +com.persistit.Management+ server on it. This allows remote access to management facilities within Persistit and permits the Swing-based administrative utility to attach to and manage a Persistit instance running on a headless server. The +rmihost+ and +rmiport+ properties are mutually exclusive.
+
++rmihost+:: (+com.persistit.Configuration#setRmiHost+) Specifies the URL of an Remote Method Invocation registry.  If present, Persistit registers its a server for its +com.persistit.Management+ interface at the specified external registry. The +rmihost+ and +rmiport+ properties are mutually exclusive.
+
++jmx+:: (+com.persistit.Configuration#setJmxEnabled+) True or false (default). Specifies whether Persistit registers MXBeans with the platform MBean server. Set this value to +true+ to enable access from +jconsole+ and other management tools.
+
++serialOverride+, +constructorOverride+:: (+com.persistit.Configuration#setSerialOverride+ +com.persistit.Configuration#setConstructorOverride+) Control aspects of object serialization. See <<Serialization>>.
+
++showgui+:: ((+com.persistit.Configuration#setShowGUI+) True of False.  If true, Persistit attempts to create and display an instance of the AdminUI utility panel within the current JVM. (Alternatively, AdminUI uses RMI and can be launched and run remotely if +rmiport+ or +rmihost+ has been specified.
+
++logfile+:: (+com.persistit.Configuration#setLogFile+) Name of a log file to which Persistit’s default logger will write diagnostic log entries. Applications generally install a logging adapter to reroute messages through Log4J, SLF4J or other logger. The +logfile+ property is used only when no adapter has been installed.
+
+For all integer-valued properties, the suffix “K” may be used to represent kilo, “M” for mega, “G” for giga and “T” for tera. For example, “2M” represents the value 2,097,152.
 
 == A Configuration Example
 
@@ -104,39 +211,33 @@ Following is an example of a Persistit configuration properties file:
 
 ----
 datapath = /var/opt/persistit/data
-
 logpath = /var/log/persistit
-
-verbose = true
-
 logfile = ${logpath}/${timestamp}.log
 
-buffer.count.8192 = 5000
+buffer.count.16384 = 5000
 
-volume.1 = ${datapath}/demo_data.v01, create, pageSize:8K, \
-	initialSize:1M, extensionSize:1M, maximumSize:10G, name:data
+volume.1 = ${datapath}/demo_data, create, pageSize:16K, \
+	initialSize:1M, extensionSize:1M, maximumSize:10G, alias:data
 
-volume.2 = ${datapath}/demo_sys.v01, create, pageSize:8K, \
+volume.2 = ${datapath}/demo_system, create, pageSize:16K, \
 	initialSize:100K, extensionSize:100K, maximumSize:1G
 
-sysvolume = demo_sys
+sysvolume = demo_system
 
 journalpath = /ssd/persistit_journal
 ----
 
-With this configuration there will be 5,000 8K buffers in the buffer pool (consuming heap space of approximately 46MB including overhead). Persistit will open or create volume files named +/data/demo_data.v01+ and +/data/demo_sys.v01+ and a journal file named +/ssd/persistit_journal.0000000000000001+.
+With this configuration there will be 5,000 16K buffers in the buffer pool consuming heap space of approximately 93MB including overhead. Persistit will open or create volume files named +/var/opt/persistit/data/demo_data+ and +/var/opt/persistit/data/demo_system+ and a journal file named +/ssd/persistit_journal.0000000000000000+. Persistit will write diagnostic logging output to a file such as +/var/log/persistit/20110523172213.log+.
 
-The +demo_data.v01+ volume has the name +data+. This means that application code uses the name "data" to refer to that volume. The +sysvolume+ property specifies that this volume is also designated to hold class meta data for serialized objects.
+The +demo_data+ volume has the alias +data+. Application code uses the name "data" to refer to it. The +sysvolume+ property specifies that the +demo_system+ volume is designated to hold class meta data for serialized objects.
 
-The +demo_sys.v01+ volume serves as the system volume for this configuration.
+=== Property Value Substitution
 
-== Property Value Substitution
+This example also illustrates how property value substitution can be used within a Persistit configuration.  The value of the +datapath+ replaces +$\{datapath\}+ in the volume specification. The property name +datapath+ is arbitrary; you may use any valid property name as a substitution variable. Similarly, the value of +logpath+ replaces +$\{logpath\}+ and the pseudo-property +$\{timestamp\}+ expands to a timestamp in the form +_yyyyMMddHHmm_+ to provides a unique time-based log file name.
 
-This example also illustrates how property value substitution can be used within a Persistit configuration.  The value of +datapath+ value replaces _${datapath}_ in the volume specification. The property name datapath is arbitrary; you may use any valid property name as a substitution variable. Similarly, the value of +logpath+ replaces _${logpath}_. The pseudo-property _${timestamp}_ expands to a timestamp in the form yyyyMMddHHmm. This provides a unique time-based log file name.
+=== Incorporating Java System Properties
 
-== Incorporating Java System Properties
-
-You may also specify any configuration property as a Java system property with the prefix +com.persisit.+ System properties override values specified in the configuration file.  For example, you can override the value of +buffer.count.8192+ specifying
+You may also specify any configuration property as a Java system property with the prefix +com.persisit.+ System properties override values specified as properties. For example, you can override the value of +buffer.count.8192+ specifying
 
 ----
 java -Dcom.persistit.buffer.count.8192=10K -jar MyJar

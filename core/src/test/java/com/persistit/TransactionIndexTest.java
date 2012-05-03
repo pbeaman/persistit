@@ -33,10 +33,13 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import junit.framework.TestCase;
 
+import org.junit.Test;
+
 public class TransactionIndexTest extends TestCase {
 
     private final TimestampAllocator _tsa = new TimestampAllocator();
 
+    @Test
     public void testBasicMethods() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
 
@@ -112,6 +115,7 @@ public class TransactionIndexTest extends TestCase {
         return tc >= 0 && tc != UNCOMMITTED;
     }
 
+    @Test
     public void testNonBlockingWwDependency() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
         final TransactionStatus ts1 = ti.registerTransaction();
@@ -136,6 +140,7 @@ public class TransactionIndexTest extends TestCase {
         ts3.commit(_tsa.updateTimestamp());
     }
 
+    @Test
     public void testReduce() throws Exception {
         final TransactionStatus[] array = new TransactionStatus[100];
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
@@ -192,6 +197,7 @@ public class TransactionIndexTest extends TestCase {
         assertEquals(40, ti.getAbortedCount());
     }
 
+    @Test
     public void testBlockingWwDependency() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
         final TransactionStatus ts1 = ti.registerTransaction();
@@ -235,6 +241,7 @@ public class TransactionIndexTest extends TestCase {
         return result.get();
     }
 
+    @Test
     public void testDeadlockedWwDependency() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
 
@@ -271,6 +278,7 @@ public class TransactionIndexTest extends TestCase {
         assertTrue(elapsed3.get() < 1000);
     }
 
+    @Test
     public void testNonConcurrentWwDependency() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
         final TransactionStatus ts1 = ti.registerTransaction();
@@ -312,7 +320,8 @@ public class TransactionIndexTest extends TestCase {
         t.start();
         return t;
     }
-    
+
+    @Test
     public void testNotifyCompletedBelowFloor() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
         final TransactionStatus ts1 = ti.registerTransaction();
@@ -337,6 +346,7 @@ public class TransactionIndexTest extends TestCase {
      * 
      * @throws Exception
      */
+    @Test
     public void testBug914474() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
 

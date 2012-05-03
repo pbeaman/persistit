@@ -26,11 +26,17 @@
 
 package com.persistit;
 
-import com.persistit.exception.PersistitException;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+
+import org.junit.Test;
+
+import com.persistit.exception.PersistitException;
 
 public class MVCCBasicTest extends MVCCTestBase {
     private static final String KEY1 = "k1";
@@ -38,6 +44,7 @@ public class MVCCBasicTest extends MVCCTestBase {
     private static final long VALUE1 = 12345L;
     private static final long VALUE2 = 67890L;
 
+    @Test
     public void testTwoTrxDifferentTimestamps() throws PersistitException {
         trx1.begin();
         trx2.begin();
@@ -51,6 +58,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testSingleTrxWriteAndRead() throws Exception {
         trx1.begin();
         try {
@@ -70,6 +78,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testTwoTrxDistinctWritesOverlappedReads() throws Exception {
         trx1.begin();
         trx2.begin();
@@ -111,6 +120,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testSingleTrxManyInserts() throws Exception {
         // Enough for a new index level and many splits
         final int INSERT_COUNT = 5000;
@@ -136,6 +146,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testSingleTrxMultipleLongRecordVersions() throws Exception {
         final int VERSIONS_TO_STORE = 5;
         final String longStr = createString(ex1.getVolume().getPageSize());
@@ -171,6 +182,7 @@ public class MVCCBasicTest extends MVCCTestBase {
      * Store dozens of small, unique versions of a single key to result in
      * resulting in a LONG MVV value. Check etch pre and post commit.
      */
+    @Test
     public void testLongMVVFromManySmall() throws Exception {
         final int PER_LENGTH = 250;
         final String smallStr = createString(PER_LENGTH);
@@ -199,6 +211,7 @@ public class MVCCBasicTest extends MVCCTestBase {
      * are both short and long records, resulting in a LONG MVV value. Check
      * fetch pre and post commit.
      */
+    @Test
     public void testLongMVVFromManySmallAndLong() throws Exception {
         final int pageSize = ex1.getVolume().getPageSize();
         final String longStr = createString(pageSize);
@@ -224,6 +237,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testIsValuedDefinedTwoTrx() throws Exception {
         trx1.begin();
         trx2.begin();
@@ -250,8 +264,9 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testTraverseShallowTwoTrx() throws Exception {
-        List<KVPair> baseList = kvList("a","A",  "z","Z");
+        List<KVPair> baseList = kvList("a", "A", "z", "Z");
         trx1.begin();
         try {
             storeAll(ex1, baseList);
@@ -260,19 +275,19 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.end();
         }
 
-        List<KVPair> trx1List = kvList("d","D",  "trx1",111,  "x","X");
-        List<KVPair> trx2List = kvList("b","B",  "c","C",  "trx2",222);
+        List<KVPair> trx1List = kvList("d", "D", "trx1", 111, "x", "X");
+        List<KVPair> trx2List = kvList("b", "B", "c", "C", "trx2", 222);
 
         trx1.begin();
         trx2.begin();
         try {
             storeAll(ex1, trx1List);
             storeAll(ex2, trx2List);
-            storeAll(ex1, kvList(arr("e","trx1"),1,  arr("h","trx1"),11));
-            storeAll(ex2, kvList(arr("f","trx2"),2,  arr("g","trx2"),22));
+            storeAll(ex1, kvList(arr("e", "trx1"), 1, arr("h", "trx1"), 11));
+            storeAll(ex2, kvList(arr("f", "trx2"), 2, arr("g", "trx2"), 22));
 
-            trx1List.addAll(kvList("e","UD",  "h","UD"));
-            trx2List.addAll(kvList("f","UD",  "g","UD"));
+            trx1List.addAll(kvList("e", "UD", "h", "UD"));
+            trx2List.addAll(kvList("f", "UD", "g", "UD"));
 
             trx1List = combine(trx1List, baseList);
             trx2List = combine(trx2List, baseList);
@@ -306,8 +321,9 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testTraverseDeepTwoTrx() throws Exception {
-        List<KVPair> baseList = kvList("a","A",  "z","Z");
+        List<KVPair> baseList = kvList("a", "A", "z", "Z");
 
         trx1.begin();
         try {
@@ -317,8 +333,8 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.end();
         }
 
-        List<KVPair> trx1List = kvList(arr("b","trx1"),1,  arr("d","trx1"),11,  "trx1",111);
-        List<KVPair> trx2List = kvList(arr("b","trx2"),2,  arr("c","trx2"),22,  "trx2",222);
+        List<KVPair> trx1List = kvList(arr("b", "trx1"), 1, arr("d", "trx1"), 11, "trx1", 111);
+        List<KVPair> trx2List = kvList(arr("b", "trx2"), 2, arr("c", "trx2"), 22, "trx2", 222);
 
         trx1.begin();
         trx2.begin();
@@ -359,6 +375,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testTwoTrxManyTraverseManyKeys() throws Exception {
         final int MIN_PAGES = 6;
         final int MAX_KV_PER_PAGE = ex1.getVolume().getPageSize() / (8 + 14); // ##,trxX
@@ -427,6 +444,7 @@ public class MVCCBasicTest extends MVCCTestBase {
      * Simple sanity check as KeyFilter inspects the keys but doesn't care,
      * directly, about MVCC
      */
+    @Test
     public void testKeyFilterTraverseTwoTrx() throws Exception {
         trx1.begin();
         trx2.begin();
@@ -460,12 +478,13 @@ public class MVCCBasicTest extends MVCCTestBase {
     /*
      * Bug found independently of MVCC but fixed due to traverse() changes
      */
+    @Test
     public void testShallowTraverseWrongParentValueBug() throws Exception {
         trx1.begin();
         try {
-            List<KVPair> kvList = kvList("a","A",  "b","B",  "z","Z");
+            List<KVPair> kvList = kvList("a", "A", "b", "B", "z", "Z");
             storeAll(ex1, kvList);
-            store(ex1, "a","a", "AA");
+            store(ex1, "a", "a", "AA");
 
             assertEquals("forward traversal", kvList, traverseAllFoward(ex1, false));
             Collections.reverse(kvList);
@@ -477,6 +496,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testSingleTrxStoreRemoveFetch() throws Exception {
         trx1.begin();
         try {
@@ -510,17 +530,18 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testRemovedKeysHaveChildrenBug() throws Exception {
-        final List<KVPair> keepList = kvList(arr("a",1),"A1",  arr("c",2),"C2");
-        final List<KVPair> removeList = kvList(arr("b",1),"B1",  arr("b",2),"B2",  arr("b",3),"B3",  arr("c",1),"C1");
+        final List<KVPair> keepList = kvList(arr("a", 1), "A1", arr("c", 2), "C2");
+        final List<KVPair> removeList = kvList(arr("b", 1), "B1", arr("b", 2), "B2", arr("b", 3), "B3", arr("c", 1),
+                "C1");
 
         trx1.begin();
         try {
             storeAll(ex1, keepList);
             storeAll(ex1, removeList);
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -546,17 +567,16 @@ public class MVCCBasicTest extends MVCCTestBase {
                 assertEquals(key + " has children after removal", false, ex2.hasChildren());
 
                 trx2.commit();
-            }
-            finally {
+            } finally {
                 trx2.end();
             }
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
 
+    @Test
     public void testTwoTrxRemoveRanges() throws Exception {
         List<KVPair> bothList = kvList("a", "A", "m", "M", "z", "Z");
         trx1.begin();
@@ -576,7 +596,7 @@ public class MVCCBasicTest extends MVCCTestBase {
             List<KVPair> trx1List1 = kvList("b", "B", "e", "e", "f", "f", "x", "X");
             storeAll(ex1, trx1List1);
 
-            List<KVPair> trx2List = kvList("d","D",  "n","N",  "v","V",  "y","Y");
+            List<KVPair> trx2List = kvList("d", "D", "n", "N", "v", "V", "y", "Y");
             storeAll(ex2, trx2List);
 
             // Explicitly testing overlapping ranges, as the overlaps should
@@ -594,7 +614,8 @@ public class MVCCBasicTest extends MVCCTestBase {
             ka.clear().append("n");
             kb.clear().append(Key.AFTER);
             assertTrue("trx2 keys removed", ex2.removeKeyRange(ka, kb));
-            assertEquals("trx2 traverse post removeAll", kvList("a","A",  "d","D",  "m","M"), traverseAllFoward(ex2, true));
+            assertEquals("trx2 traverse post removeAll", kvList("a", "A", "d", "D", "m", "M"), traverseAllFoward(ex2,
+                    true));
             assertEquals("trx1 traverse post trx2 removeAll", trx1List2, traverseAllFoward(ex1, true));
 
             trx1.commit();
@@ -606,23 +627,26 @@ public class MVCCBasicTest extends MVCCTestBase {
 
         trx1.begin();
         try {
-            assertEquals("traverse post-commit", kvList("a","A",  "d","D",  "x","X"), traverseAllFoward(ex1, true));
+            assertEquals("traverse post-commit", kvList("a", "A", "d", "D", "x", "X"), traverseAllFoward(ex1, true));
             trx1.commit();
         } finally {
             trx1.end();
         }
     }
 
+    @Test
     public void testRemoveWithSplitsSmall() throws Exception {
         final int keyCount = _persistit.getBufferPool(ex1.getVolume().getPageSize()).getMaxKeys();
         insertRemoveAllAndVerify(keyCount);
     }
 
+    @Test
     public void testRemoveWithSplitsMedium() throws Exception {
         final int keyCount = _persistit.getBufferPool(ex1.getVolume().getPageSize()).getMaxKeys() * 5;
         insertRemoveAllAndVerify(keyCount);
     }
 
+    @Test
     public void testRemoveWithSplitsLarge() throws Exception {
         final int keyCount = _persistit.getBufferPool(ex1.getVolume().getPageSize()).getMaxKeys() * 10;
         insertRemoveAllAndVerify(keyCount);
@@ -659,6 +683,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testKeysVisitedDuringTraverse() throws PersistitException {
         final int TOTAL_DEPTH_1 = 10;
         final int TOTAL_DEPTH_2 = 5;
@@ -666,12 +691,12 @@ public class MVCCBasicTest extends MVCCTestBase {
         trx1.begin();
         try {
             int curKey = 0;
-            for(int d1 = 0; d1 < TOTAL_DEPTH_1; ++d1) {
-                String s = String.valueOf((char)('a' + d1));
+            for (int d1 = 0; d1 < TOTAL_DEPTH_1; ++d1) {
+                String s = String.valueOf((char) ('a' + d1));
                 ex1.clear().append(s);
                 ex1.getValue().clear().put(s.toUpperCase());
                 ex1.store();
-                for(int d2 = 1; d2 <= TOTAL_DEPTH_2; ++d2) {
+                for (int d2 = 1; d2 <= TOTAL_DEPTH_2; ++d2) {
                     ex1.setDepth(1);
                     ex1.append(d2);
                     ex1.getValue().clear().put(++curKey);
@@ -679,8 +704,7 @@ public class MVCCBasicTest extends MVCCTestBase {
                 }
             }
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -705,7 +729,8 @@ public class MVCCBasicTest extends MVCCTestBase {
             // Can stop when we hit first sibling (depth < traverse minDepth)
             ex1.clear().append("a");
             assertEquals("'a' hasChildren after remove", false, ex1.hasChildren());
-            assertEquals("keys traversed for 'a' hasChildren post-remove", TOTAL_DEPTH_2 + 1, ex1.getKeysVisitedDuringTraverse());
+            assertEquals("keys traversed for 'a' hasChildren post-remove", TOTAL_DEPTH_2 + 1, ex1
+                    .getKeysVisitedDuringTraverse());
 
             // Should be able to stop when first (depth < traverse minDepth)
             ex1.clear().append("a").append(TOTAL_DEPTH_2);
@@ -715,27 +740,32 @@ public class MVCCBasicTest extends MVCCTestBase {
             // Same optimization test, by way of specially known KeyFilter
             ex1.clear().append("a");
             final KeyFilter filter1 = new KeyFilter(ex1.getKey(), ex1.getKey().getDepth() + 1, Integer.MAX_VALUE);
-            assertEquals("traverse w/filter1 found key post-remove", false, ex1.traverse(Key.GT, filter1, Integer.MAX_VALUE));
-            assertEquals("keys traversed with filter1 post-remove", TOTAL_DEPTH_2 + 1, ex1.getKeysVisitedDuringTraverse());
+            assertEquals("traverse w/filter1 found key post-remove", false, ex1.traverse(Key.GT, filter1,
+                    Integer.MAX_VALUE));
+            assertEquals("keys traversed with filter1 post-remove", TOTAL_DEPTH_2 + 1, ex1
+                    .getKeysVisitedDuringTraverse());
 
-            // If not using the 'special' KeyFilter, we can't exit traverse early
-            final KeyFilter filter2 = new KeyFilter(new KeyFilter.Term[]{KeyFilter.simpleTerm("a")}, 2, Integer.MAX_VALUE);
-            assertEquals("traverse w/filter2 found key post-remove", false, ex1.traverse(Key.GT, filter2, Integer.MAX_VALUE));
+            // If not using the 'special' KeyFilter, we can't exit traverse
+            // early
+            final KeyFilter filter2 = new KeyFilter(new KeyFilter.Term[] { KeyFilter.simpleTerm("a") }, 2,
+                    Integer.MAX_VALUE);
+            assertEquals("traverse w/filter2 found key post-remove", false, ex1.traverse(Key.GT, filter2,
+                    Integer.MAX_VALUE));
             // All depth1 and depth2 in range ('a','j')
             final int expectedKeys = (TOTAL_DEPTH_1 - 1) * TOTAL_DEPTH_2 + TOTAL_DEPTH_1 - 1;
             assertEquals("keys traversed with filter2 post-remove", expectedKeys, ex1.getKeysVisitedDuringTraverse());
 
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
 
     /*
-     * Make sure traverse() exits as soon as possible even when the keys are
-     * not parent/child segments but the search key is just truncated.
+     * Make sure traverse() exits as soon as possible even when the keys are not
+     * parent/child segments but the search key is just truncated.
      */
+    @Test
     public void testKeysVisitedDuringTraverseUniformDepth() throws PersistitException {
         final int KEY_COUNT = 50;
 
@@ -783,7 +813,8 @@ public class MVCCBasicTest extends MVCCTestBase {
 
             ex1.clear().append(10);
             final KeyFilter filter2 = new KeyFilter(ex1.getKey(), ex1.getKey().getDepth() + 1, Integer.MAX_VALUE);
-            assertEquals("traverse filter found key post-remove", false, ex1.traverse(Key.GT, filter2, Integer.MAX_VALUE));
+            assertEquals("traverse filter found key post-remove", false, ex1.traverse(Key.GT, filter2,
+                    Integer.MAX_VALUE));
             assertEquals("keys traversed w/filter post-remove", 2, ex1.getKeysVisitedDuringTraverse());
 
             trx1.commit();
@@ -791,17 +822,18 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.end();
         }
     }
-    
+
+    @Test
     public void testRedundantRemoveReturnValue() throws PersistitException {
         trx1.begin();
         try {
-            store(ex1, KEY1,  VALUE1);
+            store(ex1, KEY1, VALUE1);
             assertEquals("fetch after store", VALUE1, fetch(ex1, KEY1));
             trx1.commit();
         } finally {
             trx1.end();
         }
-        
+
         trx1.begin();
         try {
             assertEquals("fetch from new trx after commit", VALUE1, fetch(ex1, KEY1));
@@ -831,11 +863,12 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testSimpleTransactionStepUsage() throws Exception {
         final int KEY_COUNT = 20;
         final List<KVPair> baseList = kvList();
         final List<KVPair> secondList = kvList();
-        
+
         for (int i = 0; i < KEY_COUNT; ++i) {
             int value = i * 10;
             baseList.add(new KVPair(i, null, value));
@@ -848,9 +881,9 @@ public class MVCCBasicTest extends MVCCTestBase {
             storeAll(ex1, baseList);
             trx1.commit();
         } finally {
-            trx1.end();   
+            trx1.end();
         }
-        
+
         // Traverse and update at the same time, toggling step back and forth
         // This emulates the server usage by the operators
         final List<KVPair> traversedList = kvList();
@@ -872,7 +905,7 @@ public class MVCCBasicTest extends MVCCTestBase {
                     trx1.setStep(prevStep);
                 }
             }
-            
+
             assertEquals("only traversed original keys", baseList, traversedList);
 
             trx1.commit();
@@ -882,7 +915,6 @@ public class MVCCBasicTest extends MVCCTestBase {
             }
             trx1.end();
         }
-
 
         trx1.begin();
         try {
@@ -894,15 +926,16 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.end();
         }
     }
-    
+
+    @Test
     public void testTransactionStepTraverseBeforeCommit() throws Exception {
         final int KEY_COUNT = 10;
         final List<KVPair> originalList = kvList();
         final List<KVPair> updatedList = kvList();
-        
-        for(int i = 0; i < KEY_COUNT; ++i) {
-            originalList.add(new KVPair(i, null, i*10));
-            updatedList.add(new KVPair(i + KEY_COUNT, null, i*10 + 1));
+
+        for (int i = 0; i < KEY_COUNT; ++i) {
+            originalList.add(new KVPair(i, null, i * 10));
+            updatedList.add(new KVPair(i + KEY_COUNT, null, i * 10 + 1));
         }
 
         Exchange storeEx = null;
@@ -924,7 +957,7 @@ public class MVCCBasicTest extends MVCCTestBase {
                     int prevStep = trx1.incrementStep();
                     ex1.remove();
                     KVPair pair = updatedIt.next();
-                    store(storeEx,  pair.k1, pair.v);
+                    store(storeEx, pair.k1, pair.v);
                     trx1.setStep(prevStep);
                 }
             }
@@ -934,7 +967,7 @@ public class MVCCBasicTest extends MVCCTestBase {
 
             trx1.setStep(2);
             final List<KVPair> traversedStep2 = traverseAllFoward(ex1, true);
-            
+
             assertEquals("traversed only originals from step 0", originalList, traversedStep0);
             assertEquals("traversed only originals from step 1", updatedList, traversedStep1);
             assertEquals("traversed only updated from step 2", updatedList, traversedStep2);
@@ -955,30 +988,32 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testUnorderedStepStoreAndFetch() throws PersistitException {
         final int STEP_COUNT = 10;
         final int stepOrder[] = { 8, 7, 9, 4, 6, 2, 0, 1, 3, 5 };
         assertEquals("step order array size", STEP_COUNT, stepOrder.length);
-        
+
         trx1.begin();
         try {
             for (int step : stepOrder) {
                 trx1.setStep(step);
                 store(ex1, KEY1, step);
             }
-            
+
             for (int i = 0; i < STEP_COUNT; ++i) {
                 trx1.setStep(i);
                 fetch(ex1, KEY1, false);
                 assertEquals("fetched value from step " + i, i, ex1.getValue().getInt());
             }
-            
+
             trx1.commit();
         } finally {
             trx1.end();
         }
     }
 
+    @Test
     public void testHigherVersionWithLowerStep() throws PersistitException {
         trx1.begin();
         try {
@@ -989,7 +1024,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         } finally {
             trx1.end();
         }
-        
+
         // Concurrent txn to prevent prune
         trx1.begin();
         try {
@@ -1008,10 +1043,11 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testStoreReallyLongRecord() throws PersistitException {
         // Enough that if the length portion of the MVV is signed we fail
         final String LONG_STR = createString(Short.MAX_VALUE + 2);
-        
+
         trx1.begin();
         try {
             store(ex1, KEY1, LONG_STR);
@@ -1033,12 +1069,12 @@ public class MVCCBasicTest extends MVCCTestBase {
     //
     // Test Helpers
     //
-    
+
     private Exchange createExchange(Transaction txn) throws PersistitException {
         _persistit.setSessionId(txn.getSessionId());
         return _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
     }
-    
+
     private void releaseExchange(Exchange ex) {
         if (ex != null) {
             _persistit.releaseExchange(ex);

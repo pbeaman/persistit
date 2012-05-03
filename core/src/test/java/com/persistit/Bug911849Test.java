@@ -24,7 +24,10 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Properties;
 import java.util.Random;
@@ -88,8 +91,7 @@ public class Bug911849Test extends PersistitUnitTestCase {
             _persistit = new Persistit();
             _persistit.initialize(props);
             final Exchange exchange = _persistit.getExchange("persistit", "AccumulatorRecoveryTest", false);
-            Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
-                    ROW_COUNT_ACCUMULATOR_INDEX);
+            Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM, ROW_COUNT_ACCUMULATOR_INDEX);
             assertEquals(counter.get(), rowCount.getLiveValue());
         }
     }

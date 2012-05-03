@@ -26,28 +26,44 @@
 
 package com.persistit;
 
-import com.persistit.exception.PersistitException;
-import com.persistit.exception.TreeNotFoundException;
-import com.persistit.unit.PersistitUnitTestCase;
-import com.persistit.unit.UnitTestProperties;
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_A;
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_B;
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_C;
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_SCHEDULE;
+import static com.persistit.util.ThreadSequencer.addSchedules;
+import static com.persistit.util.ThreadSequencer.array;
+import static com.persistit.util.ThreadSequencer.describeHistory;
+import static com.persistit.util.ThreadSequencer.describePartialOrdering;
+import static com.persistit.util.ThreadSequencer.disableSequencer;
+import static com.persistit.util.ThreadSequencer.enableSequencer;
+import static com.persistit.util.ThreadSequencer.historyMeetsPartialOrdering;
+import static com.persistit.util.ThreadSequencer.out;
+import static com.persistit.util.ThreadSequencer.rawSequenceHistoryCopy;
+import static com.persistit.util.ThreadSequencer.sequence;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static com.persistit.JournalManager.TreeDescriptor;
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_A;
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_B;
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_C;
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_SCHEDULE;
-import static com.persistit.util.ThreadSequencer.*;
+import org.junit.Test;
+
+import com.persistit.JournalManager.TreeDescriptor;
+import com.persistit.exception.PersistitException;
+import com.persistit.exception.TreeNotFoundException;
+import com.persistit.unit.PersistitUnitTestCase;
+import com.persistit.unit.UnitTestProperties;
 
 public class TreeLifetimeTest extends PersistitUnitTestCase {
     private static final String TREE_NAME = "tree_one";
     final int A = TREE_CREATE_REMOVE_A;
     final int B = TREE_CREATE_REMOVE_B;
     final int C = TREE_CREATE_REMOVE_C;
-
 
     private Volume getVolume() {
         return _persistit.getVolume(UnitTestProperties.VOLUME_NAME);
@@ -57,6 +73,7 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         return _persistit.getExchange(getVolume(), TREE_NAME, create);
     }
 
+    @Test
     public void testRemovedTreeGoesToGarbageChain() throws PersistitException {
         Transaction txn = _persistit.getTransaction();
 
@@ -81,10 +98,11 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         ex = null;
 
         final List<Long> garbage = getVolume().getStructure().getGarbageList();
-        assertTrue("Expected tree root <"+treeRoot+"> in garbage list <"+garbage.toString()+">",
-                   garbage.contains(treeRoot));
+        assertTrue("Expected tree root <" + treeRoot + "> in garbage list <" + garbage.toString() + ">", garbage
+                .contains(treeRoot));
     }
-    
+
+    @Test
     public void testGetTreeWithoutCreateShouldCreate() throws PersistitException {
         Transaction txn = _persistit.getTransaction();
 
@@ -95,23 +113,24 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         } catch (TreeNotFoundException e) {
             // expected
         }
-        
+
         final Volume volume = getVolume();
 
         // Check on disk
         List<String> treeNames = Arrays.asList(volume.getTreeNames());
-        assertFalse("Tree <"+TREE_NAME+"> should not be in Volume list <"+treeNames+">", treeNames.contains(TREE_NAME));
+        assertFalse("Tree <" + TREE_NAME + "> should not be in Volume list <" + treeNames + ">", treeNames
+                .contains(TREE_NAME));
 
         // Check in-memory
         assertFalse("Volume should not know about tree", volume.getStructure().treeMapContainsName(TREE_NAME));
-        assertEquals("Journal should not have handle for tree",
-                     -1,
-                     _persistit.getJournalManager().handleForTree(new TreeDescriptor(volume.getHandle(), TREE_NAME), false));
+        assertEquals("Journal should not have handle for tree", -1, _persistit.getJournalManager().handleForTree(
+                new TreeDescriptor(volume.getHandle(), TREE_NAME), false));
 
         txn.commit();
         txn.end();
     }
 
+    @Test
     public void testCleanupManagerShouldNotInstantiateTrees() throws Exception {
         Exchange ex = getExchange(true);
         _persistit.releaseExchange(ex);
@@ -125,17 +144,18 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         _persistit.releaseExchange(ex);
 
         assertNull("Tree should not exist after remove", getVolume().getTree(TREE_NAME, false));
-        
+
         CleanupManager cm = _persistit.getCleanupManager();
         boolean accepted = cm.offer(new CleanupManager.CleanupPruneAction(treeHandle, rootPage));
         assertTrue("CleanupPruneAction was accepted", accepted);
         cm.kick();
-        while(cm.getEnqueuedCount() > 0) {
+        while (cm.getEnqueuedCount() > 0) {
             Thread.sleep(50);
         }
         assertNull("Tree should not exist after cleanup action", getVolume().getTree(TREE_NAME, false));
     }
 
+    @Test
     public void testReanimatedTreeCreateAndRemoveSynchronization() throws PersistitException, InterruptedException {
         enableSequencer(true);
         addSchedules(TREE_CREATE_REMOVE_SCHEDULE);
@@ -155,7 +175,7 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
                 try {
                     ex = getExchange(false);
                     ex.removeTree();
-                } catch(Throwable t) {
+                } catch (Throwable t) {
                     threadErrors.add(t);
                 }
                 if (ex != null) {
@@ -177,7 +197,7 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
                     }
                     sequence(TREE_CREATE_REMOVE_C);
                     assertEquals("New tree has zero keys in it", 0, count);
-                } catch(Throwable t) {
+                } catch (Throwable t) {
                     threadErrors.add(t);
                 }
                 if (ex != null) {

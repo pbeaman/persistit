@@ -143,11 +143,11 @@ public class TransactionIndexConcurrencyTest extends TestCase {
             threads[i].join();
         }
         timer.cancel();
-        
+
         final long end = System.currentTimeMillis();
         System.out.printf("\nBefore cleanup:\n");
         report(end - start);
-        
+
         ti.cleanup();
         System.out.printf("\nAfter cleanup:\n");
         report(end - start);
@@ -281,7 +281,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
         hashTableSize = ap.getIntValue("hashCount");
         mvvCount = ap.getIntValue("mvvCount");
         sleep = ap.isFlag('s');
-        
+
         final TransactionIndexConcurrencyTest test = new TransactionIndexConcurrencyTest();
         test.testConcurrentOperations();
     }

@@ -155,13 +155,13 @@ class ErrorInjectingFileChannel extends FileChannel implements TestChannelInject
             injectFailure('e');
         }
         final long capacity = Math.max(0L, _injectedDiskFullLimit - position);
-        final int delta = (int)Math.max(0L, (long)byteBuffer.remaining() - capacity);
+        final int delta = (int) Math.max(0L, (long) byteBuffer.remaining() - capacity);
         byteBuffer.limit(byteBuffer.limit() - delta);
         final int written = _channel.write(byteBuffer, position);
         byteBuffer.limit(byteBuffer.limit() + delta);
         /*
-         * Modified to mimic behavior seen on an actual full disk:
-         * A Disk Full condition is thrown only if no bytes can be written.
+         * Modified to mimic behavior seen on an actual full disk: A Disk Full
+         * condition is thrown only if no bytes can be written.
          */
         if (delta > 0 && written == 0) {
             throw new IOException("Disk Full");

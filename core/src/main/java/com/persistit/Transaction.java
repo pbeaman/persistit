@@ -470,7 +470,16 @@ public class Transaction {
          * aggregate transaction throughput across many threads may be much
          * higher than with the HARD policy.
          */
-        GROUP
+        GROUP;
+        
+        static CommitPolicy forName(final String policyName) {
+            for (CommitPolicy policy : values()) {
+                if (policy.name().equalsIgnoreCase(policyName)) {
+                    return policy;
+                }
+            }
+            throw new IllegalArgumentException("No such CommitPolicy: " + policyName);
+        }
     }
 
     private CommitPolicy _defaultCommitPolicy = CommitPolicy.SOFT;
