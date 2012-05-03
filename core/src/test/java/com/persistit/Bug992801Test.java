@@ -58,53 +58,28 @@ public class Bug992801Test extends PersistitUnitTestCase {
 
         final Transaction txn = _persistit.getTransaction();
         final Exchange ex = _persistit.getExchange("persistit", "Bug992801Test", true);
+
         txn.begin();
+        final long tsv = txn.getStartTimestamp();
         for (int i = 1; i < 1000; i++) {
             ex.getValue().put(RED_FOX + i);
             ex.to(i).store();
         }
         txn.commit();
         txn.end();
-        final long tsv = txn.getStartTimestamp();
-        final AtomicLong lastCurrentStatus = new AtomicLong();
-        final AtomicInteger countCurrentStatus = new AtomicInteger();
-        final AtomicInteger totalCount = new AtomicInteger();
-        final Thread[] threads = new Thread[10];
+
+        long whenStatusCleared = Long.MAX_VALUE;
+
         final long start = System.currentTimeMillis();
-        for (int i = 0; i < threads.length; i++) {
-            threads[i] = new Thread(new Runnable() {
-                public void run() {
-                    final Transaction txn = _persistit.getTransaction();
-                    try {
-                        txn.begin();
-                        final Exchange ex = _persistit.getExchange("persistit", "Bug992801Test", true);
-                        ex.to(Key.BEFORE);
-                        long now = 0;
-                        while ((now = System.currentTimeMillis()) < start + 5000) {
-                            ex.next();
-                            final TransactionStatus status = _persistit.getTransactionIndex().getStatus(tsv);
-                            if (status != null) {
-                                countCurrentStatus.incrementAndGet();
-                                long previous = lastCurrentStatus.get();
-                                lastCurrentStatus.compareAndSet(previous, now);
-                            }
-                            totalCount.incrementAndGet();
-                        }
-                    } catch (PersistitException e) {
-                        e.printStackTrace();
-                    } finally {
-                        txn.end();
-                    }
-                }
-            });
+        while (System.currentTimeMillis() < start + 5000) {
+            final TransactionStatus status = _persistit.getTransactionIndex().getStatus(tsv);
+            if (status == null) {
+                whenStatusCleared = System.currentTimeMillis();
+                break;
+            }
+            Thread.sleep(10);
         }
-        for (int i = 0; i < threads.length; i++) {
-            threads[i].start();
-        }
-        for (int i = 0; i < threads.length; i++) {
-            threads[i].join();
-        }
-        assertTrue("Should be some null TransactionStatus instances", totalCount.get() > countCurrentStatus.get());
-        assertTrue("Reduce should occur within 1 second", lastCurrentStatus.get() - start < 1000);
+        assertTrue(String.format("Should have cleared within 1000ms, actual=%,d", whenStatusCleared - start),
+                whenStatusCleared - start < 1000);
     }
 }
