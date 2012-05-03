@@ -54,7 +54,7 @@ public class Bug992801Test extends PersistitUnitTestCase {
      */
 
     @Test
-    public void testFloorRaises() throws Exception {
+    public void testFloorRises() throws Exception {
 
         final Transaction txn = _persistit.getTransaction();
         final Exchange ex = _persistit.getExchange("persistit", "Bug992801Test", true);
