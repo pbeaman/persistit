@@ -281,6 +281,13 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
         return _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
     }
 
+    protected static void storeLongMVV(Exchange ex, Object k) throws PersistitException {
+        ex.clear().append(k);
+        final String longStr = createString(ex.maxValueSize(ex.getKey().getEncodedSize()) - MVV.overheadLength(1));
+        store(ex, k, longStr);
+        assertEquals("stored long record at key "+k, true, ex.isValueLongRecord());
+    }
+
     protected void showGUI() {
         try {
             _persistit.setupGUI(true);

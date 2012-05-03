@@ -1515,9 +1515,7 @@ public class Buffer extends SharedResource {
             } else {
                 int storedLength = valueHelper.storeVersion(_bytes, newTail + _tailHeaderSize + klength, -1,
                         _bytes.length); // TODO limit
-                if (MVV.isArrayMVV(_bytes, newTail + _tailHeaderSize + klength, storedLength & MVV.STORE_LENGTH_MASK)) {
-                    _mvvCount++;
-                }
+                incCountIfMvv(_bytes, newTail + _tailHeaderSize + klength, storedLength & MVV.STORE_LENGTH_MASK);
             }
 
             if (fastIndex != null) {
@@ -1602,7 +1600,7 @@ public class Buffer extends SharedResource {
         } else {
             length = valueHelper.requiredLength(_bytes, tail + _tailHeaderSize + klength, oldTailSize - _tailHeaderSize
                     - klength);
-            wasMVV = MVV.isArrayMVV(_bytes, tail + _tailHeaderSize + klength, oldTailSize - _tailHeaderSize - klength);
+            wasMVV = isValueMVV(_bytes, tail + _tailHeaderSize + klength, oldTailSize - _tailHeaderSize - klength);
         }
 
         int newTailSize = klength + length + _tailHeaderSize;
@@ -1646,7 +1644,7 @@ public class Buffer extends SharedResource {
         } else {
             final int storedLength = valueHelper.storeVersion(_bytes, newTail + _tailHeaderSize + klength, oldTailSize
                     - _tailHeaderSize - klength, _bytes.length); // TODO - limit
-            isMVV = MVV.isArrayMVV(_bytes, newTail + _tailHeaderSize + klength, storedLength & MVV.STORE_LENGTH_MASK);
+            isMVV = isValueMVV(_bytes, newTail + _tailHeaderSize + klength, storedLength & MVV.STORE_LENGTH_MASK);
         }
         if (!wasMVV && isMVV) {
             _mvvCount++;
@@ -2933,7 +2931,7 @@ public class Buffer extends SharedResource {
      * @param p1
      * @param p2
      * @param insertAt
-     * @param includeRightEdge
+     * @param includesRightEdge
      */
     void moveRecords(Buffer buffer, int p1, int p2, int insertAt, boolean includesRightEdge) {
         if (p2 - p1 + _keyBlockEnd > _alloc) {
@@ -3620,9 +3618,7 @@ public class Buffer extends SharedResource {
                                 MVV.verify(_bytes, offset, newSize);
                             }
                         }
-                        if (MVV.isArrayMVV(_bytes, offset, newSize)) {
-                            _mvvCount++;
-                        }
+                        incCountIfMvv(_bytes, offset, newSize);
                     }
 
                     if (valueByte == MVV.TYPE_ANTIVALUE) {
@@ -4195,4 +4191,23 @@ public class Buffer extends SharedResource {
         prunedVersions.clear();
     }
 
+    static boolean isLongRecord(byte[] bytes, int offset, int length) {
+        return (length > 0) && ((bytes[offset] & 0xFF) == LONGREC_TYPE);
+    }
+
+    static boolean isLongMVV(byte[] bytes, int offset, int length) {
+        return isLongRecord(bytes, offset, length) &&
+               (length > LONGREC_PREFIX_OFFSET) &&
+               MVV.isArrayMVV(bytes, offset + LONGREC_PREFIX_OFFSET, length - LONGREC_PREFIX_OFFSET);
+    }
+
+    static boolean isValueMVV(byte[] bytes, int offset, int length) {
+        return MVV.isArrayMVV(bytes, offset, length) || isLongMVV(bytes, offset, length);
+    }
+
+    private void incCountIfMvv(byte[] bytes, int offset, int length) {
+        if (isValueMVV(bytes, offset, length)) {
+            ++_mvvCount;
+        }
+    }
 }

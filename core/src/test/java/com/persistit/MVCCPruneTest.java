@@ -383,6 +383,21 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
     }
 
+    public void testLongRecordAndBufferMVVCount() throws PersistitException {
+        trx1.begin();
+        try {
+            storeLongMVV(ex1, KEY);
+            assertEquals("MVV count after storing LONG MVV", 1, ex1.fetchBufferCopy(0).getMvvCount());
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+
+        _persistit.getTransactionIndex().cleanup();
+        ex1.clear().append(KEY).prune();
+        assertEquals("MVV count after commit and prune", 0, ex1.fetchBufferCopy(0).getMvvCount());
+    }
+
     //
     // Test helper methods
     //

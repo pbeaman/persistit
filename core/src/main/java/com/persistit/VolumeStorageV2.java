@@ -26,7 +26,7 @@
 
 package com.persistit;
 
-import static com.persistit.VolumeHeader.changeDirectoryRoot;
+import static com.persistit.VolumeHeader.*;
 import static com.persistit.VolumeHeader.changeExtendedPageCount;
 import static com.persistit.VolumeHeader.changeExtensionPages;
 import static com.persistit.VolumeHeader.changeFetchCounter;
@@ -562,9 +562,9 @@ class VolumeStorageV2 extends VolumeStorage {
         putVersion(bytes);
         putPageSize(bytes, struc.getPageSize());
         putId(bytes, _volume.getId());
-
         changeNextAvailablePage(bytes, _nextAvailablePage);
         changeExtendedPageCount(bytes, _extendedPageCount);
+        changeCreateTime(bytes, _volume.getStatistics().getCreateTime());
         changeInitialPages(bytes, _volume.getSpecification().getInitialPages());
         changeMaximumPages(bytes, _volume.getSpecification().getMaximumPages());
         changeExtensionPages(bytes, _volume.getSpecification().getExtensionPages());

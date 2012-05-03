@@ -2810,12 +2810,11 @@ public class Exchange {
     }
 
     boolean isLongRecord(Value value) {
-        return value.isDefined() && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE;
+        return value.isDefined() && Buffer.isLongRecord(value.getEncodedBytes(), 0, value.getEncodedSize());
     }
 
     boolean isLongMVV(Value value) {
-        return value.isDefined() && isLongRecord(value) && (value.getEncodedSize() > LONGREC_PREFIX_SIZE_OFFSET)
-                && (value.getEncodedBytes()[LONGREC_PREFIX_OFFSET] == MVV.TYPE_MVV_BYTE);
+        return value.isDefined() && Buffer.isLongMVV(value.getEncodedBytes(), 0, value.getEncodedSize());
     }
 
     void fetchFixupForLongRecords(Value value, int minimumBytes) throws PersistitException {
