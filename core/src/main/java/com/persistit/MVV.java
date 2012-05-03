@@ -196,7 +196,9 @@ class MVV {
      * 
      * @param source
      *            Potential MVV to test
-     * @param sourceLength
+     * @param offset
+     *            Offset within the source array
+     * @param length
      *            Length of the given array currently in use.
      * 
      * @return <code>true</code> if the array is an MVV
