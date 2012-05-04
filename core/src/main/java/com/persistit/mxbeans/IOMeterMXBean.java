@@ -30,6 +30,16 @@ import java.io.IOException;
 
 import javax.management.MXBean;
 
+/**
+ * <p>
+ * Manages statistics about various types of physical I/O operations. These are
+ * measures of I/O calls to the the file system and therefore only approximately
+ * represent the true volume of physical I/O operations.
+ * </p>
+ * 
+ * @author peter
+ * 
+ */
 @MXBean
 public interface IOMeterMXBean {
 
@@ -92,8 +102,11 @@ public interface IOMeterMXBean {
     public long getIoRate();
 
     /**
-     * Set the path for file into which IO events should be logged, or <code>null</code>
-     * to disable IO logging.
+     * Set the path for file into which IO events should be logged, or
+     * <code>null</code> to disable IO logging. Use care when enabling an I/O
+     * log because every I/O operation performed by Persistit results in a
+     * fixed-length record being added to the file. The resulting log file can
+     * become extremely large.
      * 
      * @param toFile
      * @throws IOException
@@ -102,8 +115,8 @@ public interface IOMeterMXBean {
     public void setLogFile(final String toFile) throws IOException;
 
     /**
-     * @return Path for file into which IO events should be logged, or <code>null</code>
-     * if IO logging is disabled.
+     * @return Path for file into which IO events should be logged, or
+     *         <code>null</code> if IO logging is disabled.
      */
     @Description("Path for diagnostic I/O log file - normally null")
     public String getLogFile();

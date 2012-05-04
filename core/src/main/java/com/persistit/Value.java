@@ -5146,13 +5146,13 @@ public final class Value {
     }
 
     /**
-     * Construct a list of {@link Version} objects, each denote one of the
+     * Construct a list of <code>Version</code> objects, each denoting one of the
      * multi-value versions currently held in this Value object.
      * 
      * @return the list of <code>Version<code>s
      * @throws PersistitException
      */
-    public List<Version> unpackMvvVersions() throws PersistitException {
+    List<Version> unpackMvvVersions() throws PersistitException {
         final List<Version> versions = new ArrayList<Version>();
         MVV.VersionVisitor visitor = new MVV.VersionVisitor() {
 

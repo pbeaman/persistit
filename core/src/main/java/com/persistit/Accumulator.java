@@ -38,14 +38,15 @@ import com.persistit.exception.PersistitInterruptedException;
  * <p>
  * An Accumulator accumulates statistical information in the MVCC Transaction
  * environment without creating write-write dependency conflicts. Subclasses
- * include SumAccumulator, MinAccumulator, MaxAccumulator and SeqAccumulator
- * which compute the sum, minimum and maximum values of contributions by
- * individual transactions. (See below for semantics of the SeqAccummulator.)
- * Each contribution is accounted for separately as a <code>Delta</code>
- * instance until the transaction is either committed or aborted and there are
- * no other concurrently executing transactions that started before the commit
- * timestamp. This mechanism is designed to provide a "snapshot" view of the
- * Accumulator that is consistent with the snapshot view of the database.
+ * include <code>SumAccumulator</code>, <code>MinAccumulator</code>,
+ * <code>MaxAccumulator</code> and <code>SeqAccumulator</code> which compute the
+ * sum, minimum and maximum values of contributions by individual transactions.
+ * (See below for semantics of the <code>SeqAccummulator</code>.) Each
+ * contribution is accounted for separately as a <code>Delta</code> instance
+ * until the transaction is either committed or aborted and there are no other
+ * concurrently executing transactions that started before the commit timestamp.
+ * This mechanism is designed to provide a "snapshot" view of the Accumulator
+ * that is consistent with the snapshot view of the database.
  * </p>
  * <p>
  * In more detail: the {@link #update} method of an Accumulator is invoked

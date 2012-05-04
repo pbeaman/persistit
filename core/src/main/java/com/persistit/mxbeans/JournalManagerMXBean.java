@@ -30,6 +30,16 @@ import javax.management.MXBean;
 
 import com.persistit.exception.PersistitException;
 
+/**
+ * Management interface to the <code>JournalManager</code>, including journal
+ * file names and file positions. Of particular interest are
+ * {@link #getCurrentAddress()} and {@link #getBaseAddress()}. The difference
+ * between these represents the degree to which JOURNAL_COPIER has fallen behind
+ * recent updates.
+ * 
+ * @author peter
+ * 
+ */
 @MXBean
 public interface JournalManagerMXBean {
 
@@ -99,14 +109,14 @@ public interface JournalManagerMXBean {
     final static long MINIMUM_LOG_REPEAT_INTERVAL = 1000L;
     final static long MAXIMUM_LOG_REPEAT_INTERVAL = Long.MAX_VALUE;
     /**
-     * Default threshold time in milliseconds for JournalManager
-     * flush operations. If a flush operation takes longer than
-     * this time, a WARNING message is written to the log.
+     * Default threshold time in milliseconds for JournalManager flush
+     * operations. If a flush operation takes longer than this time, a WARNING
+     * message is written to the log.
      */
     final static long DEFAULT_SLOW_IO_ALERT_THRESHOLD = 2000L;
     final static long MINIMUM_SLOW_ALERT_THRESHOLD = 100L;
     final static long MAXIMUM_SLOW_ALERT_THRESHOLD = Long.MAX_VALUE;
-    
+
     /**
      * File name appended when journal path specifies only a directory
      */
@@ -141,7 +151,7 @@ public interface JournalManagerMXBean {
 
     @Description("True if copy-fast mode has be enabled")
     boolean isCopyingFast();
-   
+
     @Description("True if copying of pages from the journal to their destination volumes is disabled")
     void setAppendOnly(boolean appendOnly);
 
@@ -183,7 +193,7 @@ public interface JournalManagerMXBean {
 
     @Description("Timestamp value when the most recently valid checkpoint was created")
     long getLastValidCheckpointTimestamp();
-    
+
     @Description("Current timestamp value")
     long getCurrentTimestamp();
 
@@ -213,10 +223,10 @@ public interface JournalManagerMXBean {
 
     @Description("System time when the most recently valid checkpoint was created")
     long getLastValidCheckpointTimeMillis();
-    
+
     @Description("Total number of transaction commit records written to the journal")
     long getTotalCompletedCommits();
-    
+
     @Description("Total aggregate time spent waiting for durable commits in milliseconds")
     long getCommitCompletionWaitTime();
 

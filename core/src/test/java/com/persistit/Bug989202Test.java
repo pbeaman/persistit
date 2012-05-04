@@ -32,8 +32,6 @@ import org.junit.Test;
 
 import com.persistit.unit.PersistitUnitTestCase;
 
-;
-
 /**
  * Persistit rev: 284
  * 

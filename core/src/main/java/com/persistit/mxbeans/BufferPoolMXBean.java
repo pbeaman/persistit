@@ -26,6 +26,14 @@
 
 package com.persistit.mxbeans;
 
+import javax.management.MXBean;
+
+/**
+ * Management structure holding information about the state of a
+ * <code>BufferPool</code>, including counters for events such as physical I/O
+ * operations, evictions, and hit ratio.
+ */
+@MXBean
 public interface BufferPoolMXBean {
 
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=BufferPool";
@@ -53,10 +61,10 @@ public interface BufferPoolMXBean {
     public long getMissCount();
 
     /**
-     * Return the number of lookup operations for pages in this pool for
-     * which the page image was already found in this <code>BufferPool</code>.
-     * This number, in comparison with the get counter, indicates how effective
-     * the cache is in reducing disk I/O.
+     * Return the number of lookup operations for pages in this pool for which
+     * the page image was already found in this <code>BufferPool</code>. This
+     * number, in comparison with the get counter, indicates how effective the
+     * cache is in reducing disk I/O.
      * 
      * @return The hit count
      */
@@ -70,26 +78,30 @@ public interface BufferPoolMXBean {
     public long getNewCount();
 
     /**
-     * @return The number of valid pages evicted from this <code>BufferPool</code> to
-     * make room for newly read or created pages.
+     * @return The number of valid pages evicted from this
+     *         <code>BufferPool</code> to make room for newly read or created
+     *         pages.
      */
     @Description("The number of valid pages evicted from this BufferPool to make room for newly read or created pages.")
     public long getEvictCount();
 
     /**
-     * @return The total number of pages written to disk from this <code>BufferPool</code>.
+     * @return The total number of pages written to disk from this
+     *         <code>BufferPool</code>.
      */
     @Description("The total number of pages written to disk from this BufferPool.")
     public long getWriteCount();
 
     /**
-     * @return The number of pages written to disk from this <code>BufferPool</code> due to checkpoints.
+     * @return The number of pages written to disk from this
+     *         <code>BufferPool</code> due to checkpoints.
      */
     @Description("The number of pages written to disk from this BufferPool due to checkpoints.")
     public long getForcedCheckpointWriteCount();
 
     /**
-     * @return The number of pages written to disk from this <code>BufferPool</code> due to eviction.
+     * @return The number of pages written to disk from this
+     *         <code>BufferPool</code> due to eviction.
      */
     @Description("The number of pages written to disk from this BufferPool due to eviction.")
     public long getForcedWriteCount();
@@ -100,7 +112,8 @@ public interface BufferPoolMXBean {
      * the <code>BufferPool</code> are successful - i.e., that the cache is
      * effectively reducing the need for disk read operations.
      * 
-     * @return The ratio of pages found in this <code>BufferPool</code> to total number of pages accessed
+     * @return The ratio of pages found in this <code>BufferPool</code> to total
+     *         number of pages accessed
      */
     @Description("The ratio of pages found in this BufferPool to total number of pages accessed.")
     public double getHitRatio();
@@ -122,7 +135,8 @@ public interface BufferPoolMXBean {
 
     /**
      * Get the count of pages on which running threads have reader
-     * (non-exclusive), but <i>not</i> writer (exclusive) claims in this <code>BufferPool</code>.
+     * (non-exclusive), but <i>not</i> writer (exclusive) claims in this
+     * <code>BufferPool</code>.
      * 
      * @return The count of pages with reader claims
      */

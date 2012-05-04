@@ -28,6 +28,8 @@ package com.persistit.mxbeans;
 
 import java.rmi.RemoteException;
 
+import javax.management.MXBean;
+
 import com.persistit.Management;
 import com.persistit.Persistit;
 
@@ -42,6 +44,7 @@ import com.persistit.Persistit;
  * 
  * @version 1.0
  */
+@MXBean
 public interface ManagementMXBean {
 
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit";

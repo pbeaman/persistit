@@ -12,7 +12,7 @@ import com.persistit.util.ArgParser;
 public class AsciiDocPrep {
 
     private final static Pattern PERSISTIT_PATTERN = Pattern
-            .compile("(\\+)?(com\\.persistit(?:\\.[a-z]\\w?)*(?:\\.[A-Z]\\w*))(?:#(\\w+(?:[\\(\\)\\,a-zA-Z]*)))?(\\+)?");
+            .compile("(\\+)?(com\\.persistit(?:\\.[a-z]\\w?)*(?:\\.[A-Z]\\w*)+)(?:#(\\w+(?:[\\(\\)\\,a-zA-Z]*)))?(\\+)?");
 
     private final static String[] ARG_TEMPLATE = { "in|string:|Input file",
             "out|string:|Output file",

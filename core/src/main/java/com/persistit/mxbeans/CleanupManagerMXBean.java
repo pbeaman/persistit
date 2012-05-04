@@ -28,6 +28,10 @@ package com.persistit.mxbeans;
 
 import javax.management.MXBean;
 
+/**
+ * Management information about the CLEANUP_MANAGER, a thread that performs background pruning and
+ * other cleanup tasks.
+ */
 @MXBean
 public interface CleanupManagerMXBean {
 
