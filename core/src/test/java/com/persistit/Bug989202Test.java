@@ -31,7 +31,6 @@ import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 
 import com.persistit.unit.PersistitUnitTestCase;
-;
 
 /**
  * Persistit rev: 284
