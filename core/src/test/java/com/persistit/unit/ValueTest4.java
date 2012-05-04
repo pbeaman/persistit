@@ -26,6 +26,9 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -36,6 +39,8 @@ import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.util.ArrayList;
+
+import org.junit.Test;
 
 import com.persistit.DefaultCoderManager;
 import com.persistit.DefaultValueCoder;
@@ -342,6 +347,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         super.tearDown();
     }
 
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
         final S s = new S();
@@ -354,6 +360,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() throws PersistitException {
         System.out.print("test2 ");
         final SS ss = new SS("3", "4");
@@ -366,6 +373,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() throws PersistitException {
         System.out.print("test3 ");
         final E e = new E();
@@ -378,6 +386,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test4() throws PersistitException {
         System.out.print("test4 ");
         final EE ee = new EE("6", "7");
@@ -390,6 +399,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test5() throws PersistitException {
         System.out.print("test5 ");
         final T t = new T("1", "2");
@@ -400,6 +410,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test6() throws PersistitException {
         System.out.print("test6 ");
         final TT tt = new TT("1", "2");
@@ -410,6 +421,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test7() throws PersistitException {
         System.out.print("test7 ");
         final CoderManager cm = _persistit.getCoderManager();
@@ -425,6 +437,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test8() throws PersistitException {
         System.out.print("test8 ");
         final CoderManager cm = _persistit.getCoderManager();
@@ -440,6 +453,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test9() throws PersistitException {
         System.out.print("test9 ");
         final SSS sss = new SSS("3", "4", true, 5);
@@ -452,6 +466,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test10() throws PersistitException {
         System.out.print("test10 ");
         final SSS sss = new SSS("3", "4", true, 5);
@@ -464,6 +479,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test11() throws PersistitException {
         System.out.print("test11 ");
         final SSSS ssss = new SSSS();
@@ -481,6 +497,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test12() throws PersistitException {
         System.out.print("test12 ");
         final CoderManager cm = _persistit.getCoderManager();

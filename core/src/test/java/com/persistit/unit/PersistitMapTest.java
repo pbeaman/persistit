@@ -26,6 +26,9 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -36,6 +39,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
+import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.KeyFilter;
@@ -73,6 +78,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         }
     }
 
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
 
@@ -123,6 +129,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() throws PersistitException {
         System.out.print("test2 ");
 
@@ -169,6 +176,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() throws PersistitException {
         System.out.print("test3 ");
 
@@ -204,6 +212,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test4() throws PersistitException {
         System.out.print("test4 ");
 
@@ -260,6 +269,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test5() throws PersistitException {
         System.out.print("test5 ");
 
@@ -309,6 +319,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test6() throws PersistitException {
         System.out.print("test6 ");
 
@@ -353,6 +364,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test7() throws PersistitException {
         System.out.print("test7 ");
 

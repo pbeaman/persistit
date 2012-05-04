@@ -26,10 +26,14 @@
 
 package com.persistit;
 
-import com.persistit.exception.PersistitException;
+import static org.junit.Assert.assertEquals;
 
 import java.util.Map;
 import java.util.TreeMap;
+
+import org.junit.Test;
+
+import com.persistit.exception.PersistitException;
 
 public class MVCCConcurrentTest extends MVCCTestBase {
     private final String KEY1 = "key1";
@@ -38,7 +42,7 @@ public class MVCCConcurrentTest extends MVCCTestBase {
     private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.UncaughtExceptionHandler() {
         @Override
         public void uncaughtException(Thread t, Throwable e) {
-            synchronized(uncaughtExceptions) {
+            synchronized (uncaughtExceptions) {
                 uncaughtExceptions.put(t.getName(), e);
             }
             Thread.getDefaultUncaughtExceptionHandler().uncaughtException(t, e);
@@ -57,7 +61,7 @@ public class MVCCConcurrentTest extends MVCCTestBase {
         assertEquals("Uncaught exceptions", "{}", uncaughtExceptions.toString());
     }
 
-
+    @Test
     public void testReadWriteRemoveLongRecNoTrx() {
         final int NUM_OPS = 1000;
         final String LONG_STR = createString(ex1.getVolume().getPageSize() * 50);
@@ -66,7 +70,7 @@ public class MVCCConcurrentTest extends MVCCTestBase {
             @Override
             public void run() throws Exception {
                 Exchange ex = getNewExchange();
-                for(int i = 0; i < NUM_OPS; ++i) {
+                for (int i = 0; i < NUM_OPS; ++i) {
                     fetch(ex, KEY1, false);
                     Value value = ex.getValue();
                     if (value.isDefined()) {
@@ -81,7 +85,7 @@ public class MVCCConcurrentTest extends MVCCTestBase {
             @Override
             public void run() throws Exception {
                 Exchange ex = getNewExchange();
-                for(int i = 0; i < NUM_OPS; ++i) {
+                for (int i = 0; i < NUM_OPS; ++i) {
                     store(ex, i, i);
                 }
                 _persistit.releaseExchange(ex);
@@ -93,7 +97,7 @@ public class MVCCConcurrentTest extends MVCCTestBase {
             public void run() throws Exception {
                 Exchange ex = getNewExchange();
                 int j = 0;
-                for(int i = 0; i < NUM_OPS; ++i, ++j) {
+                for (int i = 0; i < NUM_OPS; ++i, ++j) {
                     if (j == 0) {
                         store(ex, KEY1, LONG_STR);
                     } else if (j == 5) {
@@ -107,11 +111,9 @@ public class MVCCConcurrentTest extends MVCCTestBase {
         startAndJoinAll(readThread, writeThread, removeThread);
     }
 
-
     //
     // Test helpers
     //
-
 
     private static interface ThrowingRunnable {
         public void run() throws Exception;
@@ -123,7 +125,7 @@ public class MVCCConcurrentTest extends MVCCTestBase {
             public void run() {
                 try {
                     runnable.run();
-                } catch(Exception e) {
+                } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -141,7 +143,7 @@ public class MVCCConcurrentTest extends MVCCTestBase {
                 try {
                     t.join();
                     break;
-                } catch(InterruptedException e) {
+                } catch (InterruptedException e) {
                     System.err.println("Interrupted but continuing thread: " + t.getName());
                 }
             }

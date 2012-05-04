@@ -24,7 +24,11 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
+
+import static org.junit.Assert.assertEquals;
+
+import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
@@ -33,6 +37,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 public class Bug877656Test extends PersistitUnitTestCase {
 
+    @Test
     public void testForward() throws Exception {
         Transaction txn = _persistit.getTransaction();
         txn.begin();
@@ -60,6 +65,7 @@ public class Bug877656Test extends PersistitUnitTestCase {
         assertEquals(0, count);
     }
 
+    @Test
     public void testReverse() throws Exception {
         Transaction txn = _persistit.getTransaction();
         txn.begin();

@@ -26,6 +26,9 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -198,7 +201,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value)
                     throws PersistitException {
             }
-            
+
             @Override
             public boolean requiresLongRecordConversion() {
                 return true;
@@ -304,7 +307,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
         assertEquals(0, countKeys(false));
     }
-    
+
     @Test
     public void testRollbackEventually() throws Exception {
 
@@ -315,7 +318,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             txn.rollback();
             txn.end();
         }
-        
+
         long start = System.currentTimeMillis();
         long elapsed = 0;
         while (countKeys(false) > 0) {
@@ -327,7 +330,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
         assertTrue(elapsed < 60000);
     }
-    
+
     @Test
     public void testRollbackLongRecords() throws Exception {
         // Allow test to control when pruning will happen
@@ -344,7 +347,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertEquals(0, countKeys(false));
         IntegrityCheck icheck = new IntegrityCheck(_persistit);
         icheck.checkVolume(volume);
-        long totalPages =volume.getStorage().getNextAvailablePage();
+        long totalPages = volume.getStorage().getNextAvailablePage();
         long dataPages = icheck.getDataPageCount();
         long indexPages = icheck.getIndexPageCount();
         long longPages = icheck.getLongRecordPageCount();
@@ -353,12 +356,13 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertEquals(0, longPages);
         assertTrue(garbagePages > 0);
     }
-    
+
     @Test
     public void testTransactionMapSpanningJournalWriteBuffer() throws Exception {
         _persistit.getJournalManager().setWriteBufferSize(JournalManager.MINIMUM_BUFFER_SIZE);
         Transaction txn = _persistit.getTransaction();
-        Accumulator acc = _persistit.getVolume("persistit").getTree( "JournalManagerTest", true).getAccumulator(Accumulator.Type.SUM, 0);
+        Accumulator acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true).getAccumulator(
+                Accumulator.Type.SUM, 0);
         /*
          * Load up a sizable live transaction map
          */
@@ -373,12 +377,13 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         _persistit.close();
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
-        
-        acc = _persistit.getVolume("persistit").getTree( "JournalManagerTest", true).getAccumulator(Accumulator.Type.SUM, 0);
+
+        acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true).getAccumulator(
+                Accumulator.Type.SUM, 0);
         assertEquals("Accumulator value is incorrect", 25000, acc.getLiveValue());
 
     }
-    
+
     private int countKeys(final boolean mvcc) throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
         exchange.ignoreMVCCFetch(!mvcc);
@@ -387,15 +392,15 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         while (exchange.next()) {
             count1++;
         }
-//      No longer valid because CleanupManager may prune while the loop is running
-//        exchange.clear().append(Key.AFTER);
-//        while (exchange.previous()) {
-//            count2++;
-//        }
-//        assertEquals(count1, count2);
+        // No longer valid because CleanupManager may prune while the loop is
+        // running
+        // exchange.clear().append(Key.AFTER);
+        // while (exchange.previous()) {
+        // count2++;
+        // }
+        // assertEquals(count1, count2);
         return count1;
     }
-    
 
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", true);

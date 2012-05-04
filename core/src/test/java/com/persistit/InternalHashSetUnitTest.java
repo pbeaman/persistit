@@ -26,11 +26,13 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertTrue;
+
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Random;
 
-import junit.framework.TestCase;
+import org.junit.Test;
 
 import com.persistit.util.InternalHashSet;
 
@@ -38,7 +40,7 @@ import com.persistit.util.InternalHashSet;
  * 
  * @version 1.0
  */
-public class InternalHashSetUnitTest extends TestCase {
+public class InternalHashSetUnitTest {
     private static class TestEntry extends InternalHashSet.Entry {
         int _integer;
 
@@ -48,6 +50,7 @@ public class InternalHashSetUnitTest extends TestCase {
         }
     }
 
+    @Test
     public void test1() {
         final InternalHashSet iset = new InternalHashSet();
         final HashSet hset = new HashSet();

@@ -26,6 +26,9 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -56,7 +59,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     private String journalSize = "10000000";
     private String _volumeName = "persistit";
-    
+
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -160,7 +163,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
             public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value)
                     throws PersistitException {
             }
-            
+
             @Override
             public boolean requiresLongRecordConversion() {
                 return true;
@@ -239,11 +242,11 @@ public class RecoveryTest extends PersistitUnitTestCase {
         jman.rollover();
         _persistit.checkpoint();
         /*
-         * The TI active transaction cache may be a bit out of date, which 
-         * can cause the copier to preserve records on the journal that are
-         * in fact obsolete.  Since the following assertion looks for
-         * equality, we'll artificially update the active transaction cache
-         * to verify that the copier does the right thing.
+         * The TI active transaction cache may be a bit out of date, which can
+         * cause the copier to preserve records on the journal that are in fact
+         * obsolete. Since the following assertion looks for equality, we'll
+         * artificially update the active transaction cache to verify that the
+         * copier does the right thing.
          */
         _persistit.getTransactionIndex().updateActiveTransactionCache();
         jman.copyBack();

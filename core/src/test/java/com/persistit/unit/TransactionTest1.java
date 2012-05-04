@@ -26,6 +26,10 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
@@ -39,7 +43,6 @@ import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
-import com.persistit.util.Debug;
 
 public class TransactionTest1 extends PersistitUnitTestCase {
 

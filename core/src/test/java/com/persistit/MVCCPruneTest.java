@@ -26,11 +26,15 @@
 
 package com.persistit;
 
-import com.persistit.exception.PersistitException;
-import com.persistit.exception.RollbackException;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import org.junit.Test;
+
+import com.persistit.exception.PersistitException;
+import com.persistit.exception.RollbackException;
 
 public class MVCCPruneTest extends MVCCTestBase {
     final static String KEY = "a";
@@ -38,6 +42,7 @@ public class MVCCPruneTest extends MVCCTestBase {
     final static String VALUE_TRX1 = "A_trx1";
     final static String VALUE_TRX2 = "A_trx2";
 
+    @Test
     public void testPruneNonExistingKey() throws PersistitException {
         ex1.getValue().clear();
         ex1.clear().append(KEY);
@@ -53,6 +58,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("key found by fetch", false, ex1.getValue().isDefined());
     }
 
+    @Test
     public void testPrunePrimordial() throws PersistitException {
         // get a primordial by storing outside of transaction
         store(ex1, KEY, VALUE);
@@ -65,6 +71,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("version count after prune", 1, storedVersionCount(ex1, KEY));
     }
 
+    @Test
     public void testPrunePrimordialAndOneConcurrent() throws PersistitException {
         storePrimordial(ex1, KEY, VALUE);
 
@@ -82,6 +89,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testPrunePrimordialAndCommitted() throws PersistitException {
         storePrimordial(ex1, KEY, VALUE);
 
@@ -98,6 +106,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("version count after prune", 1, storedVersionCount(ex1, KEY));
     }
 
+    @Test
     public void testPruneManyCommitted() throws PersistitException {
         final int TRX1_COUNT = 5;
         storePrimordial(ex1, KEY, VALUE);
@@ -146,6 +155,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("version count post second prune, no trx active", 1, storedVersionCount(ex2, KEY));
     }
 
+    @Test
     public void testPruneAborted() throws PersistitException {
         storePrimordial(ex1, KEY, VALUE);
 
@@ -175,6 +185,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("value post-rollback post-prune", VALUE, fetch(ex1, KEY));
     }
 
+    @Test
     public void testPruneRemoved() throws PersistitException {
         storePrimordial(ex1, KEY, VALUE);
 
@@ -213,6 +224,7 @@ public class MVCCPruneTest extends MVCCTestBase {
      * Tests currently heuristic for pruning on split. That is, always prune
      * entire page when deciding to split. Will need updated if that changes.
      */
+    @Test
     public void testPruneOnSplit() throws PersistitException {
         final int MAX_KEYS = 2500;
 
@@ -246,6 +258,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         ex1.ignoreMVCCFetch(false);
     }
 
+    @Test
     public void testPruneAlternatingAbortedAndCommittedVersions() throws PersistitException {
         final char VERSIONS[] = { 'A', 'C', 'A', 'C', 'A' };
         storePrimordial(ex1, KEY, VALUE);
@@ -284,6 +297,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("stored versions", 2, storedVersionCount(ex2, KEY));
     }
 
+    @Test
     public void testPruneRunOfAbortedAndCommittedVersions() throws PersistitException {
         final char VERSIONS[] = { 'A', 'A', 'A', 'C', 'A', 'A', 'C' };
 
@@ -309,6 +323,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("stored versions post-prune", 1, storedVersionCount(ex2, KEY));
     }
 
+    @Test
     public void testStoreToPrimordialLongRecord() throws PersistitException {
         final String LONG_STR = createString(ex1.getVolume().getPageSize());
         storePrimordial(ex1, KEY, LONG_STR);
@@ -322,7 +337,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         } finally {
             trx1.end();
         }
-        
+
         trx1.begin();
         try {
             store(ex1, KEY, LONG_STR);
@@ -337,14 +352,15 @@ public class MVCCPruneTest extends MVCCTestBase {
     }
 
     /*
-    * Bug that could be triggered by having a primordial long record and then
-    * storing a short record (also, long mvv and storing a new short). The
-    * original long record chain would be incorrectly freed.
-    */
+     * Bug that could be triggered by having a primordial long record and then
+     * storing a short record (also, long mvv and storing a new short). The
+     * original long record chain would be incorrectly freed.
+     */
+    @Test
     public void testOverZealousLongRecordChainDeletion() throws PersistitException {
         final String longStr = createString(ex1.getVolume().getPageSize());
         storePrimordial(ex1, KEY, longStr);
-        
+
         trx1.begin();
         try {
             assertEquals("primordial long value fetch from trx1", longStr, fetch(ex1, KEY));
@@ -355,12 +371,12 @@ public class MVCCPruneTest extends MVCCTestBase {
                 assertEquals("short value fetch from trx2", VALUE_TRX2, fetch(ex2, KEY));
 
                 assertEquals("old long value version fetch from trx1", longStr, fetch(ex1, KEY));
-                
+
                 trx2.commit();
             } finally {
                 trx2.end();
             }
-            
+
             trx1.commit();
         } finally {
             trx1.end();

@@ -26,7 +26,11 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Random;
+
+import org.junit.Test;
 
 import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -38,6 +42,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
         return exchange.getBufferPool().get(exchange.getVolume(), 1, false, true);
     }
 
+    @Test
     public void testIndexSize() throws Exception {
         final Buffer b1 = getABuffer();
         FastIndex fi = b1.getFastIndex();
@@ -52,6 +57,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
         b1.release();
     }
 
+    @Test
     public void testIndexValidity() throws Exception {
         final Buffer b1 = getABuffer();
         b1.init(Buffer.PAGE_TYPE_GARBAGE);
@@ -70,6 +76,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
         b1.release();
     }
 
+    @Test
     public void testFastIndexRecompute() throws Exception {
         Buffer b1 = getABuffer();
         b1.init(Buffer.PAGE_TYPE_DATA);
@@ -118,6 +125,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
         key.setEncodedSize(key.getEncodedSize() - 1);
     }
 
+    @Test
     public void testRandomInsert() throws Exception {
         Random random = new Random(3);
         Buffer b1 = getABuffer();

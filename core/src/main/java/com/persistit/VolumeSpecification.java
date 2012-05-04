@@ -151,7 +151,7 @@ public class VolumeSpecification {
      * 
      * <dt><code>bufferSize:<i>NNN</i></code></dt>
      * <dd>Specifies <i>NNN</i> as the volume's buffer size when creating a new
-     * volume. <i>NNN</i> must be 1024, 2048, 4096, 8192 or 16384</dd>.
+     * volume. <i>NNN</i> must be 1024, 2048, 4096, 8192 or 16384.</dd>
      * 
      * <dt><code>initialPages:<i>NNN</i></code></dt>
      * <dd><i>NNN</i> is the initial number of pages to be allocated when this
@@ -197,7 +197,7 @@ public class VolumeSpecification {
                 } else {
                     String valueString = innerTokenizer.nextToken().trim();
                     boolean bad = false;
-                    long value = Persistit.parseLongProperty(attr, valueString, 0, Long.MAX_VALUE);
+                    long value = Configuration.parseLongProperty(attr, valueString);
 
                     if (ATTR_PAGE_SIZE.equals(attr)) {
                         if (value < Integer.MAX_VALUE && value > 0 && Volume.isValidPageSize((int) value)) {
@@ -393,7 +393,7 @@ public class VolumeSpecification {
     }
 
     private String ds(final long pages) {
-        return Persistit.displayableLongValue(pages * pageSize);
+        return Configuration.displayableLongValue(pages * pageSize);
     }
 
     public String summary() {

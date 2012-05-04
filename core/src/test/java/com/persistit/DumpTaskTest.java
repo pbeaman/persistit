@@ -26,6 +26,8 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
@@ -67,8 +69,8 @@ public class DumpTaskTest extends PersistitUnitTestCase {
             System.arraycopy(bb.array(), bb.position() + PA.OVERHEAD, buffer.getBytes(), 0, left);
             System.arraycopy(bb.array(), bb.position() + PA.OVERHEAD + left, buffer.getBytes(), buffer.getBufferSize()
                     - right, right);
-//            System.out.println(Util.dump(buffer.getBytes(), 16292, 16384));
-//            System.out.println(buffer.toStringDetail());
+            // System.out.println(Util.dump(buffer.getBytes(), 16292, 16384));
+            // System.out.println(buffer.toStringDetail());
             bb.clear();
         }
     }

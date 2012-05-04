@@ -26,7 +26,12 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 import java.util.Random;
+
+import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
@@ -37,6 +42,7 @@ import com.persistit.exception.PersistitException;
 
 public class ExchangeTest extends PersistitUnitTestCase {
 
+    @Test
     public void testAppend() throws PersistitException {
         Exchange ex = _persistit.getExchange("persistit", "tree", true);
         String mockValue = "PADRAIG";
@@ -95,6 +101,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(mockValue, ex.getValue().getString());
     }
 
+    @Test
     public void testStringAppend() throws PersistitException {
         int initialLength = 256;
         String randomString = generateASCIIString(initialLength);
@@ -155,6 +162,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         }
     }
 
+    @Test
     public void testConstructors() throws PersistitException {
         try {
             Exchange exchange = new Exchange(_persistit, "volume", "tree", true);
@@ -169,6 +177,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         }
     }
 
+    @Test
     public void testTraversal() throws PersistitException {
         Exchange ex = _persistit.getExchange("persistit", "gogo", true);
         String mockValue = generateASCIIString(256);
@@ -215,6 +224,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(false, ex.traverse(Key.LTEQ, kf, 4));
     }
 
+    @Test
     public void testKeyValues() throws PersistitException {
         Exchange ex = _persistit.getExchange("persistit", "gogo", true);
         String firstValue = new String("PADRAIG");

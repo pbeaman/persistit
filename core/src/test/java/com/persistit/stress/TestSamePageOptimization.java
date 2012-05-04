@@ -38,8 +38,8 @@ public class TestSamePageOptimization extends PersistitUnitTestCase {
 
     public void runTest() throws Exception {
         final Exchange ex = store();
-        int[] jumps = {1, 2, 5, 10, 100, 1000, 10000, 50000, 1, 2, 5, 10, 100, 1000, 10000, 50000};
-        
+        int[] jumps = { 1, 2, 5, 10, 100, 1000, 10000, 50000, 1, 2, 5, 10, 100, 1000, 10000, 50000 };
+
         System.out.printf("\nFetch time per jump count, with LevelCache enabled\n");
         for (int i = 0; i < jumps.length; i++) {
             System.out.printf("jump=%,8d", jumps[i]);
@@ -52,8 +52,9 @@ public class TestSamePageOptimization extends PersistitUnitTestCase {
         }
 
     }
-    
-    public long fetchesPerUnitTime(final Exchange ex, final int jump, final long duration, boolean enabled) throws Exception {
+
+    public long fetchesPerUnitTime(final Exchange ex, final int jump, final long duration, boolean enabled)
+            throws Exception {
         Random random = new Random(1);
         int count = 0;
         int key = 0;

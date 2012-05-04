@@ -82,7 +82,7 @@ import com.persistit.util.Util;
  * @author peter
  * 
  */
-public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
+class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;
@@ -267,7 +267,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 _handleCounter = Math.max(_handleCounter, handle + 1);
             }
         } else {
-            _journalFilePath = new File(path).getAbsoluteFile().toString();
+            _journalFilePath = journalPath(path).getAbsoluteFile().toString();
             _blockSize = maximumSize;
             _currentAddress = 0;
             _journalCreatedTime = System.currentTimeMillis();
@@ -1103,6 +1103,15 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         return address;
     }
 
+    static File journalPath(final String path) {
+        File file = new File(path);
+        if (file.isDirectory()) {
+            return new File(file, DEFAULT_JOURNAL_FILE_NAME);
+        } else {
+            return file;
+        }
+    }
+    
     static long fileToGeneration(final File file) {
         final Matcher matcher = PATH_PATTERN.matcher(file.getName());
         if (matcher.matches()) {

@@ -32,7 +32,7 @@ package com.persistit.exception;
  * 
  * @version 1.0
  */
-public class InvalidVolumeSpecificationException extends PersistitException {
+public class InvalidVolumeSpecificationException extends IllegalArgumentException {
     private static final long serialVersionUID = 5310678046457279454L;
 
     public InvalidVolumeSpecificationException() {

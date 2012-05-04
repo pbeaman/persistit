@@ -28,8 +28,6 @@ package com.persistit;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -37,12 +35,8 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.rmi.RemoteException;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,7 +44,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
@@ -61,18 +54,18 @@ import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
 import javax.management.NotificationEmitter;
 import javax.management.ObjectName;
+import javax.naming.ConfigurationException;
 
 import com.persistit.Accumulator.AccumulatorRef;
 import com.persistit.CheckpointManager.Checkpoint;
+import com.persistit.Configuration.BufferPoolConfiguration;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
 import com.persistit.exception.PersistitClosedException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
-import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.exception.TestException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
@@ -114,10 +107,9 @@ import com.persistit.util.UtilControl;
  * holding a reference to that instance and calling {@link #close()} when
  * finished with it. Persistit's background threads are not daemon threads, and
  * an application that does not call <code>close</code> therefore will not exit
- * normally.
- * </p>
+ * normally. </p>
  * <p>
- * Persistit takes a large variety of configuration properties.  These are
+ * Persistit takes a large variety of configuration properties. These are
  * specified through the <code>initalize</code> method.
  * </p>
  * 
@@ -360,8 +352,8 @@ public class Persistit {
     private final static int MAX_FATAL_ERROR_MESSAGES = 10;
 
     /**
-     * An Exception created when Persistit detects a fatal internal error
-     * such as database corruption.
+     * An Exception created when Persistit detects a fatal internal error such
+     * as database corruption.
      */
     public static class FatalErrorException extends RuntimeException {
 
@@ -411,9 +403,10 @@ public class Persistit {
      * Start time
      */
     private final long _startTime = System.currentTimeMillis();
+    private Configuration _configuration;
+
     private final HashMap<Integer, BufferPool> _bufferPoolTable = new HashMap<Integer, BufferPool>();
     private final ArrayList<Volume> _volumes = new ArrayList<Volume>();
-    private Properties _properties = new Properties();
 
     private AtomicBoolean _initialized = new AtomicBoolean();
     private AtomicBoolean _closed = new AtomicBoolean();
@@ -510,7 +503,11 @@ public class Persistit {
      * @throws Exception
      */
     public void initialize() throws PersistitException {
-        initialize(getProperty(CONFIG_FILE_PROPERTY_NAME, DEFAULT_CONFIG_FILE));
+        if (!isInitialized()) {
+            Configuration configuration = new Configuration();
+            configuration.readPropertiesFile();
+            initialize(configuration);
+        }
     }
 
     /**
@@ -533,7 +530,11 @@ public class Persistit {
      * @throws IOException
      */
     public void initialize(String propertiesFileName) throws PersistitException {
-        initialize(parseProperties(propertiesFileName));
+        if (!isInitialized()) {
+            Configuration configuration = new Configuration();
+            configuration.readPropertiesFile(propertiesFileName);
+            initialize(configuration);
+        }
     }
 
     /**
@@ -553,68 +554,67 @@ public class Persistit {
      * </p>
      * 
      * @param properties
-     *            The Properties object from which to initialize Persistit
+     *            The <code>Properties</code> instance from which to build the
+     *            configuration
      * @throws PersistitException
      * @throws IOException
      */
     public void initialize(Properties properties) throws PersistitException {
-        boolean done = false;
-        try {
-            _closed.set(false);
-
-            initializeProperties(properties);
-            initializeLogging();
-            initializeManagement();
-            initializeOther();
-            initializeRecovery();
-            initializeJournal();
-            initializeBufferPools();
-            initializeVolumes();
-            startJournal();
-            startBufferPools();
-            finishRecovery();
-            startCheckpointManager();
-            startTransactionIndexPollTask();
-            flush();
-            _checkpointManager.checkpoint();
-            startCleanupManager();
-            _initialized.set(true);
-            done = true;
-        } finally {
-            if (!done) {
-                releaseAllResources();
-            }
+        if (!isInitialized()) {
+            Configuration configuration = new Configuration(properties);
+            initialize(configuration);
         }
     }
 
-    Properties parseProperties(final String propertiesFileName) throws PersistitException {
-        Properties properties = new Properties();
-        try {
-            if (propertiesFileName.contains(DEFAULT_PROPERTIES_FILE_SUFFIX)
-                    || propertiesFileName.contains(File.separator)) {
-                properties.load(new FileInputStream(propertiesFileName));
-            } else {
-                ResourceBundle bundle = ResourceBundle.getBundle(propertiesFileName);
-                for (Enumeration<String> e = bundle.getKeys(); e.hasMoreElements();) {
-                    final String key = e.nextElement();
-                    properties.put(key, bundle.getString(key));
+    /**
+     * <p>
+     * Initialize Persistit using the supplied {@link Configuration}. If
+     * Persistit has already been initialized, this method does nothing. This
+     * method is threadsafe; if multiple threads concurrently attempt to invoke
+     * this method, one of the threads will actually perform the initialization
+     * and the other threads will do nothing.
+     * </p>
+     * <p>
+     * Note that Persistit starts non-daemon threads that will keep a JVM from
+     * exiting until {@link #close} is invoked. This is to ensure that all
+     * pending updates are written before the JVM exit.
+     * </p>
+     * 
+     * @param configuration
+     *            The <code>Configuration</code> from which to initialize
+     *            Persistit
+     * @throws PersistitException
+     * @throws IOException
+     */
+    public synchronized void initialize(Configuration configuration) throws PersistitException {
+        if (!isInitialized()) {
+            _configuration = configuration;
+            try {
+                _closed.set(false);
+
+                initializeLogging();
+                initializeManagement();
+                initializeOther();
+                initializeRecovery();
+                initializeJournal();
+                initializeBufferPools();
+                initializeVolumes();
+                startJournal();
+                startBufferPools();
+                finishRecovery();
+                startCheckpointManager();
+                startTransactionIndexPollTask();
+                flush();
+                _checkpointManager.checkpoint();
+                startCleanupManager();
+                _initialized.set(true);
+            } finally {
+                if (!isInitialized()) {
+                    releaseAllResources();
+                    _configuration = null;
                 }
             }
-        } catch (FileNotFoundException fnfe) {
-            // A friendlier exception when the properties file is not found.
-            throw new PropertiesNotFoundException(fnfe.getMessage());
-        } catch (IOException ioe) {
-            throw new PersistitIOException(ioe);
         }
-        return properties;
-    }
-
-    void initializeProperties(final Properties properties) {
-        properties.putAll(_properties);
-        _properties = properties;
-
-        _readRetryEnabled = getBooleanProperty(READ_RETRY_PROPERTY, true);
-        _defaultTimeout = getLongProperty(TIMEOUT_PROPERTY, DEFAULT_TIMEOUT_VALUE, 0, MAXIMUM_TIMEOUT_VALUE);
     }
 
     void initializeLogging() throws PersistitException {
@@ -623,7 +623,7 @@ public class Persistit {
             _logFlusher.start();
 
             getPersistitLogger().open();
-            String logLevel = getProperty(LOGGING_PROPERTIES);
+            String logLevel = _configuration.getLogging();
             if (logLevel != null && getPersistitLogger() instanceof DefaultPersistitLogger) {
                 ((DefaultPersistitLogger) getPersistitLogger()).setLevel(logLevel);
             }
@@ -641,79 +641,47 @@ public class Persistit {
     }
 
     void initializeRecovery() throws PersistitException {
-        String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME, DEFAULT_JOURNAL_PATH);
+        String journalPath = _configuration.getJournalPath();
         _recoveryManager.init(journalPath);
         _recoveryManager.buildRecoveryPlan();
     }
 
     void initializeJournal() throws PersistitException {
-        String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME, DEFAULT_JOURNAL_PATH);
-        int journalSize = (int) getLongProperty(JOURNAL_BLOCKSIZE_PROPERTY_NAME,
-                JournalManagerMXBean.DEFAULT_BLOCK_SIZE, JournalManagerMXBean.MINIMUM_BLOCK_SIZE,
-                JournalManagerMXBean.MAXIMUM_BLOCK_SIZE);
+        String journalPath = _configuration.getJournalPath();
+        long journalSize = _configuration.getJournalSize();
 
         _journalManager.init(_recoveryManager, journalPath, journalSize);
-        if (getBooleanProperty(APPEND_ONLY_PROPERTY, false)) {
-            _journalManager.setAppendOnly(true);
-        }
+        _journalManager.setAppendOnly(_configuration.isAppendOnly());
     }
 
     void initializeBufferPools() {
-        int bufferSize = Buffer.MIN_BUFFER_SIZE;
-        while (bufferSize <= Buffer.MAX_BUFFER_SIZE) {
-            String countPropertyName = BUFFERS_PROPERTY_NAME + bufferSize;
-            String memPropertyName = BUFFER_MEM_PROPERTY_NAME + bufferSize;
-            int byCount = (int) getLongProperty(countPropertyName, -1, BufferPool.MINIMUM_POOL_COUNT,
-                    BufferPool.MAXIMUM_POOL_COUNT);
-            int byMemory = computeBufferCountFromMemoryProperty(memPropertyName, getProperty(memPropertyName),
-                    bufferSize);
-
-            if (byCount != -1 && byMemory != -1) {
-                throw new IllegalArgumentException("Only one of " + countPropertyName + " and " + memPropertyName
-                        + " may be specified");
-            }
-
-            if (byMemory != -1) {
-                byCount = byMemory;
-            }
-
-            if (byCount != -1) {
-                _logBase.allocateBuffers.log(byCount, bufferSize);
-                BufferPool pool = new BufferPool(byCount, bufferSize, this);
-                _bufferPoolTable.put(new Integer(bufferSize), pool);
+        for (final BufferPoolConfiguration config : _configuration.getBufferPoolMap().values()) {
+            final int poolSize = config.computeBufferCount(getAvailableHeap());
+            if (poolSize > 0) {
+                final int bufferSize = config.getBufferSize();
+                _logBase.allocateBuffers.log(poolSize, bufferSize);
+                BufferPool pool = new BufferPool(poolSize, bufferSize, this);
+                _bufferPoolTable.put(bufferSize, pool);
                 registerBufferPoolMXBean(bufferSize);
             }
-            bufferSize <<= 1;
         }
     }
 
     void initializeVolumes() throws PersistitException {
-        for (Enumeration<?> enumeration = _properties.propertyNames(); enumeration.hasMoreElements();) {
-            String key = (String) enumeration.nextElement();
-            if (key.startsWith(VOLUME_PROPERTY_PREFIX)) {
-                boolean isOne = true;
-                try {
-                    Integer.parseInt(key.substring(VOLUME_PROPERTY_PREFIX.length()));
-                } catch (NumberFormatException nfe) {
-                    isOne = false;
-                }
-                if (isOne) {
-                    VolumeSpecification volumeSpecification = new VolumeSpecification(getProperty(key));
-                    _logBase.openVolume.log(volumeSpecification.getName());
-                    final Volume volume = new Volume(volumeSpecification);
-                    volume.open(this);
-                }
-            }
+        for (final VolumeSpecification volumeSpecification : _configuration.getVolumeList()) {
+            _logBase.openVolume.log(volumeSpecification.getName());
+            final Volume volume = new Volume(volumeSpecification);
+            volume.open(this);
         }
     }
 
     void initializeManagement() {
-        String rmiHost = getProperty(RMI_REGISTRY_HOST_PROPERTY);
-        String rmiPort = getProperty(RMI_REGISTRY_PORT);
-        String serverPort = getProperty(RMI_SERVER_PORT);
-        boolean enableJmx = getBooleanProperty(JMX_PARAMS, true);
+        String rmiHost = _configuration.getRmiHost();
+        int rmiPort = _configuration.getRmiPort();
+        int serverPort = _configuration.getRmiServerPort();
+        boolean enableJmx = _configuration.isJmxEnabled();
 
-        if (rmiHost != null || rmiPort != null) {
+        if (rmiHost != null || rmiPort > 0) {
             ManagementImpl management = (ManagementImpl) getManagement();
             management.register(rmiHost, rmiPort, serverPort);
         }
@@ -724,38 +692,18 @@ public class Persistit {
 
     void initializeOther() {
         // Set up the parent CoderManager for this instance.
-        String serialOverridePatterns = getProperty(Persistit.SERIAL_OVERRIDE_PROPERTY);
-        DefaultCoderManager cm = new DefaultCoderManager(this, serialOverridePatterns);
+        DefaultCoderManager cm = new DefaultCoderManager(this, _configuration.getSerialOverride());
         _coderManager.set(cm);
-
-        if (getBooleanProperty(SHOW_GUI_PROPERTY, false)) {
+        if (_configuration.isShowGUI()) {
             try {
                 setupGUI(true);
             } catch (Exception e) {
                 _logBase.configurationError.log(e);
             }
         }
-
-        try {
-            _defaultSplitPolicy = SplitPolicy.forName(getProperty(SPLIT_POLICY_PROPERTY, DEFAULT_SPLIT_POLICY
-                    .toString()));
-        } catch (IllegalArgumentException e) {
-            _logBase.configurationError.log(e);
-        }
-        try {
-            _defaultJoinPolicy = JoinPolicy.forName(getProperty(JOIN_POLICY_PROPERTY, DEFAULT_JOIN_POLICY.toString()));
-        } catch (IllegalArgumentException e) {
-            _logBase.configurationError.log(e);
-        }
-
-        try {
-            String s = getProperty(TRANSACTION_COMMIT_POLICY_NAME);
-            if (s != null) {
-                _defaultCommitPolicy = CommitPolicy.valueOf(s.toUpperCase());
-            }
-        } catch (Exception e) {
-            _logBase.configurationError.log(e);
-        }
+        _defaultSplitPolicy = _configuration.getSplitPolicy();
+        _defaultJoinPolicy = _configuration.getJoinPolicy();
+        _defaultCommitPolicy = _configuration.getCommitPolicy();
     }
 
     void startCheckpointManager() {
@@ -865,183 +813,6 @@ public class Persistit {
 
     synchronized void removeVolume(Volume volume) throws PersistitInterruptedException {
         _volumes.remove(volume);
-    }
-
-    /**
-     * Replaces substitution variables in a supplied string with values taken
-     * from the properties available to Persistit (see {@link #getProperties()}
-     * ).
-     * 
-     * @param text
-     *            String in in which to make substitutions
-     * @param properties
-     *            Properties containing substitution values
-     * @return text with substituted property values
-     */
-    public String substituteProperties(String text, Properties properties) {
-        return substituteProperties(text, properties, 0);
-    }
-
-    /**
-     * Replaces substitution variables in a supplied string with values taken
-     * from the properties available to Persistit (see {@link getProperty}).
-     * 
-     * @param text
-     *            String in in which to make substitutions
-     * @param properties
-     *            Properties containing substitution values
-     * @param depth
-     *            Count of recursive calls - maximum depth is 20. Generall
-     * @return
-     */
-    String substituteProperties(String text, Properties properties, int depth) {
-        int p = text.indexOf("${");
-        while (p >= 0 && p < text.length()) {
-            p += 2;
-            int q = text.indexOf("}", p);
-            if (q > 0) {
-                String propertyName = text.substring(p, q);
-                if (Util.isValidName(propertyName)) {
-                    // sanity check to prevent stack overflow
-                    // due to infinite loop
-                    if (depth > 20)
-                        throw new IllegalArgumentException("property " + propertyName
-                                + " substitution cycle is too deep");
-                    String propertyValue = getProperty(propertyName, depth + 1, properties);
-                    if (propertyValue == null)
-                        propertyValue = "";
-                    text = text.substring(0, p - 2) + propertyValue + text.substring(q + 1);
-                } else
-                    break;
-            } else {
-                break;
-            }
-            p = text.indexOf("${");
-        }
-        return text;
-    }
-
-    public Properties getProperties() {
-        return _properties;
-    }
-
-    /**
-     * <p>
-     * Returns a property value, or <code>null</code> if there is no such
-     * property. The property is taken from one of the following sources:
-     * <ol>
-     * <li>A system property having a prefix of "com.persistit.". For example,
-     * the property named "journalpath" can be supplied as the system property
-     * named com.persistit.journalpath. (Note: if the security context does not
-     * permit access to system properties, then system properties are ignored.)</li>
-     * <li>The supplied Properties object, which was either passed to the
-     * {@link #initialize(Properties)} method, or was loaded from the file named
-     * in the {@link #initialize(String)} method.</li>
-     * <li>The pseudo-property name <code>timestamp</code>. The value is the
-     * current time formated by <code>SimpleDateFormat</code> using the pattern
-     * yyyyMMddHHmm. (This pseudo-property makes it easy to specify a unique log
-     * file name each time Persistit is initialized.</li>
-     * </ol>
-     * </p>
-     * If a property value contains a substitution variable in the form
-     * <code>${<i>pppp</i>}</code>, then this method attempts perform a
-     * substitution. To do so it recursively gets the value of a property named
-     * <code><i>pppp</i></code>, replaces the substring delimited by
-     * <code>${</code> and <code>}</code>, and then scans the resulting string
-     * for further substitution variables.
-     * 
-     * @param propertyName
-     *            The property name
-     * @return The resulting string
-     */
-    public String getProperty(String propertyName) {
-        return getProperty(propertyName, null);
-    }
-
-    /**
-     * <p>
-     * Returns a property value, or a default value if there is no such
-     * property. The property is taken from one of the following sources:
-     * <ol>
-     * <li>A system property having a prefix of "com.persistit.". For example,
-     * the property named "journalpath" can be supplied as the system property
-     * named com.persistit.journalpath. (Note: if the security context does not
-     * permit access to system properties, then system properties are ignored.)</li>
-     * <li>The supplied Properties object, which was either passed to the
-     * {@link #initialize(Properties)} method, or was loaded from the file named
-     * in the {@link #initialize(String)} method.</li>
-     * <li>The pseudo-property name <code>timestamp</code>. The value is the
-     * current time formated by <code>SimpleDateFormat</code> using the pattern
-     * yyyyMMddHHmm. (This pseudo-property makes it easy to specify a unique log
-     * file name each time Persistit is initialized.</li>
-     * </ol>
-     * </p>
-     * If a property value contains a substitution variable in the form
-     * <code>${<i>pppp</i>}</code>, then this method attempts perform a
-     * substitution. To do so it recursively gets the value of a property named
-     * <code><i>pppp</i></code>, replaces the substring delimited by
-     * <code>${</code> and <code>}</code>, and then scans the resulting string
-     * for further substitution variables. </p>
-     * <p>
-     * For all properties, the value "-" (a single hyphen) explicitly specifies
-     * the <i>default</i> value.
-     * </p>
-     * 
-     * @param propertyName
-     *            The property name
-     * @param defaultValue
-     *            The default value
-     * @return The resulting string
-     */
-    public String getProperty(String propertyName, String defaultValue) {
-        String value = getProperty(propertyName, 0, _properties);
-        return value == null ? defaultValue : value;
-    }
-
-    private String getProperty(String propertyName, int depth, Properties properties) {
-        String value = null;
-
-        value = getSystemProperty(SYSTEM_PROPERTY_PREFIX + propertyName);
-
-        if (value == null && properties != null) {
-            value = properties.getProperty(propertyName);
-        }
-        if ("-".equals(value)) {
-            value = null;
-        }
-        if (value == null && TIMESTAMP_PROPERTY.equals(propertyName)) {
-            value = (new SimpleDateFormat("yyyyMMddHHmm")).format(new Date());
-        }
-        if (value != null)
-            value = substituteProperties(value, properties, depth);
-
-        return value;
-    }
-
-    /**
-     * Sets a property value in the Persistit Properties map. If the specified
-     * value is null then an existing property of the specified name is removed.
-     * 
-     * @param propertyName
-     *            The property name
-     * @param value
-     *            Value to set, or <code>null</code> to remove an existing
-     *            property
-     */
-    public void setProperty(final String propertyName, final String value) {
-        if (value == null) {
-            _properties.remove(propertyName);
-        } else {
-            _properties.setProperty(propertyName, value);
-        }
-    }
-
-    private String getSystemProperty(final String propertyName) {
-        return (String) AccessController.doPrivileged(new PrivilegedAction() {
-            public Object run() {
-                return System.getProperty(propertyName);
-            }
-        });
     }
 
     /**
@@ -1273,7 +1044,7 @@ public class Persistit {
      * @throws PersistitException
      */
     public Volume loadVolume(final String vstring) throws PersistitException {
-        final VolumeSpecification volumeSpec = new VolumeSpecification(substituteProperties(vstring, _properties, 0));
+        final VolumeSpecification volumeSpec = _configuration.volumeSpecification(vstring);
         return loadVolume(volumeSpec);
     }
 
@@ -1306,8 +1077,8 @@ public class Persistit {
      * results that can be recreated in the event the system restarts.
      * <p />
      * The temporary volume page size is can be specified by the configuration
-     * property <code>tvpagesize</code>. The default value is determined by the
-     * {@link BufferPool} having the largest page size.
+     * property <code>tmpvolpagesize</code>. The default value is determined by
+     * the {@link BufferPool} having the largest page size.
      * <p />
      * The backing store file for a temporary volume is created in the directory
      * specified by the configuration property <code>tmpvoldir</code>, or if
@@ -1317,7 +1088,7 @@ public class Persistit {
      * @throws PersistitException
      */
     public Volume createTemporaryVolume() throws PersistitException {
-        int pageSize = (int) getLongProperty(TEMPORARY_VOLUME_PAGE_SIZE_NAME, 0, 0, 99999);
+        int pageSize = _configuration.getTmpVolPageSize();
         if (pageSize == 0) {
             for (int size : _bufferPoolTable.keySet()) {
                 if (size > pageSize) {
@@ -1425,6 +1196,25 @@ public class Persistit {
      */
     public long elapsedTime() {
         return System.currentTimeMillis() - _startTime;
+    }
+
+    public Configuration getConfiguration() {
+        return _configuration;
+    }
+
+    @Deprecated
+    public Properties getProperties() {
+        return _configuration.getProperties();
+    }
+
+    @Deprecated
+    public String getProperty(final String key) {
+        return _configuration.getProperty(key);
+    }
+
+    @Deprecated
+    public String substituteProperties(String text, Properties properties) {
+        return _configuration.substituteProperties(text, properties, 0);
     }
 
     /**
@@ -1651,7 +1441,7 @@ public class Persistit {
      *             if the volume was not found
      */
     private Volume getSpecialVolume(String propName, String dflt) throws VolumeNotFoundException {
-        String volumeName = getProperty(propName, dflt);
+        String volumeName = _configuration.getSysVolume();
 
         Volume volume = getVolume(volumeName);
         if (volume == null) {
@@ -2392,8 +2182,9 @@ public class Persistit {
      * @return The current logger.
      */
     public PersistitLogger getPersistitLogger() {
-        if (_logger == null)
-            _logger = new DefaultPersistitLogger(getProperty(LOGFILE_PROPERTY));
+        if (_logger == null) {
+            _logger = new DefaultPersistitLogger(_configuration.getLogFile());
+        }
         return _logger;
     }
 
@@ -2432,222 +2223,6 @@ public class Persistit {
         System.out.println("  " + icheck.toString(true));
     }
 
-    /**
-     * Parses a property value as a long integer. Permits suffix values of "K"
-     * for Kilo- and "M" for Mega-, "G" for Giga- and "T" for Tera-. For
-     * example, the supplied value of "100K" yields a parsed result of 102400.
-     * 
-     * @param propName
-     *            Name of the property, used in formating the Exception if the
-     *            value is invalid.
-     * @param dflt
-     *            The default value.
-     * @param min
-     *            Minimum permissible value
-     * @param max
-     *            Maximum permissible value
-     * @return The numeric value of the supplied String, as a long.
-     * @throws IllegalArgumentException
-     *             if the supplied String is not a valid integer representation,
-     *             or is outside the supplied bounds.
-     */
-    long getLongProperty(String propName, long dflt, long min, long max) {
-        String str = getProperty(propName);
-        if (str == null)
-            return dflt;
-        return parseLongProperty(propName, str, min, max);
-    }
-
-    /**
-     * Parses a string as a long integer. Permits suffix values of "K" for Kilo-
-     * and "M" for Mega-, "G" for Giga- and "T" for Tera-. For example, the
-     * supplied value of "100K" yields a parsed result of 102400.
-     * 
-     * @param propName
-     *            Name of the property, used in formating the Exception if the
-     *            value is invalid.
-     * @param str
-     *            The string representation, e.g., "100K".
-     * @param min
-     *            Minimum permissible value
-     * @param max
-     *            Maximum permissible value
-     * @return The numeric value of the supplied String, as a long.
-     * @throws IllegalArgumentException
-     *             if the supplied String is not a valid integer representation,
-     *             or is outside the supplied bounds.
-     */
-    static long parseLongProperty(String propName, String str, long min, long max) {
-        long result = Long.MIN_VALUE;
-        long multiplier = 1;
-        if (str.length() > 1) {
-            switch (str.charAt(str.length() - 1)) {
-            case 't':
-            case 'T':
-                multiplier = TERA;
-                break;
-            case 'g':
-            case 'G':
-                multiplier = GIGA;
-                break;
-            case 'm':
-            case 'M':
-                multiplier = MEGA;
-                break;
-            case 'k':
-            case 'K':
-                multiplier = KILO;
-                break;
-            }
-        }
-        String sstr = str;
-        if (multiplier > 1) {
-            sstr = str.substring(0, str.length() - 1);
-        }
-
-        try {
-            result = Long.parseLong(sstr) * multiplier;
-        }
-
-        catch (NumberFormatException nfe) {
-            throw new IllegalArgumentException("Not a valid number: '" + str + "'");
-        }
-        return Util.rangeCheck(result, min, max);
-    }
-
-    /**
-     * Parses a string as a float value
-     * 
-     * @param propName
-     *            Name of the property, used in formating the Exception if the
-     *            value is invalid.
-     * @param str
-     *            The string representation, e.g., "100K".
-     * @param min
-     *            Minimum permissible value
-     * @param max
-     *            Maximum permissible value
-     * @return The numeric value of the supplied String, as a floag.
-     * @throws IllegalArgumentException
-     *             if the supplied String is not a valid floating point
-     *             representation, or is outside the supplied bounds.
-     */
-
-    static float parseFloatProperty(String propName, String str, float min, float max) {
-        float result = Float.MIN_VALUE;
-        boolean invalid = false;
-        try {
-            result = Float.parseFloat(str);
-        }
-
-        catch (NumberFormatException nfe) {
-            invalid = true;
-        }
-        if (result < min || result > max || invalid) {
-            throw new IllegalArgumentException("Value '" + str + "' of property " + propName + " is invalid");
-        }
-        return result;
-    }
-
-    /**
-     * Provide a displayable version of a long value, preferable using one of
-     * the suffixes 'K', 'M', 'G', or 'T' to abbreviate values that are integral
-     * multiples of powers of 1,024.
-     * 
-     * @param value
-     *            to convert
-     * @return Readable format of long value
-     */
-    static String displayableLongValue(final long value) {
-        if (value <= 0) {
-            return String.format("%d", value);
-        }
-        long v = value;
-        int scale = 0;
-        while ((v / 1024) * 1024 == v && scale < 3) {
-            scale++;
-            v /= 1024;
-        }
-        return String.format("%d%s", v, " KMGT".substring(scale, scale + 1));
-    }
-
-    /**
-     * Parses a String-valued memory allocation specification to produce a
-     * buffer count that will consume approximately the specified amount of
-     * memory.
-     * <p />
-     * The propertyValue specifies a memory specification in the form
-     * 
-     * <pre>
-     * [<i>minimum</i>[,<i>maximum</i>[,<i>reserved</i>[,<i>fraction</i>]]]]
-     * </pre>
-     * 
-     * where <i>minimum</i>, <i>maximum</i> and <i>reserved</i> specify
-     * quantities of memory, in bytes. The suffixes 'K', 'M', 'G', and 'T' can
-     * be used for scaling; see
-     * {@link #parseLongProperty(String, String, long, long)}. <i>fraction</i>
-     * is a float between 0.0f and 1.0f denoting a fraction of the total
-     * available memory to allocate fof buffers.
-     * <p />
-     * The available memory is determined by the maximum heap size. The amount
-     * of memory to be allocated to buffers is determined by the following
-     * formula:
-     * 
-     * <pre>
-     * <i>allocated</i> = (<i>available</i> - <i>reserved</i>) * <i>fraction</i>
-     * </pre>
-     * 
-     * and then that result is bounded by the range (<i>minimum</i>,
-     * <i>maximum<i>). Finally, the actual buffer count returned from this
-     * method is the allocation divided by the bufferSize plus overhead for
-     * FastIndex and other structures.
-     * 
-     * @param propertyName
-     *            the property name, e.g., "buffer.memory.16384"
-     * @param propertyValue
-     *            the memory specification
-     * @param bufferSize
-     *            the buffer size
-     * @return
-     */
-    int computeBufferCountFromMemoryProperty(final String propertyName, final String propertyValue, final int bufferSize) {
-        if (propertyValue == null || propertyValue.isEmpty()) {
-            return -1;
-        }
-        int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
-        long absoluteMinimum = (long) BufferPool.MINIMUM_POOL_COUNT * bufferSizeWithOverhead;
-        long absoluteMaximum = (long) BufferPool.MAXIMUM_POOL_COUNT * bufferSizeWithOverhead;
-        long minimum = absoluteMinimum;
-        long maximum = absoluteMaximum;
-        long reserved = 0;
-        float fraction = 0.0f;
-
-        final String[] terms = propertyValue.split(",", 4);
-        if (terms.length > 0 && !terms[0].isEmpty()) {
-            minimum = Math.max(absoluteMinimum, parseLongProperty(propertyName, terms[0], 0, absoluteMaximum));
-        }
-        if (terms.length > 1 && !terms[1].isEmpty()) {
-            maximum = Math.max(absoluteMinimum, parseLongProperty(propertyName, terms[1], minimum, maximum));
-        }
-        if (terms.length > 2 && !terms[2].isEmpty()) {
-            reserved = parseLongProperty(propertyName, terms[2], 0, Long.MAX_VALUE);
-            fraction = 1.0f;
-        }
-        if (terms.length > 3 && !terms[3].isEmpty()) {
-            fraction = parseFloatProperty(propertyName, terms[3], 0f, 1f);
-        }
-        long allocation = (long) ((getAvailableHeap() - reserved) * fraction);
-        allocation = Math.max(minimum, allocation);
-        allocation = Math.min(maximum, allocation);
-        if (allocation < absoluteMinimum || allocation > absoluteMaximum || allocation > getAvailableHeap()) {
-            throw new IllegalArgumentException(String.format("%s=%s resulted in invalid memory "
-                    + "allocation %,d, available memory is %,d", propertyName, propertyValue, allocation,
-                    getAvailableHeap()));
-        }
-
-        return (int) (allocation / bufferSizeWithOverhead);
-    }
-
     static long availableHeap() {
         final MemoryUsage mu = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
         long available = mu.getMax();
@@ -2658,30 +2233,7 @@ public class Persistit {
     }
 
     /**
-     * Parses a string value as either <i>true</i> or <i>false</i>.
-     * 
-     * @param propName
-     *            Name of the property, used in formating the Exception if the
-     *            value is invalid.
-     * @param dflt
-     *            The default value
-     * @return <i>true</i> or <i>false</i>
-     */
-    public boolean getBooleanProperty(String propName, boolean dflt) {
-        String str = getProperty(propName);
-        if (str == null)
-            return dflt;
-        str = str.toLowerCase();
-        if ("true".equals(str))
-            return true;
-        if ("false".equals(str))
-            return false;
-        throw new IllegalArgumentException("Value '" + str + "' of property " + propName + " must be "
-                + " either \"true\" or \"false\"");
-    }
-
-    /**
-     * Attemps to open the diagnostic GUI that displays some useful information
+     * Attempts to open the diagnostic GUI that displays some useful information
      * about Persistit's internal state. If the UI has already been opened, this
      * method merely sets the shutdown suspend flag.
      * 
@@ -2805,10 +2357,11 @@ public class Persistit {
     }
 
     /**
-     * Remove an Accumulator from the active list. This will cause it to not
-     * be checkpointed or otherwise known about.
-     *
-     * @param accumulator Accumulator to remove
+     * Remove an Accumulator from the active list. This will cause it to not be
+     * checkpointed or otherwise known about.
+     * 
+     * @param accumulator
+     *            Accumulator to remove
      */
     void removeAccumulator(final Accumulator accumulator) {
         synchronized (_accumulators) {

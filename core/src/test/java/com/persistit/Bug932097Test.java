@@ -24,59 +24,55 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
 
 import java.util.Properties;
 
+import org.junit.Test;
+
 import com.persistit.Exchange;
 import com.persistit.Persistit;
-import com.persistit.TestShim;
 import com.persistit.Transaction;
-import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
-import com.persistit.unit.UnitTestProperties;
 
-public class Bug980292Test extends PersistitUnitTestCase {
-    /*
-     * https://bugs.launchpad.net/akiban-persistit/+bug/980292
-     * 
-     * Of primary interest: WARN [main] 2012-03-31 19:03:59,910
-     * Slf4jAdapter.java (line 107) [main] WARNING Recovery exception
-     * com.persistit.exception.CorruptJournalException: Long record chain
-     * missing page 1607394 at count 0 at JournalAddress 292,793,432,061{0} at
-     * transaction TStatus 292,793,432,061{0}u
-     */
+public class Bug932097Test extends PersistitUnitTestCase {
 
-    private static final String TREE_NAME = "Bug980292Test";
-
-    private static Exchange getExchange(Persistit persistit) throws PersistitException {
-        return persistit.getExchange(UnitTestProperties.VOLUME_NAME, TREE_NAME, true);
-    }
-
-    public void testBug980292() throws Exception {
-        final Exchange ex = getExchange(_persistit);
-        final Transaction txn = ex.getTransaction();
-        txn.begin();
+    @Test
+    public void testInjectedAbortTransactionStatus() throws Exception {
         /*
-         * Create a long record.
+         * Create a bunch of incomplete transactions
          */
-        ex.getValue().put(new byte[50000]);
-        ex.to("a").store();
-        /*
-         * Now add enough other records to force out a chain of transaction buffers.
-         */
-        ex.getValue().put(RED_FOX);
-        for (int i = 0; i < TestShim.getTransactionBuffer(txn).capacity() * 2 / RED_FOX.length(); i++) {
-            ex.to(i).store();
+        for (int i = 1; i <= 1000; i++) {
+            _persistit.setSessionId(new SessionId());
+            final Transaction txn = _persistit.getTransaction();
+            txn.begin();
+            final Exchange ex = _persistit.getExchange("persistit", "test", true);
+            ex.getValue().put(RED_FOX);
+            txn.begin();
+            for (int k = 1; k < 10; k++) {
+                ex.clear().append(i).append(k).store();
+            }
+            /*
+             * Neither commit nor rollback
+             */
         }
         _persistit.checkpoint();
-        txn.rollback();
-        txn.end();
         final Properties properties = _persistit.getProperties();
-        _persistit.getJournalManager().force();
         _persistit.crash();
         _persistit = new Persistit();
         _persistit.initialize(properties);
-        assertEquals(0, _persistit.getRecoveryManager().getErrorCount());
+        /*
+         * To exploit the bug, register a bunch of new transactions which will
+         * draw the TransactionStatus instances freed after recovery finishes
+         * its rollback processing. With bug, we expect to see a 60-second pause
+         * followed by an assertion.
+         */
+        for (int i = 1; i <= 1000; i++) {
+            _persistit.setSessionId(new SessionId());
+            final Transaction txn = _persistit.getTransaction();
+            txn.begin();
+            txn.commit();
+            txn.end();
+        }
     }
 }

@@ -7,6 +7,7 @@ Akiban Persistit provides no built-in data access control because it is intended
 - configuration properties file, if one is used
 - access by unauthorized code to the API exposed by the Persistit library
 - the port opened and exposed by Persistit when either the +com.persistit.rmiport+ or +com.persistit.rmihost+ property is set. If you are using Persistit's remote administration feature, be sure to block unauthorized access to the RMI port.
+- the <<cliserver>> if instantiated
 
 In addition to these general deployment considerations, Persistit requires certain permissions in an environment controlled by a security manager.
 
@@ -14,14 +15,15 @@ Java programs run from the command line typically do not install a security mana
 
 == Security Domains
 
-This document assumes a basic understanding of the Java security model. See http://download.oracle.com/javase/1.5.0/docs/guide/security/spec/security-spec.doc2.html[New Protection Mechanisms - Overview of Basic Concepts] for further information.
+This section assumes a basic understanding of the Java security model. See http://download.oracle.com/javase/1.5.0/docs/guide/security/spec/security-spec.doc2.html[New Protection Mechanisms - Overview of Basic Concepts] for further information.
 
-Persistit performs various security-sensitive operations: it reads and writes files, it reads system properties, it optionally opens a TCP/IP socket, and it performs various security-sensitive operations related to reflection and serialization. These operations are divided into two categories: those required only by the Persistit library itself, and those required by the application that is using Persistit. For example, the application code must have permission to read and write files, but it does not require permission to access private fields through reflection; only the Persistit library itself needs this permission. The latter operation is called a “privileged” operation because Persistit invokes the access controller's doPrivileged method to establish its permission to perform the privileged operation.
+Note that when Java is started from the command line, as is often the case in server applications, all security privileges are granted by default. The information in this section is intended for cases where security privileges need to be controlled.
+
+Akiban Persistit performs various security-sensitive operations: it reads and writes files, it reads system properties, it optionally opens a TCP/IP socket, and it performs various security-sensitive operations related to reflection and serialization. These operations are divided into two categories: those required only by the Persistit library itself, and those required by the application that is using Persistit. For example, the application code must have permission to read and write files, but it does not require permission to access private fields through reflection; only the Persistit library itself needs this permission. The latter operation is called a “privileged” operation because Persistit invokes the access controller's doPrivileged method to establish its permission to perform the privileged operation.
 
 At a practical level, this means you can create two separate security domains for applications embedding Persistit.  One domain is specific to the Persistit library itself, and grants all the permissions required by Persistit, including the privileged permissions. The other domain includes the application, and grants only the non-privileged permissions.
 
 Using the default java.lang.SecurityManager implementation, you define domains and the permissions available to them in a policy file stored in the user's home directory.  For those already familiar with the policy file format, here is a security policy file that illustrates these concepts:
-
 
 .Example .java.policy File
 ----
@@ -32,7 +34,7 @@ grant codeBase "file:/appdir/myapplication.jar" {
          	"accept, connect, listen, resolve";
 };
 
-grant codeBase "file:/lib/persistit_jsa110.jar" {
+grant codeBase "file:/lib/akiban-persistit.jar" {
   permission java.io.FilePermission "<<ALL FILES>>", "read, write, delete";
   permission java.net.SocketPermission "*:1099-",
          	"accept, connect, listen, resolve";
@@ -51,9 +53,9 @@ Although the file and socket permissions granted by the privileged domain are le
 
 DefaultValueCoder performs three security-sensitive operations:
 
-. It enumerates the declared fields of the class being serialized,
-. It reads and writes data from and to those fields using reflection even if they are private, and
-. It overrides the default implementations of java.io.ObjectInputStream and java.io.ObjectOutputStream.
+- It enumerates the declared fields of the class being serialized,
+- It reads and writes data from and to those fields using reflection even if they are private, and
+- It overrides the default implementations of java.io.ObjectInputStream and java.io.ObjectOutputStream.
 
 If a SecurityManager is installed then three permissions must be granted to enable this new mechanism:
 

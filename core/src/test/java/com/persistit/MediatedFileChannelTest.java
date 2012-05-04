@@ -26,6 +26,10 @@
 
 package com.persistit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -34,11 +38,9 @@ import java.nio.channels.ClosedChannelException;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import junit.framework.TestCase;
-
 import org.junit.Test;
 
-public class MediatedFileChannelTest extends TestCase {
+public class MediatedFileChannelTest {
     // Ten seconds
     final static long TIME = 10L * 1000L * 1000L * 1000L;
 
@@ -47,7 +49,7 @@ public class MediatedFileChannelTest extends TestCase {
         final File file = File.createTempFile("bug882219", null);
         file.deleteOnExit();
         MediatedFileChannel fc = new MediatedFileChannel(file, "rw");
-        
+
         assertEquals(0, fc.size());
         final ByteBuffer bb = ByteBuffer.allocate(65536);
         for (int i = 0; i < 65536; i++) {

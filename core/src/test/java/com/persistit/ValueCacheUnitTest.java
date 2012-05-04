@@ -27,7 +27,8 @@
 package com.persistit;
 
 import junit.framework.Assert;
-import junit.framework.TestCase;
+
+import org.junit.Test;
 
 import com.persistit.Value.ValueCache;
 
@@ -35,7 +36,9 @@ import com.persistit.Value.ValueCache;
  * 
  * @version 1.0
  */
-public class ValueCacheUnitTest extends TestCase {
+public class ValueCacheUnitTest {
+
+    @Test
     public void test1() {
         System.out.print("test1 ");
         final ValueCache vc = new ValueCache();
@@ -57,6 +60,7 @@ public class ValueCacheUnitTest extends TestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() {
         System.out.print("test2 ");
         final ValueCache vc = new ValueCache();
@@ -77,6 +81,7 @@ public class ValueCacheUnitTest extends TestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() {
         System.out.print("test3 ");
         final long ts = System.currentTimeMillis();

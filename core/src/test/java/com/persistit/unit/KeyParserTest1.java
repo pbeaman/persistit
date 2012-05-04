@@ -26,6 +26,9 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
 
 import com.persistit.Key;
@@ -69,19 +72,6 @@ public class KeyParserTest1 extends PersistitUnitTestCase {
         System.out.print("test2 ");
         System.out.println("- done");
     }
-
-    // public void test3()
-    // throws PersistitException
-    // {
-    // System.out.print("test3 ");
-    // }
-    //
-    // public void test4()
-    // throws PersistitException
-    // {
-    // System.out.print("test4 ");
-    // System.out.println("- done");
-    // }
 
     public static void main(final String[] args) throws Exception {
         new KeyParserTest1().initAndRunTest();

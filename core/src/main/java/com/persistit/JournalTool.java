@@ -71,7 +71,7 @@ import com.persistit.util.ArgParser;
  * @author Peter Beaman
  * @version 1.0
  */
-public class JournalTool {
+class JournalTool {
 
     public final static int DEFAULT_BUFFER_SIZE = 1 * 1024 * 1024;
 

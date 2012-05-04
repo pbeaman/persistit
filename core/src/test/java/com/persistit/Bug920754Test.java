@@ -24,22 +24,15 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.bug;
+package com.persistit;
 
-import static com.persistit.util.SequencerConstants.RECOVERY_PRUNING_SCHEDULE;
-import static com.persistit.util.ThreadSequencer.addSchedules;
-import static com.persistit.util.ThreadSequencer.disableSequencer;
-import static com.persistit.util.ThreadSequencer.enableSequencer;
-
-import java.util.Properties;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
 import com.persistit.Accumulator;
 import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.Persistit;
-import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -49,6 +42,7 @@ public class Bug920754Test extends PersistitUnitTestCase {
      * 
      * While working on my "ApiTestBase turbo" branch, I noticed the volume file
      * growing faster than I expected. I put a debug point in ApiTestBase's
+     * 
      * @After method, when it should be compressing journals and such. When I
      * looked in the persistit UI, I saw that there were a few trees still
      * defined but with nothing in them; the AIS (which I looked into via the
@@ -67,6 +61,7 @@ public class Bug920754Test extends PersistitUnitTestCase {
      * accumulators didn't go away.
      */
 
+    @Test
     public void testAccumumulatorTreeIsDeleted() throws Exception {
         final Exchange exchange = _persistit.getExchange("persistit", "Bug920754Test", true);
         final Transaction txn = _persistit.getTransaction();
@@ -81,7 +76,7 @@ public class Bug920754Test extends PersistitUnitTestCase {
         txn.commit();
         txn.end();
         _persistit.checkpoint();
-        final Exchange dir = TestShim.directoryExchange(exchange.getVolume());
+        final Exchange dir = exchange.getVolume().getStructure().directoryExchange();
         exchange.removeTree();
         int keys = 0;
         dir.to(Key.BEFORE);
