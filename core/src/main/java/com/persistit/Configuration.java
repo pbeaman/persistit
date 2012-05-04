@@ -499,8 +499,8 @@ public class Configuration {
             int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
             int buffers = Math.max(minimumCount, Math.min(maximumCount, (int) (allocation / bufferSizeWithOverhead)));
             if (buffers < BufferPool.MINIMUM_POOL_COUNT || buffers > BufferPool.MAXIMUM_POOL_COUNT
-                    || buffers * bufferSizeWithOverhead > maximumAvailable
-                    || (buffers + 1) * bufferSizeWithOverhead < minimumMemory) {
+                    || (long)buffers * (long)bufferSizeWithOverhead > maximumAvailable
+                    || (long)(buffers + 1) * (long)bufferSizeWithOverhead < minimumMemory) {
                 throw new IllegalArgumentException(String.format(
                         "Invalid buffer pool configuration: %,d buffers in %sb of maximum available memory", buffers,
                         displayableLongValue(maximumAvailable)));
