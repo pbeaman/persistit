@@ -30,7 +30,7 @@ import javax.management.MXBean;
 
 /**
  * Management structure holding information about the state of a
- * {@link BufferPool}, including counters for events such as physical I/O
+ * <code>BufferPool</code>, including counters for events such as physical I/O
  * operations, evictions, and hit ratio.
  */
 @MXBean
