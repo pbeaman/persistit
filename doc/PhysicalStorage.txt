@@ -8,12 +8,12 @@ This chapter describes the physical structures used to represent Akiban Persisti
 Following is a directory listing illustrating a working Persistit database:
 
 ----
- -rw-r--r--. 1 demo demo  24G Feb  8 13:18 akiban_data
- -rw-r--r--. 1 demo demo  48K Feb  8 13:19 akiban_system
- -rw-r--r--. 1 demo demo 954M Feb  8 13:18 akiban_journal.000000000225
- -rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000226
- -rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000227
- -rw-r--r--. 1 demo demo 662M Feb  8 13:19 akiban_journal.000000000228
+-rw-r--r--. 1 demo demo  24G Feb  8 13:18 akiban_data
+-rw-r--r--. 1 demo demo  48K Feb  8 13:19 akiban_system
+-rw-r--r--. 1 demo demo 954M Feb  8 13:18 akiban_journal.000000000225
+-rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000226
+-rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000227
+-rw-r--r--. 1 demo demo 662M Feb  8 13:19 akiban_journal.000000000228
 ----
 
 This database contains two _volume_ files, +akiban_data+ and +akiban_system+ and four files that constitute part of the _journal_. As explained below, Persistit records are usually stored in a combination of volume and journal files.
@@ -30,7 +30,7 @@ Persistit writes two major types of records to journal files.
 - For each committed update transaction, Persistit writes a record containing sufficient information to replay the transaction during recovery. For example, when Persistit stores a key/value pair during a transaction, it writes a record to the journal containing the key and value.
 - Persistit also writes all updated page images to the journal. Some of these are eventually copied to volume files, as described below. This write/copy mechanism is critical to Persistit’s crash-recovery mechanism (see <<Recovery>>).
 
-As updates are applied, Persistit constantly appends new information- both transaction records and modified page images - to the end of the highest-numbered file. To prevent the aggregation of a large number of journal files Persistit also works to copy or remove information from older journal files so that they can be deleted. The background thread responsible for this activity is called the +JOURNAL_COPIER+ thread. The JOURNAL_COPIER copies pages from the journal back into their home volume files, allowing old files to be deleted. Normally a Persistit system at rest will gradually copies all update page images and perform checkpoints so that only one small journal file remains. Applications can accelerate that process by calling the +com.persistit.Persistit.copyBack+ method.
+As updates are applied, Persistit constantly appends new information- both transaction records and modified page images - to the end of the highest-numbered file. To prevent the aggregation of a large number of journal files Persistit also works to copy or remove information from older journal files so that they can be deleted. The background thread responsible for this activity is called the +JOURNAL_COPIER+ thread. The JOURNAL_COPIER copies pages from the journal back into their home volume files, allowing old files to be deleted. Normally a Persistit system at rest will gradually copies all update page images and perform checkpoints so that only one small journal file remains. Applications can accelerate that process by calling the +com.persistit.Persistit#copyBackPages+ method.
 
 The journal is critical to ensuring Persistit can recover structurally intact B-Trees and apply all committed transactions after a system failure. For this reason, unless the JOURNAL_COPIER is entirely caught up, any attempt to save the state of a Persistit database must include both the volume and journal files.
 
@@ -39,8 +39,8 @@ The journal also plays a critical role during concurrent backup. To back up a ru
 - Enables +appendOnly+ mode to suspend the copying of updated page images.
 - Copies the appropriate volume and journal files
 - Disables +appendOnly+ mode to allow JOURNAL_COPIER to continue.
- 
-For more details on the journal, checkpoints and transactions, see <<Recovery>>. For more information on concurrent backup and other management tasks, see <<Managerment>>.
+
+For more details on the journal, checkpoints and transactions, see <<Recovery>>. For more information on concurrent backup and other management tasks, see <<Management>>.
 
 == Pages and Volumes
 
@@ -122,4 +122,5 @@ Generally, allocating more buffers in the buffer pool increases the likelihood t
 == Tools
 
 The command-line interface (see <<CLI>>) includes tools you can use to examine pages in volumes and records in the journal. Two of these include the +jview+ and +pview+ tasks. The +jview+ command displays journal records selected within an address range, by type, by page address, and using other selection criteria in a readable form.  The +pview+ command displays the contents of pages selected by page address or key from a volume, or by journal address from the journal.
+
 

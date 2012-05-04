@@ -31,7 +31,7 @@ import java.util.List;
 
 /**
  * <p>
- * Accumulate and holds information about the distribution of {@link Key}
+ * Accumulate and hold information about the distribution of {@link Key}
  * objects in a Persistit {@link Tree}. This class is used by the
  * {@link Exchange#computeHistogram(Key, Key, int, int, KeyFilter, int)} method to
  * accumulate and return the result of scanning all the keys at a fixed depth

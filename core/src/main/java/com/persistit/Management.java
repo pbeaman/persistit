@@ -47,10 +47,10 @@ import com.persistit.util.Util;
  * managing Persistit.
  * </p>
  * <p>
- * Methods of this class are exposed via RMI (Remote Method Invocation) to permit
- * management tools to operate remotely. For example, the AdminUI tool can connect
- * to a running Persistit instance via RMI.  Most of the information available
- * on this interface is also accessible through JMX MXBeans.
+ * Methods of this class are exposed via RMI (Remote Method Invocation) to
+ * permit management tools to operate remotely. For example, the AdminUI tool
+ * can connect to a running Persistit instance via RMI. Most of the information
+ * available on this interface is also accessible through JMX MXBeans.
  * </p>
  * 
  * @version 1.0
@@ -618,8 +618,8 @@ public interface Management extends Remote, ManagementMXBean {
     /**
      * Queries the current status of one or all tasks. If the specified taskId
      * value is -1, this method returns status information for all currently
-     * active tasks. This method clears all completed tasks after reporting their
-     * final status.
+     * active tasks. This method clears all completed tasks after reporting
+     * their final status.
      * 
      * @param taskId
      *            Task ID for a selected Task, or -1 for all Tasks.
@@ -630,13 +630,12 @@ public interface Management extends Remote, ManagementMXBean {
      * @param clearMessages
      *            <code>true</code> to clear all received messages from the
      *            task.
-
+     * 
      * @return Array of <code>TaskStatus</code> objects indicating status of
      *         selected task(s).
      * @throws RemoteException
      */
-    public TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages)
-            throws RemoteException;
+    public TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages) throws RemoteException;
 
     /**
      * Queries the current status of one or all tasks. If the specified taskId
@@ -707,7 +706,7 @@ public interface Management extends Remote, ManagementMXBean {
     /**
      * A DisplayFilter formats the String value presented in the Tree tab of the
      * AdminUI. Invoke {@link ManagementImpl#setDisplayFilter(DisplayFilter)} to
-     * supplyu a non-default DisplayFilter.
+     * supply a non-default DisplayFilter.
      * 
      * @author peter
      * 
@@ -1802,8 +1801,7 @@ public interface Management extends Remote, ManagementMXBean {
         @ConstructorProperties({ "name", "index", "rootPageAddress", "depth", "volumePathName", "status",
                 "writerThreadName", "fetchCounter", "traverseCounter", "storeCounter", "removeCounter" })
         public TreeInfo(String name, long rootPageAddress, int depth, String volumePathName, String status,
-                String writerThreadName, long fetchCounter, long traverseCounter, long storeCounter,
-                long removeCounter) {
+                String writerThreadName, long fetchCounter, long traverseCounter, long storeCounter, long removeCounter) {
             super();
             this.name = name;
             this.rootPageAddress = rootPageAddress;
@@ -2412,6 +2410,11 @@ public interface Management extends Remote, ManagementMXBean {
 
     }
 
+    /**
+     * A structure that holds information about the recovered database. Once
+     * recovery is complete, the values in this structure never change.
+     * 
+     */
     public static class RecoveryInfo extends AcquisitionTimeBase {
         private static final long serialVersionUID = 794617172781091495L;
 
@@ -2627,6 +2630,15 @@ public interface Management extends Remote, ManagementMXBean {
         }
     }
 
+    /**
+     * A structure that holds counts of commit, rollbacks and rollbacks since
+     * the last commit. Roll-backs since last commit is computed by adding the
+     * rollbacks since last commit of each {@link Transaction} whose session
+     * owned Thread that is still alive. Therefore the statistics include
+     * <code>Transaction</code> contexts that may not have executed a
+     * transaction recently.
+     * 
+     */
     public static class TransactionInfo extends AcquisitionTimeBase {
 
         private static final long serialVersionUID = -8355613679126582750L;
@@ -2647,23 +2659,14 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the elapsed time since startup in milliseconds
-         * 
-         * @return elapsed time in milliseconds
-         */
-        public long getCommitCount() {
-            return commitCount;
-        }
-
-        /**
          * Return the aggregate number of transactions committed since Persistit
          * was initialized
          * 
          * @return total number of transactions committed
          * @throws RemoteException
          */
-        public long getRollbackCount() {
-            return rollbackCount;
+        public long getCommitCount() {
+            return commitCount;
         }
 
         /**
@@ -2671,6 +2674,17 @@ public interface Management extends Remote, ManagementMXBean {
          * Persistit was initialized
          * 
          * @return total number of transactions rolled back
+         * @throws RemoteException
+         */
+        public long getRollbackCount() {
+            return rollbackCount;
+        }
+
+        /**
+         * Return the aggregate number of transaction rollback events since the
+         * last commit
+         * 
+         * @return number of transactions rolled back since the last commit
          * @throws RemoteException
          */
         public long getRollbackSinceCommitCount() {

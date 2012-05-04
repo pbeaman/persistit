@@ -26,6 +26,14 @@
 
 package com.persistit.mxbeans;
 
+import javax.management.MXBean;
+
+/**
+ * Management interface to the <code>TransactionIndex</code>. Statistics
+ * provided here are generally only useful for diagnostic purposes.
+ * 
+ */
+@MXBean
 public interface TransactionIndexMXBean {
 
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=TransactionIndex";

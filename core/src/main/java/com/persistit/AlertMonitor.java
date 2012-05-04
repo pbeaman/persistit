@@ -47,7 +47,7 @@ import com.persistit.util.Util;
 /**
  * <p>
  * Manage the process of accumulating and logging abnormal events such as
- * IOExceptions and measurements outside of expected thresholds. This method
+ * IOExceptions and measurements outside of expected thresholds. This class
  * notifies agents by (a) writing log messages and (b) sending JMX
  * {@link Notification}s.
  * </p>
@@ -589,8 +589,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
     }
 
     /**
-     * Called periodically to issue any pending log messages or
-     * notifications.
+     * Called periodically to issue any pending log messages or notifications.
      * 
      * @param force
      *            Indicates whether to issue pending log messages and

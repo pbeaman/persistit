@@ -28,6 +28,14 @@ package com.persistit.mxbeans;
 
 import javax.management.MXBean;
 
+/**
+ * Management interface for the <code>RecoveryManager</code>. Recovery is
+ * performed during the {@link com.persistit.Persistit#initialize} method.
+ * Recovery after a graceful shutdown is typically very fast, and the elements
+ * of this class represent its final state. However, recovery after a crash
+ * potentially requires a large number of transactions to be replayed, and this
+ * class can be used to observer the process.
+ */
 @MXBean
 public interface RecoveryManagerMXBean {
 

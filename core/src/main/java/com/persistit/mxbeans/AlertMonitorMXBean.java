@@ -26,12 +26,16 @@
 
 package com.persistit.mxbeans;
 
-import com.persistit.AlertMonitor;
+import javax.management.MXBean;
+
 import com.persistit.AlertMonitor.AlertLevel;
 
 /**
- * Methods of {@link AlertMonitor} to be exposed by an MXBean.
+ * Management interface to the <code>AlertMonitor</code> which accumulates and
+ * logs abnormal events such as IOExceptions and measurements outside of
+ * expected thresholds.
  */
+@MXBean
 public interface AlertMonitorMXBean {
 
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=AlertMonitor";
