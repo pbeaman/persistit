@@ -208,6 +208,13 @@ public class ConfigurationTest extends PersistitUnitTestCase {
             // expected
         }
     }
+    
+    @Test
+    public void testBrokenServerConfiguration() throws Exception {
+        BufferPoolConfiguration bpc = new Configuration().getBufferPoolMap().get(16384);
+        bpc.parseBufferMemory(16384, "buffer.memory.16384", "20M,512G,64M,0.50");
+        final int bufferCount = bpc.computeBufferCount(7944576L * 1024L);
+    }
 
     private Configuration testLoadPropertiesBufferSpecificationsHelper(final Properties properties) throws Exception {
         Configuration configuration = new Configuration();
