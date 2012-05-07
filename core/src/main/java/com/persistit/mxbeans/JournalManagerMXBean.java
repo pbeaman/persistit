@@ -136,6 +136,9 @@ public interface JournalManagerMXBean {
 
     @Description("Number of unique pages currently stored in the journal")
     int getPageMapSize();
+    
+    @Description("Number of unique page versions currently stored in the journal")
+    int getPageListSize();
 
     @Description("Address of first record in the journal required for recovery")
     long getBaseAddress();

@@ -102,6 +102,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private final Map<PageNode, PageNode> _pageMap = new HashMap<PageNode, PageNode>();
 
+    private final List<PageNode> _pageList = new ArrayList<PageNode>();
+
     private final Map<PageNode, PageNode> _branchMap = new HashMap<PageNode, PageNode>();
 
     private final Map<Volume, Integer> _volumeToHandleMap = new HashMap<Volume, Integer>();
@@ -206,9 +208,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private volatile int _copiesPerCycle = DEFAULT_COPIES_PER_CYCLE;
 
-    private volatile int _pageMapSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
+    private volatile int _pageListSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
 
     private volatile long _copierTimestampLimit = Long.MAX_VALUE;
+
+    private volatile long _earliestCommitTimestamp = Long.MAX_VALUE;
 
     /**
      * <p>
@@ -266,6 +270,16 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             for (Integer handle : _handleToVolumeMap.keySet()) {
                 _handleCounter = Math.max(_handleCounter, handle + 1);
             }
+            /*
+             * Populate page list in journal address order.
+             */
+            for (final PageNode root : _pageMap.values()) {
+                for (PageNode pn = root; pn != null; pn = pn.getPrevious()) {
+                    _pageList.add(pn);
+                }
+            }
+            Collections.sort(_pageList, PageNode.READ_COMPARATOR);
+
         } else {
             _journalFilePath = journalPath(path).getAbsoluteFile().toString();
             _blockSize = maximumSize;
@@ -326,6 +340,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     @Override
     public synchronized int getPageMapSize() {
         return _pageMap.size();
+    }
+
+    @Override
+    public synchronized int getPageListSize() {
+        return _pageList.size();
     }
 
     @Override
@@ -488,10 +507,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     /**
-     * Compute an "urgency" factor that determines how vigorously the JOURNAL_COPIER
-     * thread should perform I/O. This number is computed on a scale of 0 to 10;
-     * larger values are intended make the thread work harder. A value of 10
-     * suggests the copier should run flat-out.
+     * Compute an "urgency" factor that determines how vigorously the
+     * JOURNAL_COPIER thread should perform I/O. This number is computed on a
+     * scale of 0 to 10; larger values are intended make the thread work harder.
+     * A value of 10 suggests the copier should run flat-out.
      * 
      * @return the JOURNAL_COPIER urgency on a scale of 0 to 10
      */
@@ -500,7 +519,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         if (_copyFast.get()) {
             return URGENT;
         }
-        int urgency = _pageMap.size() / _pageMapSizeBase;
+        int urgency = _pageList.size() / _pageListSizeBase;
         int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress / _blockSize);
         if (!_appendOnly.get() && journalFileCount > 1) {
             urgency += journalFileCount - 1;
@@ -986,6 +1005,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             _currentAddress += recordSize - PA.OVERHEAD;
 
             final PageNode pageNode = new PageNode(handle, buffer.getPageAddress(), address, buffer.getTimestamp());
+            _pageList.add(pageNode);
             PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
             long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
             if (oldPageNode != null && oldPageNode.getTimestamp() > checkpointTimestamp
@@ -1111,7 +1131,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             return file;
         }
     }
-    
+
     static long fileToGeneration(final File file) {
         final Matcher matcher = PATH_PATTERN.matcher(file.getName());
         if (matcher.matches()) {
@@ -1187,6 +1207,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 _volumeToHandleMap.clear();
                 _treeToHandleMap.clear();
                 _pageMap.clear();
+                _pageList.clear();
                 _writeBuffer = null;
             }
         }
@@ -1231,7 +1252,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         _persistit.checkFatal();
         final long address = _writeBufferAddress;
         if (address != Long.MAX_VALUE && _writeBuffer != null) {
-            
+
             assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
                     "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
                             .position(), _currentAddress);
@@ -1259,9 +1280,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                          */
                         channel.write(_writeBuffer, _writeBufferAddress % _blockSize);
                         /*
-                         * Surprise: FileChannel#write does not throw an Exception if it
-                         * successfully writes some bytes and then encounters a disk
-                         * full condition. (Found this out empirically.)
+                         * Surprise: FileChannel#write does not throw an
+                         * Exception if it successfully writes some bytes and
+                         * then encounters a disk full condition. (Found this
+                         * out empirically.)
                          */
                         writeComplete = _writeBuffer.remaining() == 0;
                     } finally {
@@ -1287,7 +1309,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                             _writeBuffer.limit((int) remaining);
                         }
                     }
-                    
+
                     assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
                             "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
                                     .position(), _currentAddress);
@@ -1340,10 +1362,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             startJournalFile();
             newJournalFile = true;
         }
-        
+
         assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
-                "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
-                        .position(), _currentAddress);
+                "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer.position(),
+                _currentAddress);
         //
         // If the current journal file has room for the record, then return.
         //
@@ -1522,15 +1544,14 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         // Will become the earliest timestamp of any record needed to
         // be retained for recovery. For transactions containing LONG_RECORD
         // pages, those pages may be written to the journal with timestamps
-        // earlier than the commitTimestamp of the transaction. The are
+        // earlier than the commitTimestamp of the transaction but they are
         // guaranteed to be written with timestamp values later than the
         // transaction's startTimestamp. Therefore we can't cull PageMap entries
         // later than this recoveryTimestamp because the pages they refer to may
         // be needed for recovery.
         //
         long recoveryTimestamp = checkpoint.getTimestamp();
-        long earliest = pruneObsoleteTransactions(recoveryTimestamp, false);
-        recoveryTimestamp = Math.min(recoveryTimestamp, earliest);
+        recoveryTimestamp = Math.min(recoveryTimestamp, _earliestCommitTimestamp);
         //
         // Remove all but the most recent PageNode version before the
         // checkpoint.
@@ -1541,6 +1562,15 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     pn.setPrevious(null);
                     break;
                 }
+            }
+        }
+        //
+        // Remove the page list entries too.
+        //
+        for (Iterator<PageNode> iterator = _pageList.iterator(); iterator.hasNext();) {
+            final PageNode pn = iterator.next();
+            if (pn.getTimestamp() < recoveryTimestamp && !_pageMap.containsKey(pn)) {
+                iterator.remove();
             }
         }
 
@@ -1566,10 +1596,13 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * that transaction are now check-pointed into the B-Trees themselves) or if
      * it is from an aborted transaction that has no remaining MVV values.
      * 
-     * @param timestamp
-     * @return
      */
-    long pruneObsoleteTransactions(final long timestamp, boolean rollbackPruningEnabled) {
+    void pruneObsoleteTransactions() {
+        pruneObsoleteTransactions(isRollbackPruningEnabled());
+    }
+
+    void pruneObsoleteTransactions(boolean rollbackPruningEnabled) {
+        final long timestamp = _lastValidCheckpoint.getTimestamp();
         long earliest = Long.MAX_VALUE;
         List<TransactionMapItem> toPrune = new ArrayList<TransactionMapItem>();
         //
@@ -1602,6 +1635,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     }
                 }
             }
+            _earliestCommitTimestamp = earliest;
         }
         for (final TransactionMapItem item : toPrune) {
             try {
@@ -1610,7 +1644,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 _persistit.getLogBase().pruneException.log(e, item);
             }
         }
-        return earliest;
     }
 
     /**
@@ -1938,7 +1971,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             _copying.set(true);
             try {
-                pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
                 if (!_appendOnly.get()) {
                     selectForCopy(_copyList);
                     if (!_copyList.isEmpty()) {
@@ -2198,19 +2230,16 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         list.clear();
         if (!_appendOnly.get()) {
             final long timeStampUpperBound = Math.min(getLastValidCheckpointTimestamp(), _copierTimestampLimit);
-            for (long addr = (_baseAddress / _blockSize) * _blockSize; list.size() < _copiesPerCycle
-                    && addr < _currentAddress; addr += _blockSize) {
-                for (final PageNode pageNode : _pageMap.values()) {
-                    for (PageNode pn = pageNode; pn != null; pn = pn.getPrevious()) {
-                        if (pn.getTimestamp() < timeStampUpperBound && (pn.getJournalAddress() >= addr)
-                                && (pn.getJournalAddress() < addr + _blockSize)) {
-                            list.add(pn);
-                            break;
-                        }
-                    }
-                    if (list.size() >= _copiesPerCycle) {
+
+            for (final PageNode pageNode : _pageList) {
+                for (PageNode pn = pageNode; pn != null; pn = pn.getPrevious()) {
+                    if (pn.getTimestamp() < timeStampUpperBound) {
+                        list.add(pn);
                         break;
                     }
+                }
+                if (list.size() >= _copiesPerCycle) {
+                    break;
                 }
             }
         }
@@ -2575,12 +2604,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         public void endRecovery(long address, long timestamp) throws PersistitException {
             // Default: do nothing
         }
-        
+
         @Override
         public boolean requiresLongRecordConversion() {
             return false;
         }
-
 
     }
 

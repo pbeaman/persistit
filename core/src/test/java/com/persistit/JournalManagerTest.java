@@ -298,7 +298,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
         assertEquals(50000, countKeys(false));
         assertEquals(0, countKeys(true));
-        _persistit.getJournalManager().pruneObsoleteTransactions(Long.MAX_VALUE, true);
+        _persistit.getJournalManager().pruneObsoleteTransactions(true);
         assertTrue(countKeys(false) < 50000);
         CleanupManager cm = _persistit.getCleanupManager();
         assertTrue(cm.getAcceptedCount() > 0);
@@ -343,7 +343,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             txn.rollback();
             txn.end();
         }
-        _persistit.getJournalManager().pruneObsoleteTransactions(Long.MAX_VALUE, true);
+        _persistit.getJournalManager().pruneObsoleteTransactions(true);
         assertEquals(0, countKeys(false));
         IntegrityCheck icheck = new IntegrityCheck(_persistit);
         icheck.checkVolume(volume);

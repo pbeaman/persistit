@@ -3644,7 +3644,8 @@ public class Exchange {
         Buffer buffer = null;
         try {
             buffer = _pool.get(_volume, page, true, true);
-            return buffer.pruneMvvValues(_tree, _spareKey1);
+            final boolean result = buffer.pruneMvvValues(_tree, _spareKey1);
+            return result;
         } finally {
             if (buffer != null) {
                 buffer.release();
@@ -3658,6 +3659,7 @@ public class Exchange {
         Buffer buffer = null;
         try {
             buffer = _pool.get(_volume, page, false, true);
+            buffer.clearEnqueuedForPruning();
             long at = buffer.at(Buffer.KEY_BLOCK_START);
             if (at > 0) {
                 int offset = (int) (at >>> 32);
