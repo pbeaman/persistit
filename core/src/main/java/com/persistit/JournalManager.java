@@ -1007,9 +1007,14 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             final PageNode pageNode = new PageNode(handle, buffer.getPageAddress(), address, buffer.getTimestamp());
             _pageList.add(pageNode);
             PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
+            
+            if (oldPageNode != null) {
+                assert oldPageNode.getTimestamp() <= pageNode.getTimestamp();
+            }
             long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
             if (oldPageNode != null && oldPageNode.getTimestamp() > checkpointTimestamp
                     && buffer.getTimestamp() > checkpointTimestamp) {
+                oldPageNode.invalidate();
                 oldPageNode = oldPageNode.getPrevious();
             }
             pageNode.setPrevious(oldPageNode);
@@ -1559,7 +1564,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         for (final PageNode pageNode : _pageMap.values()) {
             for (PageNode pn = pageNode; pn != null; pn = pn.getPrevious()) {
                 if (pn.getTimestamp() < recoveryTimestamp) {
-                    pn.setPrevious(null);
+                    pn.removeHistory();
                     break;
                 }
             }
@@ -1569,7 +1574,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         //
         for (Iterator<PageNode> iterator = _pageList.iterator(); iterator.hasNext();) {
             final PageNode pn = iterator.next();
-            if (pn.getTimestamp() < recoveryTimestamp && !_pageMap.containsKey(pn)) {
+            if (pn.isInvalid()) {
                 iterator.remove();
             }
         }
@@ -1734,9 +1739,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
         final long _pageAddress;
 
-        final long _journalAddress;
-
         final long _timestamp;
+
+        long _journalAddress;
 
         int _offset;
 
@@ -1777,6 +1782,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
          *            the previous to set
          */
         public void setPrevious(PageNode previous) {
+            if (previous != null) {
+                assert _timestamp >= previous._timestamp;
+            }
             this._previous = previous;
         }
 
@@ -1875,6 +1883,25 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 return a.getPageAddress() < b.getPageAddress() ? -1 : a.getPageAddress() > b.getPageAddress() ? 1 : 0;
             }
         };
+
+        boolean isInvalid() {
+            return _journalAddress == Long.MIN_VALUE;
+        }
+
+        void invalidate() {
+            _journalAddress = Long.MIN_VALUE;
+        }
+
+        void removeHistory() {
+            PageNode pn = getPrevious();
+            setPrevious(null);
+            while (pn != null) {
+                PageNode previous = pn.getPrevious();
+                pn.invalidate();
+                pn.setPrevious(null);
+                pn = previous;
+            }
+        }
     }
 
     public static class TransactionMapItem implements Comparable<TransactionMapItem> {
@@ -2230,16 +2257,21 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         list.clear();
         if (!_appendOnly.get()) {
             final long timeStampUpperBound = Math.min(getLastValidCheckpointTimestamp(), _copierTimestampLimit);
-
-            for (final PageNode pageNode : _pageList) {
-                for (PageNode pn = pageNode; pn != null; pn = pn.getPrevious()) {
-                    if (pn.getTimestamp() < timeStampUpperBound) {
-                        list.add(pn);
+            for (final Iterator<PageNode> iterator = _pageList.iterator(); iterator.hasNext();) {
+                final PageNode pageNode = iterator.next();
+                if (pageNode.isInvalid()) {
+                    iterator.remove();
+                } else {
+                    for (PageNode pn = pageNode; pn != null; pn = pn.getPrevious()) {
+                        if (pn.getTimestamp() < timeStampUpperBound) {
+                            assert !pn.isInvalid();
+                            list.add(pn);
+                            break;
+                        }
+                    }
+                    if (list.size() >= _copiesPerCycle) {
                         break;
                     }
-                }
-                if (list.size() >= _copiesPerCycle) {
-                    break;
                 }
             }
         }
@@ -2258,6 +2290,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 break;
             }
             final PageNode pageNode = iterator.next();
+            if (pageNode.isInvalid()) {
+                iterator.remove();
+                continue;
+            }
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
                 volume = _handleToVolumeMap.get(pageNode.getVolumeHandle());
@@ -2280,7 +2316,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             final int at = bb.position();
             final long pageAddress;
             try {
-                pageAddress = readPageBufferFromJournal(pageNode, bb);
+                PageNode stablePageNode = new PageNode(pageNode);
+                if (pageNode.isInvalid()) {
+                    iterator.remove();
+                    continue;
+                }
+                pageAddress = readPageBufferFromJournal(stablePageNode, bb);
             } catch (PersistitException ioe) {
                 _persistit.getLogBase().copyException.log(ioe, volume, pageNode.getPageAddress(), pageNode
                         .getJournalAddress());
@@ -2313,6 +2354,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             }
 
             final PageNode pageNode = iterator.next();
+            
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
                 volume = _handleToVolumeMap.get(pageNode.getVolumeHandle());
@@ -2326,8 +2368,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             if (volume == null || volume.isClosed()) {
                 // Remove from the List so that below we won't remove it from
-                // from
-                // the pageMap.
+                // from the pageMap.
                 iterator.remove();
                 continue;
             }
@@ -2371,20 +2412,29 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             for (final PageNode copiedPageNode : list) {
                 PageNode pageNode = _pageMap.get(copiedPageNode);
                 if (pageNode.getJournalAddress() == copiedPageNode.getJournalAddress()) {
-                    _pageMap.remove(pageNode);
+                    pageNode.removeHistory();
+                    pageNode.invalidate();
+                    PageNode pn = _pageMap.remove(pageNode);
+                    assert pn == copiedPageNode;
                 } else {
                     PageNode previous = pageNode.getPrevious();
                     while (previous != null) {
                         if (previous.getJournalAddress() == copiedPageNode.getJournalAddress()) {
-                            // No need to keep that previous entry, or any of
+                            // No need to keep the previous entry, or any of
                             // its predecessors
-                            pageNode.setPrevious(null);
+                            pageNode.removeHistory();
                             break;
                         } else {
                             pageNode = previous;
                             previous = pageNode.getPrevious();
                         }
                     }
+                }
+            }
+            for (Iterator<PageNode> iterator = _pageList.iterator(); iterator.hasNext();) {
+                final PageNode pn = iterator.next();
+                if (pn.isInvalid()) {
+                    iterator.remove();
                 }
             }
             //

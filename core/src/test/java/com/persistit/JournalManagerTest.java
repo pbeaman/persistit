@@ -74,7 +74,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             if ((i % 400) == 0) {
                 jman.rollover();
             }
+            buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
             jman.writePageToJournal(buffer);
+            buffer.clearDirty();
             buffer.releaseTouched();
         }
 
