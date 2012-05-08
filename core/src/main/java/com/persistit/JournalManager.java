@@ -102,7 +102,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private final Map<PageNode, PageNode> _pageMap = new HashMap<PageNode, PageNode>();
 
-    private final List<PageNode> _pageList = new ArrayList<PageNode>();
+    private final RangeRemovingArrayList<PageNode> _pageList = new RangeRemovingArrayList<PageNode>();
 
     private final Map<PageNode, PageNode> _branchMap = new HashMap<PageNode, PageNode>();
 
@@ -2531,6 +2531,42 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         }
         reportJournalFileCount();
     }
+    
+    void cleanupPageList() {
+        int from = -1;
+        for (int index = 0; index < _pageList.size(); index++) {
+            if (_pageList.get(index).isInvalid()) {
+                if (from == -1) {
+                    from = index;
+                }
+            } else {
+                if (from != -1) {
+                    _pageList.removeRange(from, index);
+                    index = from;
+                    from = -1;
+                }
+            }
+        }
+        if (from != -1) {
+            _pageList.removeRange(from, _pageList.size());
+        }
+    }
+    
+    void cleanupPageList2() {
+        int to = -1;
+        for (int index = _pageList.size(); --index >= 0; ) {
+            if (_pageList.get(index).isInvalid()) {
+                if (to == -1) {
+                    to = index;
+                }
+            } else {
+                if (to != -1) {
+                    _pageList.removeRange(index, to + 1);
+                    to = -1;
+                }
+            }
+        }
+    }
 
     private void reportJournalFileCount() {
         /*
@@ -2661,6 +2697,15 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         }
 
     }
+    
+    /**
+     * Extend ArrayList to export the removeRange method.
+     */
+    static class RangeRemovingArrayList<T> extends ArrayList<T> {
+        public void removeRange(final int fromIndex, final int toIndex) {
+            super.removeRange(fromIndex, toIndex);
+        }
+    }
 
     private long rolloverThreshold() {
         return _closed.get() ? 0 : ROLLOVER_THRESHOLD;
@@ -2701,6 +2746,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     synchronized boolean unitTestTxnExistsInLiveMap(Long startTimestamp) {
         return _liveTransactionMap.containsKey(startTimestamp);
+    }
+    
+    void unitTestInjectPageList(final List<PageNode> list) {
+        _pageList.addAll(list);
     }
 
     public PageNode queryPageNode(final int volumeHandle, final long pageAddress) {

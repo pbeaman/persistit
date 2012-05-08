@@ -606,6 +606,8 @@ public class Persistit {
                 startTransactionIndexPollTask();
                 flush();
                 _checkpointManager.checkpoint();
+                _journalManager.pruneObsoleteTransactions(true);
+
                 startCleanupManager();
                 _initialized.set(true);
             } finally {
@@ -1395,7 +1397,9 @@ public class Persistit {
             return null;
         }
         cleanup();
-        return _checkpointManager.checkpoint();
+        final Checkpoint result = _checkpointManager.checkpoint();
+        _journalManager.pruneObsoleteTransactions(false);
+        return result;
     }
 
     final long earliestLiveTransaction() {

@@ -32,10 +32,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.persistit.Transaction.CommitPolicy;
-import com.persistit.exception.PersistitException;
-import com.persistit.exception.PersistitIOException;
-import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.MissingThreadException;
+import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Util;
 
 class CheckpointManager extends IOTaskRunnable {

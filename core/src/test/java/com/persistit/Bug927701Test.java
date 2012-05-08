@@ -30,9 +30,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.JournalManager;
-import com.persistit.Transaction;
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.unit.PersistitUnitTestCase;
 
 /**
@@ -108,12 +106,13 @@ public class Bug927701Test extends PersistitUnitTestCase {
         /*
          * Wait for JournalManager call to pruneObsoleteTransactions
          */
-        Thread.sleep(3000);
-
+        //Thread.sleep(3000);
+        _persistit.getJournalManager().pruneObsoleteTransactions();
         /*
          * 2. Checkpoint - this will flush the transaction buffer
          */
         {
+            _persistit.cleanup();
             _persistit.copyBackPages();
             _persistit.checkpoint();
         }
