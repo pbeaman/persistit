@@ -29,10 +29,14 @@ package com.persistit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Set;
 
 import org.junit.Test;
@@ -384,6 +388,37 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 Accumulator.Type.SUM, 0);
         assertEquals("Accumulator value is incorrect", 25000, acc.getLiveValue());
 
+    }
+
+    @Test
+    public void testCleanupPageList() throws Exception {
+        final int SIZE = 5000;
+        final Random random = new Random(1);
+        final List<PageNode> source = new ArrayList<PageNode>(SIZE);
+        for (int index = 0; index < 1000000; index++) {
+            source.add(new PageNode(0, index, index * 10, index));
+        }
+        int next = -1;
+        for (int index = 0; index < SIZE; index++) {
+            if (index < next) {
+                source.get(index).invalidate();
+            } else {
+                index += random.nextInt(50);
+                next = random.nextInt(50) + index;
+            }
+        }
+        final List<PageNode> cleaned = new ArrayList<PageNode>(source);
+        for (Iterator<PageNode> iterator = cleaned.iterator(); iterator.hasNext();) {
+            if (iterator.next().isInvalid()) {
+                iterator.remove();
+            }
+        }
+        JournalManager jman = new JournalManager(_persistit);
+        jman.unitTestInjectPageList(source);
+        jman.cleanupPageList();
+        assertTrue(jman.unitTestPageListEquals(cleaned));
+
+        assertTrue("Invalidated no page nodes", source.size() > cleaned.size());
     }
 
     private int countKeys(final boolean mvcc) throws PersistitException {
