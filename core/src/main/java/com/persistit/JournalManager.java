@@ -2423,12 +2423,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     }
                 }
             }
-            for (Iterator<PageNode> iterator = _pageList.iterator(); iterator.hasNext();) {
-                final PageNode pn = iterator.next();
-                if (pn.isInvalid()) {
-                    iterator.remove();
-                }
-            }
+            cleanupPageList();
             //
             // Will hold the address of the first record containing information
             // not yet copied back into a Volume, and therefore required for
