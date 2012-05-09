@@ -709,7 +709,7 @@ public class Configuration {
         setAppendOnly(getBooleanProperty(APPEND_ONLY_PROPERTY, false));
         setCommitPolicy(getProperty(COMMIT_POLICY_PROPERTY_NAME));
         setConstructorOverride(getBooleanProperty(CONSTRUCTOR_OVERRIDE_PROPERTY_NAME, false));
-        setJmxEnabled(getBooleanProperty(ENABLE_JMX_PROPERTY_NAME, false));
+        setJmxEnabled(getBooleanProperty(ENABLE_JMX_PROPERTY_NAME, true));
         setJoinPolicy(getProperty(JOIN_POLICY_PROPERTY_NAME));
         setJournalPath(getProperty(JOURNAL_PATH_PROPERTY_NAME, DEFAULT_JOURNAL_PATH));
         setJournalSize(getLongProperty(JOURNAL_BLOCKSIZE_PROPERTY_NAME, JournalManager.DEFAULT_BLOCK_SIZE));
