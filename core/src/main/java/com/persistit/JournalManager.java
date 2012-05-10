@@ -454,7 +454,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     public Checkpoint getLastValidCheckpoint() {
         return _lastValidCheckpoint;
     }
-
+    
     @Override
     public long getLastValidCheckpointTimestamp() {
         return _lastValidCheckpoint.getTimestamp();
@@ -1639,7 +1639,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         }
         for (final TransactionMapItem item : toPrune) {
             try {
-                _player.applyTransaction(item, _listener);
+                synchronized(_player) {
+                    _player.applyTransaction(item, _listener);
+                }
             } catch (PersistitException e) {
                 _persistit.getLogBase().pruneException.log(e, item);
             }
@@ -2687,8 +2689,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     public int getHandleCount() {
         return _handleCounter;
     }
+    
+    long getLastValidCheckpointBaseAddress() {
+        return _lastValidCheckpointBaseAddress;
+    }
 
-    /**
+   /**
      * For use only by unit tests that test page maps, etc.
      * 
      * @param handleToVolumeMap
