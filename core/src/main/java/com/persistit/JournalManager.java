@@ -1334,7 +1334,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     private boolean prepareWriteBuffer(final int size) throws PersistitException {
         _persistit.checkFatal();
         boolean newJournalFile = false;
-        if (_currentAddress % _blockSize == 0) {
+        if (getCurrentJournalSize() == 0) {
             flush();
             _writeBufferAddress = _currentAddress;
             startJournalFile();
@@ -1365,7 +1365,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         // fill the buffer multiple times.
         //
         if (_writeBuffer.remaining() == _writeBuffer.capacity()) {
-            long remaining = _blockSize - (_currentAddress % _blockSize);
+            long remaining = _blockSize - getCurrentJournalSize();
             if (remaining > size + JE.OVERHEAD) {
                 return newJournalFile;
             }
@@ -1385,7 +1385,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             flush();
 
             try {
-                final long length = _currentAddress % _blockSize;
+                final long length = getCurrentJournalSize();
                 final boolean matches = length == (_writeBuffer.position() + _writeBufferAddress) % _blockSize;
                 final FileChannel channel = getFileChannel(_currentAddress);
                 Debug.$assert1.t(matches);
@@ -2415,7 +2415,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             // or transactions.
             //
             if (_baseAddress == _currentAddress && _lastValidCheckpointBaseAddress >= _currentAddress - CP.OVERHEAD
-                    && (_currentAddress % _blockSize) > rolloverThreshold()) {
+                    && (getCurrentJournalSize() > rolloverThreshold())) {
                 final FileChannel channel = _journalFileChannels.remove(_currentAddress / _blockSize);
                 if (channel != null) {
                     obsoleteFileChannels.add(channel);
@@ -2619,6 +2619,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     void unitTestClearTransactionMap() {
         _liveTransactionMap.clear();
+    }
+
+    synchronized long getCurrentJournalSize() {
+        return _currentAddress % _blockSize;
     }
 
     synchronized boolean unitTestTxnExistsInLiveMap(Long startTimestamp) {

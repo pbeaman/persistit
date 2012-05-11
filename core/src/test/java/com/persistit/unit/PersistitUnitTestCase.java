@@ -111,6 +111,13 @@ public abstract class PersistitUnitTestCase {
         _persistit.initialize(properties);
     }
 
+    protected void crashWithoutFlushAndRestoreProperties() throws PersistitException {
+        Properties properties = _persistit.getProperties();
+        _persistit.crash();
+        _persistit = new Persistit();
+        _persistit.initialize(properties);
+    }
+
     public static boolean doesRefBecomeNull(final WeakReference<?> ref) throws InterruptedException {
         long expires = System.nanoTime() + TEN_SECONDS;
         while (ref.get() != null && System.nanoTime() < expires) {
