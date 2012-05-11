@@ -136,10 +136,10 @@ public interface JournalManagerMXBean {
 
     @Description("Number of transaction map items in the live map")
     int getLiveTransactionMapSize();
-    
+
     @Description("Number of unique pages currently stored in the journal")
     int getPageMapSize();
-    
+
     @Description("Number of unique page versions currently stored in the journal")
     int getPageListSize();
 
@@ -193,6 +193,9 @@ public interface JournalManagerMXBean {
 
     @Description("Total number of page images copied from the journal to their destination volumes")
     long getCopiedPageCount();
+
+    @Description("Total number of page images pages dropped from the journal due the existence of newer versions")
+    long getDroppedPageCount();
 
     @Description("System time when journal was first created")
     long getJournalCreatedTime();

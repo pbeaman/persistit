@@ -36,9 +36,10 @@ import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.MissingThreadException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.mxbeans.CheckpointManagerMXBean;
 import com.persistit.util.Util;
 
-class CheckpointManager extends IOTaskRunnable {
+class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBean {
 
     /**
      * A structure containing a timestamp and system clock time at which
@@ -96,10 +97,18 @@ class CheckpointManager extends IOTaskRunnable {
         }
     }
 
+    private final static long NANOS_PER_MILLI = 1000000L;
+
+    private final static long NANOS_PER_SECOND = NANOS_PER_MILLI * 1000L;
+
     /**
      * Default interval in nanoseconds between checkpoints - two minutes.
      */
     private final static long DEFAULT_CHECKPOINT_INTERVAL = 120000000000L;
+    
+    private final static long MINIMUM_CHECKPOINT_INTERVAL = 10 * NANOS_PER_SECOND;
+    
+    private final static long MAXIMUM_CHECKPOINT_INTERVAL = 1800 * NANOS_PER_SECOND;
 
     private final static Checkpoint UNAVALABLE_CHECKPOINT = new Checkpoint(0, 0);
 
@@ -140,16 +149,47 @@ class CheckpointManager extends IOTaskRunnable {
         _closed.set(true);
     }
 
-    public Checkpoint getCurrentCheckpoint() {
+    Checkpoint getCurrentCheckpoint() {
         return _currentCheckpoint;
     }
-
+    
     long getCheckpointIntervalNanos() {
         return _checkpointIntervalNanos;
     }
 
     void setCheckpointIntervalNanos(long interval) {
+        Util.rangeCheck(interval, MINIMUM_CHECKPOINT_INTERVAL, MAXIMUM_CHECKPOINT_INTERVAL);
         _checkpointIntervalNanos = interval;
+    }
+
+    @Override
+    public String getProposedCheckpoint() {
+        return _currentCheckpoint.toString();
+    }
+
+    @Override
+    public long getCheckpointInterval() {
+        return _checkpointIntervalNanos;
+    }
+
+    @Override
+    public void setCheckpointInterval(long interval) {
+        _checkpointIntervalNanos = interval * NANOS_PER_MILLI;
+    }
+    
+    @Override
+    public synchronized  int getOutstandingCheckpointCount() {
+        return _outstandingCheckpoints.size();
+    }
+    
+    @Override
+    public synchronized String outstandingCheckpointReport() {
+        StringBuilder sb = new StringBuilder();
+        for (final Checkpoint cp : _outstandingCheckpoints) {
+            sb.append(cp);
+            sb.append(Util.NEW_LINE);
+        }
+        return sb.toString();
     }
 
     Checkpoint checkpoint() throws PersistitException {

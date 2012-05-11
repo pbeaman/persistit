@@ -37,7 +37,6 @@ import java.lang.management.MemoryUsage;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -54,7 +53,6 @@ import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
 import javax.management.NotificationEmitter;
 import javax.management.ObjectName;
-import javax.naming.ConfigurationException;
 
 import com.persistit.Accumulator.AccumulatorRef;
 import com.persistit.CheckpointManager.Checkpoint;
@@ -74,6 +72,7 @@ import com.persistit.logging.LogBase;
 import com.persistit.logging.PersistitLogger;
 import com.persistit.mxbeans.AlertMonitorMXBean;
 import com.persistit.mxbeans.BufferPoolMXBean;
+import com.persistit.mxbeans.CheckpointManagerMXBean;
 import com.persistit.mxbeans.CleanupManagerMXBean;
 import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.mxbeans.JournalManagerMXBean;
@@ -754,6 +753,7 @@ public class Persistit {
         try {
             registerMBean(getManagement(), ManagementMXBean.class, ManagementMXBean.MXBEAN_NAME);
             registerMBean(_ioMeter, IOMeterMXBean.class, IOMeterMXBean.MXBEAN_NAME);
+            registerMBean(_checkpointManager, CheckpointManagerMXBean.class, CheckpointManagerMXBean.MXBEAN_NAME);
             registerMBean(_cleanupManager, CleanupManagerMXBean.class, CleanupManagerMXBean.MXBEAN_NAME);
             registerMBean(_transactionIndex, TransactionIndexMXBean.class, TransactionIndexMXBean.MXBEAN_NAME);
             registerMBean(_journalManager, JournalManagerMXBean.class, JournalManagerMXBean.MXBEAN_NAME);

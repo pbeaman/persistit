@@ -415,9 +415,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
         JournalManager jman = new JournalManager(_persistit);
         jman.unitTestInjectPageList(source);
-        jman.cleanupPageList();
+        int removed = jman.cleanupPageList();
         assertTrue(jman.unitTestPageListEquals(cleaned));
-
+        assertEquals("Removed count is wrong", source.size() - cleaned.size(), removed);
         assertTrue("Invalidated no page nodes", source.size() > cleaned.size());
     }
 

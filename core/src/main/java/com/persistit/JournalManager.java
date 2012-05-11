@@ -180,6 +180,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     private volatile long _readPageCount = 0;
 
     private volatile long _copiedPageCount = 0;
+    
+    private volatile long _droppedPageCount = 0;
 
     private AtomicLong _totalCommits = new AtomicLong();
 
@@ -312,6 +314,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             return;
         }
         info.copiedPageCount = _copiedPageCount;
+        info.droppedPageCount = _droppedPageCount;
         info.copying = _copying.get();
         info.currentGeneration = _currentAddress;
         info.currentJournalAddress = _writeBuffer == null ? 0 : _writeBufferAddress + _writeBuffer.position();
@@ -449,6 +452,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     @Override
     public long getCopiedPageCount() {
         return _copiedPageCount;
+    }
+
+    @Override
+    public long getDroppedPageCount() {
+        return _droppedPageCount;
     }
 
     @Override
@@ -1577,7 +1585,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         //
         // Remove the page list entries too.
         //
-        cleanupPageList();
+        _droppedPageCount += cleanupPageList();
 
         //
         // Remove any PageNode from the branchMap having a timestamp less
@@ -2257,7 +2265,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     synchronized void selectForCopy(final List<PageNode> list) {
         list.clear();
-        cleanupPageList();
+        _droppedPageCount += cleanupPageList();
         if (!_appendOnly.get()) {
             final long timeStampUpperBound = Math.min(getLastValidCheckpointTimestamp(), _copierTimestampLimit);
             for (final Iterator<PageNode> iterator = _pageList.iterator(); iterator.hasNext();) {
@@ -2430,7 +2438,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     }
                 }
             }
-            cleanupPageList();
+            _droppedPageCount += cleanupPageList() - list.size();
             //
             // Will hold the address of the first record containing information
             // not yet copied back into a Volume, and therefore required for
@@ -2526,8 +2534,13 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         reportJournalFileCount();
     }
 
-    void cleanupPageList() {
+    /**
+     * Remove obsolete PageNodes from the page list.
+     * @return Count of removed PageNode instances.
+     */
+    int cleanupPageList() {
         int to = -1;
+        int count = 0;
         for (int index = _pageList.size(); --index >= 0;) {
             if (_pageList.get(index).isInvalid()) {
                 if (to == -1) {
@@ -2536,13 +2549,16 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             } else {
                 if (to != -1) {
                     _pageList.removeRange(index + 1, to + 1);
+                    count += to - index;
                     to = -1;
                 }
             }
         }
         if (to != -1) {
             _pageList.removeRange(0, to + 1);
+            count += to + 1;
         }
+        return count;
     }
 
     private void reportJournalFileCount() {
