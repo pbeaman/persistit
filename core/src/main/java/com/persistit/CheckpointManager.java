@@ -112,7 +112,7 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
 
     private final SessionId _checkpointTxnSessionId = new SessionId();
 
-    private volatile long _checkpointIntervalNanos = DEFAULT_CHECKPOINT_INTERVAL;
+    private volatile long _checkpointIntervalNanos = DEFAULT_CHECKPOINT_INTERVAL * NS_PER_S;
 
     private volatile long _lastCheckpointNanos = Long.MAX_VALUE;
 
