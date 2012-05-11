@@ -161,7 +161,7 @@ public interface JournalManagerMXBean {
     @Description("True if copying of pages from the journal to their destination volumes is disabled")
     void setAppendOnly(boolean appendOnly);
 
-    @Description("True if copy-fast mode has be enabled")
+    @Description("True if copy-fast mode has been enabled")
     void setCopyingFast(boolean fast);
 
     @Description("Interval between data flush cycles in milliseconds")
@@ -226,9 +226,6 @@ public interface JournalManagerMXBean {
 
     @Description("String value of last Exception encountered by the JOURNAL_FLUSHER thread")
     String getLastFlusherException();
-
-    @Description("Interval between proposed checkpoints in milliseconds")
-    long getCheckpointInterval();
 
     @Description("System time when the most recently valid checkpoint was created")
     long getLastValidCheckpointTimeMillis();

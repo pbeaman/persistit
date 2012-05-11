@@ -484,11 +484,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     @Override
-    public long getCheckpointInterval() {
-        return _persistit.getCheckpointIntervalNanos() / NS_PER_MS;
-    }
-
-    @Override
     public long getLastValidCheckpointTimeMillis() {
         return _lastValidCheckpoint.getSystemTimeMillis();
     }
