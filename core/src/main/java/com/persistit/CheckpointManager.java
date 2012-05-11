@@ -27,6 +27,7 @@
 package com.persistit;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -52,7 +53,7 @@ class CheckpointManager extends IOTaskRunnable {
         private final long _systemTime;
 
         private volatile boolean _completed = false;
-
+        
         Checkpoint(final long timestamp, final long systemTime) {
             _timestamp = timestamp;
             _systemTime = systemTime;
@@ -113,6 +114,9 @@ class CheckpointManager extends IOTaskRunnable {
     private final static long FLUSH_CHECKPOINT_INTERVAL = 5000;
 
     private volatile Checkpoint _currentCheckpoint = new Checkpoint(0, 0, true);
+    
+    private List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
+
 
     private AtomicBoolean _closed = new AtomicBoolean();
 
@@ -220,6 +224,7 @@ class CheckpointManager extends IOTaskRunnable {
                 Accumulator.saveAccumulatorCheckpointValues(accumulators);
                 txn.commit(CommitPolicy.HARD);
                 _currentCheckpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
+                _outstandingCheckpoints.add(_currentCheckpoint);
                 _persistit.getLogBase().checkpointProposed.log(_currentCheckpoint);
                 return _currentCheckpoint;
             } catch (InterruptedException ie) {
@@ -238,15 +243,24 @@ class CheckpointManager extends IOTaskRunnable {
      * these whether a currently outstanding checkpoint is ready to complete.
      */
     void pollFlushCheckpoint() {
-        Checkpoint checkpoint = _currentCheckpoint;
-        if (!checkpoint.isCompleted()) {
-            final long earliestDirtyTimestamp = _persistit.earliestDirtyTimestamp();
-            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
-                try {
-                    _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
-                } catch (PersistitException e) {
-                    _persistit.getLogBase().exception.log(e);
+        final long earliestDirtyTimestamp = _persistit.earliestDirtyTimestamp();
+        Checkpoint checkpoint = null;
+        synchronized(this) {
+            while (!_outstandingCheckpoints.isEmpty()) {
+                Checkpoint cp = _outstandingCheckpoints.get(0);
+                if (cp.getTimestamp() <= earliestDirtyTimestamp) {
+                    checkpoint = cp;
+                    _outstandingCheckpoints.remove(0);
+                } else {
+                    break;
                 }
+            }
+        }
+        if (checkpoint != null) {
+            try {
+                _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
+            } catch (PersistitException e) {
+                _persistit.getLogBase().exception.log(e);
             }
         }
     }
