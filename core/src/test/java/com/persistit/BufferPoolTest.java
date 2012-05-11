@@ -156,4 +156,22 @@ public class BufferPoolTest extends PersistitUnitTestCase {
             }
         }
     }
+
+    @Test
+    public void testWritePriority() throws Exception {
+        final long m = 100 * 1000 * 1000;
+        final Volume volume = _persistit.getVolume("persistit");
+        final BufferPool pool = volume.getPool();
+        Buffer buffer = pool.getBufferCopy(0);
+        long currentTimestamp = 4 * m;
+        long checkpointTimestamp = 2 * m;
+        for (long timestamp = m; timestamp < m * 20; timestamp += m) {
+            buffer.setDirtyAtTimestamp(timestamp);
+            int priority = pool.writePriority(buffer, 123456, checkpointTimestamp, currentTimestamp);
+            System.out.printf("Timestamp %,15d Checkpoint %,15d Current %,15d Priority %,15d\n", timestamp,
+                    checkpointTimestamp, currentTimestamp, priority);
+            currentTimestamp += 10000000;
+        }
+    }
+
 }

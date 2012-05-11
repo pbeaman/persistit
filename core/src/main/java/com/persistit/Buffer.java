@@ -385,7 +385,7 @@ public class Buffer extends SharedResource {
 
     private volatile long _lastPrunedTime;
 
-    private volatile boolean _enqueuedForPruning;
+    private volatile boolean _enqueuedForAntiValuePruning;
 
     /**
      * Construct a new buffer.
@@ -459,7 +459,7 @@ public class Buffer extends SharedResource {
     }
 
     void clearEnqueuedForPruning() {
-        _enqueuedForPruning = false;
+        _enqueuedForAntiValuePruning = false;
     }
 
     /**
@@ -3630,10 +3630,10 @@ public class Buffer extends SharedResource {
 
                     if (valueByte == MVV.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
-                            if (tree != null && !_enqueuedForPruning) {
+                            if (tree != null && !_enqueuedForAntiValuePruning) {
                                 if (_persistit.getCleanupManager().offer(
                                         new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
-                                    _enqueuedForPruning = true;
+                                    _enqueuedForAntiValuePruning = true;
                                 }
                             }
                         } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {

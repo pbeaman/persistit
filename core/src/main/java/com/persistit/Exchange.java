@@ -3644,14 +3644,12 @@ public class Exchange {
         Buffer buffer = null;
         try {
             buffer = _pool.get(_volume, page, true, true);
-            final boolean result = buffer.pruneMvvValues(_tree, _spareKey1);
-            return result;
+            return buffer.pruneMvvValues(_tree, _spareKey1);
         } finally {
             if (buffer != null) {
                 buffer.release();
             }
         }
-
     }
 
     boolean pruneLeftEdgeValue(final long page) throws PersistitException {

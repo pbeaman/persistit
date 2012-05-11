@@ -98,7 +98,7 @@ class CheckpointManager extends IOTaskRunnable {
     /**
      * Default interval in nanoseconds between checkpoints - two minutes.
      */
-    private final static long DEFAULT_CHECKPOINT_INTERVAL = 120000000000L;
+    private final static long DEFAULT_CHECKPOINT_INTERVAL = 12000000000L; // TODO - restore original value
 
     private final static Checkpoint UNAVALABLE_CHECKPOINT = new Checkpoint(0, 0);
 

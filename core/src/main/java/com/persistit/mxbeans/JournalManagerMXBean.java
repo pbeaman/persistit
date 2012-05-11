@@ -134,6 +134,9 @@ public interface JournalManagerMXBean {
 
     final static int MAXIMUM_CONCURRENT_TRANSACTIONS = 10000;
 
+    @Description("Number of transaction map items in the live map")
+    int getLiveTransactionMapSize();
+    
     @Description("Number of unique pages currently stored in the journal")
     int getPageMapSize();
     

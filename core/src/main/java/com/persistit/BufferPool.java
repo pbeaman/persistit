@@ -210,8 +210,6 @@ public class BufferPool {
 
     /**
      * Oldest update timestamp found during PAGE_WRITER's most recent scan.
-     * Value is Long.MAX_VALUE if there are no dirty non-temporary pages in the
-     * pool.
      */
     private volatile long _earliestDirtyTimestamp = Long.MIN_VALUE;
 
@@ -1118,13 +1116,12 @@ public class BufferPool {
 
     int selectDirtyBuffers(final int[] priorities, final BufferHolder[] holders) throws PersistitException {
         int count = 0;
-        int min = Integer.MAX_VALUE;
         final int clock = _clock.get();
 
         final long checkpointTimestamp = _persistit.getCurrentCheckpoint().getTimestamp();
         final long currentTimestamp = _persistit.getCurrentTimestamp();
 
-        long earliestDirtyTimestamp = checkpointTimestamp;
+        long earliestDirtyTimestamp = currentTimestamp;
         long flushTimestamp = _flushTimestamp.get();
 
         boolean flushed = true;
@@ -1144,7 +1141,7 @@ public class BufferPool {
             if (!buffer.claim(false, 0)) {
                 /*
                  * Without a claim, we are still guaranteed that the buffer will
-                 * never receive a dirty timestamp less than the current
+                 * never receive a dirty timestamp less than its current
                  * timestamp.
                  */
                 if (timestamp < earliestDirtyTimestamp) {
@@ -1215,13 +1212,13 @@ public class BufferPool {
     }
 
     /**
-     * Computes a priority for writing the specified Buffer. A larger value
+     * Compute a priority for writing the specified Buffer. A larger value
      * denotes a greater priority. Priority 0 indicates the buffer is ineligible
      * to be written.
      * 
      * @return priority
      */
-    private int writePriority(final Buffer buffer, int clock, long checkpointTimestamp, final long currentTimestamp) {
+     int writePriority(final Buffer buffer, int clock, long checkpointTimestamp, final long currentTimestamp) {
         int status = buffer.getStatus();
         if ((status & Buffer.VALID_MASK) == 0 || (status & Buffer.DIRTY_MASK) == 0) {
             // ineligible

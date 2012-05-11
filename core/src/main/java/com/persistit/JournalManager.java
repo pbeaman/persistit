@@ -338,6 +338,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     @Override
+    public synchronized int getLiveTransactionMapSize() {
+        return _liveTransactionMap.size();
+    }
+    
+    @Override
     public synchronized int getPageMapSize() {
         return _pageMap.size();
     }
@@ -1607,7 +1612,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         List<TransactionMapItem> toPrune = new ArrayList<TransactionMapItem>();
         //
         // Remove any committed transactions that committed before the
-        // checkpoint. No need to keep a record of such a transaction since it's
+        // checkpoint. No need to keep a record of such a transaction since its
         // updates are now fully written to the journal in modified page images.
         //
         synchronized (this) {
