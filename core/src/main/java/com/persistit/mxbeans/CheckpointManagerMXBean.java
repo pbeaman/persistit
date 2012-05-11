@@ -37,15 +37,19 @@ public interface CheckpointManagerMXBean {
 
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=CheckpointManager";
 
-    @Description("The minimum interval in milliseconds between attempts to enqueue a page needing to be pruned")
+    @Description("Checkpoint most recently proposed")
     String getProposedCheckpoint();
 
+    @Description("Checkpoint polling interval in seconds")
     long getCheckpointInterval();
 
+    @Description("Checkpoint polling interval in seconds")
     void setCheckpointInterval(long interval);
 
+    @Description("Number of proposed checkpoints that have not been confirmed")
     int getOutstandingCheckpointCount();
 
+    @Description("Report of proposed checkpoints that have not been confirmed")
     String outstandingCheckpointReport();
 
 }

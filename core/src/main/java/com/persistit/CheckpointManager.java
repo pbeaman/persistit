@@ -97,20 +97,16 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
         }
     }
 
-    private final static long MS_PER_S = 1000;
-    
-    private final static long NS_PER_MS = 1000000;
-
-    private final static long NS_PER_S = NS_PER_MS * MS_PER_S;
+    private final static long NS_PER_S = 1000000000L;
 
     /**
      * Default interval in nanoseconds between checkpoints - two minutes.
      */
-    private final static long DEFAULT_CHECKPOINT_INTERVAL = 120 * NS_PER_S;
+    private final static long DEFAULT_CHECKPOINT_INTERVAL = 120;
     
-    private final static long MINIMUM_CHECKPOINT_INTERVAL = 10 * MS_PER_S;
+    private final static long MINIMUM_CHECKPOINT_INTERVAL = 10;
     
-    private final static long MAXIMUM_CHECKPOINT_INTERVAL = 1800 * MS_PER_S;
+    private final static long MAXIMUM_CHECKPOINT_INTERVAL = 1800;
 
     private final static Checkpoint UNAVALABLE_CHECKPOINT = new Checkpoint(0, 0);
 
@@ -170,13 +166,13 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
 
     @Override
     public long getCheckpointInterval() {
-        return _checkpointIntervalNanos / NS_PER_MS;
+        return _checkpointIntervalNanos / NS_PER_S;
     }
 
     @Override
     public void setCheckpointInterval(long interval) {
         Util.rangeCheck(interval, MINIMUM_CHECKPOINT_INTERVAL, MAXIMUM_CHECKPOINT_INTERVAL);
-        _checkpointIntervalNanos = interval * NS_PER_MS;
+        _checkpointIntervalNanos = interval * NS_PER_S;
     }
     
     @Override
