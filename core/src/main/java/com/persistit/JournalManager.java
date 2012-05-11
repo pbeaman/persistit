@@ -1375,11 +1375,18 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         // rolling the journal.
         //
         rollover();
-        startJournalFile();
         return true;
     }
 
-    synchronized void rollover() throws PersistitException {
+    void rollover() throws PersistitException {
+        rollover(false);
+    }
+
+    void rolloverAndSetBaseAddress() throws PersistitException {
+        rollover(true);
+    }
+
+    private synchronized void rollover(boolean setBaseAddress) throws PersistitException {
         if (_writeBufferAddress != Long.MAX_VALUE) {
             writeJournalEnd();
             flush();
@@ -1400,6 +1407,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             _writeBuffer.clear();
             _writeBufferAddress = _currentAddress;
             _isNewEpoch = false;
+
+            // Starts a new journal file
+            if(setBaseAddress) {
+                _baseAddress = _currentAddress;
+            }
+            prepareWriteBuffer(JH.OVERHEAD);
         }
     }
 
@@ -2421,8 +2434,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     obsoleteFileChannels.add(channel);
                 }
                 obsoleteFiles.add(addressToFile(_currentAddress));
-                rollover();
-                _baseAddress = _currentAddress;
+                rolloverAndSetBaseAddress();
             }
         }
 
@@ -2623,6 +2635,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     synchronized long getCurrentJournalSize() {
         return _currentAddress % _blockSize;
+    }
+
+    synchronized int getJournalFileChannelCount() {
+        return _journalFileChannels.size();
     }
 
     synchronized boolean unitTestTxnExistsInLiveMap(Long startTimestamp) {

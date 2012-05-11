@@ -31,6 +31,8 @@ import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 import org.junit.Test;
 
+import static org.junit.Assert.assertTrue;
+
 public class Bug996241Test extends PersistitUnitTestCase {
     final static String TREE_NAME1 = "Bug996241Test_1";
     final static String TREE_NAME2 = "Bug996241Test_2";
@@ -84,6 +86,16 @@ public class Bug996241Test extends PersistitUnitTestCase {
         ex.clear().append(0);
         ex.prune();
     }
+
+    @Test
+    public void rolloverCreatesNewJournal() throws PersistitException {
+        JournalManager jman = _persistit.getJournalManager();
+        final int count1 = jman.getJournalFileChannelCount();
+        jman.rollover();
+        final int count2 = jman.getJournalFileChannelCount();
+        assertTrue("Rollover created a new journal file", count2 > count1);
+    }
+
 
     private void writeRecords(Exchange ex, long offset, int count) throws PersistitException {
         for(int i = 0; i < count; ++i) {
