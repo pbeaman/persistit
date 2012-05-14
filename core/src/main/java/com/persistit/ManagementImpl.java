@@ -273,6 +273,24 @@ class ManagementImpl implements Management {
     }
 
     /**
+     * @return the name of the current default <code>CommitPolicy<code>
+     */
+    @Override
+    public String getDefaultCommitPolicy() {
+        return _persistit.getDefaultTransactionCommitPolicy().toString();
+    }
+    
+    /**
+     * Modify the current default <code>CommitPolicy</code>.  The
+     * policy name must be one of "hard", "group" or "commit".
+     * @param policyName name of the <code>CommitPolicy</code> to set.
+     */
+    @Override
+    public void setDefaultCommitPolicy(String policyName) {
+        _persistit.setDefaultTransactionCommitPolicy(policyName);
+    }
+
+    /**
      * Attempts to close Persistit by invoking {@link Persistit#close}.
      * 
      * @return <code>true</code> if the attempt to close Persistit was
