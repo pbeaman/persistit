@@ -1374,19 +1374,23 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         // Finally if there's still not enough room we're committed to
         // rolling the journal.
         //
-        rollover();
+        rolloverWithNewFile();
         return true;
     }
 
     void rollover() throws PersistitException {
-        rollover(false);
+        rollover(false, false);
     }
 
-    void rolloverAndSetBaseAddress() throws PersistitException {
-        rollover(true);
+    void rolloverWithNewFile() throws PersistitException {
+        rollover(false, true);
     }
 
-    private synchronized void rollover(boolean setBaseAddress) throws PersistitException {
+    void rolloverWithNewBaseAndFile() throws PersistitException {
+        rollover(true, true);
+    }
+
+    private synchronized void rollover(boolean setBaseAddress, boolean startNewFile) throws PersistitException {
         if (_writeBufferAddress != Long.MAX_VALUE) {
             writeJournalEnd();
             flush();
@@ -1412,7 +1416,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             if(setBaseAddress) {
                 _baseAddress = _currentAddress;
             }
-            prepareWriteBuffer(JH.OVERHEAD);
+            if(startNewFile) {
+                prepareWriteBuffer(JH.OVERHEAD);
+            }
         }
     }
 
@@ -2434,7 +2440,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     obsoleteFileChannels.add(channel);
                 }
                 obsoleteFiles.add(addressToFile(_currentAddress));
-                rolloverAndSetBaseAddress();
+                rolloverWithNewBaseAndFile();
             }
         }
 
