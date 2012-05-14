@@ -1645,6 +1645,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             }
             _earliestCommitTimestamp = earliest;
         }
+        /*
+         * Sort the toPrune list - since all members are aborted, the comparison
+         * will be by startTimeStamp which is a good approximation of journal
+         * address order.
+         */
+        Collections.sort(toPrune);
         for (final TransactionMapItem item : toPrune) {
             try {
                 synchronized (_player) {
