@@ -38,7 +38,6 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
-import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.CleanupManager.CleanupAntiValue;
 import com.persistit.Exchange.Sequence;
@@ -453,13 +452,13 @@ public class Buffer extends SharedResource {
         _alloc = _bufferSize;
         _slack = 0;
         _mvvCount = 0;
-        _lastPrunedTime = 0;
-        clearEnqueuedForAntiValuePruning();
+        clearEnqueuedForPruning();
         bumpGeneration();
     }
 
-    void clearEnqueuedForAntiValuePruning() {
+    void clearEnqueuedForPruning() {
         _enqueuedForAntiValuePruning = false;
+        _lastPrunedTime = 0;
     }
 
     /**
@@ -509,8 +508,7 @@ public class Buffer extends SharedResource {
                 if (isDataPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
                     _mvvCount = Integer.MAX_VALUE;
-                    _lastPrunedTime = 0;
-                    clearEnqueuedForAntiValuePruning();
+                    clearEnqueuedForPruning();
                 } else if (isIndexPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_INDEX;
                 }
@@ -535,6 +533,9 @@ public class Buffer extends SharedResource {
         _persistit.checkFatal();
         final Volume volume = getVolume();
         if (volume != null) {
+            if (_mvvCount > 0) {
+                pruneMvvValues(null, _persistit.getThreadLocalKey());
+            }
             clearSlack();
             save();
             _vol.getStorage().writePage(this);
@@ -3136,7 +3137,6 @@ public class Buffer extends SharedResource {
                 }
             }
         }
-        releaseRepackPlanBuffer(plan);
     }
 
     /**
@@ -3407,18 +3407,7 @@ public class Buffer extends SharedResource {
     }
 
     final int[] getRepackPlanBuffer() {
-        synchronized (REPACK_BUFFER_STACK) {
-            if (REPACK_BUFFER_STACK.isEmpty()) {
-                return new int[MAX_BUFFER_SIZE / TAILBLOCK_FACTOR];
-            } else
-                return (int[]) REPACK_BUFFER_STACK.pop();
-        }
-    }
-
-    final void releaseRepackPlanBuffer(int[] plan) {
-        synchronized (REPACK_BUFFER_STACK) {
-            REPACK_BUFFER_STACK.push(plan);
-        }
+        return _persistit.getThreadLocalIntArray(MAX_BUFFER_SIZE / TAILBLOCK_FACTOR);
     }
 
     PersistitException verify(Key key, VerifyVisitor visitor) {
@@ -3561,7 +3550,6 @@ public class Buffer extends SharedResource {
                 }
                 tail += ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
             }
-            releaseRepackPlanBuffer(plan);
             return null;
         } catch (PersistitException pe) {
             return pe;
@@ -3639,7 +3627,7 @@ public class Buffer extends SharedResource {
                             }
                         } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
                             Debug.$assert1.t(false);
-                        } else {
+                        } else if (spareKey != null) {
                             final boolean removed = removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey);
                             Debug.$assert0.t(removed);
                             p -= KEYBLOCK_LENGTH;

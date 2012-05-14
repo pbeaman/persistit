@@ -3657,7 +3657,7 @@ public class Exchange {
         Buffer buffer = null;
         try {
             buffer = _pool.get(_volume, page, false, true);
-            buffer.clearEnqueuedForAntiValuePruning();
+            buffer.clearEnqueuedForPruning();
             long at = buffer.at(Buffer.KEY_BLOCK_START);
             if (at > 0) {
                 int offset = (int) (at >>> 32);

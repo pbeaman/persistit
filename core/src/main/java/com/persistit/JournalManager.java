@@ -1613,11 +1613,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         final long timestamp = _lastValidCheckpoint.getTimestamp();
         long earliest = Long.MAX_VALUE;
         List<TransactionMapItem> toPrune = new ArrayList<TransactionMapItem>();
-        //
-        // Remove any committed transactions that committed before the
-        // checkpoint. No need to keep a record of such a transaction since its
-        // updates are now fully written to the journal in modified page images.
-        //
+        /*
+         * Remove any committed transactions that committed before the
+         * checkpoint. No need to keep a record of such a transaction since its
+         * updates are now fully written to the journal in modified page images.
+         */
         synchronized (this) {
             for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator
                     .hasNext();) {
@@ -1650,7 +1650,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
          * will be by startTimeStamp which is a good approximation of journal
          * address order.
          */
-        Collections.sort(toPrune);
+        Collections.sort(toPrune, TransactionMapItem.TRANSACTION_MAP_ITEM_COMPARATOR);
         for (final TransactionMapItem item : toPrune) {
             try {
                 synchronized (_player) {
@@ -1986,6 +1986,15 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                         : ts.getStartTimestamp() > _startTimestamp ? -1 : 0;
             }
         }
+
+        final static Comparator<TransactionMapItem> TRANSACTION_MAP_ITEM_COMPARATOR = new Comparator<TransactionMapItem>() {
+
+            @Override
+            public int compare(TransactionMapItem a, TransactionMapItem b) {
+                return a.getLastRecordAddress() > b.getLastRecordAddress() ? 1 : a.getLastRecordAddress() < b
+                        .getLastRecordAddress() ? -1 : 0;
+            }
+        };
 
     }
 
