@@ -274,6 +274,14 @@ class VolumeHeader {
         return Util.changeLong(bytes, 192, value);
     }
 
+    static long getGlobalTimestamp(final byte[] bytes) {
+        return Util.getLong(bytes, 200);
+    }
+
+    static boolean changeGlobalTimestamp(final byte[] bytes, final long value) {
+        return Util.changeLong(bytes, 200, value);
+    }
+
     /**
      * Validate that the header conforms to the volume header specification and
      * if so, read the pageSize and version values from it and populate the

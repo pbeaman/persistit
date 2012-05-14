@@ -31,6 +31,11 @@ import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 import org.junit.Test;
 
+import java.io.File;
+import java.util.List;
+import java.util.Properties;
+
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class Bug996241Test extends PersistitUnitTestCase {
@@ -96,6 +101,54 @@ public class Bug996241Test extends PersistitUnitTestCase {
         assertTrue("Rollover created a new journal file", count2 > count1);
     }
 
+    @Test
+    public void volumeSavesTimestamp() throws Exception {
+        final int RECORDS = 100;
+        // Make it more obvious if we jump backwards
+        _persistit.getTimestampAllocator().bumpTimestamp(1000000);
+
+        // Write records to check on later
+        Exchange ex = getExchange(TREE_NAME1);
+        Transaction txn = _persistit.getTransaction();
+        txn.begin();
+        writeRecords(ex, 0, RECORDS);
+        txn.commit();
+        txn.end();
+
+        _persistit.copyBackPages();
+        List<File> journalFiles = _persistit.getJournalManager().unitTestGetAllJournalFiles();
+
+        Properties properties = _persistit.getProperties();
+        _persistit.crash();
+
+        /*
+         * Worst case (or slipped finger) scenario of missing journal files
+         */
+        for(File file : journalFiles) {
+            boolean success = file.delete();
+            assertEquals("Deleted journal file " + file.getName(), true, success);
+        }
+
+        _persistit = new Persistit();
+        _persistit.initialize(properties);
+
+        /*
+         * If the volume had not saved a timestamp, we wouldn't be
+         * able to see any of the un-pruned records
+         */
+        int sawCount = 0;
+        ex = getExchange(TREE_NAME1);
+        txn = _persistit.getTransaction();
+        txn.begin();
+        ex.clear().append(Key.BEFORE);
+        while(ex.next(true)) {
+            ++sawCount;
+        }
+        txn.commit();
+        txn.end();
+
+        assertEquals("Traversed record count", RECORDS, sawCount);
+    }
 
     private void writeRecords(Exchange ex, long offset, int count) throws PersistitException {
         for(int i = 0; i < count; ++i) {

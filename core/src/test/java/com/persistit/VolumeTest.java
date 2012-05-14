@@ -175,6 +175,23 @@ public class VolumeTest extends PersistitUnitTestCase {
         invalidVolumeSpecification("/a/b/c,name:crabcake,pagesize:16384,initialsize:10m,maximumsize:100m,extensionsize:10m,create,readOnly");
     }
 
+    @Test
+    public void volumeLoadAndSaveGlobalTimestamp() throws Exception {
+        final long MARKER = 123456789L;
+        _persistit.getTimestampAllocator().updateTimestamp(MARKER);
+        VolumeSpecification vs = validVolumeSpecification("${datapath}/testGlobalTimestamp, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
+
+        final Volume vol1 = _persistit.loadVolume(vs);
+        vol1.close();
+
+        final Volume vol2 = _persistit.loadVolume(vs);
+        final long statTimestamp = vol2.getStatistics().getLastGlobalTimestamp();
+        // Greater than is ok (other activity may have occurred)
+        if(statTimestamp < MARKER) {
+            assertEquals("Saved and loaded timestamp", MARKER, statTimestamp);
+        }
+    }
+
     private VolumeSpecification validVolumeSpecification(final String specification) throws Exception {
         try {
             return _persistit.getConfiguration().volumeSpecification(specification);

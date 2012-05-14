@@ -2645,6 +2645,14 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         return _liveTransactionMap.containsKey(startTimestamp);
     }
 
+    synchronized List<File> unitTestGetAllJournalFiles() {
+        List<File> files = new ArrayList<File>();
+        for(Long address : _journalFileChannels.keySet()) {
+            files.add(addressToFile(address));
+        }
+        return files;
+    }
+
     public PageNode queryPageNode(final int volumeHandle, final long pageAddress) {
         PageNode pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
         if (pn != null) {
