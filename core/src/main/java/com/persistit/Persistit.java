@@ -660,7 +660,9 @@ public class Persistit {
                 _logBase.allocateBuffers.log(poolSize, bufferSize);
                 BufferPool pool = new BufferPool(poolSize, bufferSize, this);
                 _bufferPoolTable.put(bufferSize, pool);
-                registerBufferPoolMXBean(bufferSize);
+                if (_configuration.isJmxEnabled()) {
+                    registerBufferPoolMXBean(bufferSize);
+                }
             }
         }
     }
