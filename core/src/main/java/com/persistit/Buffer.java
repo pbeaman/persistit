@@ -533,9 +533,6 @@ public class Buffer extends SharedResource {
         _persistit.checkFatal();
         final Volume volume = getVolume();
         if (volume != null) {
-            if (_mvvCount > 0 && _persistit.getJournalManager().isRollbackPruningEnabled()) {
-                pruneMvvValues(null, null);
-            }
             clearSlack();
             save();
             _vol.getStorage().writePage(this);
