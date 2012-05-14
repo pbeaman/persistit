@@ -1789,6 +1789,10 @@ public class Persistit {
         _fatalErrors.clear();
         _alertMonitors.clear();
         _bufferPoolTable.clear();
+        _keyThreadLocal.set(null);
+        _valueThreadLocal.set(null);
+        _byteArrayThreadLocal.set(null);
+        _intArrayThreadLocal.set(null);
     }
 
     /**

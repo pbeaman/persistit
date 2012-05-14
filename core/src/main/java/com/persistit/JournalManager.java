@@ -1603,7 +1603,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * earlier than that last valid checkpoint (because all of the effects of
      * that transaction are now check-pointed into the B-Trees themselves) or if
      * it is from an aborted transaction that has no remaining MVV values.
-     * 
      */
     void pruneObsoleteTransactions() {
         pruneObsoleteTransactions(isRollbackPruningEnabled());
@@ -1654,7 +1653,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         for (final TransactionMapItem item : toPrune) {
             try {
                 synchronized (_player) {
-                    _player.applyTransaction(item, _listener);
+                    final TransactionStatus status;
+                    status = _persistit.getTransactionIndex().getStatus(item.getStartTimestamp());
+                    if (status != null && status.getTs() == item.getStartTimestamp() && status.getTc() == ABORTED
+                            && status.isNotified() && status.getMvvCount() > 0) {
+                        _player.applyTransaction(item, _listener);
+                    }
                 }
             } catch (PersistitException e) {
                 _persistit.getLogBase().pruneException.log(e, item);
