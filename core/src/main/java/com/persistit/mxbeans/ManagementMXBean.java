@@ -130,14 +130,14 @@ public interface ManagementMXBean {
     /**
      * @return the name of the current default <code>CommitPolicy<code>
      */
-    String getDefaultCommitPolicy();
+    String getDefaultCommitPolicy() throws RemoteException;
     
     /**
      * Modify the current default <code>CommitPolicy</code>.  The
      * policy name must be one of "hard", "group" or "commit".
      * @param policyName name of the <code>CommitPolicy</code> to set.
      */
-    void setDefaultCommitPolicy(String policyName);
+    void setDefaultCommitPolicy(String policyName) throws RemoteException;
 
     /**
      * Indicate whether Persistit will suspend its shutdown activities on

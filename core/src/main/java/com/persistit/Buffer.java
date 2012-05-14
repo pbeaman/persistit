@@ -3579,8 +3579,8 @@ public class Buffer extends SharedResource {
         }
         if (isDataPage() && _mvvCount != 0) {
             final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-            writePageOnCheckpoint(timestamp);
             _mvvCount = 0;
+            writePageOnCheckpoint(timestamp);
             List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
             for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
                 final int kbData = getInt(p);
