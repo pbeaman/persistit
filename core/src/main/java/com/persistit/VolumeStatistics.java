@@ -231,9 +231,7 @@ class VolumeStatistics {
         _createTime = createTime;
     }
 
-    void setLastGlobalTimestampIfGreater(long lastGlobalTimestamp) {
-        if (lastGlobalTimestamp > _lastGlobalTimestamp) {
-            _lastGlobalTimestamp = lastGlobalTimestamp;
-        }
+    void setLastGlobalTimestamp(long lastGlobalTimestamp) {
+        _lastGlobalTimestamp = lastGlobalTimestamp;
     }
 }

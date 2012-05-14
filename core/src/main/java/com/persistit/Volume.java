@@ -396,7 +396,6 @@ public class Volume {
                 throw new VolumeAlreadyExistsException(_specification.getPath());
             }
             _storage.open();
-            persistit.getTimestampAllocator().updateTimestamp(_statistics.getLastGlobalTimestamp());
         } else {
             if (!_specification.isCreate()) {
                 throw new VolumeNotFoundException(_specification.getPath());

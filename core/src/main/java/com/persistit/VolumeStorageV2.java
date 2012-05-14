@@ -228,7 +228,8 @@ class VolumeStorageV2 extends VolumeStorage {
             struc.init(directoryRootPage, garbageRootPage);
 
             final long globalTimestamp = getGlobalTimestamp(bytes);
-            stat.setLastGlobalTimestampIfGreater(globalTimestamp);
+            stat.setLastGlobalTimestamp(globalTimestamp);
+            _persistit.getTimestampAllocator().updateTimestamp(globalTimestamp);
 
             flushMetaData();
             _opened = true;
@@ -532,7 +533,7 @@ class VolumeStorageV2 extends VolumeStorage {
         if (!isReadOnly()) {
             Debug.$assert1.t(_headBuffer.isMine());
             final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-            _volume.getStatistics().setLastGlobalTimestampIfGreater(timestamp);
+            _volume.getStatistics().setLastGlobalTimestamp(timestamp);
             _headBuffer.writePageOnCheckpoint(timestamp);
             if (updateMetaData(_headBuffer.getBytes())) {
                 _headBuffer.setDirtyAtTimestamp(timestamp);

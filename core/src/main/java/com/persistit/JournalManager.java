@@ -1412,7 +1412,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             _writeBufferAddress = _currentAddress;
             _isNewEpoch = false;
 
-            // Starts a new journal file
             if(setBaseAddress) {
                 _baseAddress = _currentAddress;
             }
