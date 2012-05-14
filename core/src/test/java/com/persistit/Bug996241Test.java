@@ -95,9 +95,9 @@ public class Bug996241Test extends PersistitUnitTestCase {
     @Test
     public void rolloverCreatesNewJournal() throws PersistitException {
         JournalManager jman = _persistit.getJournalManager();
-        final int count1 = jman.getJournalFileChannelCount();
+        final int count1 = jman.getJournalFileCount();
         jman.rolloverWithNewFile();
-        final int count2 = jman.getJournalFileChannelCount();
+        final int count2 = jman.getJournalFileCount();
         assertTrue("Rollover created a new journal file", count2 > count1);
     }
 

@@ -2476,7 +2476,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
          * Does not need synchronization since only the JOURNAL_COPIER thread
          * calls this
          */
-        int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress / _blockSize);
+        int journalFileCount = getJournalFileCount();
         if (journalFileCount != _lastReportedJournalFileCount) {
             if (journalFileCount > TOO_MANY_ERROR_THRESHOLD) {
                 _persistit.getAlertMonitor().post(
@@ -2643,8 +2643,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         return _currentAddress % _blockSize;
     }
 
-    synchronized int getJournalFileChannelCount() {
-        return _journalFileChannels.size();
+    synchronized int getJournalFileCount() {
+        return (int) (_currentAddress / _blockSize - _baseAddress / _blockSize) + 1;
     }
 
     synchronized boolean unitTestTxnExistsInLiveMap(Long startTimestamp) {
