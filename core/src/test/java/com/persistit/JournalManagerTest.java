@@ -28,6 +28,7 @@ package com.persistit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -308,7 +309,11 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertTrue(countKeys(false) < 50000);
         CleanupManager cm = _persistit.getCleanupManager();
         assertTrue(cm.getAcceptedCount() > 0);
-        while (cm.getEnqueuedCount() > 0) {
+        long start = System.currentTimeMillis();
+        while (cm.getPerformedCount() < cm.getAcceptedCount()) {
+            if (System.currentTimeMillis() > start + 30000) {
+                fail("Pruning not done in 30 seconds");
+            }
             Util.sleep(100);
         }
         assertEquals(0, countKeys(false));

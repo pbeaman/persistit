@@ -180,7 +180,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     private volatile long _readPageCount = 0;
 
     private volatile long _copiedPageCount = 0;
-    
+
     private volatile long _droppedPageCount = 0;
 
     private AtomicLong _totalCommits = new AtomicLong();
@@ -344,7 +344,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     public synchronized int getLiveTransactionMapSize() {
         return _liveTransactionMap.size();
     }
-    
+
     @Override
     public synchronized int getPageMapSize() {
         return _pageMap.size();
@@ -467,7 +467,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     public Checkpoint getLastValidCheckpoint() {
         return _lastValidCheckpoint;
     }
-    
+
     @Override
     public long getLastValidCheckpointTimestamp() {
         return _lastValidCheckpoint.getTimestamp();
@@ -1647,7 +1647,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         }
         for (final TransactionMapItem item : toPrune) {
             try {
-                synchronized(_player) {
+                synchronized (_player) {
                     _player.applyTransaction(item, _listener);
                 }
             } catch (PersistitException e) {
@@ -2003,6 +2003,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             _copying.set(true);
             try {
+                _copyList.clear();
                 if (!_appendOnly.get()) {
                     selectForCopy(_copyList);
                     if (!_copyList.isEmpty()) {
@@ -2011,11 +2012,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     if (!_copyList.isEmpty()) {
                         writeForCopy(_copyList, _bb);
                     }
-                    cleanupForCopy(_copyList);
-                    _lastCyclePagesWritten = _copyList.size();
-                    if (_copyList.isEmpty()) {
-                        _copyFast.set(false);
-                    }
+                }
+                cleanupForCopy(_copyList);
+                _lastCyclePagesWritten = _copyList.size();
+                if (_copyList.isEmpty()) {
+                    _copyFast.set(false);
                 }
             } finally {
                 _copying.set(false);
@@ -2531,6 +2532,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     /**
      * Remove obsolete PageNodes from the page list.
+     * 
      * @return Count of removed PageNode instances.
      */
     int cleanupPageList() {
@@ -2705,12 +2707,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     public int getHandleCount() {
         return _handleCounter;
     }
-    
+
     long getLastValidCheckpointBaseAddress() {
         return _lastValidCheckpointBaseAddress;
     }
 
-   /**
+    /**
      * For use only by unit tests that test page maps, etc.
      * 
      * @param handleToVolumeMap

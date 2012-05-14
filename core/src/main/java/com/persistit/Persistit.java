@@ -1399,8 +1399,8 @@ public class Persistit {
             return null;
         }
         cleanup();
-        final Checkpoint result = _checkpointManager.checkpoint();
         _journalManager.pruneObsoleteTransactions();
+        final Checkpoint result = _checkpointManager.checkpoint();
         return result;
     }
 
