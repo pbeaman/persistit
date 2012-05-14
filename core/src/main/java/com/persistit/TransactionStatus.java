@@ -311,7 +311,7 @@ class TransactionStatus {
     int decrementMvvCount() {
         assert _tc == ABORTED : "can only decrement MVVs for an aborted transaction";
         int count = _mvvCount.decrementAndGet();
-        assert count >= 0;
+        assert count >= 0: "mvvCount is negative";
         if (count == 0) {
             _ta = _bucket.getTimestampAllocator().getCurrentTimestamp();
         }
