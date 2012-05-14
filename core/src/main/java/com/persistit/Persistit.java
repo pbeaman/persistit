@@ -326,14 +326,9 @@ public class Persistit {
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
 
-    private final static int TRANSACTION_INDEX_SIZE = 64;
+    private final static int TRANSACTION_INDEX_SIZE = 256;
 
     final static long SHORT_DELAY = 500;
-
-    private final static long KILO = 1024;
-    private final static long MEGA = KILO * KILO;
-    private final static long GIGA = MEGA * KILO;
-    private final static long TERA = GIGA * KILO;
 
     private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
 

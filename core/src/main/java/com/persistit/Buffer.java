@@ -454,15 +454,16 @@ public class Buffer extends SharedResource {
         _slack = 0;
         _mvvCount = 0;
         _lastPrunedTime = 0;
-        clearEnqueuedForPruning();
+        clearEnqueuedForAntiValuePruning();
         bumpGeneration();
     }
 
-    void clearEnqueuedForPruning() {
+    void clearEnqueuedForAntiValuePruning() {
         _enqueuedForAntiValuePruning = false;
     }
 
     /**
+     * 
      * Extract fields from the buffer.
      * 
      * @throws PersistitIOException
@@ -509,7 +510,7 @@ public class Buffer extends SharedResource {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
                     _mvvCount = Integer.MAX_VALUE;
                     _lastPrunedTime = 0;
-                    clearEnqueuedForPruning();
+                    clearEnqueuedForAntiValuePruning();
                 } else if (isIndexPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_INDEX;
                 }
