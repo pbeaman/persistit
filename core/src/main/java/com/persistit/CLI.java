@@ -684,7 +684,7 @@ public class CLI {
 
         String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath : journalpath));
         List<VolumeSpecification> volumeSpecifications = volumeSpecifications(filesOnPath(volumepath.isEmpty() ? datapath
-                : volumepath));
+                : volumepath), _persistit.getCurrentTimestamp());
         Set<Integer> bufferSizes = new HashSet<Integer>();
         for (final VolumeSpecification vs : volumeSpecifications) {
             bufferSizes.add(vs.getPageSize());
@@ -1313,7 +1313,7 @@ public class CLI {
         return journalPath;
     }
 
-    private static List<VolumeSpecification> volumeSpecifications(List<String> files) {
+    private static List<VolumeSpecification> volumeSpecifications(List<String> files, long systemTimestamp) {
         final List<VolumeSpecification> list = new ArrayList<VolumeSpecification>();
         for (final String path : files) {
             if (JournalManager.PATH_PATTERN.matcher(path).matches()) {
@@ -1321,7 +1321,7 @@ public class CLI {
             }
             try {
                 final VolumeSpecification specification = new VolumeSpecification(path);
-                if (VolumeHeader.verifyVolumeHeader(specification)) {
+                if (VolumeHeader.verifyVolumeHeader(specification, systemTimestamp)) {
                     list.add(specification);
                 }
             } catch (PersistitException e) {

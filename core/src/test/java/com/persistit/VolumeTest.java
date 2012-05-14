@@ -34,7 +34,10 @@ import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.RandomAccessFile;
+import java.util.List;
+import java.util.Properties;
 
+import com.persistit.unit.UnitTestProperties;
 import org.junit.Test;
 
 import com.persistit.exception.CorruptVolumeException;
@@ -190,6 +193,44 @@ public class VolumeTest extends PersistitUnitTestCase {
         if(statTimestamp < MARKER) {
             assertEquals("Saved and loaded timestamp", MARKER, statTimestamp);
         }
+    }
+
+    @Test(expected=CorruptVolumeException.class)
+    public void volumeFromFutureIsRejected() throws Exception {
+        final int RECORDS = 100;
+
+        // Make it more obvious if when we jump backwards
+        _persistit.getTimestampAllocator().bumpTimestamp(1000000);
+
+        // Write records to check on later
+        Exchange ex = _persistit.getExchange(UnitTestProperties.VOLUME_NAME, "VolumeTest", true);
+        Transaction txn = _persistit.getTransaction();
+        txn.begin();
+        for (int i = 0; i < RECORDS; ++i) {
+            ex.clear().append(i).getValue().put(i);
+            ex.store();
+        }
+        txn.commit();
+        txn.end();
+        _persistit.releaseExchange(ex);
+
+        _persistit.flush();
+        _persistit.copyBackPages();
+
+        List<File> journalFiles = _persistit.getJournalManager().unitTestGetAllJournalFiles();
+        Properties properties = _persistit.getProperties();
+        _persistit.crash();
+
+        /*
+         * Worst case (or slipped finger) scenario of missing journal files
+         */
+        for (File file : journalFiles) {
+            boolean success = file.delete();
+            assertEquals("Deleted journal file " + file.getName(), true, success);
+        }
+
+        _persistit = new Persistit();
+        _persistit.initialize(properties);
     }
 
     private VolumeSpecification validVolumeSpecification(final String specification) throws Exception {

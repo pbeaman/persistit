@@ -229,7 +229,6 @@ class VolumeStorageV2 extends VolumeStorage {
 
             final long globalTimestamp = getGlobalTimestamp(bytes);
             stat.setLastGlobalTimestamp(globalTimestamp);
-            _persistit.getTimestampAllocator().updateTimestamp(globalTimestamp);
 
             flushMetaData();
             _opened = true;

@@ -296,7 +296,7 @@ class VolumeHeader {
      * @throws CorruptVolumeException
      * @throws PersistitIOException
      */
-    public static boolean verifyVolumeHeader(final VolumeSpecification specification) throws CorruptVolumeException,
+    public static boolean verifyVolumeHeader(final VolumeSpecification specification, final long systemTimestamp) throws CorruptVolumeException,
             InvalidVolumeSpecificationException, PersistitIOException {
         try {
             final File file = new File(specification.getPath());
@@ -329,6 +329,11 @@ class VolumeHeader {
                         throw new CorruptVolumeException(String.format("Volume has been truncated: "
                                 + "minimum required/actual lengths=%,d/%,d bytes", nextAvailablePage * pageSize, file
                                 .length()));
+                    }
+                    long globalTimestamp = getGlobalTimestamp(bytes);
+                    if (globalTimestamp > systemTimestamp) {
+                        throw new CorruptVolumeException("Volume " + file + " has a global timestamp greater than "
+                                + "system timestamp: " + globalTimestamp + " > " + systemTimestamp);
                     }
                     specification.setVersion(version);
                     specification.setPageSize(pageSize);
