@@ -1432,7 +1432,7 @@ public class Persistit {
          * 2) Copy back changes made by first checkpoint (accumulators, etc)
          * 3) Journal completely caught up, rollover if big enough
          */
-        for(int i = 0; i < 3; ++i) {
+        for(int i = 0; i < 5; ++i) {
             if (!_closed.get() && _initialized.get()) {
                 _checkpointManager.checkpoint();
                 _journalManager.copyBack();
