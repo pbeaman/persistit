@@ -335,6 +335,19 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
+    public void streamModePutStringCausesGrowth() {
+        // Byte size in value is 3*string.length()+1
+        final String TEST_STR = STR_BIG_CHARS + STR_BIG_CHARS + STR_BIG_CHARS;
+        Value value = new Value(_persistit, TEST_STR.length()+5);
+        value.clear();
+        value.setStreamMode(true);
+        value.put(TEST_STR);
+        value.setStreamMode(true);
+        Object decoded = value.get();
+        assertEquals(TEST_STR, decoded);
+    }
+
     public boolean equals(final Object a, final Object b) {
         if ((a == null) || (b == null)) {
             return a == b;
@@ -367,7 +380,6 @@ public class ValueTest1 extends PersistitUnitTestCase {
     }
 
     public void runAllTests() throws Exception {
-
         test1();
         test2();
         test3();
@@ -400,4 +412,13 @@ public class ValueTest1 extends PersistitUnitTestCase {
         }
         return; // <-- breakpoint here
     }
+
+    /** Small/control, values c <= 0x1F **/
+    private final static String STR_LOW_CHARS = "\u0000\u0001\u0009\u0015\u001F";
+    /** Printable ASCII, values 0x20 <= c <= 0x7F **/
+    private final static String STR_AVG_CHARS = "asdf";
+    /** Wide characters, values 0x7F <= c <= 0x7FF **/
+    private final static String STR_MED_CHARS = "\u03A3\u03A4\u03A6\u03A8\u03A9"; // sigma, tau, phi, psi, omega
+    /** Wide characters, values c > 0x7FF **/
+    private final static String STR_BIG_CHARS = "\u2654\u2655\u2656\u2657\u2658"; // king, queen, rook, bishop, knight
 }
