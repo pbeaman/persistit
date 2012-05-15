@@ -351,7 +351,7 @@ public class Persistit {
      * as database corruption.
      */
     public static class FatalErrorException extends RuntimeException {
-
+        private static final long serialVersionUID = 1L;
         final String _threadName = Thread.currentThread().getName();
         final long _systemTime = System.currentTimeMillis();
 
@@ -461,8 +461,6 @@ public class Persistit {
 
     private boolean _readRetryEnabled;
 
-    private long _defaultTimeout;
-
     private volatile SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
     private volatile JoinPolicy _defaultJoinPolicy = DEFAULT_JOIN_POLICY;
@@ -475,13 +473,7 @@ public class Persistit {
 
     private volatile long _commitStallTime = DEFAULT_COMMIT_STALL_TIME;
 
-    private ThreadLocal<SoftReference<byte[]>> _byteArrayThreadLocal = new ThreadLocal<SoftReference<byte[]>>();
-
     private ThreadLocal<SoftReference<int[]>> _intArrayThreadLocal = new ThreadLocal<SoftReference<int[]>>();
-    
-    private ThreadLocal<SoftReference<Key>> _keyThreadLocal = new ThreadLocal<SoftReference<Key>>();
-
-    private ThreadLocal<SoftReference<Value>> _valueThreadLocal = new ThreadLocal<SoftReference<Value>>();
 
     /**
      * <p>
@@ -1800,9 +1792,6 @@ public class Persistit {
         _fatalErrors.clear();
         _alertMonitors.clear();
         _bufferPoolTable.clear();
-        _keyThreadLocal.set(null);
-        _valueThreadLocal.set(null);
-        _byteArrayThreadLocal.set(null);
         _intArrayThreadLocal.set(null);
     }
 
@@ -2425,19 +2414,6 @@ public class Persistit {
         _cliSessionMap.remove(getSessionId());
     }
     
-    byte[] getThreadLocalByteArray(int size) {
-        final SoftReference<byte[]> ref = _byteArrayThreadLocal.get();
-        if (ref != null) {
-            final byte[] bytes = ref.get();
-            if (bytes != null && bytes.length >= size) {
-                return bytes;
-            }
-        }
-        final byte[] bytes = new byte[size];
-        _byteArrayThreadLocal.set(new SoftReference<byte[]>(bytes));
-        return bytes;
-    }
-    
     int[] getThreadLocalIntArray(int size) {
         final SoftReference<int[]> ref = _intArrayThreadLocal.get();
         if (ref != null) {
@@ -2450,33 +2426,6 @@ public class Persistit {
         _intArrayThreadLocal.set(new SoftReference<int[]>(ints));
         return ints;
     }
-    
-    Key getThreadLocalKey() {
-        SoftReference<Key> ref = _keyThreadLocal.get();
-        if (ref != null) {
-            final Key key = ref.get();
-            if (key != null) {
-                return key;
-            }
-        }
-        final Key key = new Key(this);
-        _keyThreadLocal.set(new SoftReference<Key>(key));
-        return key;
-    }
-
-    Value getThreadLocalValue() {
-        SoftReference<Value> ref = _valueThreadLocal.get();
-        if (ref != null) {
-            final Value value = ref.get();
-            if (value != null) {
-                return value;
-            }
-        }
-        final Value value = new Value(this);
-        _valueThreadLocal.set(new SoftReference<Value>(value));
-        return value;
-    }
-
 
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",
             "_flag|i|Perform IntegrityCheck on all volumes", "_flag|w|Wait until AdminUI exists",
