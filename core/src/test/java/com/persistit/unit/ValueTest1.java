@@ -388,6 +388,21 @@ public class ValueTest1 extends PersistitUnitTestCase {
         assertEquals(TEST_STR, decoded);
     }
 
+    @Test
+    public void nonAsciiCharSequenceStreamModeCausingGrowth() {
+        final String[] TEST_STRS = { STR_MED_CHARS + STR_AVG_CHARS, STR_LOW_CHARS, STR_AVG_CHARS, STR_MED_CHARS, STR_HIGH_CHARS, };
+        for (String expectedStr : TEST_STRS) {
+            CharSequence expected = expectedStr;
+            Value value = new Value(_persistit, expected.length()+1);
+            value.clear();
+            value.setStreamMode(true);
+            value.putString(expected);
+            value.setStreamMode(true);
+            Object actual = value.get();
+            assertEquals(expected.toString(), actual.toString());
+        }
+    }
+
     public boolean equals(final Object a, final Object b) {
         if ((a == null) || (b == null)) {
             return a == b;

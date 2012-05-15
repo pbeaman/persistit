@@ -3487,46 +3487,7 @@ public final class Value {
      */
     public void putUTF(String string) {
         preparePut();
-        int length = string.length();
-        ensureFit(length + 1);
-        final int saveSize = _size;
-        int index = _size;
-        _bytes[index++] = (byte) CLASS_STRING;
-
-        int maxLength = _bytes.length;
-
-        for (int i = 0; i < length; i++) {
-            char c = string.charAt(i);
-
-            if (c <= 0x007F) {
-                if (index + 1 > maxLength) {
-                    _size = index;
-                    ensureFit(index + 1 + (length - i) * 2);
-                    maxLength = _bytes.length;
-                }
-                _bytes[index++] = (byte) c;
-            } else if (c > 0x07FF) {
-                if (index + 3 > maxLength) {
-                    _size = index;
-                    ensureFit(index + 3 + (length - i) * 2);
-                    maxLength = _bytes.length;
-                }
-                _bytes[index++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
-                _bytes[index++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-                _bytes[index++] = (byte) (0x80 | ((c >> 0) & 0x3F));
-            } else {
-                if (index + 2 > maxLength) {
-                    _size = index;
-                    ensureFit(index + 2 + (length - i) * 2);
-                    maxLength = _bytes.length;
-                }
-                _bytes[index++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
-                _bytes[index++] = (byte) (0x80 | ((c >> 0) & 0x3F));
-            }
-        }
-        length = index - saveSize;
-        _size = index;
-        endVariableSizeItem(length);
+        putCharSequenceInternal(string);
     }
 
     /**
@@ -3543,41 +3504,7 @@ public final class Value {
         } else {
             _serializedItemCount++;
             preparePut();
-            int length = sb.length();
-            ensureFit(length + 1);
-            int index = _size;
-            int maxLength = _bytes.length;
-            _bytes[index++] = (byte) CLASS_STRING;
-
-            for (int i = 0; i < length; i++) {
-                char c = sb.charAt(i);
-
-                if (c <= 0x007F) {
-                    if (index + 1 > maxLength) {
-                        _size = index;
-                        ensureFit(index + 1 + (length - i) * 2);
-                    }
-                    _bytes[index++] = (byte) c;
-                } else if (c > 0x07FF) {
-                    if (index + 3 > maxLength) {
-                        _size = index;
-                        ensureFit(index + 3 + (length - i) * 2);
-                    }
-                    _bytes[index++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
-                    _bytes[index++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-                    _bytes[index++] = (byte) (0x80 | ((c >> 0) & 0x3F));
-                } else {
-                    if (index + 2 > maxLength) {
-                        _size = index;
-                        ensureFit(index + 2 + (length - i) * 2);
-                    }
-                    _bytes[index++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
-                    _bytes[index++] = (byte) (0x80 | ((c >> 0) & 0x3F));
-                }
-            }
-            length = index - _size;
-            _size = index;
-            endVariableSizeItem(length);
+            putCharSequenceInternal(sb);
         }
     }
 
@@ -5184,5 +5111,48 @@ public final class Value {
         };
         MVV.visitAllVersions(visitor, getEncodedBytes(), 0, getEncodedSize());
         return versions;
+    }
+
+    private void putCharSequenceInternal(CharSequence string) {
+        int length = string.length();
+        ensureFit(length + 1);
+        final int saveSize = _size;
+        int index = _size;
+        _bytes[index++] = (byte) CLASS_STRING;
+
+        int maxLength = _bytes.length;
+
+        for (int i = 0; i < length; i++) {
+            char c = string.charAt(i);
+
+            if (c <= 0x007F) {
+                if (index + 1 > maxLength) {
+                    _size = index;
+                    ensureFit(index + 1 + (length - i) * 2);
+                    maxLength = _bytes.length;
+                }
+                _bytes[index++] = (byte) c;
+            } else if (c > 0x07FF) {
+                if (index + 3 > maxLength) {
+                    _size = index;
+                    ensureFit(index + 3 + (length - i) * 2);
+                    maxLength = _bytes.length;
+                }
+                _bytes[index++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
+                _bytes[index++] = (byte) (0x80 | ((c >> 6) & 0x3F));
+                _bytes[index++] = (byte) (0x80 | ((c >> 0) & 0x3F));
+            } else {
+                if (index + 2 > maxLength) {
+                    _size = index;
+                    ensureFit(index + 2 + (length - i) * 2);
+                    maxLength = _bytes.length;
+                }
+                _bytes[index++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
+                _bytes[index++] = (byte) (0x80 | ((c >> 0) & 0x3F));
+            }
+        }
+        length = index - saveSize;
+        _size = index;
+        endVariableSizeItem(length);
     }
 }
