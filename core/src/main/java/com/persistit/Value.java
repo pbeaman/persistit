@@ -3489,6 +3489,7 @@ public final class Value {
         preparePut();
         int length = string.length();
         ensureFit(length + 1);
+        final int saveSize = _size;
         int index = _size;
         _bytes[index++] = (byte) CLASS_STRING;
 
@@ -3501,12 +3502,14 @@ public final class Value {
                 if (index + 1 > maxLength) {
                     _size = index;
                     ensureFit(index + 1 + (length - i) * 2);
+                    maxLength = _bytes.length;
                 }
                 _bytes[index++] = (byte) c;
             } else if (c > 0x07FF) {
                 if (index + 3 > maxLength) {
                     _size = index;
                     ensureFit(index + 3 + (length - i) * 2);
+                    maxLength = _bytes.length;
                 }
                 _bytes[index++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
                 _bytes[index++] = (byte) (0x80 | ((c >> 6) & 0x3F));
@@ -3515,12 +3518,13 @@ public final class Value {
                 if (index + 2 > maxLength) {
                     _size = index;
                     ensureFit(index + 2 + (length - i) * 2);
+                    maxLength = _bytes.length;
                 }
                 _bytes[index++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
                 _bytes[index++] = (byte) (0x80 | ((c >> 0) & 0x3F));
             }
         }
-        length = index - _size;
+        length = index - saveSize;
         _size = index;
         endVariableSizeItem(length);
     }
