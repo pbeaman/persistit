@@ -1405,6 +1405,7 @@ public class Persistit {
         cleanup();
         _journalManager.pruneObsoleteTransactions();
         final Checkpoint result = _checkpointManager.checkpoint();
+        _journalManager.pruneObsoleteTransactions();
         return result;
     }
 
