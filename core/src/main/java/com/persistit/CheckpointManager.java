@@ -27,18 +27,19 @@
 package com.persistit;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.persistit.Transaction.CommitPolicy;
-import com.persistit.exception.PersistitException;
-import com.persistit.exception.PersistitIOException;
-import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.MissingThreadException;
+import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.mxbeans.CheckpointManagerMXBean;
 import com.persistit.util.Util;
 
-class CheckpointManager extends IOTaskRunnable {
+class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBean {
 
     /**
      * A structure containing a timestamp and system clock time at which
@@ -53,7 +54,7 @@ class CheckpointManager extends IOTaskRunnable {
         private final long _systemTime;
 
         private volatile boolean _completed = false;
-
+        
         Checkpoint(final long timestamp, final long systemTime) {
             _timestamp = timestamp;
             _systemTime = systemTime;
@@ -96,16 +97,22 @@ class CheckpointManager extends IOTaskRunnable {
         }
     }
 
+    private final static long NS_PER_S = 1000000000L;
+
     /**
      * Default interval in nanoseconds between checkpoints - two minutes.
      */
-    private final static long DEFAULT_CHECKPOINT_INTERVAL = 120000000000L;
+    private final static long DEFAULT_CHECKPOINT_INTERVAL = 120;
+    
+    private final static long MINIMUM_CHECKPOINT_INTERVAL = 10;
+    
+    private final static long MAXIMUM_CHECKPOINT_INTERVAL = 1800;
 
     private final static Checkpoint UNAVALABLE_CHECKPOINT = new Checkpoint(0, 0);
 
     private final SessionId _checkpointTxnSessionId = new SessionId();
 
-    private volatile long _checkpointIntervalNanos = DEFAULT_CHECKPOINT_INTERVAL;
+    private volatile long _checkpointIntervalNanos = DEFAULT_CHECKPOINT_INTERVAL * NS_PER_S;
 
     private volatile long _lastCheckpointNanos = Long.MAX_VALUE;
 
@@ -114,6 +121,9 @@ class CheckpointManager extends IOTaskRunnable {
     private final static long FLUSH_CHECKPOINT_INTERVAL = 5000;
 
     private volatile Checkpoint _currentCheckpoint = new Checkpoint(0, 0, true);
+    
+    private List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
+
 
     private AtomicBoolean _closed = new AtomicBoolean();
 
@@ -137,16 +147,47 @@ class CheckpointManager extends IOTaskRunnable {
         _closed.set(true);
     }
 
-    public Checkpoint getCurrentCheckpoint() {
+    Checkpoint getCurrentCheckpoint() {
         return _currentCheckpoint;
     }
-
+    
     long getCheckpointIntervalNanos() {
         return _checkpointIntervalNanos;
     }
 
     void setCheckpointIntervalNanos(long interval) {
         _checkpointIntervalNanos = interval;
+    }
+
+    @Override
+    public String getProposedCheckpoint() {
+        return _currentCheckpoint.toString();
+    }
+
+    @Override
+    public long getCheckpointInterval() {
+        return _checkpointIntervalNanos / NS_PER_S;
+    }
+
+    @Override
+    public void setCheckpointInterval(long interval) {
+        Util.rangeCheck(interval, MINIMUM_CHECKPOINT_INTERVAL, MAXIMUM_CHECKPOINT_INTERVAL);
+        _checkpointIntervalNanos = interval * NS_PER_S;
+    }
+    
+    @Override
+    public synchronized  int getOutstandingCheckpointCount() {
+        return _outstandingCheckpoints.size();
+    }
+    
+    @Override
+    public synchronized String outstandingCheckpointReport() {
+        StringBuilder sb = new StringBuilder();
+        for (final Checkpoint cp : _outstandingCheckpoints) {
+            sb.append(cp);
+            sb.append(Util.NEW_LINE);
+        }
+        return sb.toString();
     }
 
     Checkpoint checkpoint() throws PersistitException {
@@ -221,6 +262,7 @@ class CheckpointManager extends IOTaskRunnable {
                 Accumulator.saveAccumulatorCheckpointValues(accumulators);
                 txn.commit(CommitPolicy.HARD);
                 _currentCheckpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
+                _outstandingCheckpoints.add(_currentCheckpoint);
                 _persistit.getLogBase().checkpointProposed.log(_currentCheckpoint);
                 return _currentCheckpoint;
             } catch (InterruptedException ie) {
@@ -239,15 +281,24 @@ class CheckpointManager extends IOTaskRunnable {
      * these whether a currently outstanding checkpoint is ready to complete.
      */
     void pollFlushCheckpoint() {
-        Checkpoint checkpoint = _currentCheckpoint;
-        if (!checkpoint.isCompleted()) {
-            final long earliestDirtyTimestamp = _persistit.earliestDirtyTimestamp();
-            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
-                try {
-                    _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
-                } catch (PersistitException e) {
-                    _persistit.getLogBase().exception.log(e);
+        final long earliestDirtyTimestamp = _persistit.earliestDirtyTimestamp();
+        Checkpoint checkpoint = null;
+        synchronized(this) {
+            while (!_outstandingCheckpoints.isEmpty()) {
+                Checkpoint cp = _outstandingCheckpoints.get(0);
+                if (cp.getTimestamp() <= earliestDirtyTimestamp) {
+                    checkpoint = cp;
+                    _outstandingCheckpoints.remove(0);
+                } else {
+                    break;
                 }
+            }
+        }
+        if (checkpoint != null) {
+            try {
+                _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
+            } catch (PersistitException e) {
+                _persistit.getLogBase().exception.log(e);
             }
         }
     }

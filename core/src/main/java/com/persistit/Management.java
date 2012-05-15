@@ -2148,6 +2148,7 @@ public interface Management extends Remote, ManagementMXBean {
         long journaledPageCount;
         long readPageCount;
         long copiedPageCount;
+        long droppedPageCount;
         int recoveredCommittedTransactions;
         int recoveredAppliedTransactions;
         boolean closed;
@@ -2164,15 +2165,15 @@ public interface Management extends Remote, ManagementMXBean {
                 "currentGeneration", "baseAddress", "lastValidCheckpointTimestamp", "lastValidCheckpointSystemTime",
                 "lastValidCheckpointJournalFile", "lastValidCheckpointJournalAddress", "recoveryJournalFile",
                 "recoveryJournalAddress", "recoveryStatus", "journaledPageCount", "readPageCount", "copiedPageCount",
-                "recoveredCommittedTransactions", "recoveredAppliedTransactions", "closed", "copying", "flushing",
-                "appendOnly", "fastCopying" })
+                "droppedPageCount", "recoveredCommittedTransactions", "recoveredAppliedTransactions", "closed",
+                "copying", "flushing", "appendOnly", "fastCopying" })
         public JournalInfo(String currentJournalFile, long currentJournalAddress, long blockSize, int pageMapSize,
                 long currentGeneration, long baseAddress, long lastValidCheckpointTimestamp,
                 long lastValidCheckpointSystemTime, String lastValidCheckpointJournalFile,
                 long lastValidCheckpointJournalAddress, String recoveryJournalFile, long recoveryJournalAddress,
                 long recoveryStatus, long journaledPageCount, long readPageCount, long copiedPageCount,
-                int recoveredCommittedTransactions, int recoveredAppliedTransactions, boolean closed, boolean copying,
-                boolean flushing, boolean appendOnly, boolean fastCopying) {
+                long droppedPageCount, int recoveredCommittedTransactions, int recoveredAppliedTransactions,
+                boolean closed, boolean copying, boolean flushing, boolean appendOnly, boolean fastCopying) {
             super();
             this.currentJournalFile = currentJournalFile;
             this.currentJournalAddress = currentJournalAddress;
@@ -2190,6 +2191,7 @@ public interface Management extends Remote, ManagementMXBean {
             this.journaledPageCount = journaledPageCount;
             this.readPageCount = readPageCount;
             this.copiedPageCount = copiedPageCount;
+            this.droppedPageCount = droppedPageCount;
             this.recoveredCommittedTransactions = recoveredCommittedTransactions;
             this.recoveredAppliedTransactions = recoveredAppliedTransactions;
             this.closed = closed;
@@ -2343,6 +2345,14 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public long getCopiedPageCount() {
             return copiedPageCount;
+        }
+
+        /**
+         * @return the total number of pages dropped from the journal due the
+         *         existence of newer versions
+         */
+        public long getDroppedPageCount() {
+            return droppedPageCount;
         }
 
         /**

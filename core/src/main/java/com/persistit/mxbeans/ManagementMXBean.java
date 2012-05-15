@@ -54,35 +54,35 @@ public interface ManagementMXBean {
      * 
      * @return The state
      */
-    public boolean isInitialized() throws RemoteException;
+    boolean isInitialized() throws RemoteException;
 
     /**
      * Return the version name of the current Persistit instance.
      * 
      * @return the version name
      */
-    public String getVersion() throws RemoteException;
+    String getVersion() throws RemoteException;
 
     /**
      * Return the copyright notice for the current Persistit instance.
      * 
      * @return the copyright notice
      */
-    public String getCopyright() throws RemoteException;
+    String getCopyright() throws RemoteException;
 
     /**
      * Return the system time at which Persistit was initialized.
      * 
      * @return start time, in milliseconds since January 1, 1970 00:00:00 GMT.
      */
-    public long getStartTime() throws RemoteException;
+    long getStartTime() throws RemoteException;
 
     /**
      * Return the elapsed time since startup in milliseconds
      * 
      * @return elapsed time in milliseconds
      */
-    public long getElapsedTime() throws RemoteException;
+    long getElapsedTime() throws RemoteException;
 
     /**
      * Return the port on which a local RMI server has been registered, or -1 if
@@ -91,7 +91,7 @@ public interface ManagementMXBean {
      * @return the port
      * @throws RemoteException
      */
-    public int getRmiPort() throws RemoteException;
+    int getRmiPort() throws RemoteException;
 
     /**
      * Return the aggregate number of transactions committed since Persistit was
@@ -100,7 +100,7 @@ public interface ManagementMXBean {
      * @return total number of transactions committed
      * @throws RemoteException
      */
-    public long getCommittedTransactionCount() throws RemoteException;
+    long getCommittedTransactionCount() throws RemoteException;
 
     /**
      * Return the aggregate number of transaction rollback events since
@@ -109,7 +109,7 @@ public interface ManagementMXBean {
      * @return total number of transactions rolled back
      * @throws RemoteException
      */
-    public long getRollbackCount() throws RemoteException;
+    long getRollbackCount() throws RemoteException;
 
     /**
      * Return an array of information of all volumes that Persistit
@@ -118,14 +118,26 @@ public interface ManagementMXBean {
      * @return array of volumes
      * @throws RemoteException
      */
-    public Management.VolumeInfo[] getVolumes() throws RemoteException;
+    Management.VolumeInfo[] getVolumes() throws RemoteException;
 
     /**
      * @param max Maximum number of transactions to report on.
      * @return Report on the <code>max</code> longest-running transactions.
      * @throws RemoteException
      */
-    public String transactionReport(int max) throws RemoteException;
+    String transactionReport(int max) throws RemoteException;
+
+    /**
+     * @return the name of the current default <code>CommitPolicy<code>
+     */
+    String getDefaultCommitPolicy() throws RemoteException;
+    
+    /**
+     * Modify the current default <code>CommitPolicy</code>.  The
+     * policy name must be one of "hard", "group" or "commit".
+     * @param policyName name of the <code>CommitPolicy</code> to set.
+     */
+    void setDefaultCommitPolicy(String policyName) throws RemoteException;
 
     /**
      * Indicate whether Persistit will suspend its shutdown activities on
@@ -138,7 +150,7 @@ public interface ManagementMXBean {
      *         close; <code>false</code> if the <code>close</code> operation
      *         will not be suspended.
      */
-    public boolean isShutdownSuspended() throws RemoteException;
+    boolean isShutdownSuspended() throws RemoteException;
 
     /**
      * Control whether Persistit will suspend its shutdown activities on
@@ -151,7 +163,7 @@ public interface ManagementMXBean {
      *            <code>true</code> to specify that Persistit will wait when
      *            attempting to close; otherwise <code>false</code>.
      */
-    public void setShutdownSuspended(boolean suspended) throws RemoteException;
+    void setShutdownSuspended(boolean suspended) throws RemoteException;
 
     /**
      * Indicate whether Persistit is suspending all update operations. When
@@ -162,7 +174,7 @@ public interface ManagementMXBean {
      *         a <code>Volume</code>; otherwise <code>false</code>.
      * @throws RemoteException
      */
-    public boolean isUpdateSuspended() throws RemoteException;
+    boolean isUpdateSuspended() throws RemoteException;
 
     /**
      * Control whether Persistit will suspend all update operations. When
@@ -172,7 +184,7 @@ public interface ManagementMXBean {
      * @param suspended
      * @throws RemoteException
      */
-    public void setUpdateSuspended(boolean suspended) throws RemoteException;
+    void setUpdateSuspended(boolean suspended) throws RemoteException;
 
     /**
      * Flush and sync all dirty data in Persistit by invoking
@@ -180,7 +192,7 @@ public interface ManagementMXBean {
      * 
      * @throws RemoteException
      */
-    public void flushAndForce() throws RemoteException;
+    void flushAndForce() throws RemoteException;
 
     /**
      * Use a simple command-line processor to invoke a task. Allows task
@@ -193,7 +205,7 @@ public interface ManagementMXBean {
      * @return The final status of the Task, as a String
      * @throws RemoteException
      */
-    public String execute(final String commandLine) throws RemoteException;
+    String execute(final String commandLine) throws RemoteException;
 
     /**
      * Use a simple command-line processor to start a task. Allows task
@@ -205,7 +217,7 @@ public interface ManagementMXBean {
      * @return The taskId, as a String
      * @throws RemoteException
      */
-    public String launch(final String commandLine) throws RemoteException;
+    String launch(final String commandLine) throws RemoteException;
 
     /**
      * Query information about a specific volume from it's name.
@@ -214,5 +226,5 @@ public interface ManagementMXBean {
      * @return information about the volume, or null if none found
      * @throws RemoteException
      */
-    public Management.VolumeInfo volumeByName(final String volumeName) throws RemoteException;
+    Management.VolumeInfo volumeByName(final String volumeName) throws RemoteException;
 }

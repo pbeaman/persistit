@@ -691,6 +691,9 @@ class TransactionIndex implements TransactionIndexMXBean {
     }
 
     TransactionStatus getStatus(final long tsv) {
+        if (tsv == PRIMORDIAL) {
+            return null;
+        }
         final int hashIndex = hashIndex(tsv);
         TransactionIndexBucket bucket = _hashTable[hashIndex];
         /*

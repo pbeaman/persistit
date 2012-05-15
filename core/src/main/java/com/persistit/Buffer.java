@@ -38,7 +38,6 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
-import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.CleanupManager.CleanupAntiValue;
 import com.persistit.Exchange.Sequence;
@@ -62,9 +61,9 @@ import com.persistit.util.Util;
 
 /**
  * <p>
- * Memory structure that holds and manipulates the state of a fixed-length
- * page of a {@link Volume}. Persistit manipulates the content of a page by
- * copying it into a <code>Buffer</code>, reading and/or modifying modifying the
+ * Memory structure that holds and manipulates the state of a fixed-length page
+ * of a {@link Volume}. Persistit manipulates the content of a page by copying
+ * it into a <code>Buffer</code>, reading and/or modifying modifying the
  * <code>Buffer</code>, and then writing the <code>Buffer</code>'s content back
  * into the page. There are several types of pages within the BTree structure -
  * e.g., index pages and data pages. A <code>Buffer</code> can hold and
@@ -383,7 +382,9 @@ public class Buffer extends SharedResource {
      */
     private Buffer _next = null;
 
-    private AtomicLong _lastPruningActionEnqueuedTime = new AtomicLong();
+    private volatile long _lastPrunedTime;
+
+    private volatile boolean _enqueuedForAntiValuePruning;
 
     /**
      * Construct a new buffer.
@@ -451,11 +452,17 @@ public class Buffer extends SharedResource {
         _alloc = _bufferSize;
         _slack = 0;
         _mvvCount = 0;
-        _lastPruningActionEnqueuedTime.set(0);
+        clearEnqueuedForPruning();
         bumpGeneration();
     }
 
+    void clearEnqueuedForPruning() {
+        _enqueuedForAntiValuePruning = false;
+        _lastPrunedTime = 0;
+    }
+
     /**
+     * 
      * Extract fields from the buffer.
      * 
      * @throws PersistitIOException
@@ -501,6 +508,7 @@ public class Buffer extends SharedResource {
                 if (isDataPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
                     _mvvCount = Integer.MAX_VALUE;
+                    clearEnqueuedForPruning();
                 } else if (isIndexPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_INDEX;
                 }
@@ -578,7 +586,6 @@ public class Buffer extends SharedResource {
         }
         super.release();
     }
-
 
     void releaseTouched() {
         setTouched();
@@ -787,7 +794,6 @@ public class Buffer extends SharedResource {
     Buffer getNext() {
         return _next;
     }
-
 
     /**
      * Finds the keyblock in this page that exactly matches or immediately
@@ -3128,7 +3134,6 @@ public class Buffer extends SharedResource {
                 }
             }
         }
-        releaseRepackPlanBuffer(plan);
     }
 
     /**
@@ -3399,18 +3404,7 @@ public class Buffer extends SharedResource {
     }
 
     final int[] getRepackPlanBuffer() {
-        synchronized (REPACK_BUFFER_STACK) {
-            if (REPACK_BUFFER_STACK.isEmpty()) {
-                return new int[MAX_BUFFER_SIZE / TAILBLOCK_FACTOR];
-            } else
-                return (int[]) REPACK_BUFFER_STACK.pop();
-        }
-    }
-
-    final void releaseRepackPlanBuffer(int[] plan) {
-        synchronized (REPACK_BUFFER_STACK) {
-            REPACK_BUFFER_STACK.push(plan);
-        }
+        return _persistit.getThreadLocalIntArray(MAX_BUFFER_SIZE / TAILBLOCK_FACTOR);
     }
 
     PersistitException verify(Key key, VerifyVisitor visitor) {
@@ -3553,7 +3547,6 @@ public class Buffer extends SharedResource {
                 }
                 tail += ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
             }
-            releaseRepackPlanBuffer(plan);
             return null;
         } catch (PersistitException pe) {
             return pe;
@@ -3583,8 +3576,8 @@ public class Buffer extends SharedResource {
         }
         if (isDataPage() && _mvvCount != 0) {
             final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-            writePageOnCheckpoint(timestamp);
             _mvvCount = 0;
+            writePageOnCheckpoint(timestamp);
             List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
             for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
                 final int kbData = getInt(p);
@@ -3623,15 +3616,16 @@ public class Buffer extends SharedResource {
 
                     if (valueByte == MVV.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
-                            if (tree != null) {
-                                _mvvCount++;
-                                _persistit.getCleanupManager().offer(
-                                        new CleanupAntiValue(tree.getHandle(), getPageAddress()));
+                            if (tree != null && !_enqueuedForAntiValuePruning) {
+                                if (_persistit.getCleanupManager().offer(
+                                        new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
+                                    _enqueuedForAntiValuePruning = true;
+                                }
                             }
                         } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
                             Debug.$assert1.t(false);
-                        } else {
-                            final boolean removed  = removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey);
+                        } else if (spareKey != null) {
+                            final boolean removed = removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey);
                             Debug.$assert0.t(removed);
                             p -= KEYBLOCK_LENGTH;
                             changed = true;
@@ -3980,9 +3974,10 @@ public class Buffer extends SharedResource {
         if (_mvvCount > 0) {
             long delay = _persistit.getCleanupManager().getMinimumPruningDelay();
             if (delay > 0) {
-                long last = _lastPruningActionEnqueuedTime.get();
+                long last = _lastPrunedTime;
                 long now = System.currentTimeMillis();
-                if (now - last > delay && _lastPruningActionEnqueuedTime.compareAndSet(last, now)) {
+                if (now - last > delay) {
+                    _lastPrunedTime = now;
                     _persistit.getCleanupManager().offer(
                             new CleanupManager.CleanupPruneAction(treeHandle, getPageAddress()));
                 }
@@ -4196,9 +4191,8 @@ public class Buffer extends SharedResource {
     }
 
     static boolean isLongMVV(byte[] bytes, int offset, int length) {
-        return isLongRecord(bytes, offset, length) &&
-               (length > LONGREC_PREFIX_OFFSET) &&
-               MVV.isArrayMVV(bytes, offset + LONGREC_PREFIX_OFFSET, length - LONGREC_PREFIX_OFFSET);
+        return isLongRecord(bytes, offset, length) && (length > LONGREC_PREFIX_OFFSET)
+                && MVV.isArrayMVV(bytes, offset + LONGREC_PREFIX_OFFSET, length - LONGREC_PREFIX_OFFSET);
     }
 
     static boolean isValueMVV(byte[] bytes, int offset, int length) {

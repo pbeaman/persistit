@@ -34,6 +34,7 @@ import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
+import java.lang.ref.SoftReference;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -72,6 +73,7 @@ import com.persistit.logging.LogBase;
 import com.persistit.logging.PersistitLogger;
 import com.persistit.mxbeans.AlertMonitorMXBean;
 import com.persistit.mxbeans.BufferPoolMXBean;
+import com.persistit.mxbeans.CheckpointManagerMXBean;
 import com.persistit.mxbeans.CleanupManagerMXBean;
 import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.mxbeans.JournalManagerMXBean;
@@ -325,14 +327,9 @@ public class Persistit {
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
 
-    private final static int TRANSACTION_INDEX_SIZE = 64;
+    private final static int TRANSACTION_INDEX_SIZE = 256;
 
     final static long SHORT_DELAY = 500;
-
-    private final static long KILO = 1024;
-    private final static long MEGA = KILO * KILO;
-    private final static long GIGA = MEGA * KILO;
-    private final static long TERA = GIGA * KILO;
 
     private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
 
@@ -354,7 +351,7 @@ public class Persistit {
      * as database corruption.
      */
     public static class FatalErrorException extends RuntimeException {
-
+        private static final long serialVersionUID = 1L;
         final String _threadName = Thread.currentThread().getName();
         final long _systemTime = System.currentTimeMillis();
 
@@ -464,8 +461,6 @@ public class Persistit {
 
     private boolean _readRetryEnabled;
 
-    private long _defaultTimeout;
-
     private volatile SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
     private volatile JoinPolicy _defaultJoinPolicy = DEFAULT_JOIN_POLICY;
@@ -477,6 +472,8 @@ public class Persistit {
     private volatile long _commitLeadTime = DEFAULT_COMMIT_LEAD_TIME;
 
     private volatile long _commitStallTime = DEFAULT_COMMIT_STALL_TIME;
+
+    private ThreadLocal<SoftReference<int[]>> _intArrayThreadLocal = new ThreadLocal<SoftReference<int[]>>();
 
     /**
      * <p>
@@ -604,6 +601,8 @@ public class Persistit {
                 startTransactionIndexPollTask();
                 flush();
                 _checkpointManager.checkpoint();
+                _journalManager.pruneObsoleteTransactions(true);
+
                 startCleanupManager();
                 _initialized.set(true);
             } finally {
@@ -747,6 +746,7 @@ public class Persistit {
         try {
             registerMBean(getManagement(), ManagementMXBean.class, ManagementMXBean.MXBEAN_NAME);
             registerMBean(_ioMeter, IOMeterMXBean.class, IOMeterMXBean.MXBEAN_NAME);
+            registerMBean(_checkpointManager, CheckpointManagerMXBean.class, CheckpointManagerMXBean.MXBEAN_NAME);
             registerMBean(_cleanupManager, CleanupManagerMXBean.class, CleanupManagerMXBean.MXBEAN_NAME);
             registerMBean(_transactionIndex, TransactionIndexMXBean.class, TransactionIndexMXBean.MXBEAN_NAME);
             registerMBean(_journalManager, JournalManagerMXBean.class, JournalManagerMXBean.MXBEAN_NAME);
@@ -1392,7 +1392,10 @@ public class Persistit {
             return null;
         }
         cleanup();
-        return _checkpointManager.checkpoint();
+        _journalManager.pruneObsoleteTransactions();
+        final Checkpoint result = _checkpointManager.checkpoint();
+        _journalManager.pruneObsoleteTransactions();
+        return result;
     }
 
     final long earliestLiveTransaction() {
@@ -1421,7 +1424,7 @@ public class Persistit {
          * 2) Copy back changes made by first checkpoint (accumulators, etc)
          * 3) Journal completely caught up, rollover if big enough
          */
-        for(int i = 0; i < 3; ++i) {
+        for(int i = 0; i < 5; ++i) {
             if (!_closed.get() && _initialized.get()) {
                 _checkpointManager.checkpoint();
                 _journalManager.copyBack();
@@ -1789,6 +1792,7 @@ public class Persistit {
         _fatalErrors.clear();
         _alertMonitors.clear();
         _bufferPoolTable.clear();
+        _intArrayThreadLocal.set(null);
     }
 
     /**
@@ -2408,6 +2412,19 @@ public class Persistit {
 
     synchronized void clearSessionCLI() {
         _cliSessionMap.remove(getSessionId());
+    }
+    
+    int[] getThreadLocalIntArray(int size) {
+        final SoftReference<int[]> ref = _intArrayThreadLocal.get();
+        if (ref != null) {
+            final int[] ints = ref.get();
+            if (ints != null && ints.length >= size) {
+                return ints;
+            }
+        }
+        final int[] ints = new int[size];
+        _intArrayThreadLocal.set(new SoftReference<int[]>(ints));
+        return ints;
     }
 
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",

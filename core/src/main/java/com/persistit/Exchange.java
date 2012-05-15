@@ -1587,6 +1587,7 @@ public class Exchange {
                         if (!keyExisted) {
                             _tree.bumpChangeCount();
                         }
+                        assert buffer.isDirty() : "Buffer must be dirty";
                         committed = true;
                         if (incrementMVVCount) {
                             _transaction.getTransactionStatus().incrementMvvCount();
@@ -3650,7 +3651,6 @@ public class Exchange {
                 buffer.release();
             }
         }
-
     }
 
     boolean pruneLeftEdgeValue(final long page) throws PersistitException {
@@ -3658,6 +3658,7 @@ public class Exchange {
         Buffer buffer = null;
         try {
             buffer = _pool.get(_volume, page, false, true);
+            buffer.clearEnqueuedForPruning();
             long at = buffer.at(Buffer.KEY_BLOCK_START);
             if (at > 0) {
                 int offset = (int) (at >>> 32);

@@ -48,9 +48,9 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     final static long DEFAULT_CLEANUP_INTERVAL = 1000;
 
-    final static int DEFAULT_QUEUE_SIZE = 10000;
+    final static int DEFAULT_QUEUE_SIZE = 50000;
 
-    final static int WORKLIST_LENGTH = 100;
+    final static int WORKLIST_LENGTH = 500;
 
     private final static long DEFAULT_MINIMUM_PRUNING_DELAY = 1000;
 
@@ -140,7 +140,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     public void poll() throws Exception {
         _persistit.getIOMeter().poll();
         _persistit.cleanup();
-
+        _persistit.getJournalManager().pruneObsoleteTransactions();
         final List<CleanupAction> workList = new ArrayList<CleanupAction>(WORKLIST_LENGTH);
         synchronized (this) {
             while (workList.size() < WORKLIST_LENGTH) {
@@ -195,6 +195,17 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         protected CleanupTreePage(final int treeHandle, final long page) {
             _treeHandle = treeHandle;
             _page = page;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (other instanceof CleanupTreePage) {
+                CleanupTreePage a = (CleanupTreePage) other;
+                return a._page == _page && a._treeHandle == _treeHandle && getClass().equals(a.getClass());
+            } else {
+                return false;
+            }
+
         }
 
         @Override

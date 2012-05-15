@@ -28,11 +28,16 @@ package com.persistit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Set;
 
 import org.junit.Test;
@@ -74,7 +79,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             if ((i % 400) == 0) {
                 jman.rollover();
             }
+            buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
             jman.writePageToJournal(buffer);
+            buffer.clearDirty();
             buffer.releaseTouched();
         }
 
@@ -298,11 +305,15 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
         assertEquals(50000, countKeys(false));
         assertEquals(0, countKeys(true));
-        _persistit.getJournalManager().pruneObsoleteTransactions(Long.MAX_VALUE, true);
+        _persistit.getJournalManager().pruneObsoleteTransactions(true);
         assertTrue(countKeys(false) < 50000);
         CleanupManager cm = _persistit.getCleanupManager();
         assertTrue(cm.getAcceptedCount() > 0);
-        while (cm.getEnqueuedCount() > 0) {
+        long start = System.currentTimeMillis();
+        while (cm.getPerformedCount() < cm.getAcceptedCount()) {
+            if (System.currentTimeMillis() > start + 30000) {
+                fail("Pruning not done in 30 seconds");
+            }
             Util.sleep(100);
         }
         assertEquals(0, countKeys(false));
@@ -343,7 +354,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             txn.rollback();
             txn.end();
         }
-        _persistit.getJournalManager().pruneObsoleteTransactions(Long.MAX_VALUE, true);
+        _persistit.getJournalManager().pruneObsoleteTransactions(true);
         assertEquals(0, countKeys(false));
         IntegrityCheck icheck = new IntegrityCheck(_persistit);
         icheck.checkVolume(volume);
@@ -385,17 +396,96 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     }
 
     @Test
+    public void testCleanupPageList() throws Exception {
+        /*
+         * Remove from the left end
+         */
+        {
+            final List<PageNode> source =testCleanupPageListSource(10);
+            for (int i = 0; i < 4; i++) {
+                source.get(i).invalidate();
+            }
+            testCleanupPageListHelper(source);
+        }
+
+        /*
+         * Remove from the right end
+         */
+        {
+            final List<PageNode> source =testCleanupPageListSource(10);
+            for (int i = 10; --i >= 7;) {
+                source.get(i).invalidate();
+            }
+            testCleanupPageListHelper(source);
+        }
+
+        /*
+         * Remove from the middle
+         */
+        {
+            final List<PageNode> source =testCleanupPageListSource(10);
+            for (int i = 2; i < 8; i++) {
+                source.get(i).invalidate();
+            }
+            testCleanupPageListHelper(source);
+        }
+
+        /*
+         * Randomly invalidated PageNodes
+         */
+        {
+            final int SIZE = 5000;
+            final Random random = new Random(1);
+            final List<PageNode> source = testCleanupPageListSource(SIZE);
+            int next = -1;
+            for (int index = 0; index < SIZE; index++) {
+                if (index < next) {
+                    source.get(index).invalidate();
+                } else {
+                    index += random.nextInt(50);
+                    next = random.nextInt(50) + index;
+                }
+            }
+            testCleanupPageListHelper(source);
+        }
+    }
+
+    private List<PageNode> testCleanupPageListSource(final int size) {
+        final List<PageNode> source = new ArrayList<PageNode>(size);
+        for (int index = 0; index < 1000000; index++) {
+            source.add(new PageNode(0, index, index * 10, index));
+        }
+        return source;
+    }
+    
+    
+    private void testCleanupPageListHelper(final List<PageNode> source) throws Exception {
+        final List<PageNode> cleaned = new ArrayList<PageNode>(source);
+        for (Iterator<PageNode> iterator = cleaned.iterator(); iterator.hasNext();) {
+            if (iterator.next().isInvalid()) {
+                iterator.remove();
+            }
+        }
+        JournalManager jman = new JournalManager(_persistit);
+        jman.unitTestInjectPageList(source);
+        int removed = jman.cleanupPageList();
+        assertTrue(jman.unitTestPageListEquals(cleaned));
+        assertEquals("Removed count is wrong", source.size() - cleaned.size(), removed);
+        assertTrue("Invalidated no page nodes", source.size() > cleaned.size());
+    }
+
+    @Test
     public void copyBackPagesLeavesOneJournal() throws Exception {
         final int BATCH_SIZE = 1000;
         JournalManager jman = _persistit.getJournalManager();
 
         int total = 0;
-        for(long curSize = 0; curSize < JournalManager.ROLLOVER_THRESHOLD; ) {
+        for (long curSize = 0; curSize < JournalManager.ROLLOVER_THRESHOLD;) {
             Exchange ex = _persistit.getExchange(UnitTestProperties.VOLUME_NAME, "JournalManagerTest", true);
             Transaction txn = _persistit.getTransaction();
             Accumulator accum = ex.getTree().getAccumulator(Accumulator.Type.SUM, 0);
             txn.begin();
-            for(int j = 0; j < BATCH_SIZE; ++j) {
+            for (int j = 0; j < BATCH_SIZE; ++j) {
                 ex.clear().append(total + j);
                 ex.getValue().put(j);
                 ex.store();

@@ -1404,7 +1404,7 @@ public class Configuration {
      */
     public void setCommitPolicy(String policyName) {
         if (policyName != null) {
-            setCommitPolicy(CommitPolicy.valueOf(policyName));
+            setCommitPolicy(CommitPolicy.forName(policyName));
         }
     }
 

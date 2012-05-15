@@ -219,8 +219,8 @@ class MVV {
      * <p>
      * The target MVV array must have enough available space to hold the updated
      * value. The caller can invoke the
-     * {@link #exactRequiredLength(byte[], int, int, long, int)} method to determine
-     * how much space is required.
+     * {@link #exactRequiredLength(byte[], int, int, long, int)} method to
+     * determine how much space is required.
      * </p>
      * 
      * @param target
@@ -371,8 +371,8 @@ class MVV {
      * supplied byte array, starting offset and length. The result is that a
      * pruned version of the same MVV is written to the same byte array and
      * offset, and the length of the modified version is returned. Pruning never
-     * lengthens an MVV and therefore the returned length is guaranteed to be less
-     * than or equal the the initial length.
+     * lengthens an MVV and therefore the returned length is guaranteed to be
+     * less than or equal the the initial length.
      * </p>
      * <p>
      * This method leaves the byte array unchanged if any of its checked
@@ -380,10 +380,10 @@ class MVV {
      * </p>
      * <p>
      * This method adds {@link PrunedVersion} instances to the supplied list.
-     * PrunedVersion contains the versionHandle and if present, the long
-     * record pointer of a version that was removed by pruning. The caller
-     * should decrement the MVV count and decrement the long record chain
-     * for each added PrunedVersion at a time where this can safely be done.
+     * PrunedVersion contains the versionHandle and if present, the long record
+     * pointer of a version that was removed by pruning. The caller should
+     * decrement the MVV count and decrement the long record chain for each
+     * added PrunedVersion at a time where this can safely be done.
      * </p>
      * 
      * @param bytes
@@ -416,7 +416,7 @@ class MVV {
         }
 
         Debug.$assert0.t(verify(bytes, offset, length));
-        
+
         boolean primordial = convertToPrimordial;
         int marked = 0;
         try {
@@ -469,7 +469,8 @@ class MVV {
                             marked++;
                             primordial = false;
                         }
-                        // Note: versions and tcs can be the same when there are multiple steps
+                        // Note: versions and tcs can be the same when there are
+                        // multiple steps
                         assert versionHandle >= lastVersionHandle || vh2ts(versionHandle) == vh2ts(lastVersionHandle);
                         assert tc >= lastVersionTc || lastVersionTc == UNCOMMITTED;
                         lastVersionIndex = from;
@@ -503,8 +504,10 @@ class MVV {
                     if (vlength == LONGREC_SIZE && (bytes[from + LENGTH_PER_VERSION] & 0xFF) == LONGREC_TYPE) {
                         longRecordPage = Util.getLong(bytes, from + LENGTH_PER_VERSION + LONGREC_PAGE_OFFSET);
                     }
-                    PrunedVersion pv = new PrunedVersion(version, longRecordPage);
-                    prunedVersionList.add(pv);
+                    if (version != PRIMORDIAL_VALUE_VERSION || longRecordPage != 0) {
+                        PrunedVersion pv = new PrunedVersion(version, longRecordPage);
+                        prunedVersionList.add(pv);
+                    }
                 }
                 from += vlength + LENGTH_PER_VERSION;
             }
@@ -586,7 +589,7 @@ class MVV {
                 }
             }
         }
-        
+
     }
 
     static boolean verify(final byte[] bytes, final int offset, final int length) {
@@ -606,7 +609,6 @@ class MVV {
         }
         return true;
     }
-
 
     /**
      * Search for a known version within a MVV array. If the version is found
@@ -720,8 +722,8 @@ class MVV {
      * Fetch a version of a value from a MVV array given a known offset. The
      * offset should be the starting position of of the actual value and not the
      * MVV header bytes. Intended to be used in connection with the
-     * {@link #visitAllVersions(VersionVisitor, byte[], int, int)} method which gives
-     * this offset.
+     * {@link #visitAllVersions(VersionVisitor, byte[], int, int)} method which
+     * gives this offset.
      * 
      * @param source
      *            MVV array to search

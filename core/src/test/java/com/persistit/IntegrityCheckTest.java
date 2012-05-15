@@ -165,8 +165,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
 
     @Test
     public void testPruneRemovesAbortedTransactionStatus() throws Exception {
-
-        final CleanupManager cm = _persistit.getCleanupManager();
+        _persistit.getJournalManager().setRollbackPruningEnabled(false);
 
         for (int i = 0; i < 10; i++) {
             final Exchange ex = _persistit.getExchange(_volumeName, "mvv" + i, true);
@@ -191,6 +190,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
+        _persistit.getCleanupManager().setMinimumPruningDelay(0); // no background pruningIn
         _persistit.initialize(properties);
 
         for (int i = 0; i < 10; i++) {

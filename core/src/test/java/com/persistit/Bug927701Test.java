@@ -30,9 +30,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.JournalManager;
-import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
 
 /**
@@ -52,11 +49,11 @@ import com.persistit.unit.PersistitUnitTestCase;
  * has a base address in file 12.
  * 
  * Upon further examination, the circumstances are a little different than my
- * initial view. Jounrnal file 12 had several checkpoint records. Each
- * checkpoint contains the base address current at the time that checkpoint was
- * written. The base value actually _decreased_ between the first and second CP
- * records and then increased again. This indicates an unknown failure mechanism
- * in the JournalManager.
+ * initial view. Journal file 12 had several checkpoint records. Each checkpoint
+ * contains the base address current at the time that checkpoint was written.
+ * The base value actually _decreased_ between the first and second CP records
+ * and then increased again. This indicates an unknown failure mechanism in the
+ * JournalManager.
  * 
  * Note that this failure occurred while the wwLock bug 923761 was occurring.
  * One side-effect of that bug would be for a thread to have a start timestamp
@@ -87,7 +84,7 @@ public class Bug927701Test extends PersistitUnitTestCase {
             txn.end();
         }
         /*
-         * 3. Write part of a transaction, then abort.
+         * 2. Write part of a transaction, then abort.
          */
         long journalAddress = jman.getCurrentAddress();
         final Transaction abortingTxn = _persistit.getTransaction();
@@ -99,45 +96,45 @@ public class Bug927701Test extends PersistitUnitTestCase {
         for (int index = 0; index < count; index++) {
             exchange.to(index).store();
         }
-        /*
-         * 3. Abort transaction
-         */
         abortingTxn.rollback();
-        // abortingTxn.end();
-        // TestShim.flushTransactionBuffer(abortingTxn);
         /*
-         * Wait for JournalManager call to pruneObsoleteTransactions
+         * Checkpoint to advance base address
          */
-        Thread.sleep(3000);
-
+        _persistit.checkpoint();
         /*
-         * 2. Checkpoint - this will flush the transaction buffer
+         * Wait for CleanupManager call to pruneObsoleteTransactions
          */
-        {
-            _persistit.copyBackPages();
-            _persistit.checkpoint();
-        }
+        Thread.sleep(2000);
         /*
-         * 4. Wait for a rollover triggered by journal copier
+         * Copy-back to discharge any remaining pages in the journal. Note that
+         * this method also calls checkpoint beforehand.
+         */
+        _persistit.copyBackPages();
+        /*
+         * Another checkpoint to move the base address again, this time to the
+         * very end of the journal.
+         */
+        _persistit.checkpoint();
+        /*
+         * Wait for a rollover triggered by journal copier
          */
         for (int wait = 5; --wait >= 0;) {
-            Thread.sleep(1000);
             if (jman.getCurrentAddress() / blockSize != journalAddress / blockSize) {
                 break;
             }
             assertTrue(wait > 0);
+            System.out.printf("Cur=%,d base=%,d lvc=%,d\n", jman.getCurrentAddress(), jman.getBaseAddress(), jman
+                    .getLastValidCheckpointBaseAddress());
+            Thread.sleep(1000);
         }
 
         abortingTxn.end();
 
         final long baseAddress1 = jman.getBaseAddress();
         /*
-         * 5. Force checkpoint; should now flush the aborted transaction
-         * buffers.
+         * Force checkpoint; should now flush the aborted transaction buffers.
          */
-        {
-            _persistit.checkpoint();
-        }
+        _persistit.checkpoint();
 
         final long baseAddress2 = jman.getBaseAddress();
         assertTrue(baseAddress2 >= baseAddress1);

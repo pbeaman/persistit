@@ -134,8 +134,14 @@ public interface JournalManagerMXBean {
 
     final static int MAXIMUM_CONCURRENT_TRANSACTIONS = 10000;
 
+    @Description("Number of transaction map items in the live map")
+    int getLiveTransactionMapSize();
+
     @Description("Number of unique pages currently stored in the journal")
     int getPageMapSize();
+
+    @Description("Number of unique page versions currently stored in the journal")
+    int getPageListSize();
 
     @Description("Address of first record in the journal required for recovery")
     long getBaseAddress();
@@ -149,13 +155,13 @@ public interface JournalManagerMXBean {
     @Description("True if copying of pages from the journal to their destination volumes is disabled")
     boolean isAppendOnly();
 
-    @Description("True if copy-fast mode has be enabled")
+    @Description("True if copy-fast mode has been enabled")
     boolean isCopyingFast();
 
     @Description("True if copying of pages from the journal to their destination volumes is disabled")
     void setAppendOnly(boolean appendOnly);
 
-    @Description("True if copy-fast mode has be enabled")
+    @Description("True if copy-fast mode has been enabled")
     void setCopyingFast(boolean fast);
 
     @Description("Interval between data flush cycles in milliseconds")
@@ -188,6 +194,9 @@ public interface JournalManagerMXBean {
     @Description("Total number of page images copied from the journal to their destination volumes")
     long getCopiedPageCount();
 
+    @Description("Total number of page images pages dropped from the journal due the existence of newer versions")
+    long getDroppedPageCount();
+
     @Description("System time when journal was first created")
     long getJournalCreatedTime();
 
@@ -217,9 +226,6 @@ public interface JournalManagerMXBean {
 
     @Description("String value of last Exception encountered by the JOURNAL_FLUSHER thread")
     String getLastFlusherException();
-
-    @Description("Interval between proposed checkpoints in milliseconds")
-    long getCheckpointInterval();
 
     @Description("System time when the most recently valid checkpoint was created")
     long getLastValidCheckpointTimeMillis();
