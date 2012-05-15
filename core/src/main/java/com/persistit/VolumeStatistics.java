@@ -42,6 +42,7 @@ class VolumeStatistics {
     private volatile long _lastExtensionTime;
     private volatile long _nextAvailablePage;
     private volatile long _createTime;
+    private volatile long _lastGlobalTimestamp;
 
     private final AtomicLong _readCounter = new AtomicLong();
     private final AtomicLong _writeCounter = new AtomicLong();
@@ -86,7 +87,7 @@ class VolumeStatistics {
 
     /**
      * @return the count of {@link Exchange#traverse} operations, including
-     *         {@link Exchange#next} and {@link Exchange#_previous}
+     *         {@link Exchange#next} and {@link Exchange#previous}
      */
     public long getTraverseCounter() {
         return _traverseCounter.get();
@@ -94,8 +95,7 @@ class VolumeStatistics {
 
     /**
      * @return the count of {@link Exchange#store} operations, including
-     *         {@link Exchange#fetchAndStore} and
-     *         {@link Exchange#incrementValue}
+     *         {@link Exchange#fetchAndStore}.
      */
     public long getStoreCounter() {
         return _storeCounter.get();
@@ -145,6 +145,16 @@ class VolumeStatistics {
      */
     public long getLastExtensionTime() {
         return _lastExtensionTime;
+    }
+
+    /**
+     * @return the maximum Persistit timestamp on data contained in this
+     *         <code>Volume</code>. Note that this is <i>not</i> continuously
+     *         updated, but only during certain operations (e.g. close).
+     *
+     */
+    public long getLastGlobalTimestamp() {
+        return _lastGlobalTimestamp;
     }
 
     void reset() {
@@ -221,4 +231,7 @@ class VolumeStatistics {
         _createTime = createTime;
     }
 
+    void setLastGlobalTimestamp(long lastGlobalTimestamp) {
+        _lastGlobalTimestamp = lastGlobalTimestamp;
+    }
 }

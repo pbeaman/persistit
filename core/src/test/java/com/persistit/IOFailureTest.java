@@ -38,6 +38,7 @@ import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import com.persistit.exception.CorruptVolumeException;
 import org.junit.Test;
 
 import com.persistit.Transaction.CommitPolicy;
@@ -333,7 +334,12 @@ public class IOFailureTest extends PersistitUnitTestCase {
         file1.delete();
 
         _persistit = new Persistit();
-        _persistit.initialize(properties);
+        try {
+            _persistit.initialize(properties);
+            fail("Expected CorruptVolumeException");
+        } catch (CorruptVolumeException cve) {
+            // expected
+        }
     }
 
     @Test
