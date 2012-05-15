@@ -749,9 +749,6 @@ public class Persistit {
      * method. This will work only if the persistit_jsaXXX_jmx.jar is on the
      * classpath. By default, PersistitOpenMBean uses the platform JMX server,
      * so this also required Java 5.0+.
-     * 
-     * @param params
-     *            "true" to enable the PersistitOpenMBean, else "false".
      */
     private void registerMXBeans() {
         try {
@@ -1422,16 +1419,31 @@ public class Persistit {
     }
 
     /**
-     * Copy back all pages from the journal to their host Volumes.
+     * Copy back all pages from the journal to their host Volumes. This
+     * condenses the total number of journals as much as possible given
+     * the current activity in the system.
      * 
      * @throws Exception
      */
     public void copyBackPages() throws Exception {
-        if (!_closed.get() && _initialized.get()) {
-            _checkpointManager.checkpoint();
-            _journalManager.copyBack();
-        } else {
-            throw new PersistitClosedException();
+        /*
+         * Up to three complete cycles needed on an idle system:
+         * 1) Outstanding activity, dirty pages
+         * 2) Copy back changes made by first checkpoint (accumulators, etc)
+         * 3) Journal completely caught up, rollover if big enough
+         */
+        for(int i = 0; i < 3; ++i) {
+            if (!_closed.get() && _initialized.get()) {
+                _checkpointManager.checkpoint();
+                _journalManager.copyBack();
+                int fileCount = _journalManager.getJournalFileCount();
+                long size = _journalManager.getCurrentJournalSize();
+                if((fileCount == 1) && (size < JournalManager.ROLLOVER_THRESHOLD)) {
+                    break;
+                }
+            } else {
+                throw new PersistitClosedException();
+            }
         }
     }
 
@@ -1445,7 +1457,7 @@ public class Persistit {
     /**
      * Looks up a volume by name.
      * 
-     * @param name
+     * @param propName
      *            The name
      * @return the Volume
      * @throws VolumeNotFoundException
@@ -1700,8 +1712,6 @@ public class Persistit {
     /**
      * Abruptly stop (using {@link Thread#stop()}) the writer and collector
      * processes. This method should be used only by tests.
-     * 
-     * @throws CrashException
      */
     public void crash() {
         final JournalManager journalManager = _journalManager;

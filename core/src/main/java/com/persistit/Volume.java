@@ -385,7 +385,7 @@ public class Volume {
         if (_storage != null) {
             throw new IllegalStateException("This volume has already been opened");
         }
-        final boolean exists = VolumeHeader.verifyVolumeHeader(_specification);
+        final boolean exists = VolumeHeader.verifyVolumeHeader(_specification, persistit.getCurrentTimestamp());
 
         _structure = new VolumeStructure(persistit, this, _specification.getPageSize());
         _storage = new VolumeStorageV2(persistit, this);

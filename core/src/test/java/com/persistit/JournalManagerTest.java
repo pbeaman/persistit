@@ -425,6 +425,35 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertEquals("Removed count is wrong", source.size() - cleaned.size(), removed);
         assertTrue("Invalidated no page nodes", source.size() > cleaned.size());
     }
+    
+    @Test
+    public void copyBackPagesLeavesOneJournal() throws Exception {
+        final int BATCH_SIZE = 1000;
+        JournalManager jman = _persistit.getJournalManager();
+
+        int total = 0;
+        for(long curSize = 0; curSize < JournalManager.ROLLOVER_THRESHOLD; ) {
+            Exchange ex = _persistit.getExchange(UnitTestProperties.VOLUME_NAME, "JournalManagerTest", true);
+            Transaction txn = _persistit.getTransaction();
+            Accumulator accum = ex.getTree().getAccumulator(Accumulator.Type.SUM, 0);
+            txn.begin();
+            for(int j = 0; j < BATCH_SIZE; ++j) {
+                ex.clear().append(total + j);
+                ex.getValue().put(j);
+                ex.store();
+                accum.update(1, txn);
+            }
+            txn.commit();
+            txn.end();
+            total += BATCH_SIZE;
+            curSize = jman.getCurrentJournalSize();
+        }
+
+        _persistit.copyBackPages();
+        assertEquals("File count after copyBack", 1, jman.getJournalFileCount());
+        final long curSize = jman.getCurrentJournalSize();
+        assertTrue("Size is less than ROLLOVER after copyBack: " + curSize, curSize < JournalManager.ROLLOVER_THRESHOLD);
+    }
 
     private int countKeys(final boolean mvcc) throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
