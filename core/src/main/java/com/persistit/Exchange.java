@@ -1587,6 +1587,7 @@ public class Exchange {
                         if (!keyExisted) {
                             _tree.bumpChangeCount();
                         }
+                        assert buffer.isDirty() : "Buffer must be dirty";
                         committed = true;
                         if (incrementMVVCount) {
                             _transaction.getTransactionStatus().incrementMvvCount();
