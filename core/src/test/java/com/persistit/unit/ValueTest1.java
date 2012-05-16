@@ -335,6 +335,74 @@ public class ValueTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
+    public void nonAsciiStrings() {
+        final String[] TEST_STRS = { STR_LOW_CHARS, STR_AVG_CHARS, STR_MED_CHARS, STR_HIGH_CHARS };
+        Value value = new Value(_persistit);
+        for (String expected : TEST_STRS) {
+            value.clear();
+            value.put(expected);
+            Object actual = value.get();
+            assertEquals(expected, actual);
+        }
+    }
+
+    @Test
+    public void nonAsciiStringsStreamMode() {
+        final String[] TEST_STRS = { STR_LOW_CHARS, STR_AVG_CHARS, STR_MED_CHARS, STR_HIGH_CHARS };
+        Value value = new Value(_persistit);
+        for (String expected : TEST_STRS) {
+            value.clear();
+            value.setStreamMode(true);
+            value.put(expected);
+            value.setStreamMode(true);
+            Object actual = value.get();
+            assertEquals(expected, actual);
+        }
+    }
+
+    @Test
+    public void nonAsciiStringsStreamModeCausingGrowth() {
+        final String[] TEST_STRS = { STR_MED_CHARS + STR_AVG_CHARS, STR_LOW_CHARS, STR_AVG_CHARS, STR_MED_CHARS, STR_HIGH_CHARS, };
+        for (String expected : TEST_STRS) {
+            Value value = new Value(_persistit, expected.length()+1);
+            value.clear();
+            value.setStreamMode(true);
+            value.put(expected);
+            value.setStreamMode(true);
+            Object actual = value.get();
+            assertEquals(expected, actual);
+        }
+    }
+
+    @Test
+    public void streamModePutStringCausesGrowth() {
+        // Byte size in value is 3*string.length()+1
+        final String TEST_STR = STR_HIGH_CHARS + STR_HIGH_CHARS + STR_HIGH_CHARS;
+        Value value = new Value(_persistit, TEST_STR.length()+5);
+        value.clear();
+        value.setStreamMode(true);
+        value.put(TEST_STR);
+        value.setStreamMode(true);
+        Object decoded = value.get();
+        assertEquals(TEST_STR, decoded);
+    }
+
+    @Test
+    public void nonAsciiCharSequenceStreamModeCausingGrowth() {
+        final String[] TEST_STRS = { STR_MED_CHARS + STR_AVG_CHARS, STR_LOW_CHARS, STR_AVG_CHARS, STR_MED_CHARS, STR_HIGH_CHARS, };
+        for (String expectedStr : TEST_STRS) {
+            CharSequence expected = expectedStr;
+            Value value = new Value(_persistit, expected.length()+1);
+            value.clear();
+            value.setStreamMode(true);
+            value.putString(expected);
+            value.setStreamMode(true);
+            Object actual = value.get();
+            assertEquals(expected.toString(), actual.toString());
+        }
+    }
+
     public boolean equals(final Object a, final Object b) {
         if ((a == null) || (b == null)) {
             return a == b;
@@ -367,7 +435,6 @@ public class ValueTest1 extends PersistitUnitTestCase {
     }
 
     public void runAllTests() throws Exception {
-
         test1();
         test2();
         test3();
@@ -400,4 +467,13 @@ public class ValueTest1 extends PersistitUnitTestCase {
         }
         return; // <-- breakpoint here
     }
+
+    /** Small/control, values c <= 0x1F **/
+    private final static String STR_LOW_CHARS = "\u0000\u0001\u0009\u0015\u001F";
+    /** Printable ASCII, values 0x20 <= c <= 0x7F **/
+    private final static String STR_AVG_CHARS = " 1Az}";
+    /** Wide characters, values 0x7F <= c <= 0x7FF **/
+    private final static String STR_MED_CHARS = "\u03A3\u03A4\u03A6\u03A8\u03A9"; // sigma, tau, phi, psi, omega
+    /** Wide characters, values c > 0x7FF **/
+    private final static String STR_HIGH_CHARS = "\u2654\u2655\u2656\u2657\u2658"; // king, queen, rook, bishop, knight
 }
