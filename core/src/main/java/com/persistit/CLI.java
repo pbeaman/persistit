@@ -684,7 +684,7 @@ public class CLI {
 
         String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath : journalpath));
         List<VolumeSpecification> volumeSpecifications = volumeSpecifications(filesOnPath(volumepath.isEmpty() ? datapath
-                : volumepath), _persistit.getCurrentTimestamp());
+                : volumepath), Long.MAX_VALUE);
         Set<Integer> bufferSizes = new HashSet<Integer>();
         for (final VolumeSpecification vs : volumeSpecifications) {
             bufferSizes.add(vs.getPageSize());
