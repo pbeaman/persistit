@@ -2765,8 +2765,12 @@ public class Exchange {
          * claimed from calling code so that it can't be de-allocated as we are
          * reading it.
          */
-        fetchFixupForLongRecords(value, minimumBytes);
         if (!_ignoreMVCCFetch) {
+            /*
+             * Must fetch entire record as it *could* be an MVV, and reading
+             * partial MVV is not supported (need all for correct version)
+             */
+            fetchFixupForLongRecords(value, Integer.MAX_VALUE);
             if (MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
                 buffer.enqueuePruningAction(_tree.getHandle());
                 visible = mvccFetch(value, minimumBytes);
@@ -2776,6 +2780,8 @@ public class Exchange {
                 value.clear();
                 visible = false;
             }
+        } else {
+            fetchFixupForLongRecords(value, minimumBytes);
         }
         return visible;
     }
