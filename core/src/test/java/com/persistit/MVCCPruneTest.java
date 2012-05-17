@@ -383,6 +383,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testLongRecordAndBufferMVVCount() throws PersistitException {
         trx1.begin();
         try {
@@ -396,6 +397,27 @@ public class MVCCPruneTest extends MVCCTestBase {
         _persistit.getTransactionIndex().cleanup();
         ex1.clear().append(KEY).prune();
         assertEquals("MVV count after commit and prune", 0, ex1.fetchBufferCopy(0).getMvvCount());
+    }
+
+    @Test
+    public void traverseWithMinBytesLongMVV() throws PersistitException {
+        trx1.begin();
+        try {
+            storeLongMVV(ex1, KEY);
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+
+        int count = 0;
+        ex1.clear().append(Key.BEFORE);
+        while(ex1.traverse(Key.GT, true, 100)) {
+            ++count;
+        }
+        assertEquals("Traversed count", 1, count);
+        ex1.clear();
+        boolean hasChildren = ex1.hasChildren();
+        assertEquals("Has children", true, hasChildren);
     }
 
     //
