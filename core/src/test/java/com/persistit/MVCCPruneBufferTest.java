@@ -39,7 +39,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     @Test
     public void testPrunePrimordialAntiValues() throws PersistitException {
         trx1.begin();
-
+      
         ex1.getValue().put(RED_FOX);
         for (int i = 0; i < 5000; i++) {
             ex1.to(i).store();
@@ -54,7 +54,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         int available = buffer1.getAvailableSize();
         int keys = buffer1.getKeyCount();
         buffer1.claim(true);
-        buffer1.pruneMvvValues(null, ex1.getAuxiliaryKey1());
+        buffer1.pruneMvvValues(null);
         assertEquals(keys, buffer1.getKeyCount());
         assertTrue(buffer1.getMvvCount() > 0);
         assertEquals(available, buffer1.getAvailableSize());
@@ -64,7 +64,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
         _persistit.getTransactionIndex().updateActiveTransactionCache();
 
-        buffer1.pruneMvvValues(null, ex1.getAuxiliaryKey1());
+        buffer1.pruneMvvValues(null);
         assertEquals(0, _persistit.getCleanupManager().getAcceptedCount());
         assertTrue("Pruning should have removed primordial Anti-values", keys > buffer1.getKeyCount());
         assertEquals("Pruning should leave mvvCount==0", 0, buffer1.getMvvCount());
@@ -87,7 +87,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         int available = buffer1.getAvailableSize();
         int keys = buffer1.getKeyCount();
         buffer1.claim(true);
-        buffer1.pruneMvvValues(null, ex1.getAuxiliaryKey1());
+        buffer1.pruneMvvValues(null);
         assertEquals(keys, buffer1.getKeyCount());
         assertTrue(buffer1.getMvvCount() > 0);
         assertEquals(available, buffer1.getAvailableSize());
@@ -111,7 +111,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         for (long page = 1; page < pageCount; page++) {
             final Buffer buffer = ex1.getBufferPool().get(ex1.getVolume(), page, true, true);
             try {
-                buffer.pruneMvvValues(null, ex1.getAuxiliaryKey1());
+                buffer.pruneMvvValues(null);
             } finally {
                 buffer.release();
             }
@@ -132,7 +132,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         for (long page = 1; page < pageCount; page++) {
             final Buffer buffer = ex1.getBufferPool().get(ex1.getVolume(), page, true, true);
             try {
-                buffer.pruneMvvValues(ex1.getTree(), ex1.getAuxiliaryKey1());
+                buffer.pruneMvvValues(ex1.getTree());
             } finally {
                 buffer.release();
             }
@@ -155,6 +155,56 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         }
 
         assertEquals(0, antiValueCount3);
+    }
+    
+    @Test
+    public void testPruneLongRecordsSimple() throws Exception {
+        _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
+        JournalManager jman = _persistit.getJournalManager();
+        long liveTransactionMapSize1 = jman.getLiveTransactionMapSize();
+        trx1.begin();
+        ex1.getValue().put(createString(5000));
+        ex1.to("x").store();
+        trx1.incrementStep();
+        ex1.to("x").store();
+        trx1.flushTransactionBuffer(true);
+        trx1.rollback();
+        trx1.end();
+        _persistit.checkpoint();
+        long liveTransactionMapSize2 = jman.getLiveTransactionMapSize();
+        assertEquals("Prune should remove the map item", liveTransactionMapSize2, liveTransactionMapSize1);
+    }
+
+    @Test
+    public void testPruneLongRecordsComplex() throws Exception {
+        _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
+        JournalManager jman = _persistit.getJournalManager();
+
+        long liveTransactionMapSize1 = jman.getLiveTransactionMapSize();
+        /*
+         * Start a concurrent transaction to prevent pruning during the store operations.
+         */
+        final Exchange ex0 = createUniqueExchange();
+        ex0.getTransaction().begin();
+        
+        trx2.begin();
+        ex2.getValue().put(createString(5000));
+        ex2.to("x").store();
+        trx2.commit();
+        trx2.end();
+        trx1.begin();
+        ex1.getValue().put(createString(5000));
+        ex1.to("x").store();
+        trx1.incrementStep();
+        ex1.to("x").store();
+        trx1.flushTransactionBuffer(true);
+        trx1.rollback();
+        trx1.end();
+        ex0.getTransaction().commit();
+        ex0.getTransaction().end();
+        _persistit.checkpoint();
+        long liveTransactionMapSize2 = jman.getLiveTransactionMapSize();
+        assertEquals("Prune should remove the map item", liveTransactionMapSize1, liveTransactionMapSize2);
     }
 
     @Test

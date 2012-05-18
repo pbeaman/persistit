@@ -93,8 +93,6 @@ public class IntegrityCheck extends Task {
     private Value _value = new Value((Persistit) null);
     private MVVVisitor _versionVisitor = new MVVVisitor();
 
-    // Used in pruning
-    private Key _pruningKey = new Key((Persistit) null);
 
     private static class Counters {
 
@@ -1142,7 +1140,7 @@ public class IntegrityCheck extends Task {
                 _counters._mvvPageCount++;
                 if (_prune && !_currentVolume.isReadOnly() && _counters._pruningErrorCount < MAX_PRUNING_ERRORS) {
                     try {
-                        buffer.pruneMvvValues(tree, _pruningKey);
+                        buffer.pruneMvvValues(tree);
                         _counters._prunedPageCount++;
                     } catch (PersistitException e) {
                         _counters._pruningErrorCount++;

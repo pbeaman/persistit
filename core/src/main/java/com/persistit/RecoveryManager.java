@@ -1620,8 +1620,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             // Next page in chain
             page = JournalRecord.getLong(_readBuffer, PA.OVERHEAD + Buffer.RIGHT_SIBLING_OFFSET);
 
-            if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
-                throw new CorruptJournalException("Long record chain has more than " + Exchange.MAX_LONG_RECORD_CHAIN
+            if (count > Buffer.MAX_LONG_RECORD_CHAIN) {
+                throw new CorruptJournalException("Long record chain has more than " + Buffer.MAX_LONG_RECORD_CHAIN
                         + " pages in starting at page " + startAddress + " for transaction at "
                         + addressToString(from, timestamp));
             }
