@@ -2678,24 +2678,19 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     class ProactiveRollbackListener implements TransactionPlayerListener {
         
-        List<String> history = new ArrayList<String>();
         TransactionStatus status;
 
         @Override
         public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
-            String s = status.toString();
             final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
             exchange.prune();
-            history.add(String.format("store at %,d status before=%s after=%s exchange=%s\n", address, s, status, exchange));
         }
 
         @Override
         public void removeKeyRange(final long address, final long timestamp, Exchange exchange, final Key from,
                 final Key to) throws PersistitException {
             try {
-                String s = status.toString();
                 exchange.prune(from, to);
-                history.add(String.format("remove at %,d status before=%s after=%s exchange=%s from=%s to=%s\n", address, s, status, exchange, from, to));
             } catch (RebalanceException e) {
                 // ignore
             }
@@ -2721,9 +2716,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         public void startTransaction(long address, long startTimestamp, final long commitTimestamp)
                 throws PersistitException {
             // Default: do nothing
-            history.clear();
             status = _persistit.getTransactionIndex().getStatus(startTimestamp);
-            history.add(String.format("startTransaction at %,d startTimestamp=%,d status=%s\n", address, startTimestamp, status));
         }
 
         @Override
