@@ -36,6 +36,7 @@ import static com.persistit.Configuration.parseFloatProperty;
 import static com.persistit.Configuration.parseLongProperty;
 import static com.persistit.Configuration.validBufferSizes;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Properties;
@@ -46,6 +47,8 @@ import com.persistit.Configuration.BufferPoolConfiguration;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class ConfigurationTest extends PersistitUnitTestCase {
+
+    private final static String RESOURCE_NAME = "com.persistit.ConfigurationTest";
 
     @Test
     public void testStaticMethods() throws Exception {
@@ -208,12 +211,21 @@ public class ConfigurationTest extends PersistitUnitTestCase {
             // expected
         }
     }
-    
+
     @Test
     public void testBrokenServerConfiguration() throws Exception {
         BufferPoolConfiguration bpc = new Configuration().getBufferPoolMap().get(16384);
         bpc.parseBufferMemory(16384, "buffer.memory.16384", "20M,512G,64M,0.50");
         final int bufferCount = bpc.computeBufferCount(7944576L * 1024L);
+    }
+
+    @Test
+    public void testLoadFromPropertiesResource() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.readPropertiesFile(RESOURCE_NAME);
+        assertEquals("Should have read properties from resource", 32, configuration.getBufferPoolMap().get(16384)
+                .getMinimumCount());
+        assertTrue("Should contain expected text 'hwdemo'", configuration.getJournalPath().contains("hwdemo"));
     }
 
     private Configuration testLoadPropertiesBufferSpecificationsHelper(final Properties properties) throws Exception {

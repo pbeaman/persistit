@@ -687,6 +687,7 @@ public class Configuration {
             throw new PersistitIOException(ioe);
         }
         merge(properties);
+        loadProperties();
     }
 
     final static void checkBufferSize(final int bufferSize) {
