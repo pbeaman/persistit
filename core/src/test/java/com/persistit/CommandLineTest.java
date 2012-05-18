@@ -24,7 +24,7 @@
  * PREVAIL OVER ANY CONFLICTING TERMS OR CONDITIONS IN THIS AGREEMENT.
  */
 
-package com.persistit.unit;
+package com.persistit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -40,10 +40,7 @@ import java.io.StringWriter;
 
 import org.junit.Test;
 
-import com.persistit.CLI;
-import com.persistit.Management;
-import com.persistit.PersistitMap;
-import com.persistit.TestShim;
+import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.util.Util;
 
 public class CommandLineTest extends PersistitUnitTestCase {
@@ -89,6 +86,19 @@ public class CommandLineTest extends PersistitUnitTestCase {
         status = management.launch("jquery -T -V -v page=1");
         waitForCompletion(taskId(status));
 
+    }
+    
+    @Test
+    public void testSelect() throws Exception {
+        CLI cli = _persistit.getSessionCLI();
+        final Tree tree = _persistit.getVolume("persistit").getTree("atree", true);
+        final Management management = _persistit.getManagement();
+        management.execute("select tree=persistit:*tree");
+        assertEquals("Should be same tree", tree, cli.getCurrentTree());
+        _persistit.getVolume("persistit").getTree("btree", true);
+        management.execute("select tree=persistit:*tree");
+        assertNull("No tree or volume should be selected", cli.getCurrentTree());
+        assertNull("No tree or volume should be selected", cli.getCurrentVolume());
     }
 
     @Test
