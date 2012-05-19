@@ -475,9 +475,9 @@ public class Persistit {
 
     private ThreadLocal<SoftReference<int[]>> _intArrayThreadLocal = new ThreadLocal<SoftReference<int[]>>();
     
-    private ThreadLocal<SoftReference<Key>> _keyArrayThreadLocal = new ThreadLocal<SoftReference<Key>>();
+    private ThreadLocal<SoftReference<Key>> _keyThreadLocal = new ThreadLocal<SoftReference<Key>>();
     
-    private ThreadLocal<SoftReference<Value>> _valueArrayThreadLocal = new ThreadLocal<SoftReference<Value>>();
+    private ThreadLocal<SoftReference<Value>> _valueThreadLocal = new ThreadLocal<SoftReference<Value>>();
     
 
     /**
@@ -1798,8 +1798,8 @@ public class Persistit {
         _alertMonitors.clear();
         _bufferPoolTable.clear();
         _intArrayThreadLocal.set(null);
-        _keyArrayThreadLocal.set(null);
-        _valueArrayThreadLocal.set(null);
+        _keyThreadLocal.set(null);
+        _valueThreadLocal.set(null);
     }
 
     /**
@@ -2435,7 +2435,7 @@ public class Persistit {
     }
 
     Key getThreadLocalKey() {
-        final SoftReference<Key> ref = _keyArrayThreadLocal.get();
+        final SoftReference<Key> ref = _keyThreadLocal.get();
         if (ref != null) {
             final Key key = ref.get();
             if (key != null) {
@@ -2443,12 +2443,12 @@ public class Persistit {
             }
         }
         final Key key = new Key(this);
-        _keyArrayThreadLocal.set(new SoftReference<Key>(key));
+        _keyThreadLocal.set(new SoftReference<Key>(key));
         return key;
     }
     
     Value getThreadLocalValue() {
-        final SoftReference<Value> ref = _valueArrayThreadLocal.get();
+        final SoftReference<Value> ref = _valueThreadLocal.get();
         if (ref != null) {
             final Value value = ref.get();
             if (value != null) {
@@ -2456,7 +2456,7 @@ public class Persistit {
             }
         }
         final Value value = new Value(this);
-        _valueArrayThreadLocal.set(new SoftReference<Value>(value));
+        _valueThreadLocal.set(new SoftReference<Value>(value));
         return value;
     }
 

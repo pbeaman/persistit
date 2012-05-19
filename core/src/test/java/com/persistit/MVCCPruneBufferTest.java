@@ -163,10 +163,9 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         JournalManager jman = _persistit.getJournalManager();
         long liveTransactionMapSize1 = jman.getLiveTransactionMapSize();
         trx1.begin();
-        ex1.getValue().put(createString(5000));
-        ex1.to("x").store();
+        storeAlmostLongMVV(ex1, "x");
         trx1.incrementStep();
-        ex1.to("x").store();
+        storeAlmostLongMVV(ex1, "x");
         trx1.flushTransactionBuffer(true);
         trx1.rollback();
         trx1.end();
@@ -176,7 +175,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     }
 
     @Test
-    public void testPruneLongRecordsComplex() throws Exception {
+    public void testPruneLongRecordsWithRollback() throws Exception {
         _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
         JournalManager jman = _persistit.getJournalManager();
 
@@ -188,15 +187,13 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         ex0.getTransaction().begin();
         
         trx2.begin();
-        ex2.getValue().put(createString(5000));
-        ex2.to("x").store();
+        storeAlmostLongMVV(ex2, "x");
         trx2.commit();
         trx2.end();
         trx1.begin();
-        ex1.getValue().put(createString(5000));
-        ex1.to("x").store();
+        storeAlmostLongMVV(ex1, "x");
         trx1.incrementStep();
-        ex1.to("x").store();
+        storeAlmostLongMVV(ex1, "x");
         trx1.flushTransactionBuffer(true);
         trx1.rollback();
         trx1.end();

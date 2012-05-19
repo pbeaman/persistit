@@ -3603,7 +3603,8 @@ public class Buffer extends SharedResource {
                     int valueByte = _bytes[offset] & 0xFF;
                     if (isLongMVV(_bytes, offset, oldSize)) {
                         try {
-                            final Value value = pruneLongMvv(_bytes, offset, oldSize, prunedVersions, timestamp);
+                            final Value value = _persistit.getThreadLocalValue();
+                            changed = pruneLongMvv(_bytes, offset, oldSize, value, prunedVersions, timestamp);
                             int newSize = value.getEncodedSize();
                             assert newSize <= oldSize : "Pruned long value overflow";
                             System.arraycopy(value.getEncodedBytes(), 0, _bytes, offset, newSize);
@@ -3619,7 +3620,8 @@ public class Buffer extends SharedResource {
                             // Rewrite the tail block header
                             putInt(tail, encodeTailBlock(newTailSize, klength));
                             valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
-
+                            
+                            
                         } catch (PersistitException e) {
                             if (pe == null) {
                                 pe = e;
@@ -3690,11 +3692,10 @@ public class Buffer extends SharedResource {
         return changed;
     }
 
-    Value pruneLongMvv(final byte[] bytes, final int offset, final int oldSize, final List<PrunedVersion> prunedVersions, final long timestamp)
+    boolean pruneLongMvv(final byte[] bytes, final int offset, final int oldSize, final Value value, final List<PrunedVersion> prunedVersions, final long timestamp)
             throws PersistitException {
         assert isLongMVV(bytes, offset, oldSize): "Not a long MVV";
         long oldLongRecordChain = decodeLongRecordDescriptorPointer(bytes, offset);
-        final Value value = _persistit.getThreadLocalValue();
         value.changeLongRecordMode(false);
         value.ensureFit(oldSize);
         System.arraycopy(bytes, offset, value.getEncodedBytes(), 0, oldSize);
@@ -3703,10 +3704,15 @@ public class Buffer extends SharedResource {
         helper.fetchLongRecord(value, Integer.MAX_VALUE);
         byte[] rawBytes = value.getEncodedBytes();
         int oldLongSize = value.getEncodedSize();
+        // TODO - perhaps remove.  Done as a precaution for now.
         MVV.verify(rawBytes, 0, oldLongSize);
         List<PrunedVersion> provisionalPrunedVersions = new ArrayList<PrunedVersion>();
         int newLongSize = MVV.prune(rawBytes, 0, oldLongSize, _persistit.getTransactionIndex(), true,
                 provisionalPrunedVersions);
+        if (newLongSize == oldLongSize) {
+            // No pruning done.
+            return false;
+        }
         value.setEncodedSize(newLongSize);
         if (newLongSize > oldSize) {
             helper.storeLongRecord(value, timestamp, false);
@@ -3715,7 +3721,7 @@ public class Buffer extends SharedResource {
         if (oldLongRecordChain != 0) {
             _vol.getStructure().deallocateGarbageChain(oldLongRecordChain, 0);
         }
-        return value;
+        return true;
     }
 
     /**

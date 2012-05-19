@@ -383,6 +383,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
     }
 
+    @Test
     public void testLongRecordAndBufferMVVCount() throws PersistitException {
         trx1.begin();
         try {

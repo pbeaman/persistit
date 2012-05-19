@@ -275,6 +275,13 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
         assertEquals("stored long record at key "+k, true, ex.isValueLongRecord());
     }
 
+    protected static void storeAlmostLongMVV(Exchange ex, Object k) throws PersistitException {
+        ex.clear().append(k);
+        final String longStr = createString(ex.maxValueSize(ex.getKey().getEncodedSize()) - MVV.overheadLength(1) - 1);
+        store(ex, k, longStr);
+        // Note: could be LongRecord or regular, depending on other versions
+    }
+
     protected void showGUI() {
         try {
             _persistit.setupGUI(true);
