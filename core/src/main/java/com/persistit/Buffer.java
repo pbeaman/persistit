@@ -3682,6 +3682,7 @@ public class Buffer extends SharedResource {
 
             Buffer.deallocatePrunedVersions(_persistit, _vol, prunedVersions);
             if (pe != null) {
+                _mvvCount++;
                 throw pe;
             }
         }
