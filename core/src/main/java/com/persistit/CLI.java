@@ -578,6 +578,26 @@ public class CLI {
         _live = persistit != null;
     }
 
+    Volume getCurrentVolume() {
+        return _currentVolume;
+    }
+
+    Tree getCurrentTree() {
+        return _currentTree;
+    }
+
+    boolean isLive() {
+        return _live;
+    }
+
+    int getCommandCount() {
+        return _commandCount;
+    }
+
+    String getLastStatus() {
+        return _lastStatus;
+    }
+
     void setLineReader(final LineReader reader) {
         _lineReader = reader;
     }
@@ -683,8 +703,8 @@ public class CLI {
         close(false);
 
         String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath : journalpath));
-        List<VolumeSpecification> volumeSpecifications = volumeSpecifications(filesOnPath(volumepath.isEmpty() ? datapath
-                : volumepath), Long.MAX_VALUE);
+        List<VolumeSpecification> volumeSpecifications = volumeSpecifications(
+                filesOnPath(volumepath.isEmpty() ? datapath : volumepath), Long.MAX_VALUE);
         Set<Integer> bufferSizes = new HashSet<Integer>();
         for (final VolumeSpecification vs : volumeSpecifications) {
             bufferSizes.add(vs.getPageSize());
@@ -906,6 +926,9 @@ public class CLI {
             @Override
             public void runTask() throws Exception {
 
+                _currentTree = null;
+                _currentVolume = null;
+                
                 if (_persistit == null) {
                     postMessage("Persistit not loaded", LOG_NORMAL);
                     return;
@@ -918,17 +941,19 @@ public class CLI {
                     if (selector.isVolumeNameSelected(volume.getName())) {
                         if (selector.isVolumeOnlySelection(volume.getName())) {
                             selected.add(volume);
-                        }
-                    } else {
-                        for (final String treeName : volume.getTreeNames()) {
-                            if (selector.isTreeNameSelected(volume.getName(), treeName)) {
-                                selected.add(volume.getTree(treeName, false));
+                        } else {
+                            for (final String treeName : volume.getTreeNames()) {
+                                if (selector.isTreeNameSelected(volume.getName(), treeName)) {
+                                    selected.add(volume.getTree(treeName, false));
+                                }
                             }
                         }
                     }
+
                 }
                 if (selected.isEmpty()) {
                     postMessage("No volumes or trees selected", LOG_NORMAL);
+                    return;
                 }
                 if (selected.size() > 1) {
                     postMessage("Too many volumes or trees selected: " + selected, LOG_NORMAL);
