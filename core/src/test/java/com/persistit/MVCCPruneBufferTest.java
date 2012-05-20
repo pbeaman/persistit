@@ -88,10 +88,10 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         int keys = buffer1.getKeyCount();
         buffer1.claim(true);
         buffer1.pruneMvvValues(null);
+        buffer1.release();
         assertEquals(keys, buffer1.getKeyCount());
         assertTrue(buffer1.getMvvCount() > 0);
         assertEquals(available, buffer1.getAvailableSize());
-
         trx1.commit();
         trx1.end();
 
@@ -116,7 +116,6 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
                 buffer.release();
             }
         }
-
         int antiValueCount2 = 0;
         ex1.to(Key.BEFORE);
         while (ex1.next()) {
@@ -126,6 +125,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         assertTrue(antiValueCount2 > 0);
         assertTrue(antiValueCount2 < antiValueCount1);
 
+        _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
         /*
          * Prune with enqueuing edge key AntiValues
          */
@@ -148,6 +148,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
         assertTrue(cycles < 5);
 
+        if (false) {
         int antiValueCount3 = 0;
         ex1.to(Key.BEFORE);
         while (ex1.next()) {
@@ -155,31 +156,25 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         }
 
         assertEquals(0, antiValueCount3);
+}
     }
     
     @Test
     public void testPruneLongRecordsSimple() throws Exception {
         _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
         JournalManager jman = _persistit.getJournalManager();
-        long liveTransactionMapSize1 = jman.getLiveTransactionMapSize();
         trx1.begin();
-        storeAlmostLongMVV(ex1, "x");
-        trx1.incrementStep();
-        storeAlmostLongMVV(ex1, "x");
-        trx1.flushTransactionBuffer(true);
-        trx1.rollback();
+        storeLongMVV(ex1, "x");
+        trx1.commit();
         trx1.end();
-        _persistit.checkpoint();
-        long liveTransactionMapSize2 = jman.getLiveTransactionMapSize();
-        assertEquals("Prune should remove the map item", liveTransactionMapSize2, liveTransactionMapSize1);
+        _persistit.getTransactionIndex().cleanup();
+        ex1.prune();
+        assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
     }
 
     @Test
     public void testPruneLongRecordsWithRollback() throws Exception {
         _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
-        JournalManager jman = _persistit.getJournalManager();
-
-        long liveTransactionMapSize1 = jman.getLiveTransactionMapSize();
         /*
          * Start a concurrent transaction to prevent pruning during the store operations.
          */
@@ -187,21 +182,20 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         ex0.getTransaction().begin();
         
         trx2.begin();
-        storeAlmostLongMVV(ex2, "x");
+        storeLongMVV(ex2, "x");
         trx2.commit();
         trx2.end();
         trx1.begin();
-        storeAlmostLongMVV(ex1, "x");
-        trx1.incrementStep();
-        storeAlmostLongMVV(ex1, "x");
+        storeLongMVV(ex1, "x");
         trx1.flushTransactionBuffer(true);
         trx1.rollback();
         trx1.end();
         ex0.getTransaction().commit();
         ex0.getTransaction().end();
-        _persistit.checkpoint();
-        long liveTransactionMapSize2 = jman.getLiveTransactionMapSize();
-        assertEquals("Prune should remove the map item", liveTransactionMapSize1, liveTransactionMapSize2);
+        _persistit.getTransactionIndex().cleanup();
+        ex1.prune();
+        assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
+
     }
 
     @Test

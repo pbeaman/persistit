@@ -3953,4 +3953,26 @@ public class Exchange {
             _ignoreMVCCFetch = savedIgnore;
         }
     }
+    
+    /**
+     * Intended to be a test method. Fetches the current _key and determines if
+     * stored value is a long MVV. No other state, including the fetched
+     * value, can be gotten from this method.
+     * 
+     * @return <code>true</code> if the value is a long MVV
+     * @throws PersistitException
+     *             Any error during fetch
+     */
+    boolean isValueLongMVV() throws PersistitException {
+        boolean savedIgnore = _ignoreMVCCFetch;
+        try {
+            _ignoreMVCCFetch = true;
+            fetchInternal(_spareValue, -1);
+            final boolean wasLong = isLongMVV(_spareValue);
+            _spareValue.clear();
+            return wasLong;
+        } finally {
+            _ignoreMVCCFetch = savedIgnore;
+        }
+    }
 }

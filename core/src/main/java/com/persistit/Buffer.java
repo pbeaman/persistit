@@ -3604,24 +3604,25 @@ public class Buffer extends SharedResource {
                     if (isLongMVV(_bytes, offset, oldSize)) {
                         try {
                             final Value value = _persistit.getThreadLocalValue();
-                            changed = pruneLongMvv(_bytes, offset, oldSize, value, prunedVersions, timestamp);
-                            int newSize = value.getEncodedSize();
-                            assert newSize <= oldSize : "Pruned long value overflow";
-                            System.arraycopy(value.getEncodedBytes(), 0, _bytes, offset, newSize);
-                            int newTailSize = klength + newSize + _tailHeaderSize;
-                            int oldNext = (tail + oldTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-                            int newNext = (tail + newTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-                            if (newNext < oldNext) {
-                                // Free the remainder of the old tail block
-                                deallocTail(newNext, oldNext - newNext);
-                            } else {
-                                Debug.$assert0.t(newNext == oldNext);
+                            if (pruneLongMvv(_bytes, offset, oldSize, value, prunedVersions, timestamp)) {
+                                changed = true;
+                                int newSize = value.getEncodedSize();
+                                assert newSize <= oldSize : "Pruned long value overflow";
+                                System.arraycopy(value.getEncodedBytes(), 0, _bytes, offset, newSize);
+                                int newTailSize = klength + newSize + _tailHeaderSize;
+                                int oldNext = (tail + oldTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+                                int newNext = (tail + newTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+                                if (newNext < oldNext) {
+                                    // Free the remainder of the old tail block
+                                    deallocTail(newNext, oldNext - newNext);
+                                } else {
+                                    Debug.$assert0.t(newNext == oldNext);
+                                }
+                                // Rewrite the tail block header
+                                putInt(tail, encodeTailBlock(newTailSize, klength));
+                                valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
                             }
-                            // Rewrite the tail block header
-                            putInt(tail, encodeTailBlock(newTailSize, klength));
-                            valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
-                            
-                            
+
                         } catch (PersistitException e) {
                             if (pe == null) {
                                 pe = e;
@@ -3693,9 +3694,9 @@ public class Buffer extends SharedResource {
         return changed;
     }
 
-    boolean pruneLongMvv(final byte[] bytes, final int offset, final int oldSize, final Value value, final List<PrunedVersion> prunedVersions, final long timestamp)
-            throws PersistitException {
-        assert isLongMVV(bytes, offset, oldSize): "Not a long MVV";
+    boolean pruneLongMvv(final byte[] bytes, final int offset, final int oldSize, final Value value,
+            final List<PrunedVersion> prunedVersions, final long timestamp) throws PersistitException {
+        assert isLongMVV(bytes, offset, oldSize) : "Not a long MVV";
         long oldLongRecordChain = decodeLongRecordDescriptorPointer(bytes, offset);
         value.changeLongRecordMode(false);
         value.ensureFit(oldSize);
@@ -3705,7 +3706,7 @@ public class Buffer extends SharedResource {
         helper.fetchLongRecord(value, Integer.MAX_VALUE);
         byte[] rawBytes = value.getEncodedBytes();
         int oldLongSize = value.getEncodedSize();
-        // TODO - perhaps remove.  Done as a precaution for now.
+        // TODO - perhaps remove. Done as a precaution for now.
         MVV.verify(rawBytes, 0, oldLongSize);
         List<PrunedVersion> provisionalPrunedVersions = new ArrayList<PrunedVersion>();
         int newLongSize = MVV.prune(rawBytes, 0, oldLongSize, _persistit.getTransactionIndex(), true,
