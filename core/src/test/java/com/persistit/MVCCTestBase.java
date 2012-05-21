@@ -148,19 +148,6 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
         return values;
     }
 
-    protected static String createString(int exactLength) {
-        StringBuilder sb = new StringBuilder(exactLength);
-        // Simple 0..9a..z string
-        for (int i = 0; i < 36; ++i) {
-            sb.append(Character.forDigit(i, 36));
-        }
-        final String numAndLetters = sb.toString();
-        while (sb.length() < exactLength) {
-            sb.append(numAndLetters);
-        }
-        return sb.toString().substring(0, exactLength);
-    }
-
     protected static void addTraverseResult(Collection<KVPair> collection, Key key, Value value) {
         Object k1, k2 = null;
         switch (key.getDepth()) {

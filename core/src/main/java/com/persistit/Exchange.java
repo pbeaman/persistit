@@ -31,9 +31,9 @@ import static com.persistit.Buffer.HEADER_SIZE;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
 import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
 import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
-import static com.persistit.Buffer.LONGREC_PREFIX_SIZE_OFFSET;
 import static com.persistit.Buffer.LONGREC_SIZE;
 import static com.persistit.Buffer.LONGREC_TYPE;
+import static com.persistit.Buffer.MAX_LONG_RECORD_CHAIN;
 import static com.persistit.Buffer.MAX_VALID_PAGE_ADDR;
 import static com.persistit.Buffer.PAGE_TYPE_DATA;
 import static com.persistit.Buffer.PAGE_TYPE_INDEX_MIN;
@@ -263,11 +263,6 @@ public class Exchange {
      */
     final static int MAX_WALK_RIGHT = 50;
 
-    /**
-     * Upper bound on long record chains.
-     */
-    final static int MAX_LONG_RECORD_CHAIN = 5000;
-
     private final static int LEFT_CLAIMED = 1;
 
     private final static int RIGHT_CLAIMED = 2;
@@ -312,6 +307,7 @@ public class Exchange {
     private final MvvVisitor _mvvVisitor;
     private final RawValueWriter _rawValueWriter = new RawValueWriter();
     private final MVVValueWriter _mvvValueWriter = new MVVValueWriter();
+    private LongRecordHelper _longRecordHelper;
 
     private Exchange(final Persistit persistit) {
         _persistit = persistit;
@@ -1379,7 +1375,8 @@ public class Exchange {
             // This method may delay significantly for I/O and must
             // be called when there are no other claimed resources.
             //
-            newLongRecordPointer = storeOverlengthRecord(value, 0);
+            newLongRecordPointer = getLongRecordHelper().storeLongRecord(value, timestamp(),
+                    _transaction.isActive());
         }
 
         if (!_ignoreTransactions && ((options & StoreOptions.DONT_JOURNAL) == 0)) {
@@ -1543,7 +1540,8 @@ public class Exchange {
                             _spareValue.setEncodedSize(storedLength);
 
                             if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
-                                newLongRecordPointerMVV = storeOverlengthRecord(_spareValue, 0);
+                                newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(_spareValue,
+                                        timestamp(), _transaction.isActive());
                             }
                         }
                     }
@@ -1564,7 +1562,7 @@ public class Exchange {
                     if (splitRequired && !treeClaimAcquired) {
                         if (!didPrune && buffer.isDataPage()) {
                             didPrune = true;
-                            if (buffer.pruneMvvValues(_tree, _spareKey1)) {
+                            if (buffer.pruneMvvValues(_tree)) {
                                 continue;
                             }
                         }
@@ -2831,7 +2829,7 @@ public class Exchange {
             // claim is held for the duration to prevent a non-atomic
             // update.
             //
-            fetchLongRecord(value, minimumBytes);
+            getLongRecordHelper().fetchLongRecord(value, minimumBytes);
         }
     }
 
@@ -2884,10 +2882,16 @@ public class Exchange {
      * @throws PersistitException
      */
     public void removeTree() throws PersistitException {
-
-        _persistit.checkClosed();
-        _persistit.checkSuspended();
-
+        final long timestamp = _persistit.getCurrentTimestamp();
+        for (int i = 0; i < 100; i++) {
+            _persistit.checkClosed();
+            _persistit.checkSuspended();
+            _persistit.getJournalManager().pruneObsoleteTransactions();
+            if (_persistit.getJournalManager().getEarliestAbortedTransactionTimestamp() > timestamp) {
+                break;
+            }
+            Util.sleep(1000);
+        }
         if (!_ignoreTransactions) {
             _transaction.removeTree(this);
         }
@@ -3603,7 +3607,7 @@ public class Exchange {
             search(key, true);
             buffer = _levelCache[0]._buffer;
             if (buffer != null) {
-                return buffer.pruneMvvValues(_tree, _spareKey1);
+                return buffer.pruneMvvValues(_tree);
             } else {
                 return false;
             }
@@ -3625,7 +3629,7 @@ public class Exchange {
 
             while (buffer != null) {
                 checkPageType(buffer, Buffer.PAGE_TYPE_DATA, false);
-                pruned |= buffer.pruneMvvValues(_tree, _spareKey1);
+                pruned |= buffer.pruneMvvValues(_tree);
                 final int foundAt = buffer.findKey(key2);
                 if (!buffer.isAfterRightEdge(foundAt)) {
                     break;
@@ -3651,7 +3655,7 @@ public class Exchange {
         Buffer buffer = null;
         try {
             buffer = _pool.get(_volume, page, true, true);
-            return buffer.pruneMvvValues(_tree, _spareKey1);
+            return buffer.pruneMvvValues(_tree);
         } finally {
             if (buffer != null) {
                 buffer.release();
@@ -3708,170 +3712,6 @@ public class Exchange {
         }
     }
 
-    /**
-     * Decodes the LONG_RECORD pointer that has previously been fetched into the
-     * Value. This will replace the byte array in that value with the actual
-     * long value. Note that this is all done with a reader claim being held on
-     * the data page containing the LONG_RECORD reference.
-     * 
-     * @param value
-     * @throws PersistitException
-     */
-    private void fetchLongRecord(Value value, int minimumBytesFetched) throws PersistitException {
-
-        Buffer buffer = null;
-
-        try {
-            byte[] rawBytes = value.getEncodedBytes();
-            int rawSize = value.getEncodedSize();
-            if (rawSize != LONGREC_SIZE) {
-                corrupt("Invalid LONG_RECORD value size=" + rawSize + " but should be " + LONGREC_SIZE);
-            }
-            if ((rawBytes[0] & 0xFF) != LONGREC_TYPE) {
-                corrupt("Invalid LONG_RECORD value type=" + (rawBytes[0] & 0xFF) + " but should be " + LONGREC_TYPE);
-            }
-            int longSize = Buffer.decodeLongRecordDescriptorSize(rawBytes, 0);
-            long startAtPage = Buffer.decodeLongRecordDescriptorPointer(rawBytes, 0);
-
-            int remainingSize = Math.min(longSize, minimumBytesFetched);
-
-            value.ensureFit(remainingSize);
-            value.setEncodedSize(remainingSize);
-
-            int offset = 0;
-            System.arraycopy(rawBytes, LONGREC_PREFIX_OFFSET, value.getEncodedBytes(), offset, LONGREC_PREFIX_SIZE);
-
-            offset += LONGREC_PREFIX_SIZE;
-            remainingSize -= LONGREC_PREFIX_SIZE;
-            long page = startAtPage;
-
-            for (int count = 0; page != 0 && offset < minimumBytesFetched; count++) {
-                if (remainingSize <= 0) {
-                    corrupt("Invalid LONG_RECORD remaining size=" + remainingSize + " of " + rawSize + " in page "
-                            + page);
-                }
-                buffer = _pool.get(_volume, page, false, true);
-                if (buffer.getPageType() != PAGE_TYPE_LONG_RECORD) {
-                    corrupt("LONG_RECORD chain is invalid at page " + page + " - invalid page type: " + buffer);
-                }
-                int segmentSize = buffer.getBufferSize() - HEADER_SIZE;
-                if (segmentSize > remainingSize) {
-                    segmentSize = remainingSize;
-                }
-
-                System.arraycopy(buffer.getBytes(), HEADER_SIZE, value.getEncodedBytes(), offset, segmentSize);
-
-                offset += segmentSize;
-                remainingSize -= segmentSize;
-                // previousPage = page;
-                page = buffer.getRightSibling();
-                buffer.releaseTouched();
-                buffer = null;
-
-                if (count > MAX_LONG_RECORD_CHAIN) {
-                    if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
-                        corrupt("LONG_RECORD chain starting at " + startAtPage + " is too long");
-                    }
-
-                }
-            }
-            value.setLongSize(rawSize);
-            value.setEncodedSize(offset);
-        } finally {
-            if (buffer != null) {
-                buffer.releaseTouched();
-            }
-        }
-    }
-
-    /**
-     * Creates a new LONG_RECORD chain and stores the supplied byte array in the
-     * pages of this chain. This method catches and retries on RetryExceptions,
-     * therefore it should only be called with no resource claims.
-     * 
-     * @param value
-     *            The value. Must be in "long record mode"
-     * 
-     * @param from
-     *            Offset to first byte of the long record.
-     * 
-     * @return Page address of the beginning of the chain
-     * 
-     * @throws PersistitException
-     */
-    private long storeOverlengthRecord(Value value, int from) throws PersistitException {
-        value.changeLongRecordMode(true);
-
-        // Calculate how many LONG_RECORD pages we will need.
-        //
-        boolean completed = false;
-        int longSize = value.getLongSize();
-        byte[] longBytes = value.getLongBytes();
-        byte[] rawBytes = value.getEncodedBytes();
-        int maxSegmentSize = _pool.getBufferSize() - HEADER_SIZE;
-
-        Debug.$assert0.t(value.isLongRecordMode());
-        Debug.$assert0.t(rawBytes.length == LONGREC_SIZE);
-
-        System.arraycopy(longBytes, 0, rawBytes, LONGREC_PREFIX_OFFSET, LONGREC_PREFIX_SIZE);
-
-        long looseChain = 0;
-        if (from < LONGREC_PREFIX_SIZE)
-            from = LONGREC_PREFIX_SIZE;
-
-        Buffer buffer = null;
-        int offset = from + (((longSize - from - 1) / maxSegmentSize) * maxSegmentSize);
-        final long timestamp = timestamp();
-        final boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        try {
-            for (;;) {
-                while (offset >= from) {
-                    buffer = _volume.getStructure().allocPage();
-                    buffer.writePageOnCheckpoint(timestamp);
-                    buffer.init(PAGE_TYPE_LONG_RECORD);
-
-                    int segmentSize = longSize - offset;
-                    if (segmentSize > maxSegmentSize)
-                        segmentSize = maxSegmentSize;
-
-                    Debug.$assert0.t(segmentSize >= 0 && offset >= 0 && offset + segmentSize <= longBytes.length
-                            && HEADER_SIZE + segmentSize <= buffer.getBytes().length);
-
-                    System.arraycopy(longBytes, offset, buffer.getBytes(), HEADER_SIZE, segmentSize);
-
-                    int end = HEADER_SIZE + segmentSize;
-                    if (end < buffer.getBufferSize()) {
-                        buffer.clearBytes(end, buffer.getBufferSize());
-                    }
-                    buffer.setRightSibling(looseChain);
-                    looseChain = buffer.getPageAddress();
-                    buffer.setDirtyAtTimestamp(timestamp);
-                    if (inTxn) {
-                        buffer.writePage();
-                    }
-                    buffer.releaseTouched();
-                    offset -= maxSegmentSize;
-                    buffer = null;
-                }
-
-                long page = looseChain;
-                looseChain = 0;
-                Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
-
-                completed = true;
-                return page;
-            }
-        } finally {
-            if (buffer != null)
-                buffer.releaseTouched();
-            if (looseChain != 0) {
-                _volume.getStructure().deallocateGarbageChain(looseChain, 0);
-            }
-            if (!completed)
-                value.changeLongRecordMode(false);
-        }
-    }
-
     private void checkPageType(Buffer buffer, int expectedType, boolean releaseOnFailure) throws PersistitException {
         int type = buffer.getPageType();
         if (type != expectedType) {
@@ -3893,6 +3733,13 @@ public class Exchange {
      */
     public Transaction getTransaction() {
         return _transaction;
+    }
+
+    LongRecordHelper getLongRecordHelper() {
+        if (_longRecordHelper == null) {
+            _longRecordHelper = new LongRecordHelper(_persistit, this);
+        }
+        return _longRecordHelper;
     }
 
     /**
@@ -4106,6 +3953,28 @@ public class Exchange {
             _ignoreMVCCFetch = true;
             fetchInternal(_spareValue, -1);
             final boolean wasLong = isLongRecord(_spareValue);
+            _spareValue.clear();
+            return wasLong;
+        } finally {
+            _ignoreMVCCFetch = savedIgnore;
+        }
+    }
+    
+    /**
+     * Intended to be a test method. Fetches the current _key and determines if
+     * stored value is a long MVV. No other state, including the fetched
+     * value, can be gotten from this method.
+     * 
+     * @return <code>true</code> if the value is a long MVV
+     * @throws PersistitException
+     *             Any error during fetch
+     */
+    boolean isValueLongMVV() throws PersistitException {
+        boolean savedIgnore = _ignoreMVCCFetch;
+        try {
+            _ignoreMVCCFetch = true;
+            fetchInternal(_spareValue, -1);
+            final boolean wasLong = isLongMVV(_spareValue);
             _spareValue.clear();
             return wasLong;
         } finally {

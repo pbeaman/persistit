@@ -474,6 +474,11 @@ public class Persistit {
     private volatile long _commitStallTime = DEFAULT_COMMIT_STALL_TIME;
 
     private ThreadLocal<SoftReference<int[]>> _intArrayThreadLocal = new ThreadLocal<SoftReference<int[]>>();
+    
+    private ThreadLocal<SoftReference<Key>> _keyThreadLocal = new ThreadLocal<SoftReference<Key>>();
+    
+    private ThreadLocal<SoftReference<Value>> _valueThreadLocal = new ThreadLocal<SoftReference<Value>>();
+    
 
     /**
      * <p>
@@ -1793,6 +1798,8 @@ public class Persistit {
         _alertMonitors.clear();
         _bufferPoolTable.clear();
         _intArrayThreadLocal.set(null);
+        _keyThreadLocal.set(null);
+        _valueThreadLocal.set(null);
     }
 
     /**
@@ -2425,6 +2432,32 @@ public class Persistit {
         final int[] ints = new int[size];
         _intArrayThreadLocal.set(new SoftReference<int[]>(ints));
         return ints;
+    }
+
+    Key getThreadLocalKey() {
+        final SoftReference<Key> ref = _keyThreadLocal.get();
+        if (ref != null) {
+            final Key key = ref.get();
+            if (key != null) {
+                return key;
+            }
+        }
+        final Key key = new Key(this);
+        _keyThreadLocal.set(new SoftReference<Key>(key));
+        return key;
+    }
+    
+    Value getThreadLocalValue() {
+        final SoftReference<Value> ref = _valueThreadLocal.get();
+        if (ref != null) {
+            final Value value = ref.get();
+            if (value != null) {
+                return value;
+            }
+        }
+        final Value value = new Value(this);
+        _valueThreadLocal.set(new SoftReference<Value>(value));
+        return value;
     }
 
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",

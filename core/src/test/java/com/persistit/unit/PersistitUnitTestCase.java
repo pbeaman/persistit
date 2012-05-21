@@ -41,6 +41,19 @@ public abstract class PersistitUnitTestCase {
     private final static long TEN_SECONDS = 10L * 1000L * 1000L * 1000L;
 
     protected final static String RED_FOX = "The quick red fox jumped over the lazy brown dog.";
+    
+    protected static String createString(int exactLength) {
+        StringBuilder sb = new StringBuilder(exactLength);
+        // Simple 0..9a..z string
+        for (int i = 0; i < 36; ++i) {
+            sb.append(Character.forDigit(i, 36));
+        }
+        final String numAndLetters = sb.toString();
+        while (sb.length() < exactLength) {
+            sb.append(numAndLetters);
+        }
+        return sb.toString().substring(0, exactLength);
+    }
 
     protected Persistit _persistit = new Persistit();
 

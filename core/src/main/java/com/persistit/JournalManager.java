@@ -214,7 +214,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private volatile long _copierTimestampLimit = Long.MAX_VALUE;
 
-    private volatile long _earliestCommitTimestamp = Long.MAX_VALUE;
+    private volatile long _earliestCommittedTimestamp = Long.MAX_VALUE;
+
+    private volatile long _earliestAbortedTimestamp = Long.MAX_VALUE;
 
     /**
      * <p>
@@ -457,6 +459,14 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     @Override
     public long getDroppedPageCount() {
         return _droppedPageCount;
+    }
+
+    public long getEarliestCommittedTransactionTimestamp() {
+        return _earliestCommittedTimestamp;
+    }
+
+    public long getEarliestAbortedTransactionTimestamp() {
+        return _earliestAbortedTimestamp;
     }
 
     @Override
@@ -1447,10 +1457,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             _writeBufferAddress = _currentAddress;
             _isNewEpoch = false;
 
-            if(setBaseAddress) {
+            if (setBaseAddress) {
                 _baseAddress = _currentAddress;
             }
-            if(startNewFile) {
+            if (startNewFile) {
                 prepareWriteBuffer(JH.OVERHEAD);
             }
         }
@@ -1582,7 +1592,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         // be needed for recovery.
         //
         long recoveryTimestamp = checkpoint.getTimestamp();
-        recoveryTimestamp = Math.min(recoveryTimestamp, _earliestCommitTimestamp);
+        recoveryTimestamp = Math.min(Math.min(recoveryTimestamp, _earliestCommittedTimestamp),
+                _earliestAbortedTimestamp);
         //
         // Remove all but the most recent PageNode version before the
         // checkpoint.
@@ -1628,7 +1639,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     void pruneObsoleteTransactions(boolean rollbackPruningEnabled) {
         final long timestamp = _lastValidCheckpoint.getTimestamp();
-        long earliest = Long.MAX_VALUE;
+        long earliestCommitted = Long.MAX_VALUE;
+        long earliestAborted = Long.MAX_VALUE;
         List<TransactionMapItem> toPrune = new ArrayList<TransactionMapItem>();
         /*
          * Remove any committed transactions that committed before the
@@ -1642,8 +1654,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 if (item.isCommitted()) {
                     if (item.getCommitTimestamp() < timestamp) {
                         iterator.remove();
-                    } else if (item.getStartTimestamp() < earliest) {
-                        earliest = item.getStartTimestamp();
+                    } else if (item.getStartTimestamp() < earliestCommitted) {
+                        earliestCommitted = item.getStartTimestamp();
                     }
                 } else {
                     final TransactionStatus status;
@@ -1654,13 +1666,19 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                         if (status.getMvvCount() == 0) {
                             iterator.remove();
                             sequence(RECOVERY_PRUNING_B);
-                        } else if (rollbackPruningEnabled) {
-                            toPrune.add(item);
+                        } else {
+                            if (item.getStartTimestamp() < earliestAborted) {
+                                earliestAborted = item.getStartTimestamp();
+                            }
+                            if (rollbackPruningEnabled) {
+                                toPrune.add(item);
+                            }
                         }
                     }
                 }
             }
-            _earliestCommitTimestamp = earliest;
+            _earliestCommittedTimestamp = earliestCommitted;
+            _earliestAbortedTimestamp = earliestAborted;
         }
         /*
          * Sort the toPrune list - since all members are aborted, the comparison
@@ -2659,9 +2677,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     class ProactiveRollbackListener implements TransactionPlayerListener {
+        
+        TransactionStatus status;
 
         @Override
         public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
+            final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
             exchange.prune();
         }
 
@@ -2695,6 +2716,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         public void startTransaction(long address, long startTimestamp, final long commitTimestamp)
                 throws PersistitException {
             // Default: do nothing
+            status = _persistit.getTransactionIndex().getStatus(startTimestamp);
         }
 
         @Override
@@ -2793,10 +2815,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     boolean unitTestPageListEquals(final List<PageNode> list) {
         return list.equals(_pageList);
     }
-    
+
     synchronized List<File> unitTestGetAllJournalFiles() {
         List<File> files = new ArrayList<File>();
-        for(Long address : _journalFileChannels.keySet()) {
+        for (Long address : _journalFileChannels.keySet()) {
             files.add(addressToFile(address));
         }
         return files;

@@ -26,6 +26,7 @@
 
 package com.persistit;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -187,7 +188,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     abstract static class CleanupTreePage implements CleanupAction {
 
-        private final static ThreadLocal<Exchange> _exchangeThreadLocal = new ThreadLocal<Exchange>();
+        private final static ThreadLocal<WeakReference<Exchange>> _exchangeThreadLocal = new ThreadLocal<WeakReference<Exchange>>();
 
         final int _treeHandle;
         final long _page;
@@ -232,16 +233,18 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
             if (tree == null) {
                 return null;
             }
-            Exchange exchange = _exchangeThreadLocal.get();
-            if (exchange == null) {
-                exchange = new Exchange(tree);
-                _exchangeThreadLocal.set(exchange);
-            } else {
-                exchange.init(tree);
+            WeakReference<Exchange> ref = _exchangeThreadLocal.get();
+            if (ref != null) {
+                Exchange exchange = ref.get();
+                if (exchange != null) {
+                    exchange.init(tree);
+                    return exchange;
+                }
             }
+            Exchange exchange = new Exchange(tree);
+            _exchangeThreadLocal.set(new WeakReference<Exchange>(exchange));
             return exchange;
         }
-
     }
 
     static class CleanupAntiValue extends CleanupTreePage {
