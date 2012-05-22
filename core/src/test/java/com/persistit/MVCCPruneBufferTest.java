@@ -148,7 +148,6 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
         assertTrue(cycles < 5);
 
-        if (false) {
         int antiValueCount3 = 0;
         ex1.to(Key.BEFORE);
         while (ex1.next()) {
@@ -156,7 +155,6 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         }
 
         assertEquals(0, antiValueCount3);
-}
     }
     
     @Test
