@@ -26,12 +26,6 @@
 
 package com.persistit;
 
-import static com.persistit.Buffer.HEADER_SIZE;
-import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
-import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
-import static com.persistit.Buffer.LONGREC_SIZE;
-import static com.persistit.Buffer.LONGREC_TYPE;
-import static com.persistit.Buffer.PAGE_TYPE_LONG_RECORD;
 import static com.persistit.VolumeHeader.getDirectoryRoot;
 import static com.persistit.VolumeHeader.getExtendedPageCount;
 import static com.persistit.VolumeHeader.getGarbageRoot;
@@ -43,7 +37,6 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Set;
-import java.util.Stack;
 
 import com.persistit.CleanupManager.CleanupAntiValue;
 import com.persistit.Exchange.Sequence;
@@ -51,7 +44,6 @@ import com.persistit.JournalRecord.IV;
 import com.persistit.JournalRecord.PA;
 import com.persistit.MVV.PrunedVersion;
 import com.persistit.Management.RecordInfo;
-import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.InvalidPageStructureException;
@@ -565,6 +557,9 @@ public class Buffer extends SharedResource {
     }
 
     void setDirtyAtTimestamp(final long timestamp) {
+        if (!isMine()) {
+            throw new IllegalStateException("Exclusive claim required " + this);
+        }
         if (super.setDirty()) {
             _pool.incrementDirtyPageCount();
         }
@@ -3579,8 +3574,10 @@ public class Buffer extends SharedResource {
      * @throws PersistitException
      */
     boolean pruneMvvValues(final Tree tree) throws PersistitException {
+
         boolean changed = false;
         boolean bumped = false;
+
         PersistitException pe = null;
         if (!isMine()) {
             throw new IllegalStateException("Exclusive claim required " + this);
@@ -3655,11 +3652,20 @@ public class Buffer extends SharedResource {
 
                     if (valueByte == MVV.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
-                            if (tree != null && !_enqueuedForAntiValuePruning) {
-                                if (_persistit.getCleanupManager().offer(
-                                        new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
-                                    _enqueuedForAntiValuePruning = true;
+
+                            if (tree != null && _enqueuedForAntiValuePruning) {
+                                System.out.println("Enqueued: " + this); // TODO
+                            }
+
+                            if (tree != null) {
+                                if (!_enqueuedForAntiValuePruning) {
+                                    if (_persistit.getCleanupManager().offer(
+                                            new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
+                                        _enqueuedForAntiValuePruning = true;
+                                    }                                    
                                 }
+                            } else {
+                                _mvvCount++;
                             }
                         } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
                             Debug.$assert1.t(false);
@@ -3675,6 +3681,7 @@ public class Buffer extends SharedResource {
                             }
                         }
                     }
+
                 }
             }
             if (changed) {
@@ -3691,6 +3698,7 @@ public class Buffer extends SharedResource {
         if (Debug.ENABLED && changed) {
             assertVerify();
         }
+
         return changed;
     }
 

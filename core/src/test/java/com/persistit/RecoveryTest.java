@@ -222,8 +222,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         txn.end();
 
         jman.rollover();
-        _persistit.cleanup();
-        _persistit.getCheckpointManager().checkpoint();
+        _persistit.checkpoint();
         jman.copyBack();
         //
         // Because JournalManager thinks there's an open transaction
@@ -761,7 +760,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
             System.out.printf("\nStarting cycle %d\n", cycle);
             rt.journalSize = "100M";
             rt.setUp();
-            rt.testIndexHoles();
+//            rt.testIndexHoles();
+            rt.testRolloverDoesntDeleteLiveTransactions();
             rt.tearDown();
         }
     }
