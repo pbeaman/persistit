@@ -26,6 +26,12 @@
 
 package com.persistit;
 
+import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_C;
+import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_SCHEDULE;
+import static com.persistit.util.ThreadSequencer.addSchedules;
+import static com.persistit.util.ThreadSequencer.disableSequencer;
+import static com.persistit.util.ThreadSequencer.enableSequencer;
+import static com.persistit.util.ThreadSequencer.sequence;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -40,6 +46,7 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 
+import com.persistit.util.ThreadSequencer;
 import org.junit.Test;
 
 import com.persistit.CheckpointManager.Checkpoint;
@@ -501,6 +508,79 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertEquals("File count after copyBack", 1, jman.getJournalFileCount());
         final long curSize = jman.getCurrentJournalSize();
         assertTrue("Size is less than ROLLOVER after copyBack: " + curSize, curSize < JournalManager.ROLLOVER_THRESHOLD);
+    }
+
+    @Test
+    public void concurrentReadAndInvalidationOfPageNodes() throws Exception {
+        _persistit.getJournalManager().setCopierInterval(50000);
+
+        final int COUNT = 5000;
+        final String TREE_NAME = "JournalManagerTest1";
+
+        Transaction txn = _persistit.getTransaction();
+        txn.begin();
+        Exchange ex = _persistit.getExchange(_volumeName, TREE_NAME, true);
+        for(int i = 0; i < COUNT; ++i) {
+            ex.to(i);
+            ex.getValue().put(RED_FOX);
+            ex.store();
+        }
+        txn.commit();
+        txn.end();
+
+        Thread thread1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Transaction txn = _persistit.getTransaction();
+                    txn.begin();
+                    try {
+                        Exchange ex = _persistit.getExchange(_volumeName, TREE_NAME, false);
+                        ex.to(Key.BEFORE);
+                        int count = 0;
+                        while(ex.next(true)) {
+                            ++count;
+                        }
+                        assertEquals("Traversed count", COUNT, count);
+                        txn.commit();
+                    } finally {
+                        txn.end();
+                    }
+                } catch(PersistitException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        Thread thread2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    _persistit.getJournalManager().copyBack();
+                } catch(Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        Volume v = _persistit.getVolume(_volumeName);
+        BufferPool bp = _persistit.getBufferPool(v.getPageSize());
+
+        bp.flush(_persistit.getCurrentTimestamp());
+        _persistit.checkpoint();
+        _persistit.flush();
+        bp.invalidate(v);
+
+        enableSequencer(true);
+        addSchedules(PAGE_MAP_READ_INVALIDATE_SCHEDULE);
+
+        thread1.start();
+        thread2.start();
+
+        thread1.join();
+        thread2.join();
+
+        disableSequencer();
     }
 
     private int countKeys(final boolean mvcc) throws PersistitException {
