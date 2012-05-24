@@ -3652,11 +3652,6 @@ public class Buffer extends SharedResource {
 
                     if (valueByte == MVV.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
-
-                            if (tree != null && _enqueuedForAntiValuePruning) {
-                                System.out.println("Enqueued: " + this); // TODO
-                            }
-
                             if (tree != null) {
                                 if (!_enqueuedForAntiValuePruning) {
                                     if (_persistit.getCleanupManager().offer(
