@@ -29,10 +29,13 @@ package com.persistit;
 import static com.persistit.unit.ConcurrentUtil.createThread;
 import static com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
 import static com.persistit.unit.ConcurrentUtil.startAndJoinAssertSuccess;
+import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_B;
+import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_C;
 import static com.persistit.util.ThreadSequencer.addSchedules;
 import static com.persistit.util.ThreadSequencer.disableSequencer;
 import static com.persistit.util.ThreadSequencer.enableSequencer;
 import static com.persistit.util.ThreadSequencer.PAGE_MAP_READ_INVALIDATE_SCHEDULE;
+import static com.persistit.util.ThreadSequencer.sequence;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -558,7 +561,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         Thread thread2 = createThread("COPY_BACK_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
+                sequence(PAGE_MAP_READ_INVALIDATE_B);
                 _persistit.getJournalManager().copyBack();
+                sequence(PAGE_MAP_READ_INVALIDATE_C);
             }
         });
 
