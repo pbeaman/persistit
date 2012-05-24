@@ -83,4 +83,16 @@ public interface SequencerConstants {
             array(TREE_CREATE_REMOVE_A, TREE_CREATE_REMOVE_B), array(TREE_CREATE_REMOVE_B),
             array(TREE_CREATE_REMOVE_A, TREE_CREATE_REMOVE_C), array(TREE_CREATE_REMOVE_A, TREE_CREATE_REMOVE_C)
     };
+
+    /*
+    * Used in testing sequencing between pageNode reading and invalidation in JournalManager
+    */
+    int PAGE_MAP_READ_INVALIDATE_A = allocate("PAGE_MAP_READ_INVALIDATE_A");
+    int PAGE_MAP_READ_INVALIDATE_B = allocate("PAGE_MAP_READ_INVALIDATE_B");
+    int PAGE_MAP_READ_INVALIDATE_C = allocate("PAGE_MAP_READ_INVALIDATE_C");
+
+    int[][] PAGE_MAP_READ_INVALIDATE_SCHEDULE = new int[][] {
+            array(PAGE_MAP_READ_INVALIDATE_A, PAGE_MAP_READ_INVALIDATE_B), array(PAGE_MAP_READ_INVALIDATE_B),
+            array(PAGE_MAP_READ_INVALIDATE_A, PAGE_MAP_READ_INVALIDATE_C), array(PAGE_MAP_READ_INVALIDATE_A, PAGE_MAP_READ_INVALIDATE_C)
+    };
 }
