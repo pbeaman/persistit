@@ -681,16 +681,29 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         final ByteBuffer bb = buffer.getByteBuffer();
 
         final Volume volume = buffer.getVolume();
-        PageNode pn = null;
+        PageNode pnLookup = null;
         synchronized (this) {
             final Integer volumeHandle = _volumeToHandleMap.get(volume);
             if (volumeHandle != null) {
-                pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
+                pnLookup = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
             }
         }
 
+        if (pnLookup == null) {
+            return false;
+        }
+
+        PageNode pn = new PageNode(pnLookup);
         sequence(PAGE_MAP_READ_INVALIDATE_A);
-        if (pn == null) {
+
+        /*
+         * If the page is still valid, use the values saved in pn so we don't
+         * lose them mid-processing. We can use it because it was in the map
+         * when we first looked and that means it is is still in the journal.
+         * This is because we have a claim on buffer preventing new checkpoints
+         * and keeps the copier from getting rid of the file.
+         */
+        if (pnLookup.isInvalid()) {
             return false;
         }
 
