@@ -3668,9 +3668,9 @@ public class Buffer extends SharedResource {
                         }
                         setDirtyAtTimestamp(copyTimestamp);
                         deallocatePrunedVersions(_persistit, _vol, prunedVersions);
-                    }
-                    for (final Long oldLongRecordChain : oldChainsToDeallocate) {
-                        _vol.getStructure().deallocateGarbageChain(oldLongRecordChain, 0);
+                        for (final Long oldLongRecordChain : oldChainsToDeallocate) {
+                            _vol.getStructure().deallocateGarbageChain(oldLongRecordChain, 0);
+                        }
                     }
                     if (!deferredExceptions.isEmpty()) {
                         _mvvCount++;
