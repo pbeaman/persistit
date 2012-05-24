@@ -3632,33 +3632,16 @@ public class Buffer extends SharedResource {
                             incCountIfMvv(_bytes, offset, newSize);
                         }
 
-                        if (valueByte == MVV.TYPE_ANTIVALUE) {
-                            if (p == KEY_BLOCK_START) {
-                                if (tree != null) {
-                                    if (!_enqueuedForAntiValuePruning) {
-                                        if (_persistit.getCleanupManager().offer(
-                                                new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
-                                            _enqueuedForAntiValuePruning = true;
-                                        }
-                                    }
-                                } else {
-                                    _mvvCount++;
-                                }
-                            } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
-                                Debug.$assert1.t(false);
-                            } else {
-                                final boolean removed = removeKeys(p | EXACT_MASK, p | EXACT_MASK, _persistit
-                                        .getThreadLocalKey());
-                                Debug.$assert0.t(removed);
-                                p -= KEYBLOCK_LENGTH;
-                                changed = true;
-                                if (!bumped) {
-                                    bumpGeneration();
-                                    bumped = true;
-                                }
+                        boolean prunedAntiValue = pruneAntiValue(valueByte, p, tree);
+                        changed |= prunedAntiValue;
+                        if (prunedAntiValue) {
+                            changed = true;
+                            p -= KEYBLOCK_LENGTH;
+                            if (!bumped) {
+                                bumpGeneration();
+                                bumped = true;
                             }
                         }
-
                     }
                 }
                 if (changed) {
@@ -3754,30 +3737,14 @@ public class Buffer extends SharedResource {
                         valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
                     }
                 }
-                if (valueByte == MVV.TYPE_ANTIVALUE) {
-                    if (p == KEY_BLOCK_START) {
-                        if (tree != null) {
-                            if (!_enqueuedForAntiValuePruning) {
-                                if (_persistit.getCleanupManager().offer(
-                                        new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
-                                    _enqueuedForAntiValuePruning = true;
-                                }
-                            }
-                        } else {
-                            _mvvCount++;
-                        }
-                    } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
-                        Debug.$assert1.t(false);
-                    } else {
-                        final boolean removed = removeKeys(p | EXACT_MASK, p | EXACT_MASK, _persistit
-                                .getThreadLocalKey());
-                        Debug.$assert0.t(removed);
-                        p -= KEYBLOCK_LENGTH;
-                        changed = true;
-                        if (!bumped) {
-                            bumpGeneration();
-                            bumped = true;
-                        }
+                boolean prunedAntiValue = pruneAntiValue(valueByte, p, tree);
+                changed |= prunedAntiValue;
+                if (prunedAntiValue) {
+                    changed = true;
+                    p -= KEYBLOCK_LENGTH;
+                    if (!bumped) {
+                        bumpGeneration();
+                        bumped = true;
                     }
                 }
             }
@@ -3789,7 +3756,31 @@ public class Buffer extends SharedResource {
         return changed;
     }
 
-    boolean pruneLongMvv(final byte[] bytes, final int offset, final int oldSize, final Value value,
+    private boolean pruneAntiValue(final int valueByte, final int p, final Tree tree) {
+        if (valueByte == MVV.TYPE_MVV) {
+            if (p == KEY_BLOCK_START) {
+                if (tree != null) {
+                    if (!_enqueuedForAntiValuePruning) {
+                        if (_persistit.getCleanupManager().offer(
+                                new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
+                            _enqueuedForAntiValuePruning = true;
+                        }
+                    }
+                } else {
+                    _mvvCount++;
+                }
+            } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
+                Debug.$assert1.t(false);
+            } else {
+                final boolean removed = removeKeys(p | EXACT_MASK, p | EXACT_MASK, _persistit.getThreadLocalKey());
+                Debug.$assert0.t(removed);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean pruneLongMvv(final byte[] bytes, final int offset, final int oldSize, final Value value,
             final List<PrunedVersion> prunedVersions, final List<Long> toDeallocate) throws PersistitException {
         assert isLongMVV(bytes, offset, oldSize) : "Not a long MVV";
         long oldLongRecordChain = decodeLongRecordDescriptorPointer(bytes, offset);
