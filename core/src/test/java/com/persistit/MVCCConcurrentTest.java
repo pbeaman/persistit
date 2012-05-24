@@ -26,10 +26,10 @@
 
 package com.persistit;
 
+import static com.persistit.unit.ConcurrentUtil.createThread;
+import static com.persistit.unit.ConcurrentUtil.startAndJoinAssertSuccess;
+import static com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
 import static org.junit.Assert.assertEquals;
-
-import java.util.Map;
-import java.util.TreeMap;
 
 import org.junit.Test;
 
@@ -38,35 +38,12 @@ import com.persistit.exception.PersistitException;
 public class MVCCConcurrentTest extends MVCCTestBase {
     private final String KEY1 = "key1";
 
-    private final Map<String, Throwable> uncaughtExceptions = new TreeMap<String, Throwable>();
-    private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.UncaughtExceptionHandler() {
-        @Override
-        public void uncaughtException(Thread t, Throwable e) {
-            synchronized (uncaughtExceptions) {
-                uncaughtExceptions.put(t.getName(), e);
-            }
-            Thread.getDefaultUncaughtExceptionHandler().uncaughtException(t, e);
-        }
-    };
-
-    @Override
-    public void setUp() throws Exception {
-        super.setUp();
-        uncaughtExceptions.clear();
-    }
-
-    @Override
-    public void tearDown() throws Exception {
-        super.tearDown();
-        assertEquals("Uncaught exceptions", "{}", uncaughtExceptions.toString());
-    }
-
     @Test
     public void testReadWriteRemoveLongRecNoTrx() {
         final int NUM_OPS = 1000;
         final String LONG_STR = createString(ex1.getVolume().getPageSize() * 50);
 
-        Thread readThread = createThread(new ThrowingRunnable() {
+        Thread readThread = createThread("READ_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
                 Exchange ex = getNewExchange();
@@ -79,9 +56,9 @@ public class MVCCConcurrentTest extends MVCCTestBase {
                 }
                 _persistit.releaseExchange(ex);
             }
-        }, "READ_THREAD");
+        });
 
-        Thread writeThread = createThread(new ThrowingRunnable() {
+        Thread writeThread = createThread("WRITE_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
                 Exchange ex = getNewExchange();
@@ -90,9 +67,9 @@ public class MVCCConcurrentTest extends MVCCTestBase {
                 }
                 _persistit.releaseExchange(ex);
             }
-        }, "WRITE_THREAD");
+        });
 
-        Thread removeThread = createThread(new ThrowingRunnable() {
+        Thread removeThread = createThread("REMOVE_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
                 Exchange ex = getNewExchange();
@@ -106,49 +83,14 @@ public class MVCCConcurrentTest extends MVCCTestBase {
                     }
                 }
             }
-        }, "REMOVE_THREAD");
+        });
 
-        startAndJoinAll(readThread, writeThread, removeThread);
+        startAndJoinAssertSuccess(5000, readThread, writeThread, removeThread);
     }
 
     //
     // Test helpers
     //
-
-    private static interface ThrowingRunnable {
-        public void run() throws Exception;
-    }
-
-    private Thread createThread(final ThrowingRunnable runnable, final String name) {
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    runnable.run();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }, name);
-        t.setUncaughtExceptionHandler(uncaughtExceptionHandler);
-        return t;
-    }
-
-    private void startAndJoinAll(Thread... threads) {
-        for (Thread t : threads) {
-            t.start();
-        }
-        for (Thread t : threads) {
-            for (;;) {
-                try {
-                    t.join();
-                    break;
-                } catch (InterruptedException e) {
-                    System.err.println("Interrupted but continuing thread: " + t.getName());
-                }
-            }
-        }
-    }
 
     private Exchange getNewExchange() throws PersistitException {
         return _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);

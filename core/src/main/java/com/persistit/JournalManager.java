@@ -27,6 +27,7 @@
 package com.persistit;
 
 import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_A;
 import static com.persistit.util.SequencerConstants.RECOVERY_PRUNING_B;
 import static com.persistit.util.ThreadSequencer.sequence;
 
@@ -678,15 +679,30 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         final ByteBuffer bb = buffer.getByteBuffer();
 
         final Volume volume = buffer.getVolume();
-        PageNode pn = null;
+        PageNode pnLookup = null;
         synchronized (this) {
             final Integer volumeHandle = _volumeToHandleMap.get(volume);
             if (volumeHandle != null) {
-                pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
+                pnLookup = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
             }
         }
 
-        if (pn == null) {
+        if (pnLookup == null) {
+            return false;
+        }
+
+        PageNode pn = new PageNode(pnLookup.getVolumeHandle(), pnLookup.getPageAddress(),
+                                   pnLookup.getJournalAddress(), pnLookup.getTimestamp());
+        sequence(PAGE_MAP_READ_INVALIDATE_A);
+
+        /*
+         * If the page is still valid, use the values saved in pn so we don't
+         * lose them mid-processing. We can use it because it was in the map
+         * when we first looked and that means it is is still in the journal.
+         * The journal won't go away because of the claim on buffer preventing
+         * new checkpoints and that keeps the copier from deleting it.
+         */
+        if (pnLookup.isInvalid()) {
             return false;
         }
 
