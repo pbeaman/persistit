@@ -1375,8 +1375,7 @@ public class Exchange {
             // This method may delay significantly for I/O and must
             // be called when there are no other claimed resources.
             //
-            newLongRecordPointer = getLongRecordHelper().storeLongRecord(value, timestamp(),
-                    _transaction.isActive());
+            newLongRecordPointer = getLongRecordHelper().storeLongRecord(value, _transaction.isActive());
         }
 
         if (!_ignoreTransactions && ((options & StoreOptions.DONT_JOURNAL) == 0)) {
@@ -1541,7 +1540,7 @@ public class Exchange {
 
                             if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
                                 newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(_spareValue,
-                                        timestamp(), _transaction.isActive());
+                                        _transaction.isActive());
                             }
                         }
                     }
@@ -3959,11 +3958,11 @@ public class Exchange {
             _ignoreMVCCFetch = savedIgnore;
         }
     }
-    
+
     /**
      * Intended to be a test method. Fetches the current _key and determines if
-     * stored value is a long MVV. No other state, including the fetched
-     * value, can be gotten from this method.
+     * stored value is a long MVV. No other state, including the fetched value,
+     * can be gotten from this method.
      * 
      * @return <code>true</code> if the value is a long MVV
      * @throws PersistitException

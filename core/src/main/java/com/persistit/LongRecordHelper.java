@@ -140,19 +140,33 @@ class LongRecordHelper {
 
     /**
      * Create a new LONG_RECORD chain and stores the supplied byte array in the
-     * pages of this chain.
+     * pages of this chain. The chain is written in right-to-left order so that
+     * any page having a right pointer points to a valid successor.
+     * 
+     * Each page is written with its own timestamp (necessary to satisfy write
+     * order invariant). Therefore a checkpoint could occur during the middle,
+     * after some pages have been assigned a timestamp and before others. This
+     * means that a crash recovery could recover the tail of a chain, but not
+     * its head. This does not cause corruption, but does cause permanent loss
+     * of the pages that were recovered at the right end but never linked to a
+     * data page. Current remedy: save/reload data. Such dangling chains can be
+     * detected by IntegrityCheck and a future remedy would be for
+     * IntegrityCheck to move them back to the garbage chain.
+     * 
+     * If this method is called in the context of a transaction, it writes each
+     * page immediately to the journal. This allows recovery to rebuild the long
+     * record for a recovered transaction that committed after the keystone
+     * checkpoint.
      * 
      * @param value
      *            The value. Must be in "long record mode"
-     * 
-     * @param from
-     *            Offset to first byte of the long record.
-     * 
-     * @return Page address of the beginning of the chain
+     * @param inTxn
+     *            indicates whether this operation is within the context of a
+     *            transaction.
      * 
      * @throws PersistitException
      */
-    long storeLongRecord(final Value value, final long timestamp, final boolean inTxn) throws PersistitException {
+    long storeLongRecord(final Value value, final boolean inTxn) throws PersistitException {
         value.changeLongRecordMode(true);
 
         // Calculate how many LONG_RECORD pages we will need.
@@ -178,6 +192,7 @@ class LongRecordHelper {
             for (;;) {
                 while (offset >= LONGREC_PREFIX_SIZE) {
                     buffer = _volume.getStructure().allocPage();
+                    final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                     buffer.writePageOnCheckpoint(timestamp);
                     buffer.init(PAGE_TYPE_LONG_RECORD);
 
