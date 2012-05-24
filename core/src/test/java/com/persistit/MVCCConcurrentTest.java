@@ -27,7 +27,7 @@
 package com.persistit;
 
 import static com.persistit.unit.ConcurrentUtil.createThread;
-import static com.persistit.unit.ConcurrentUtil.startAndJoinAllAssertSuccess;
+import static com.persistit.unit.ConcurrentUtil.startAndJoinAssertSuccess;
 import static com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
 import static org.junit.Assert.assertEquals;
 
@@ -85,7 +85,7 @@ public class MVCCConcurrentTest extends MVCCTestBase {
             }
         });
 
-        startAndJoinAllAssertSuccess(readThread, writeThread, removeThread);
+        startAndJoinAssertSuccess(5000, readThread, writeThread, removeThread);
     }
 
     //
