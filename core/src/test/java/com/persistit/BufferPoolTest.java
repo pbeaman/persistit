@@ -163,6 +163,7 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
         Buffer buffer = pool.getBufferCopy(0);
+        buffer.claim(true);
         long currentTimestamp = 4 * m;
         long checkpointTimestamp = 2 * m;
         for (long timestamp = m; timestamp < m * 20; timestamp += m) {

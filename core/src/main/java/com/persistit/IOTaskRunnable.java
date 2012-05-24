@@ -158,7 +158,7 @@ abstract class IOTaskRunnable implements Runnable {
                     break;
                 }
 
-                while (true) {
+                while (!shouldStop()) {
                     long pollInterval = pollInterval();
                     if (_notified && pollInterval >= 0) {
                         break;
