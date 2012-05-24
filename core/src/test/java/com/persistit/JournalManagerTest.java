@@ -28,11 +28,14 @@ package com.persistit;
 
 import static com.persistit.unit.ConcurrentUtil.createThread;
 import static com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
-import static com.persistit.unit.ConcurrentUtil.startAndJoinAllAssertSuccess;
+import static com.persistit.unit.ConcurrentUtil.startAndJoinAssertSuccess;
+import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_B;
+import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_C;
 import static com.persistit.util.ThreadSequencer.addSchedules;
 import static com.persistit.util.ThreadSequencer.disableSequencer;
 import static com.persistit.util.ThreadSequencer.enableSequencer;
 import static com.persistit.util.ThreadSequencer.PAGE_MAP_READ_INVALIDATE_SCHEDULE;
+import static com.persistit.util.ThreadSequencer.sequence;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -512,11 +515,16 @@ public class JournalManagerTest extends PersistitUnitTestCase {
 
     @Test
     public void concurrentReadAndInvalidationOfPageNodes() throws Exception {
-        _persistit.getJournalManager().setCopierInterval(50000);
-
         final int COUNT = 5000;
         final String TREE_NAME = "JournalManagerTest1";
-
+        /*
+         * Test sequence points in the JOURNAL_COPIER path, don't
+         * want to hit unintentionally hit them.
+         */
+        _persistit.getJournalManager().setCopierInterval(50000);
+        /*
+         * Insert enough to dirty a few pages
+         */
         Transaction txn = _persistit.getTransaction();
         txn.begin();
         Exchange ex = _persistit.getExchange(_volumeName, TREE_NAME, true);
@@ -527,7 +535,10 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
         txn.commit();
         txn.end();
-
+        /*
+         * Thread will read over everything that is inserted, hopefully going
+         * to the journal for each required page.
+         */
         Thread thread1 = createThread("READ_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws PersistitException {
@@ -543,27 +554,35 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 txn.commit();
             }
         });
-
+        /*
+         * Thread will copy pages out of the journal and into the volume, hopefully
+         * invalidating pageMap entries during the cleanupForCopy.
+         */
         Thread thread2 = createThread("COPY_BACK_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
+                sequence(PAGE_MAP_READ_INVALIDATE_B);
                 _persistit.getJournalManager().copyBack();
+                sequence(PAGE_MAP_READ_INVALIDATE_C);
             }
         });
-
-        Volume v = _persistit.getVolume(_volumeName);
-        BufferPool bp = _persistit.getBufferPool(v.getPageSize());
-
-        bp.flush(_persistit.getCurrentTimestamp());
+        /*
+         * Make sure all pages are in journal
+         */
         _persistit.checkpoint();
         _persistit.flush();
+        /*
+         * Invalidate so next read must go from disk and check if in journal
+         */
+        Volume v = _persistit.getVolume(_volumeName);
+        BufferPool bp = _persistit.getBufferPool(v.getPageSize());
         bp.invalidate(v);
-
+        /*
+         * Enable sequencing and run threads
+         */
         enableSequencer(true);
         addSchedules(PAGE_MAP_READ_INVALIDATE_SCHEDULE);
-
-        startAndJoinAllAssertSuccess(thread1, thread2);
-
+        startAndJoinAssertSuccess(5000, thread1, thread2);
         disableSequencer();
     }
 
