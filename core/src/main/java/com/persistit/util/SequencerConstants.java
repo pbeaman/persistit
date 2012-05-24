@@ -95,4 +95,12 @@ public interface SequencerConstants {
             array(PAGE_MAP_READ_INVALIDATE_A, PAGE_MAP_READ_INVALIDATE_B), array(PAGE_MAP_READ_INVALIDATE_B),
             array(PAGE_MAP_READ_INVALIDATE_A, PAGE_MAP_READ_INVALIDATE_C), array(PAGE_MAP_READ_INVALIDATE_A, PAGE_MAP_READ_INVALIDATE_C)
     };
+    
+    /*
+     * Used in testing sequence of timestamp allocation and page deallocation in Bug1003478Test
+     * 
+     */
+    int LONG_RECORD_ALLOCATE_A = allocate("LONG_RECORD_ALLOCATE_A");
+    int LONG_RECORD_ALLOCATE_B = allocate("LONG_RECORD_ALLOCATE_B");
+    int[][] LONG_RECORD_ALLOCATE_SCHEDULED = new int[][]{array(LONG_RECORD_ALLOCATE_B), array(LONG_RECORD_ALLOCATE_A, LONG_RECORD_ALLOCATE_B)};
 }

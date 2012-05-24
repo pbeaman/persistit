@@ -33,6 +33,8 @@ import static com.persistit.Buffer.LONGREC_SIZE;
 import static com.persistit.Buffer.LONGREC_TYPE;
 import static com.persistit.Buffer.MAX_LONG_RECORD_CHAIN;
 import static com.persistit.Buffer.PAGE_TYPE_LONG_RECORD;
+import static com.persistit.util.SequencerConstants.LONG_RECORD_ALLOCATE_A;
+import static com.persistit.util.ThreadSequencer.sequence;
 
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
@@ -43,23 +45,23 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 class LongRecordHelper {
-    
+
     final Persistit _persistit;
     final Volume _volume;
     final Exchange _exchange;
-    
+
     LongRecordHelper(final Persistit persistit, final Volume volume) {
         _persistit = persistit;
         _volume = volume;
         _exchange = null;
     }
-    
+
     LongRecordHelper(final Persistit persistit, final Exchange exchange) {
         _persistit = persistit;
         _volume = exchange.getVolume();
         _exchange = exchange;
     }
-    
+
     /**
      * Decode the LONG_RECORD pointer that has previously been fetched into the
      * Value. This will replace the byte array in that value with the actual
@@ -138,19 +140,33 @@ class LongRecordHelper {
 
     /**
      * Create a new LONG_RECORD chain and stores the supplied byte array in the
-     * pages of this chain.
+     * pages of this chain. The chain is written in right-to-left order so that
+     * any page having a right pointer points to a valid successor.
+     * 
+     * Each page is written with its own timestamp (necessary to satisfy write
+     * order invariant). Therefore a checkpoint could occur during the middle,
+     * after some pages have been assigned a timestamp and before others. This
+     * means that a crash recovery could recover the tail of a chain, but not
+     * its head. This does not cause corruption, but does cause permanent loss
+     * of the pages that were recovered at the right end but never linked to a
+     * data page. Current remedy: save/reload data. Such dangling chains can be
+     * detected by IntegrityCheck and a future remedy would be for
+     * IntegrityCheck to move them back to the garbage chain.
+     * 
+     * If this method is called in the context of a transaction, it writes each
+     * page immediately to the journal. This allows recovery to rebuild the long
+     * record for a recovered transaction that committed after the keystone
+     * checkpoint.
      * 
      * @param value
      *            The value. Must be in "long record mode"
-     * 
-     * @param from
-     *            Offset to first byte of the long record.
-     * 
-     * @return Page address of the beginning of the chain
+     * @param inTxn
+     *            indicates whether this operation is within the context of a
+     *            transaction.
      * 
      * @throws PersistitException
      */
-    long storeLongRecord(final Value value, final long timestamp, final boolean inTxn) throws PersistitException {
+    long storeLongRecord(final Value value, final boolean inTxn) throws PersistitException {
         value.changeLongRecordMode(true);
 
         // Calculate how many LONG_RECORD pages we will need.
@@ -167,7 +183,8 @@ class LongRecordHelper {
         System.arraycopy(longBytes, 0, rawBytes, LONGREC_PREFIX_OFFSET, LONGREC_PREFIX_SIZE);
 
         long looseChain = 0;
-        
+
+        sequence(LONG_RECORD_ALLOCATE_A);
 
         Buffer buffer = null;
         int offset = LONGREC_PREFIX_SIZE + (((longSize - LONGREC_PREFIX_SIZE - 1) / maxSegmentSize) * maxSegmentSize);
@@ -175,6 +192,7 @@ class LongRecordHelper {
             for (;;) {
                 while (offset >= LONGREC_PREFIX_SIZE) {
                     buffer = _volume.getStructure().allocPage();
+                    final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                     buffer.writePageOnCheckpoint(timestamp);
                     buffer.init(PAGE_TYPE_LONG_RECORD);
 
@@ -206,7 +224,7 @@ class LongRecordHelper {
                 looseChain = 0;
                 Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
                 completed = true;
-                
+
                 return page;
             }
         } finally {
@@ -230,7 +248,5 @@ class LongRecordHelper {
         }
         throw new CorruptVolumeException(error);
     }
-
-    
 
 }

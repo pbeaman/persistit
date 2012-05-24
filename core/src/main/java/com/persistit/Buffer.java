@@ -3576,36 +3576,43 @@ public class Buffer extends SharedResource {
     boolean pruneMvvValues(final Tree tree) throws PersistitException {
 
         boolean changed = false;
-        boolean bumped = false;
+        try {
+            boolean bumped = false;
+            boolean hasLongMvvRecords = false;
 
-        PersistitException pe = null;
-        if (!isMine()) {
-            throw new IllegalStateException("Exclusive claim required " + this);
-        }
-        if (isDataPage() && _mvvCount != 0) {
-            final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-            _mvvCount = 0;
-            writePageOnCheckpoint(timestamp);
-            List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
-            for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
-                final int kbData = getInt(p);
-                final int tail = decodeKeyBlockTail(kbData);
-                final int tbData = getInt(tail);
-                final int klength = decodeTailBlockKLength(tbData);
-                final int oldTailSize = decodeTailBlockSize(tbData);
-                final int offset = tail + _tailHeaderSize + klength;
-                final int oldSize = oldTailSize - klength - _tailHeaderSize;
+            if (!isMine()) {
+                throw new IllegalStateException("Exclusive claim required " + this);
+            }
+            if (isDataPage() && _mvvCount != 0) {
+                final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                _mvvCount = 0;
+                writePageOnCheckpoint(timestamp);
+                List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
+                for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
+                    final int kbData = getInt(p);
+                    final int tail = decodeKeyBlockTail(kbData);
+                    final int tbData = getInt(tail);
+                    final int klength = decodeTailBlockKLength(tbData);
+                    final int oldTailSize = decodeTailBlockSize(tbData);
+                    final int offset = tail + _tailHeaderSize + klength;
+                    final int oldSize = oldTailSize - klength - _tailHeaderSize;
 
-                if (oldSize > 0) {
-                    int valueByte = _bytes[offset] & 0xFF;
-                    if (isLongMVV(_bytes, offset, oldSize)) {
-                        try {
-                            final Value value = _persistit.getThreadLocalValue();
-                            if (pruneLongMvv(_bytes, offset, oldSize, value, prunedVersions, timestamp)) {
+                    if (oldSize > 0) {
+                        int valueByte = _bytes[offset] & 0xFF;
+                        if (isLongMVV(_bytes, offset, oldSize)) {
+                            /*
+                             * Can't prune in this pass because of long record
+                             * timestamp management. Simply remember that there
+                             * are long records to prune, then prune them in a
+                             * copy of the buffer.
+                             */
+                            hasLongMvvRecords = true;
+                        }
+                        if (valueByte == MVV.TYPE_MVV) {
+                            final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(),
+                                    true, prunedVersions);
+                            if (newSize != oldSize) {
                                 changed = true;
-                                int newSize = value.getEncodedSize();
-                                assert newSize <= oldSize : "Pruned long value overflow";
-                                System.arraycopy(value.getEncodedBytes(), 0, _bytes, offset, newSize);
                                 int newTailSize = klength + newSize + _tailHeaderSize;
                                 int oldNext = (tail + oldTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
                                 int newNext = (tail + newTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
@@ -3617,88 +3624,164 @@ public class Buffer extends SharedResource {
                                 }
                                 // Rewrite the tail block header
                                 putInt(tail, encodeTailBlock(newTailSize, klength));
-                                valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
-                            }
-
-                        } catch (PersistitException e) {
-                            if (pe == null) {
-                                pe = e;
-                            }
-                        }
-                    }
-                    if (valueByte == MVV.TYPE_MVV) {
-                        final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true,
-                                prunedVersions);
-                        if (newSize != oldSize) {
-                            changed = true;
-                            int newTailSize = klength + newSize + _tailHeaderSize;
-                            int oldNext = (tail + oldTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-                            int newNext = (tail + newTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-                            if (newNext < oldNext) {
-                                // Free the remainder of the old tail block
-                                deallocTail(newNext, oldNext - newNext);
-                            } else {
-                                Debug.$assert0.t(newNext == oldNext);
-                            }
-                            // Rewrite the tail block header
-                            putInt(tail, encodeTailBlock(newTailSize, klength));
-                            if (Debug.ENABLED) {
-                                MVV.verify(_bytes, offset, newSize);
-                            }
-                        }
-                        valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
-                        incCountIfMvv(_bytes, offset, newSize);
-                    }
-
-                    if (valueByte == MVV.TYPE_ANTIVALUE) {
-                        if (p == KEY_BLOCK_START) {
-                            if (tree != null) {
-                                if (!_enqueuedForAntiValuePruning) {
-                                    if (_persistit.getCleanupManager().offer(
-                                            new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
-                                        _enqueuedForAntiValuePruning = true;
-                                    }                                    
+                                if (Debug.ENABLED) {
+                                    MVV.verify(_bytes, offset, newSize);
                                 }
-                            } else {
-                                _mvvCount++;
                             }
-                        } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
-                            Debug.$assert1.t(false);
-                        } else {
-                            final boolean removed = removeKeys(p | EXACT_MASK, p | EXACT_MASK, _persistit
-                                    .getThreadLocalKey());
-                            Debug.$assert0.t(removed);
-                            p -= KEYBLOCK_LENGTH;
+                            valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
+                            incCountIfMvv(_bytes, offset, newSize);
+                        }
+
+                        boolean prunedAntiValue = pruneAntiValue(valueByte, p, tree);
+                        changed |= prunedAntiValue;
+                        if (prunedAntiValue) {
                             changed = true;
+                            p -= KEYBLOCK_LENGTH;
                             if (!bumped) {
                                 bumpGeneration();
                                 bumped = true;
                             }
                         }
                     }
+                }
+                if (changed) {
+                    setDirtyAtTimestamp(timestamp);
+                }
 
+                deallocatePrunedVersions(_persistit, _vol, prunedVersions);
+                prunedVersions.clear();
+
+                if (hasLongMvvRecords) {
+                    List<PersistitException> deferredExceptions = new ArrayList<PersistitException>();
+                    List<Long> oldChainsToDeallocate = new ArrayList<Long>();
+
+                    Buffer copy = new Buffer(this);
+                    boolean copyChanged = copy.pruneLongMvvValues(tree, prunedVersions, deferredExceptions,
+                            oldChainsToDeallocate);
+                    if (copyChanged) {
+                        changed = true;
+                        final long copyTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                        writePageOnCheckpoint(copyTimestamp);
+                        System.arraycopy(copy._bytes, 0, _bytes, 0, _bufferSize);
+                        if (copy.getGeneration() > getGeneration()) {
+                            bumpGeneration();
+                        }
+                        setDirtyAtTimestamp(copyTimestamp);
+                        deallocatePrunedVersions(_persistit, _vol, prunedVersions);
+                        for (final Long oldLongRecordChain : oldChainsToDeallocate) {
+                            _vol.getStructure().deallocateGarbageChain(oldLongRecordChain, 0);
+                        }
+                    }
+                    if (!deferredExceptions.isEmpty()) {
+                        _mvvCount++;
+                        throw deferredExceptions.get(0);
+                    }
                 }
             }
-            if (changed) {
-                setDirtyAtTimestamp(timestamp);
-            }
 
-            Buffer.deallocatePrunedVersions(_persistit, _vol, prunedVersions);
-            if (pe != null) {
-                _mvvCount++;
-                throw pe;
+        } finally {
+            if (Debug.ENABLED && changed) {
+                assertVerify();
+            }
+        }
+
+        return changed;
+    }
+
+    /**
+     * This method attempts to prune each LongRecord MVVs found in the page.
+     * This method is performed on a _copy_ of the original Buffer being pruned;
+     * the bytes of the copy are then copied back to the original buffer upon
+     * successful completion of this process.
+     */
+    private boolean pruneLongMvvValues(final Tree tree, final List<PrunedVersion> prunedVersions,
+            final List<PersistitException> deferredExceptions, final List<Long> toDeallocate) {
+
+        boolean changed = false;
+        boolean bumped = false;
+        for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
+            final int kbData = getInt(p);
+            final int tail = decodeKeyBlockTail(kbData);
+            final int tbData = getInt(tail);
+            final int klength = decodeTailBlockKLength(tbData);
+            final int oldTailSize = decodeTailBlockSize(tbData);
+            final int offset = tail + _tailHeaderSize + klength;
+            final int oldSize = oldTailSize - klength - _tailHeaderSize;
+
+            if (oldSize > 0) {
+                int valueByte = _bytes[offset] & 0xFF;
+                if (isLongMVV(_bytes, offset, oldSize)) {
+                    final Value value = _persistit.getThreadLocalValue();
+                    boolean pruned = false;
+                    try {
+                        pruned = pruneLongMvv(_bytes, offset, oldSize, value, prunedVersions, toDeallocate);
+                    } catch (PersistitException pe) {
+                        deferredExceptions.add(pe);
+                    }
+                    if (pruned) {
+                        changed = true;
+                        int newSize = value.getEncodedSize();
+                        assert newSize <= oldSize : "Pruned long value overflow";
+                        System.arraycopy(value.getEncodedBytes(), 0, _bytes, offset, newSize);
+                        int newTailSize = klength + newSize + _tailHeaderSize;
+                        int oldNext = (tail + oldTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+                        int newNext = (tail + newTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+                        if (newNext < oldNext) {
+                            // Free the remainder of the old tail block
+                            deallocTail(newNext, oldNext - newNext);
+                        } else {
+                            Debug.$assert0.t(newNext == oldNext);
+                        }
+                        // Rewrite the tail block header
+                        putInt(tail, encodeTailBlock(newTailSize, klength));
+                        valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
+                    }
+                }
+                boolean prunedAntiValue = pruneAntiValue(valueByte, p, tree);
+                changed |= prunedAntiValue;
+                if (prunedAntiValue) {
+                    changed = true;
+                    p -= KEYBLOCK_LENGTH;
+                    if (!bumped) {
+                        bumpGeneration();
+                        bumped = true;
+                    }
+                }
             }
         }
 
         if (Debug.ENABLED && changed) {
             assertVerify();
         }
-
         return changed;
     }
 
-    boolean pruneLongMvv(final byte[] bytes, final int offset, final int oldSize, final Value value,
-            final List<PrunedVersion> prunedVersions, final long timestamp) throws PersistitException {
+    private boolean pruneAntiValue(final int valueByte, final int p, final Tree tree) {
+        if (valueByte == MVV.TYPE_ANTIVALUE) {
+            if (p == KEY_BLOCK_START) {
+                if (tree != null) {
+                    if (!_enqueuedForAntiValuePruning) {
+                        if (_persistit.getCleanupManager().offer(
+                                new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
+                            _enqueuedForAntiValuePruning = true;
+                        }
+                    }
+                } else {
+                    _mvvCount++;
+                }
+            } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
+                Debug.$assert1.t(false);
+            } else {
+                final boolean removed = removeKeys(p | EXACT_MASK, p | EXACT_MASK, _persistit.getThreadLocalKey());
+                Debug.$assert0.t(removed);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean pruneLongMvv(final byte[] bytes, final int offset, final int oldSize, final Value value,
+            final List<PrunedVersion> prunedVersions, final List<Long> toDeallocate) throws PersistitException {
         assert isLongMVV(bytes, offset, oldSize) : "Not a long MVV";
         long oldLongRecordChain = decodeLongRecordDescriptorPointer(bytes, offset);
         value.changeLongRecordMode(false);
@@ -3720,12 +3803,12 @@ public class Buffer extends SharedResource {
         }
         value.setEncodedSize(newLongSize);
         if (newLongSize > oldSize) {
-            helper.storeLongRecord(value, timestamp, false);
+            helper.storeLongRecord(value, false);
+        }
+        if (oldLongRecordChain != 0) {
+            toDeallocate.add(oldLongRecordChain);
         }
         prunedVersions.addAll(provisionalPrunedVersions);
-        if (oldLongRecordChain != 0) {
-            _vol.getStructure().deallocateGarbageChain(oldLongRecordChain, 0);
-        }
         return true;
     }
 

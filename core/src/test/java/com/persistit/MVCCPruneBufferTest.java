@@ -188,7 +188,6 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         _persistit.getTransactionIndex().cleanup();
         ex1.prune();
         assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
-
     }
 
     @Test
