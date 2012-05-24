@@ -35,7 +35,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.util.Util;
 
 public class MVCCPruneBufferTest extends MVCCTestBase {
-
+    
     @Test
     public void testPrunePrimordialAntiValues() throws PersistitException {
         trx1.begin();
@@ -67,12 +67,14 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         buffer1.pruneMvvValues(null);
         assertEquals(0, _persistit.getCleanupManager().getAcceptedCount());
         assertTrue("Pruning should have removed primordial Anti-values", keys > buffer1.getKeyCount());
-        assertEquals("Pruning should leave mvvCount==0", 0, buffer1.getMvvCount());
+        // mvvCount is 1 because there is still a leading primordial AntiValue
+        assertEquals("Pruning should leave mvvCount==1", 1, buffer1.getMvvCount());
         assertTrue("Pruning should liberate space", buffer1.getAvailableSize() > available);
     }
 
     @Test
     public void testPruneCleanup() throws Exception {
+        final CleanupManager cm = _persistit.getCleanupManager();
         trx1.begin();
 
         ex1.getValue().put(RED_FOX);
@@ -125,7 +127,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         assertTrue(antiValueCount2 > 0);
         assertTrue(antiValueCount2 < antiValueCount1);
 
-        _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
+        cm.setPollInterval(-1);
         /*
          * Prune with enqueuing edge key AntiValues
          */
@@ -137,16 +139,10 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
                 buffer.release();
             }
         }
-
-        assertTrue(_persistit.getCleanupManager().getAcceptedCount() > 0);
-        int cycles = 0;
-        while (cycles++ < 5
-                && _persistit.getCleanupManager().getAcceptedCount() > _persistit.getCleanupManager()
-                        .getPerformedCount()) {
-            _persistit.getCleanupManager().poll();
-        }
-
-        assertTrue(cycles < 5);
+        
+        assertTrue(cm.getAcceptedCount() > 0);
+        cm.poll();
+        assertEquals("Should have performed all actions", cm.getAcceptedCount(), cm.getPerformedCount());
 
         int antiValueCount3 = 0;
         ex1.to(Key.BEFORE);
@@ -160,7 +156,6 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     @Test
     public void testPruneLongRecordsSimple() throws Exception {
         _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
-        JournalManager jman = _persistit.getJournalManager();
         trx1.begin();
         storeLongMVV(ex1, "x");
         trx1.commit();
@@ -241,7 +236,6 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
     @Test
     public void testDeadlock() throws Exception {
-        final JournalManager jman = _persistit.getJournalManager();
         final Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -297,5 +291,19 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
             count++;
         }
         return count;
+    }
+    
+    public static void main(final String[] args) throws Exception {
+        int repeat = 100;
+        if (args.length > 0) {
+            repeat = Integer.parseInt(args[0]);
+        }
+        for (int i = 1; i <=repeat; i++) {
+            MVCCPruneBufferTest test = new MVCCPruneBufferTest();
+            System.out.println("Cycle " + i);
+            test.setUp();
+            test.testPruneCleanup();
+            test.tearDown();
+        }
     }
 }
