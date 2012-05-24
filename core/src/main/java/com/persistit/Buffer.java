@@ -3757,7 +3757,7 @@ public class Buffer extends SharedResource {
     }
 
     private boolean pruneAntiValue(final int valueByte, final int p, final Tree tree) {
-        if (valueByte == MVV.TYPE_MVV) {
+        if (valueByte == MVV.TYPE_ANTIVALUE) {
             if (p == KEY_BLOCK_START) {
                 if (tree != null) {
                     if (!_enqueuedForAntiValuePruning) {
