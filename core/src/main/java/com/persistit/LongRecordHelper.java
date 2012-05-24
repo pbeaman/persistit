@@ -33,6 +33,8 @@ import static com.persistit.Buffer.LONGREC_SIZE;
 import static com.persistit.Buffer.LONGREC_TYPE;
 import static com.persistit.Buffer.MAX_LONG_RECORD_CHAIN;
 import static com.persistit.Buffer.PAGE_TYPE_LONG_RECORD;
+import static com.persistit.util.SequencerConstants.LONG_RECORD_ALLOCATE_A;
+import static com.persistit.util.ThreadSequencer.sequence;
 
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
@@ -43,23 +45,23 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 class LongRecordHelper {
-    
+
     final Persistit _persistit;
     final Volume _volume;
     final Exchange _exchange;
-    
+
     LongRecordHelper(final Persistit persistit, final Volume volume) {
         _persistit = persistit;
         _volume = volume;
         _exchange = null;
     }
-    
+
     LongRecordHelper(final Persistit persistit, final Exchange exchange) {
         _persistit = persistit;
         _volume = exchange.getVolume();
         _exchange = exchange;
     }
-    
+
     /**
      * Decode the LONG_RECORD pointer that has previously been fetched into the
      * Value. This will replace the byte array in that value with the actual
@@ -167,7 +169,8 @@ class LongRecordHelper {
         System.arraycopy(longBytes, 0, rawBytes, LONGREC_PREFIX_OFFSET, LONGREC_PREFIX_SIZE);
 
         long looseChain = 0;
-        
+
+        sequence(LONG_RECORD_ALLOCATE_A);
 
         Buffer buffer = null;
         int offset = LONGREC_PREFIX_SIZE + (((longSize - LONGREC_PREFIX_SIZE - 1) / maxSegmentSize) * maxSegmentSize);
@@ -206,7 +209,7 @@ class LongRecordHelper {
                 looseChain = 0;
                 Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
                 completed = true;
-                
+
                 return page;
             }
         } finally {
@@ -230,7 +233,5 @@ class LongRecordHelper {
         }
         throw new CorruptVolumeException(error);
     }
-
-    
 
 }

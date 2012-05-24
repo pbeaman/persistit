@@ -26,15 +26,23 @@
 
 package com.persistit;
 
-import static org.junit.Assert.assertTrue;
+import static com.persistit.util.SequencerConstants.LONG_RECORD_ALLOCATE_B;
+import static com.persistit.util.SequencerConstants.LONG_RECORD_ALLOCATE_SCHEDULED;
+import static com.persistit.util.ThreadSequencer.addSchedules;
+import static com.persistit.util.ThreadSequencer.disableSequencer;
+import static com.persistit.util.ThreadSequencer.enableSequencer;
+import static com.persistit.util.ThreadSequencer.sequence;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
-import com.persistit.unit.UnitTestProperties;
 
 /**
+ * https://bugs.launchpad.net/akiban-persistit/+bug/1003578
+ * 
  * In a recent branch, lp:~pbeaman/akiban-persistit/fix_959456, a new assert was
  * added in JournalManager#writePageToJournal checking an invariant that was
  * suppose to be in place for quite some time. The assert checks that a new
@@ -80,14 +88,82 @@ import com.persistit.unit.UnitTestProperties;
  * 
  * - CLEANUP_MANAGER processes a CleanupAntiValue and adds a page to the garbage
  * chain with timestamp T2 > T1.
+ * 
+ * - PAGE_WRITER writes that dirty page with timestamp T2.
+ * 
+ * - Test thread allocates a new page from the garbage chain, a page that is
+ * already dirty and in the PagePap with timestamp T2, but storeOverlengthRecord
+ * marks it dirty with timestamp T1.
+ * 
+ * This analysis works both before and after branch
+ * lp:~pbeaman/akiban-persistit/fix_959456. Prior to that branch the guilty
+ * method is Exchange#storeOverlengthRecord as shown in the stack trace above.
  */
 
-public class Bug1002895Test extends PersistitUnitTestCase {
+public class Bug1003578Test extends PersistitUnitTestCase {
 
     @Test
     public void storeLongRecordFromDeallocatedPages() throws Exception {
         /*
-         * Create 
+         * Create a tree with a few data pages
          */
+        final Exchange ex = _persistit.getExchange("persistit", "Bug1003578Test", true);
+        final Transaction txn = ex.getTransaction();
+        ex.getValue().put(RED_FOX);
+        for (int i = 0; i < 10000; i++) {
+            ex.to(i).store();
+        }
+        /*
+         * Temporarily suspect the cleanup manager
+         */
+        _persistit.getCleanupManager().setPollInterval(-1);
+        enableSequencer(true);
+        addSchedules(LONG_RECORD_ALLOCATE_SCHEDULED);
+        /*
+         * Now transactionally delete the pages; this will create AntiValues
+         */
+        txn.begin();
+        ex.clear().removeAll();
+        txn.commit();
+        txn.end();
+        
+        /*
+         * Traverse the AntiValues. This will enqueue the pages for pruning.
+         */
+        assertFalse("Should have no visible keys", ex.to(Key.BEFORE).next());
+
+        /*
+         * Reenable the CleanupManager
+         */
+        final String longString = createString(1000000);
+        Thread t = new Thread(new Runnable() {
+            public void run() {
+                try {
+                    /*
+                     * Now create long records
+                     */
+                    ex.getValue().put(longString);
+                    ex.to("longrec").store();
+                } catch (PersistitException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        t.start();
+        /*
+         * Clean up the non-edge AntiValues 
+         */
+        _persistit.getCleanupManager().poll();
+        /*
+         * Clean up the left-edge AntiValues
+         */
+        _persistit.getCleanupManager().poll();
+
+        
+        sequence(LONG_RECORD_ALLOCATE_B);
+        disableSequencer();
+        t.join();
+        ex.to("longrec").fetch();
+        assertEquals("Should have stored the long record string", longString, ex.getValue().getString());
     }
 }
