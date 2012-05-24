@@ -26,6 +26,7 @@
 
 package com.persistit.unit;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -50,15 +51,25 @@ public class ConcurrentUtil {
         return t;
     }
 
-    public static Map<Thread,Throwable> startAndJoinAll(Thread... threads) {
-        final Map<Thread,Throwable> throwableMap = new TreeMap<Thread,Throwable>();
+    /**
+     * Start and join on all given threads. Wait on each thread, individually,
+     * for <code>timeout</code> milliseconds. The {@link Thread#join(long)}
+     * method is used for this (<code>0</code> means indefinite).
+     *
+     * @param timeout How long to join on each thread for.
+     * @param threads Threads to start and join.
+     *
+     * @return A map with an entry for each thread that had an unhandled
+     * exception or did not complete in the allotted time. This map will be
+     * empty if all threads completed successfully.
+     */
+    public static Map<Thread,Throwable> startAndJoin(long timeout, Thread... threads) {
+        final Map<Thread,Throwable> throwableMap = Collections.synchronizedMap(new TreeMap<Thread,Throwable>());
 
         Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
-                synchronized (throwableMap) {
-                    throwableMap.put(t, e);
-                }
+                throwableMap.put(t, e);
             }
         };
 
@@ -68,21 +79,34 @@ public class ConcurrentUtil {
         }
 
         for (Thread t : threads) {
-            for (;;) {
-                try {
-                    t.join();
-                    break;
-                } catch (InterruptedException e) {
-                    System.err.println("Interrupted but continuing: " + t.getName());
+            Throwable error = null;
+            try {
+                t.join(timeout);
+                if (t.isAlive()) {
+                    error = new AssertionError("Thread did not complete in timeout: " + timeout);
                 }
+            } catch (InterruptedException e) {
+                error = e;
+            }
+
+            if (error != null) {
+                throwableMap.put(t, error);
             }
         }
 
         return throwableMap;
     }
 
-    public static void startAndJoinAllAssertSuccess(Thread... threads) {
-        Map<Thread,Throwable> errors = startAndJoinAll(threads);
+    /**
+     * Call {@link #startAndJoin(long, Thread...)} with the given parameters.
+     * Additionally, assert that no thread had any unhandled exceptions or
+     * timeouts.
+     *
+     * @param timeout How long to join on each thread for.
+     * @param threads Threads to start and join.
+     */
+    public static void startAndJoinAssertSuccess(long timeout, Thread... threads) {
+        Map<Thread,Throwable> errors = startAndJoin(timeout, threads);
         assertEquals("All threads completed successfully", "{}", errors.toString());
     }
 }

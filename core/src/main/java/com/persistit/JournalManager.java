@@ -28,8 +28,6 @@ package com.persistit;
 
 import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_A;
-import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_B;
-import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_C;
 import static com.persistit.util.SequencerConstants.RECOVERY_PRUNING_B;
 import static com.persistit.util.ThreadSequencer.sequence;
 
@@ -693,15 +691,16 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             return false;
         }
 
-        PageNode pn = new PageNode(pnLookup);
+        PageNode pn = new PageNode(pnLookup.getVolumeHandle(), pnLookup.getPageAddress(),
+                                   pnLookup.getJournalAddress(), pnLookup.getTimestamp());
         sequence(PAGE_MAP_READ_INVALIDATE_A);
 
         /*
          * If the page is still valid, use the values saved in pn so we don't
          * lose them mid-processing. We can use it because it was in the map
          * when we first looked and that means it is is still in the journal.
-         * This is because we have a claim on buffer preventing new checkpoints
-         * and keeps the copier from getting rid of the file.
+         * The journal won't go away because of the claim on buffer preventing
+         * new checkpoints and that keeps the copier from deleting it.
          */
         if (pnLookup.isInvalid()) {
             return false;
@@ -2483,8 +2482,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         // Address of the first file needed for recovery
         long deleteBoundary = 0;
 
-        // sequence is outside of synchronized block but targeting the pageNode.invalidate() call inside it
-        sequence(PAGE_MAP_READ_INVALIDATE_B);
         synchronized (this) {
             for (final PageNode copiedPageNode : list) {
                 PageNode pageNode = _pageMap.get(copiedPageNode);
@@ -2575,7 +2572,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 rolloverWithNewBaseAndFile();
             }
         }
-        sequence(PAGE_MAP_READ_INVALIDATE_C);
 
         for (final FileChannel channel : obsoleteFileChannels) {
             if (channel != null) {
