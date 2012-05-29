@@ -30,7 +30,7 @@
     	   destdir=".">
            <classpath>
               <fileset dir="../../target">
-                 <include name="akiban-persistit*-with-dependencies-and-tests.jar"/>
+                 <include name="akiban-persistit*.jar"/>
               </fileset>
               <pathelement location="." />
            </classpath>
@@ -41,7 +41,7 @@
     <java  classname="PersistitMapDemo" fork="true" >
            <classpath>
               <fileset dir="../../target">
-                 <include name="akiban-persistit*-with-dependencies-and-tests.jar"/>
+                 <include name="akiban-persistit*.jar"/>
               </fileset>
               <pathelement location="." />
            </classpath>
