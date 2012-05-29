@@ -1323,15 +1323,9 @@ public class Exchange {
      *             uponError
      */
     boolean storeInternal(Key key, Value value, int level, int options) throws PersistitException {
-        if ((options & StoreOptions.FETCH) > 0 && (options & StoreOptions.MVCC) > 0) {
-            throw new IllegalArgumentException("Both fetch and MVCC not supported");
-        }
 
         final boolean doMVCC = (options & StoreOptions.MVCC) > 0;
-        final boolean doAnyFetch = (options & StoreOptions.FETCH) > 0 || doMVCC;
-
-        // spare used for fetch
-        Debug.$assert0.t(!doAnyFetch || value != _spareValue);
+        final boolean doFetch = (options & StoreOptions.FETCH) > 0;
 
         // spares used for new splits/levels
         Debug.$assert0.t(key != _spareKey1);
@@ -1344,6 +1338,8 @@ public class Exchange {
         boolean incrementMVVCount = false;
 
         final int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
+        final Value spareValue = _persistit.getThreadLocalValue();
+        assert !(doMVCC & value == spareValue || doFetch && value == _spareValue): "storeInternal may be use the supplied Value: " + value;
 
         //
         // First insert the record in the data page
@@ -1369,7 +1365,7 @@ public class Exchange {
             // This method may delay significantly for I/O and must
             // be called when there are no other claimed resources.
             //
-            newLongRecordPointer = getLongRecordHelper().storeLongRecord(value, _transaction.isActive());
+            newLongRecordPointer = getLongRecordHelper().storeLongRecord(value,  _transaction.isActive());
         }
 
         if (!_ignoreTransactions && ((options & StoreOptions.DONT_JOURNAL) == 0)) {
@@ -1396,7 +1392,7 @@ public class Exchange {
                 if (!committed && newLongRecordPointerMVV != 0) {
                     _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
                     newLongRecordPointerMVV = 0;
-                    _spareValue.changeLongRecordMode(false);
+                    spareValue.changeLongRecordMode(false);
                 }
 
                 if (treeClaimRequired && !treeClaimAcquired) {
@@ -1462,37 +1458,70 @@ public class Exchange {
                         if (keyExisted) {
                             oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
                         }
-                        if (doAnyFetch) {
+
+                        if (doFetch) {
                             buffer.fetch(foundAt, _spareValue);
-                            /*
-                             * If we aren't in MVCC we have to un-long-ify as
-                             * fetch was requested. Otherwise only do it if it
-                             * is a long MVV so as to not-needlessly create one.
-                             */
-                            if (!doMVCC) {
+                            if (doMVCC) {
+                                _spareValue.copyTo(spareValue);
                                 fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
-                            } else if (oldLongRecordPointer != 0) {
-                                if (isLongMVV(_spareValue)) {
-                                    oldLongRecordPointerMVV = oldLongRecordPointer;
-                                    fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                                if (oldLongRecordPointer != 0) {
+                                    if (isLongMVV(spareValue)) {
+                                        oldLongRecordPointerMVV = oldLongRecordPointer;
+                                        _spareValue.copyTo(spareValue);
+                                    }
+                                    /*
+                                     * If it was a long MVV we saved it into the
+                                     * variable above. Otherwise it is a
+                                     * primordial value that we can't get rid
+                                     * of.
+                                     */
+                                    oldLongRecordPointer = 0;
                                 }
-                                /*
-                                 * If it was a long MVV we saved it into the
-                                 * variable above. Otherwise it is a primordial
-                                 * value that we can't get rid of.
-                                 */
-                                oldLongRecordPointer = 0;
+                            } else {
+                                fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
                             }
+                            /*
+                             * Prepare the value being returned.  This code is paraphrased from
+                             * fetchInternal.  Will change with future refactoring.
+                             */
+                            if (!_ignoreMVCCFetch) {
+                                if (MVV.isArrayMVV(_spareValue.getEncodedBytes(), 0, _spareValue.getEncodedSize())) {
+                                    // TODO: buffer.enqueuePruningAction(_tree.getHandle());
+                                    if (mvccFetch(_spareValue, Integer.MAX_VALUE)) {
+                                        fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                                    }
+                                }
+                                if (_spareValue.isDefined() && _spareValue.isAntiValue()) {
+                                    _spareValue.clear();
+                                }
+                            }
+                            
+                        } else if (doMVCC) {
+                            buffer.fetch(foundAt, spareValue);
+                            if (oldLongRecordPointer != 0) {
+                                if (isLongMVV(spareValue)) {
+                                    oldLongRecordPointerMVV = oldLongRecordPointer;
+                                    fetchFixupForLongRecords(spareValue, Integer.MAX_VALUE);
+                                }
+                            }
+                            /*
+                             * If it was a long MVV we saved it into the
+                             * variable above. Otherwise it is a
+                             * primordial value that we can't get rid
+                             * of.
+                             */
+                            oldLongRecordPointer = 0;
                         }
+
                         if (doMVCC) {
-                            valueToStore = _spareValue;
+                            valueToStore = spareValue;
                             int valueSize = value.getEncodedSize();
                             /*
                              * If key didn't exist the value is truly
                              * non-existent and not just undefined/zero length
                              */
-                            byte[] spareBytes = _spareValue.getEncodedBytes();
-                            int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
+                            byte[] spareBytes = spareValue.getEncodedBytes();
+                            int spareSize = keyExisted ? spareValue.getEncodedSize() : -1;
                             spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false,
                                     prunedVersions);
 
@@ -1521,8 +1550,8 @@ public class Exchange {
                             MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
 
                             int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
-                            _spareValue.ensureFit(mvvSize);
-                            spareBytes = _spareValue.getEncodedBytes();
+                            spareValue.ensureFit(mvvSize);
+                            spareBytes = spareValue.getEncodedBytes();
 
                             long versionHandle = TransactionIndex.tss2vh(_transaction.getStartTimestamp(), tStep);
                             int storedLength = MVV.storeVersion(spareBytes, 0, spareSize, spareBytes.length,
@@ -1530,11 +1559,10 @@ public class Exchange {
 
                             incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
                             storedLength &= MVV.STORE_LENGTH_MASK;
-                            _spareValue.setEncodedSize(storedLength);
+                            spareValue.setEncodedSize(storedLength);
 
-                            if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
-                                newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(_spareValue,
-                                        _transaction.isActive());
+                            if (spareValue.getEncodedSize() > maxSimpleValueSize) {
+                                newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(spareValue, _transaction.isActive());
                             }
                         }
                     }
@@ -1673,7 +1701,7 @@ public class Exchange {
             }
 
             value.changeLongRecordMode(false);
-            _spareValue.changeLongRecordMode(false);
+            spareValue.changeLongRecordMode(false);
             if (!committed) {
                 //
                 // We failed to write the new LONG_RECORD. If there was
@@ -1698,7 +1726,7 @@ public class Exchange {
         }
         _volume.getStatistics().bumpStoreCounter();
         _tree.getStatistics().bumpStoreCounter();
-        if (doAnyFetch) {
+        if (doFetch || doMVCC) {
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
         }
@@ -2569,7 +2597,9 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
         _key.testValidForStoreAndFetch(_volume.getPageSize());
-        storeInternal(_key, _value, 0, StoreOptions.FETCH | StoreOptions.WAIT);
+        int options = StoreOptions.WAIT | StoreOptions.FETCH;
+        options |= (!_ignoreTransactions && _transaction.isActive()) ? StoreOptions.MVCC : 0;
+        storeInternal(_key, _value, 0, options);
         _spareValue.copyTo(_value);
         return this;
     }
@@ -3063,7 +3093,7 @@ public class Exchange {
 
         _value.clear().putAntiValueMVV();
         final int storeOptions = StoreOptions.MVCC | StoreOptions.WAIT | StoreOptions.ONLY_IF_VISIBLE
-                | StoreOptions.DONT_JOURNAL;
+                | StoreOptions.DONT_JOURNAL | (fetchFirst ? StoreOptions.FETCH : 0);
 
         boolean anyRemoved = false;
         boolean keyIsLessThan = true;
