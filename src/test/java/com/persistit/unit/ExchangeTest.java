@@ -21,6 +21,7 @@
 package com.persistit.unit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Random;
@@ -30,6 +31,7 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
+import com.persistit.Transaction;
 import com.persistit.Volume;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.PersistitException;
@@ -279,6 +281,40 @@ public class ExchangeTest extends PersistitUnitTestCase {
         ex.clear().to(1);
         ex.fetch();
         assertEquals(1, ex.getValue().getInt());
+    }
+
+    @Test
+    public void testRemoveAndFetch() throws Exception {
+        testRemoveAndFetch(false);
+        testRemoveAndFetch(true);
+    }
+
+    private void testRemoveAndFetch(boolean inTransaction) throws Exception {
+        Exchange ex = _persistit.getExchange("persistit", "gogo", true);
+        Transaction txn = ex.getTransaction();
+        ex.getValue().put(RED_FOX);
+        for (int i = 1; i < 10000; i++) {
+            if (inTransaction) {
+                txn.begin();
+            }
+            ex.to(i).store();
+            if (inTransaction) {
+                txn.commit();
+                txn.end();
+            }
+        }
+        for (int i = 1; i < 10000; i++) {
+            if (inTransaction) {
+                txn.begin();
+            }
+            ex.getValue().clear();
+            ex.to(i).fetchAndRemove();
+            assertTrue("A value was fetched", ex.getValue().isDefined());
+            if (inTransaction) {
+                txn.commit();
+                txn.end();
+            }
+        }
     }
 
     /*

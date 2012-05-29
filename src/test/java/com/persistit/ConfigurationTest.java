@@ -222,6 +222,14 @@ public class ConfigurationTest extends PersistitUnitTestCase {
         assertTrue("Should contain expected text 'hwdemo'", configuration.getJournalPath().contains("hwdemo"));
     }
 
+    @Test
+    public void canReinitialize() throws Exception {
+        _persistit.close();
+        assertTrue("Should have closed all volumes", _persistit.getVolumes().isEmpty());
+        _persistit.initialize(_persistit.getConfiguration());
+        assertTrue("Should have reopened volumes", !_persistit.getVolumes().isEmpty());
+    }
+
     private Configuration testLoadPropertiesBufferSpecificationsHelper(final Properties properties) throws Exception {
         Configuration configuration = new Configuration();
         configuration.merge(properties);
