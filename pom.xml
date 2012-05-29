@@ -196,7 +196,7 @@
                 <version>1.10.b1</version>
                 <configuration>
                     <!-- Note plugin WARNs header wasn't specified but still works as desired (multi-module bug?) -->
-                    <header>HEADER.txt</header>
+                    <header>src/etc/HEADER.txt</header>
                     <headerSections>
                         <headerSection>
                             <key>__YEAR_SECTION__</key>
