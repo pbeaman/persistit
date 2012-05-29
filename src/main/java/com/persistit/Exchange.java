@@ -1459,44 +1459,7 @@ public class Exchange {
                             oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
                         }
 
-                        if (doFetch) {
-                            buffer.fetch(foundAt, _spareValue);
-                            if (doMVCC) {
-                                _spareValue.copyTo(spareValue);
-                                fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
-                                if (oldLongRecordPointer != 0) {
-                                    if (isLongMVV(spareValue)) {
-                                        oldLongRecordPointerMVV = oldLongRecordPointer;
-                                        _spareValue.copyTo(spareValue);
-                                    }
-                                    /*
-                                     * If it was a long MVV we saved it into the
-                                     * variable above. Otherwise it is a
-                                     * primordial value that we can't get rid
-                                     * of.
-                                     */
-                                    oldLongRecordPointer = 0;
-                                }
-                            } else {
-                                fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
-                            }
-                            /*
-                             * Prepare the value being returned.  This code is paraphrased from
-                             * fetchInternal.  Will change with future refactoring.
-                             */
-                            if (!_ignoreMVCCFetch) {
-                                if (MVV.isArrayMVV(_spareValue.getEncodedBytes(), 0, _spareValue.getEncodedSize())) {
-                                    // TODO: buffer.enqueuePruningAction(_tree.getHandle());
-                                    if (mvccFetch(_spareValue, Integer.MAX_VALUE)) {
-                                        fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
-                                    }
-                                }
-                                if (_spareValue.isDefined() && _spareValue.isAntiValue()) {
-                                    _spareValue.clear();
-                                }
-                            }
-                            
-                        } else if (doMVCC) {
+                        if (doFetch || doMVCC) {
                             buffer.fetch(foundAt, spareValue);
                             if (oldLongRecordPointer != 0) {
                                 if (isLongMVV(spareValue)) {
@@ -1511,6 +1474,21 @@ public class Exchange {
                              * of.
                              */
                             oldLongRecordPointer = 0;
+
+                            if (doFetch) {
+                                spareValue.copyTo(_spareValue);
+                                if (!_ignoreMVCCFetch) {
+                                    if (MVV.isArrayMVV(_spareValue.getEncodedBytes(), 0, _spareValue.getEncodedSize())) {
+                                        buffer.enqueuePruningAction(_tree.getHandle());
+                                        if (mvccFetch(_spareValue, Integer.MAX_VALUE)) {
+                                            fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                                        }
+                                    }
+                                    if (_spareValue.isDefined() && _spareValue.isAntiValue()) {
+                                        _spareValue.clear();
+                                    }
+                                }
+                            }
                         }
 
                         if (doMVCC) {
