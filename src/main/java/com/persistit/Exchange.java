@@ -1031,7 +1031,6 @@ public class Exchange {
      * 
      * @return Encoded key location within the data page. The page itself is
      *         made valid in the level cache.
-     * @throws PMapException
      */
     private int search(Key key, boolean writer) throws PersistitException {
         Buffer buffer = null;
@@ -1099,7 +1098,6 @@ public class Exchange {
      * 
      * @return Encoded key location within the level. The page itself is valid
      *         within the level cache.
-     * @throws PMapException
      */
     private int searchTree(Key key, int toLevel, boolean writer) throws PersistitException {
         Buffer oldBuffer = null;
@@ -1198,7 +1196,6 @@ public class Exchange {
      * @param currentLevel
      *            current level in the tree
      * @return Encoded key location within the page.
-     * @throws PMapException
      */
     private int searchLevel(Key key, boolean edge, long pageAddress, int currentLevel, boolean writer)
             throws PersistitException {
@@ -1757,7 +1754,6 @@ public class Exchange {
      *            The encoded insert location.
      * @return <code>true</code> if it necessary to insert a key into the
      *         ancestor index page.
-     * @throws PMapException
      */
     // TODO - Check insertIndexLevel timestamps
     private boolean putLevel(LevelCache lc, Key key, ValueHelper valueWriter, Buffer buffer, int foundAt,
@@ -3775,8 +3771,7 @@ public class Exchange {
     /**
      * Called by Transaction to set up a context for committing updates.
      * 
-     * @param volume
-     * @param _treeName
+     * @param tree
      */
     void setTree(Tree tree) throws PersistitException {
         _persistit.checkClosed();
