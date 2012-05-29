@@ -1477,17 +1477,7 @@ public class Exchange {
 
                             if (doFetch) {
                                 spareValue.copyTo(_spareValue);
-                                if (!_ignoreMVCCFetch) {
-                                    if (MVV.isArrayMVV(_spareValue.getEncodedBytes(), 0, _spareValue.getEncodedSize())) {
-                                        buffer.enqueuePruningAction(_tree.getHandle());
-                                        if (mvccFetch(_spareValue, Integer.MAX_VALUE)) {
-                                            fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
-                                        }
-                                    }
-                                    if (_spareValue.isDefined() && _spareValue.isAntiValue()) {
-                                        _spareValue.clear();
-                                    }
-                                }
+                                fetchFromValueInternal(_spareValue, Integer.MAX_VALUE, buffer);
                             }
                         }
 
@@ -2148,7 +2138,7 @@ public class Exchange {
                         index = _key.getEncodedSize();
 
                         if (matches) {
-                            matches = fetchInternal(buffer, outValue, foundAt, minimumBytes);
+                            matches = fetchFromBufferInternal(buffer, outValue, foundAt, minimumBytes);
                             if (!matches && direction != EQ) {
                                 nudged = false;
                                 nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
@@ -2168,7 +2158,7 @@ public class Exchange {
                         if (matches) {
                             index = _key.nextElementIndex(parentIndex);
                             if (index > 0) {
-                                boolean isVisibleMatch = fetchInternal(buffer, outValue, foundAt, minimumBytes);
+                                boolean isVisibleMatch = fetchFromBufferInternal(buffer, outValue, foundAt, minimumBytes);
                                 //
                                 // In any case (matching sibling, child or
                                 // niece/nephew) we need to ignore this
@@ -2735,7 +2725,7 @@ public class Exchange {
         if (minimumBytes < 0) {
             minimumBytes = 0;
         }
-        fetchInternal(value, minimumBytes);
+        searchAndFetchInternal(value, minimumBytes);
         return this;
     }
 
@@ -2756,9 +2746,29 @@ public class Exchange {
      *             As thrown from any internal method.
      * @return <code>true</code> if the value was visible.
      */
-    private boolean fetchInternal(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
-        boolean visible = true;
+    private boolean fetchFromBufferInternal(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
         buffer.fetch(foundAt, value);
+        return fetchFromValueInternal(value, minimumBytes, buffer);
+    }
+
+    /**
+     * Helper for finalizing the value to return from a, potentially, MVV
+     * contained in the given Value.
+     *
+     * @param value
+     *            Value to finalize.
+     * @param minimumBytes
+     *            Minimum amount of LONG_RECORD to fetch. If &lt;0, the
+     *            <code>value</code> will contain just the descriptor portion.
+     * @param bufferForPruning
+     *            If not <code>null</code> and <code>Value</code> did contain
+     *            an MVV, call {@link Buffer#enqueuePruningAction(int)}.
+     * @throws PersistitException
+     *             As thrown from any internal method.
+     * @return <code>true</code> if the value was visible.
+     */
+    private boolean fetchFromValueInternal(Value value, int minimumBytes, Buffer bufferForPruning) throws PersistitException {
+        boolean visible = true;
         /*
          * We must fetch the full LONG_RECORD, if needed, while buffer is
          * claimed from calling code so that it can't be de-allocated as we are
@@ -2771,7 +2781,9 @@ public class Exchange {
              */
             fetchFixupForLongRecords(value, Integer.MAX_VALUE);
             if (MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
-                buffer.enqueuePruningAction(_tree.getHandle());
+                if (bufferForPruning != null) {
+                    bufferForPruning.enqueuePruningAction(_tree.getHandle());
+                }
                 visible = mvccFetch(value, minimumBytes);
                 fetchFixupForLongRecords(value, minimumBytes);
             }
@@ -2798,13 +2810,13 @@ public class Exchange {
      * @throws PersistitException
      *             As thrown from {@link #search(Key, boolean)}
      */
-    private void fetchInternal(Value value, int minimumBytes) throws PersistitException {
+    private void searchAndFetchInternal(Value value, int minimumBytes) throws PersistitException {
         Buffer buffer = null;
         try {
             int foundAt = search(_key, false);
             LevelCache lc = _levelCache[0];
             buffer = lc._buffer;
-            fetchInternal(buffer, value, foundAt, minimumBytes);
+            fetchFromBufferInternal(buffer, value, foundAt, minimumBytes);
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
         } finally {
@@ -3952,7 +3964,7 @@ public class Exchange {
         boolean savedIgnore = _ignoreMVCCFetch;
         try {
             _ignoreMVCCFetch = true;
-            fetchInternal(_spareValue, -1);
+            searchAndFetchInternal(_spareValue, -1);
             final boolean wasLong = isLongRecord(_spareValue);
             _spareValue.clear();
             return wasLong;
@@ -3974,7 +3986,7 @@ public class Exchange {
         boolean savedIgnore = _ignoreMVCCFetch;
         try {
             _ignoreMVCCFetch = true;
-            fetchInternal(_spareValue, -1);
+            searchAndFetchInternal(_spareValue, -1);
             final boolean wasLong = isLongMVV(_spareValue);
             _spareValue.clear();
             return wasLong;
