@@ -1,0 +1,168 @@
+/**
+ * Copyright © 2012 Akiban Technologies, Inc.  All rights reserved.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, version 3 (only) of the
+ * License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * This program may also be available under different license terms. For more
+ * information, see www.akiban.com or contact licensing@akiban.com.
+ */
+package com.persistit;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import javax.management.MBeanServer;
+import javax.management.Notification;
+import javax.management.NotificationListener;
+
+import org.junit.Test;
+
+import com.persistit.AlertMonitor.AlertLevel;
+import com.persistit.AlertMonitor.Event;
+import com.persistit.AlertMonitor.History;
+import com.persistit.logging.PersistitLevel;
+import com.persistit.logging.PersistitLogMessage.LogItem;
+import com.persistit.logging.PersistitLogger;
+import com.persistit.unit.PersistitUnitTestCase;
+
+public class AlertMonitorTest extends PersistitUnitTestCase {
+
+    private final static String CATEGORY = "XYABC";
+
+    String _lastMessage;
+    Notification _notification;
+    int _added;
+    int _removed;
+
+    class MockPersistitLogger implements PersistitLogger {
+
+        @Override
+        public void log(PersistitLevel level, String message) {
+            _lastMessage = message;
+        }
+
+        @Override
+        public boolean isLoggable(PersistitLevel level) {
+            return true;
+        }
+
+        @Override
+        public void open() throws Exception {
+
+        }
+
+        @Override
+        public void close() throws Exception {
+
+        }
+
+        @Override
+        public void flush() {
+
+        }
+
+    }
+
+    class AggregatingEvent extends Event {
+
+        AggregatingEvent(LogItem logItem, Object... args) {
+            super(logItem, args);
+        }
+
+        protected void added(final History h) {
+            _added++;
+        }
+
+        protected void removed(final History h) {
+            _removed++;
+        }
+
+    }
+
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
+        _persistit.getLogBase().configure(new MockPersistitLogger());
+    }
+
+    @Test
+    public void testPostEvents() throws Exception {
+        AlertMonitor monitor = _persistit.getAlertMonitor();
+        for (int index = 0; index < 100; index++) {
+            monitor.post(new Event(_persistit.getLogBase().copyright, index), CATEGORY, AlertLevel.NORMAL);
+        }
+        History history = monitor.getHistory(CATEGORY);
+        assertNotNull(history);
+        assertEquals("Event count should be 100", 100, history.getCount());
+        assertEquals("First event argument should be 0", 0, history.getFirstEvent().getFirstArg());
+        String s = monitor.getDetailedHistory(CATEGORY);
+        assertTrue("Should contain first event", s.contains("   1:"));
+        assertTrue("Should contain last event", s.contains(" 100:"));
+        assertEquals("Should have 11 lines", 12, s.split("\n").length);
+        s = history.toString();
+        assertTrue("Should contain last event", s.contains(" 100:"));
+        s = monitor.toString();
+        assertTrue("Should contain last event", s.contains(" 100:"));
+        assertTrue("Should contain last event", s.contains(CATEGORY));
+        monitor.poll(true);
+        assertNull("At AlertLevel.NORMAL there should not be a log message", _lastMessage);
+        for (int index = 0; index < 100; index++) {
+            monitor.post(new Event(_persistit.getLogBase().exception, new RuntimeException("Bogus " + index)),
+                    CATEGORY, AlertLevel.ERROR);
+        }
+        monitor.poll(true);
+        assertNotNull("At AlertLevel.ERROR there should be a log message", _lastMessage);
+        assertTrue("Log message should contain RuntimeException", _lastMessage.contains("Bogus"));
+        assertTrue("Log message should be recurring", _lastMessage.contains("similar"));
+        _lastMessage = null;
+        monitor.poll(true);
+        assertNull("There must be only one report", _lastMessage);
+        monitor.reset();
+        assertEquals("History should have been cleared", "", monitor.getDetailedHistory(CATEGORY));
+        assertEquals("History should have been cleared", "", monitor.toString());
+        assertEquals("Level should be NORMAL", AlertLevel.NORMAL.toString(), monitor.getAlertLevel());
+    }
+
+    @Test
+    public void testChangeHistoryLength() throws Exception {
+        AlertMonitor monitor = _persistit.getAlertMonitor();
+        for (int index = 0; index < 100; index++) {
+            monitor.post(new AggregatingEvent(_persistit.getLogBase().copyright, index), CATEGORY, AlertLevel.NORMAL);
+        }
+        History history = monitor.getHistory(CATEGORY);
+        assertEquals("History should have 10 events", 10, history.getEventList().size());
+        monitor.setHistoryLength(5);
+        assertEquals("History should now have 5 events", 5, history.getEventList().size());
+        monitor.post(new AggregatingEvent(_persistit.getLogBase().copyright, 101), CATEGORY, AlertLevel.NORMAL);
+        assertEquals("History should still have 5 events", 5, history.getEventList().size());
+        assertEquals("Total of 101 events added", 101, _added);
+        assertEquals("Total of 101-5 events removed", 101 - 5, _removed);
+    }
+
+    @Test
+    public void testNotifications() throws Exception {
+        AlertMonitor monitor = _persistit.getAlertMonitor();
+        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
+        server.addNotificationListener(_persistit.getAlertMonitor().getObjectName(), new NotificationListener() {
+            public void handleNotification(Notification notification, Object handback) {
+                ((AlertMonitorTest) handback)._notification = notification;
+            }
+        }, null, this);
+        monitor.post(new Event(_persistit.getLogBase().copyright, 2012), CATEGORY, AlertLevel.ERROR);
+        Thread.sleep(1000);
+        assertNotNull(_notification);
+    }
+}

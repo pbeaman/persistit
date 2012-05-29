@@ -1,0 +1,110 @@
+<!--
+    
+    Copyright © 2012 Akiban Technologies, Inc.  All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, version 3 (only) of the
+    License.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    This program may also be available under different license terms. For more
+    information, see www.akiban.com or contact licensing@akiban.com.
+
+-->
+<html>
+<body>
+<p>
+Implements Persistit&trade;'s core functionality.
+</p>
+<p>
+Applications initialize and close Persistit through an instance of the
+{@link com.persistit.Persistit} class. A Persistit instance must be
+initialized through one of the 
+{@link com.persistit.Persistit#initialize initialize} methods, and
+must be closed by the  
+{@link com.persistit.Persistit#close close} to ensure all updates
+are written to disk.
+</p>
+<p>
+Applications interact with Persistit through instances of {@link com.persistit.Exchange}.
+An <code>Exchange</code> has two important associated member objects, a {@link com.persistit.Key}
+and a {@link com.persistit.Value}. A <code>Key</code> is a mutable representation of a
+key, and a <code>Value</code> is a mutable representation of a value.  Applications
+manipulate these objects and interact with the database through one of the following
+four general patterns:
+</p>
+<ol>
+<li> 
+Modify the <code>Key</code>, perform a {@link com.persistit.Exchange#fetch fetch} 
+operation, and query the <code>Value</code>.
+</li>
+<li>
+Modify the <code>Key</code>, modify the <code>Value</code>, and then perform a
+{@link com.persistit.Exchange#store store} operation to insert or replace data
+in the database.
+</li>
+<li>
+Modify the <code>Key</code>, and then perform a 
+{@link com.persistit.Exchange#remove remove} to remove one or more key/value pairs.
+</li>
+<li>
+Optionally modify the <code>Key</code>, perform a 
+{@link com.persistit.Exchange#traverse traverse},
+{@link com.persistit.Exchange#traverse next} or
+{@link com.persistit.Exchange#traverse previous}, then query the 
+resulting state of <code>Key</code> and/or <code>Value</code> to enumerate key/value pairs
+currently stored in the database.
+</li>
+</ol>
+<p>
+Additional methods of <code>Exchange</code> include 
+{@link com.persistit.Exchange#fetchAndStore fetchAndStore}
+and {@link com.persistit.Exchange#fetchAndRemove fetchAndRemove}.  
+These atomically modify the database
+and return the former value associated with the <code>Key</code>.
+</p>
+<p>
+Every <code>Exchange</code> has an associated {@link com.persistit.Transaction
+Transaction} object that represents its current transactional state.  Every 
+operation performed by any of the access or update methods of the 
+<code>Exchange</code> is performed within the context of this <code>Transaction</code>, 
+meaning that its result is atomic, consistent, isolated and durable (the ACID properties).  
+By default these methods behave as if the bounded by {@link com.persistit.Transaction#begin begin}
+{@link com.persistit.Transaction#commit commit} and
+{@link com.persistit.Transaction#end end} calls on the <code>Transaction</code>.
+An application can group multiple operations together by explicitly invoking
+<code>begin</code>, <code>commit</code> and <code>end</code> calls.  See 
+{@link com.persistit.Transaction} for further information.
+</p>
+<p>
+The Persistit database is stored in physical files managed by {@link com.persistit.Volume Volume}s.
+A <code>Volume</code> contains an unbounded number of logical {@link com.persistit.Tree Tree}s, each
+of which constitutes a physical balanced tree.
+</p>
+<p>
+{@link com.persistit.IntegrityCheck IntegrityCheck} provides a simple mechanism to verify
+the internal integrity of <code>Volume</code>s and/or individual <code>Tree</code>s.
+</p>
+<p>
+This package also includes {@link com.persistit.PersistitMap PersistitMap} which
+provides a persistent, fast implementation of <code>java.util.SortedMap</code>.
+</p>
+<p>
+Finally, an application can obtain an instance of a 
+{@link com.persistit.Management} object that exposes an API 
+for measuring performance data, sizes and utilization
+of database volumes, and many other elements from the
+{@link com.persistit.Persistit#getManagement} method.  Optionally this class
+can be exported via Java RMI (Remote Method Invocation) to permit administration
+from a connected workstation.
+</p>
+</body>
+</html>

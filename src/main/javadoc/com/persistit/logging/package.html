@@ -1,0 +1,50 @@
+<!--
+    
+    Copyright © 2012 Akiban Technologies, Inc.  All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, version 3 (only) of the
+    License.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    
+    This program may also be available under different license terms. For more
+    information, see www.akiban.com or contact licensing@akiban.com.    
+
+-->
+<html>
+<body>
+<p>
+Implements Persistit&trade;'s logging mechanism and provides a simple method 
+for connecting Persistit's log output to the embedding application.
+The default logger writes log messages to the file <tt>persistit.log</tt> and
+overwrites that file each time Persistit is initialized.
+</p>
+<p>
+To override the default logger, for example, to route Persistit's log
+messages to the embedding application's logging subsystem, implement a subclass of
+{@link com.persistit.logging.DefaultPersistitLogger DefaulttPersistitLogger}
+and install it with the static 
+{@link com.persistit.Persistit#setPersistitLogger setPersistitLogger} 
+method of <tt>Persistit</tt>.
+</p>
+<p>
+Also see the 
+{@link com.persistit.logging.JDK14LoggingAdapter},
+{@link com.persistit.logging.Log4JAdapter} and
+{@link com.persistit.logging.ApacheCommonsLogAdapter} 
+classes, which wrap a JDK 1.4
+<tt>java.util.logging.Logger</tt>,
+<tt>org.apache.log4j.Logger</tt>, and 
+<tt>org.apache.commons.logging.Log</tt>,
+respectively.
+</p>
+</body>
+</html>
