@@ -31,8 +31,8 @@
            srcdir="."
     	   destdir=".">
            <classpath>
-              <fileset dir="../../core/target">
-                 <include name="akiban-persistit-core-*-with-dependencies-and-tests.jar"/>
+              <fileset dir="../../target">
+                 <include name="akiban-persistit*-with-dependencies-and-tests.jar"/>
               </fileset>
            </classpath>
     </javac>  
@@ -40,8 +40,8 @@
     <target name="run" depends="compile">
     <java  fork="true" classname="FindFile">
            <classpath>
-              <fileset dir="../../core/target">
-                 <include name="akiban-persistit-core-*-with-dependencies-and-tests.jar"/>
+              <fileset dir="../../target">
+                 <include name="akiban-persistit*-with-dependencies-and-tests.jar"/>
               </fileset>
               <pathelement location="." />
            </classpath>

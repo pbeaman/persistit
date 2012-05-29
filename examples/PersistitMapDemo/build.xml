@@ -29,8 +29,8 @@
     	   srcdir="."
     	   destdir=".">
            <classpath>
-              <fileset dir="../../core/target">
-                 <include name="akiban-persistit-core-*-with-dependencies-and-tests.jar"/>
+              <fileset dir="../../target">
+                 <include name="akiban-persistit*-with-dependencies-and-tests.jar"/>
               </fileset>
               <pathelement location="." />
            </classpath>
@@ -40,8 +40,8 @@
   <target name="run" depends="compile">
     <java  classname="PersistitMapDemo" fork="true" >
            <classpath>
-              <fileset dir="../../core/target">
-                 <include name="akiban-persistit-core-*-with-dependencies-and-tests.jar"/>
+              <fileset dir="../../target">
+                 <include name="akiban-persistit*-with-dependencies-and-tests.jar"/>
               </fileset>
               <pathelement location="." />
            </classpath>
