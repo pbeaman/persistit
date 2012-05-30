@@ -1794,6 +1794,7 @@ public class Persistit {
         _intArrayThreadLocal.set(null);
         _keyThreadLocal.set(null);
         _valueThreadLocal.set(null);
+        _initialized.set(false);
     }
 
     /**

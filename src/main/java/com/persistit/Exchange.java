@@ -3559,13 +3559,13 @@ public class Exchange {
 
     private void removeFetchFirst(Buffer buffer1, int foundAt1, Buffer buffer2, int foundAt2) throws PersistitException {
         if (buffer1 == buffer2) {
-            if (buffer1.nextKeyBlock(foundAt1) == foundAt2) {
+            if (buffer1.nextKeyBlock(foundAt1) == (foundAt2 & P_MASK)) {
                 buffer1.fetch(foundAt1 | EXACT_MASK, _spareValue);
             }
         } else {
             if (buffer1.getRightSibling() == buffer2.getPageAddress() && buffer1.nextKeyBlock(foundAt1) == -1) {
                 foundAt1 = buffer2.toKeyBlock(0);
-                if (buffer2.nextKeyBlock(foundAt1) == foundAt2) {
+                if (buffer2.nextKeyBlock(foundAt1) == (foundAt2 & P_MASK)) {
                     buffer2.fetch(foundAt1 | EXACT_MASK, _spareValue);
                 }
             }
