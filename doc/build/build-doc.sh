@@ -37,12 +37,29 @@
 # The end-product files, user_guide.html and user_guide.xml are written
 # there.
 #
-rm -rf /tmp/akiban-persistit-doc
-mkdir /tmp/akiban-persistit-doc
-javac -d /tmp/akiban-persistit-doc -cp ../../core/target/classes/ src/*.java
-java -cp /tmp/akiban-persistit-doc:../../core/target/classes AsciiDocPrep in=../TOC.txt out=/tmp/akiban-persistit-doc/doc.txt base=apidocs index=../../core/target/site/apidocs/index-all.html
-asciidoc -a toc -n -d book -b xhtml11 -o /tmp/akiban-persistit-doc/doc.html /tmp/akiban-persistit-doc/doc.txt
-asciidoc -a toc -n -d book -b docbook -o /tmp/akiban-persistit-doc/doc.xml /tmp/akiban-persistit-doc/doc.txt
-sed s/\`/\ / /tmp/akiban-persistit-doc/doc.html > /tmp/akiban-persistit-doc/user_guide.html
-sed s/\`/\ / /tmp/akiban-persistit-doc/doc.xml > /tmp/akiban-persistit-doc/user_guide.xml
+rm -rf ../../target/sphinx/source
+mkdir -p ../../target/sphinx/source
+mkdir -p ../../target/sphinx/classes
+mkdir -p ../../target/sphinx/html
+mkdir -p ../../target/sphinx/text
+
+cp ../index.rst ../../target/sphinx/source
+cp ../conf.py ../../target/sphinx/source
+
+javac -d ../../target/sphinx/classes -cp ../../target/classes/ src/*.java
+
+java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../ReleaseNotes.rst out=../../target/sphinx/source/ReleaseNotes.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../BasicAPI.rst out=../../target/sphinx/source/BasicAPI.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Configuration.rst out=../../target/sphinx/source/Configuration.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../GettingStarted.rst out=../../target/sphinx/source/GettingStarted.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Management.rst out=../../target/sphinx/source/Management.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Miscellaneous.rst out=../../target/sphinx/source/Miscellaneous.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../PhysicalStorage.rst out=../../target/sphinx/source/PhysicalStorage.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Security.rst out=../../target/sphinx/source/Security.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Serialization.rst out=../../target/sphinx/source/Serialization.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Transactions.rst out=../../target/sphinx/source/Transactions.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+
+sphinx-build -a  ../../target/sphinx/source ../../target/sphinx/html
+
+fold -s ../../target/sphinx/source/ReleaseNotes.rst | sed 's/``//g' | sed 's/\.\. note:/NOTE/' | sed 's/::/:/' > ../../target/sphinx/text/ReleaseNotes
 
