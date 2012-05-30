@@ -41,6 +41,7 @@ rm -rf ../../target/sphinx/source
 mkdir -p ../../target/sphinx/source
 mkdir -p ../../target/sphinx/classes
 mkdir -p ../../target/sphinx/html
+mkdir -p ../../target/sphinx/text
 
 cp ../index.rst ../../target/sphinx/source
 cp ../conf.py ../../target/sphinx/source
@@ -59,3 +60,6 @@ java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Se
 java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Transactions.rst out=../../target/sphinx/source/Transactions.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
 
 sphinx-build -a  ../../target/sphinx/source ../../target/sphinx/html
+
+fold -s ../../target/sphinx/source/ReleaseNotes.rst | sed 's/``//g' | sed 's/\.\. note:/NOTE/' | sed 's/::/:/' > ../../target/sphinx/text/ReleaseNotes
+
