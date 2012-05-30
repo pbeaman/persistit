@@ -29,8 +29,13 @@
     	   srcdir="."
     	   destdir=".">
     	   <classpath>
-              <fileset dir="../../target">
-                 <include name="akiban-persistit*.jar"/>
+              <fileset dir="../..">
+                  <or>
+                    <!-- Release location -->
+                    <filename name="akiban-persistit-*.jar" />
+                    <!-- Source location -->
+                    <filename name="target/akiban-persistit-*.jar" />
+                  </or>
               </fileset>
               <pathelement location="." />
            </classpath>
@@ -40,8 +45,13 @@
   <target name="run" depends="compile">
     <java classname="HelloWorld" fork="true">
            <classpath>
-              <fileset dir="../../target">
-                 <include name="akiban-persistit*.jar"/>
+              <fileset dir="../..">
+                  <or>
+                    <!-- Release location -->
+                    <filename name="akiban-persistit-*.jar" />
+                    <!-- Source location -->
+                    <filename name="target/akiban-persistit-*.jar" />
+                  </or>
               </fileset>
               <pathelement location="." />
            </classpath>
