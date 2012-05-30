@@ -3729,6 +3729,7 @@ public class Buffer extends SharedResource {
                         // Rewrite the tail block header
                         putInt(tail, encodeTailBlock(newTailSize, klength));
                         valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
+                        value.changeLongRecordMode(false);
                     }
                 }
                 boolean prunedAntiValue = pruneAntiValue(valueByte, p, tree);

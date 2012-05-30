@@ -683,9 +683,11 @@ public final class Value {
      *            The <code>Value</code> to which state should be copied.
      */
     public void copyTo(Value target) {
-        if (target == this)
+        if (target == this) {
             return;
+        }
         target.changeLongRecordMode(isLongRecordMode());
+        assert !_longMode;
         target.ensureFit(_size);
         System.arraycopy(_bytes, 0, target._bytes, 0, _size);
         target._size = _size;
@@ -752,8 +754,10 @@ public final class Value {
             byte[] bytes = new byte[Math.max(_size, newSize)];
             System.arraycopy(_bytes, 0, bytes, 0, _size);
             _bytes = bytes;
+            assertLongRecordMode();
             return true;
         } else {
+            assertLongRecordMode();
             return false;
         }
     }
@@ -775,12 +779,16 @@ public final class Value {
      *         larger array.
      */
     public boolean ensureFit(int length) {
+        
+        assertLongRecordMode();
+        
         if (length > 0 && length * SIZE_GROWTH_DENOMINATOR < _size) {
             length = _size / SIZE_GROWTH_DENOMINATOR;
         }
         final int newSize = _size + length;
-        if (newSize <= _bytes.length)
+        if (newSize <= _bytes.length) {
             return false;
+        }
         int newArraySize = ((newSize + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY) * SIZE_GRANULARITY;
         if (newArraySize > _maximumSize)
             newArraySize = _maximumSize;
@@ -789,7 +797,10 @@ public final class Value {
         }
         byte[] bytes = new byte[newArraySize];
         System.arraycopy(_bytes, 0, bytes, 0, _size);
+        byte[] wasBytes = _bytes;
         _bytes = bytes;
+
+        assertLongRecordMode();
 
         return true;
     }
@@ -4064,6 +4075,9 @@ public final class Value {
 
     void changeLongRecordMode(boolean mode) {
         if (mode != _longMode) {
+            
+            assertLongRecordMode();
+            
             if (_longBytes == null || _longBytes.length < Buffer.LONGREC_SIZE) {
                 _longBytes = new byte[Buffer.LONGREC_SIZE];
                 _longSize = Buffer.LONGREC_SIZE;
@@ -4080,11 +4094,15 @@ public final class Value {
             _longSize = tempSize;
             _longMode = mode;
 
-            if (mode) {
-                Debug.$assert1.t(_bytes.length == Buffer.LONGREC_SIZE);
-            } else {
-                Debug.$assert1.t(_longBytes.length == Buffer.LONGREC_SIZE);
-            }
+            assertLongRecordMode();
+        }
+    }
+    
+    void assertLongRecordMode() {
+        if (_longMode) {
+            Debug.$assert1.t(_bytes.length == Buffer.LONGREC_SIZE);
+        } else {
+            Debug.$assert1.t(_longBytes == null || _longBytes.length == Buffer.LONGREC_SIZE);
         }
     }
 
