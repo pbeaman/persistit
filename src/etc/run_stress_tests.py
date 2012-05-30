@@ -40,7 +40,7 @@ parser.add_option(
 parser.add_option(
     "--jvm-opts",
     default = "-ea -Dcom.sun.management.jmxremote.port=8082 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Xrunjdwp:transport=dt_socket,address=8000,suspend=n,server=y",
-    help = "Maximum heap size for the JVM when running stress tests. [default: %default]"
+    help = "Extra options to pass to the JVM (e.g. JMX, debug). [default: %default]"
 )
 
 parser.add_option(
