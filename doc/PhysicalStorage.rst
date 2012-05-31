@@ -1,6 +1,6 @@
 .. _PhysicalStorage:
 
-Physical B-Tree Representation
+Physical B+Tree Representation
 ==============================
 
 This chapter describes the physical structures used to represent Akiban Persistit records on disk and in memory.
@@ -35,7 +35,7 @@ Persistit writes two major types of records to journal files.
 
 As updates are applied, Persistit constantly appends new information- both transaction records and modified page images - to the end of the highest-numbered file. To prevent the aggregation of a large number of journal files Persistit also works to copy or remove information from older journal files so that they can be deleted. The background thread responsible for this activity is called the ``JOURNAL_COPIER`` thread. The JOURNAL_COPIER copies pages from the journal back into their home volume files, allowing old files to be deleted. Normally a Persistit system at rest gradually copies all update page images and perform checkpoints so that only one small journal file remains. Applications can accelerate that process by calling the ``com.persistit.Persistit#copyBackPages`` method.
 
-The journal is critical to ensuring Persistit can recover structurally intact B-Trees and apply all committed transactions after a system failure. For this reason, unless the JOURNAL_COPIER is entirely caught up, any attempt to save the state of a Persistit database must include both the volume and journal files.
+The journal is critical to ensuring Persistit can recover structurally intact B+Trees and apply all committed transactions after a system failure. For this reason, unless the JOURNAL_COPIER is entirely caught up, any attempt to save the state of a Persistit database must include both the volume and journal files.
 
 The journal also plays a critical role during concurrent backup. To back up a running Persistit database, the ``com.persistit.BackupTask`` does the following:
 
@@ -53,7 +53,7 @@ Persistit ultimately stores its data in one or more Volume files. Persistit mana
 Directory Tree
 ^^^^^^^^^^^^^^
 
-Within a volume there can be an unlimited number of B-Trees. (B-Trees are also called simply “trees” in this document.) A tree consists of a set of pages including a *root page*, *index pages* and *data pages*. The root page can be data page if the tree is trivial and contains only small number of records. Usually the root page is an index page which contains references to other index pages which in turn may refer to data pages.
+Within a volume there can be an unlimited number of B+Trees. (B+Trees are also called simply “trees” in this document.) A tree consists of a set of pages including a *root page*, *index pages* and *data pages*. The root page can be data page if the tree is trivial and contains only small number of records. Usually the root page is an index page which contains references to other index pages which in turn may refer to data pages.
 
 Persistit manages a potentially large number of trees by maintaining a tree of trees called ``_directory``.  The ``_directory`` tree contains the name, root page address, ``com.persistit.Accumulator`` data and ``com.persistit.TreeStatistics`` data for all the other trees in the volume. The tree name ``_directory`` is reserved and may not be used when creating an Exchange.
 
@@ -67,12 +67,12 @@ Index Pages
 
 An index page has a structure similar to a data page except that instead of holding serialized value data, it instead contains page addresses of subordinate pages within the tree.
 
-.. TODO - diagram of B-Tree, page layouts, etc
+.. TODO - diagram of B+Tree, page layouts, etc
 
 .. _Recovery:
 
 Recovery
-========
+--------
 
 Akiban Persistit is designed, implemented and tested to ensure that whether the application shuts down gracefully or crashes without cleanly closing the database, the database remains structurally intact and internally consistent after restart.
 
@@ -80,26 +80,26 @@ To do this, Persistit performs a process called *recovery* every time it starts 
 
 Recovery performs two major activities:
 
-- Restores all B-Trees to an internally consistent state with a known timestamp.
+- Restores all B+Trees to an internally consistent state with a known timestamp.
 - Replays all transaction that committed after that timestamp.
 - Prunes multi-version values belonging to certain aborted transactions (see :ref:`Pruning`).
 
-To accomplish this, Persistit writes all updates first to the :ref:`Journal`. Persistit also periodically writes *checkpoint* records to the journal. During recovery, Persistit finds the last valid checkpoint written before shutdown or crash, restores B-Trees to state consistent with that checkpoint, and then replays transactions that committed after the checkpoint.
+To accomplish this, Persistit writes all updates first to the :ref:`Journal`. Persistit also periodically writes *checkpoint* records to the journal. During recovery, Persistit finds the last valid checkpoint written before shutdown or crash, restores B+Trees to state consistent with that checkpoint, and then replays transactions that committed after the checkpoint.
 
 Recovery depends on the availability of the volume and journal files as they existed prior to abrupt termination. If these are modified or destroyed outside of Persistit, successful recovery is unlikely.
 
 Timestamps and Checkpoints
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Persistit maintains a universal counter called the *timestamp* counter. Every update operation assigns a new, larger timestamp, and every record in the journal includes the timestamp assigned to the operation writing the record. The timestamp counter is unrelated to clock time.  It is merely a counter.
 
 A *checkpoint* is simply a timestamp for which a valid recovery is possible. Periodically Persistit chooses a timestamp to be a new checkpoint. Over time it then ensures that all pages updated before the checkpoint have been written to the journal, and then writes a checkpoint marker. By default checkpoints occur once every two minutes. Normal shutdown through ``com.persistit.Persistit#close`` writes a final checkpoint to the journal regardless of when the last checkpoint cycle occurred. That final checkpoint is what allows recovery after a normal shutdown to be very fast.
 
-Upon start-up Persistit starts by finding the last valid checkpoint timestamp, and then recovers only those page images from the journal that were written prior to it. The result is that all B-Trees are internally consistent and contain all the updates that were issued and committed to disk before the checkpoint timestamp and none the occurred after the checkpoint timestamp.
+Upon start-up Persistit starts by finding the last valid checkpoint timestamp, and then recovers only those page images from the journal that were written prior to it. The result is that all B+Trees are internally consistent and contain all the updates that were issued and committed to disk before the checkpoint timestamp and none the occurred after the checkpoint timestamp.
 
 Then Persistit locates and reapplies all transaction records in the journal for transactions that committed after the last valid checkpoint timestamp. These transactions are reapplied to the database, with the result that:
 
-- The B-Tree index and data structures are intact. All store, fetch, remove and traverse operations will complete successfully. footnote:[Persistit provides the utility class com.persistit.IntegrityCheck to verify the integrity of a Volume.]
+- The B+Tree index and data structures are intact. All store, fetch, remove and traverse operations will complete successfully. footnote:[Persistit provides the utility class com.persistit.IntegrityCheck to verify the integrity of a Volume.]
 - All committed transactions are present in the recovered database.  (See :ref:`Transactions` for durability determined by ``CommitPolicy``.)
 
 For updates occurring outside of a transaction the resulting state is identical to some consistent, reasonably recent state prior to the termination. (“Reasonably recent” depends on the checkpoint interval, which by default is set to two minutes.)

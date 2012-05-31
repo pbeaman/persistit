@@ -1,10 +1,10 @@
 ************************************
-Akiban-Persistit 3.1.1 Release Notes
+Akiban Persistit 3.1.1 Release Notes
 ************************************
 
 Release Date
 ============
-May 25, 2012
+May 31, 2012
 
 Overview
 ========
@@ -14,8 +14,9 @@ See http://www.akiban.com/akiban-persistit for a summary of features and benefit
 
 Documentation
 =============
-Users Guide (http://www.akiban.com/ak-docs/admin/persistit)
-JavaDoc  (http://www.akiban.com/ak-docs/admin/persistit/apidocs)
+Users Guide: http://www.akiban.com/ak-docs/admin/persistit
+
+JavaDoc: http://www.akiban.com/ak-docs/admin/persistit-api
 
 Building Akiban-Persistit
 =========================

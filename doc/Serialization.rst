@@ -144,10 +144,10 @@ To explicitly register a ``SerialValueCoder`` for the class ``MyClass``, do this
 	...
 
 
-The ``com.persistit.serialOverride`` Configuration Property
+The Serial Override Configuration Property
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``serialOverride`` property specifies classes that are to be serialized by ``SerialValueCoder`` rather than ``DefaultValueCoder``. This property affects how Persistit assigns a value coder when none has previously been registered. It does not override or affect explicitly registered coders.
+The ``com.persistit.serialOverride`` property specifies classes that are to be serialized by ``SerialValueCoder`` rather than ``DefaultValueCoder``. This property affects how Persistit assigns a value coder when none has previously been registered. It does not override or affect explicitly registered coders.
 
 Names are separated by commas and may contain wild cards.
 
@@ -166,11 +166,11 @@ The following are valid patterns:
 
 More precisely, ``serialOverride`` specifies a comma-delimited list of zero or more patterns, each of which is either a fully-qualified class name or pattern that has within it exactly one wild card. The wild card “\*” replaces any sequence of characters other than a period (“.”), while “\*\*” replaces any sequence of characters including periods.  For example::
 
-  ``serialOverride=org.apache.**,com.mypkg.serialstuff.*,com.mypkg.MyClass``
+  serialOverride=org.apache.**,com.mypkg.serialstuff.*,com.mypkg.MyClass
 
 Like all configuration properties, you may specify this in the persistit.properties file or as a system property through a Java command-line argument in the form::
 
-  ``-Dcom.persistit.serialOverride=...``
+  -Dcom.persistit.serialOverride=...
 
 Registering Objects in a Custom ``ValueCoder``
 ----------------------------------------------

@@ -3,7 +3,7 @@
 Transactions
 ============
 
-Akiban Persistit supports transactions with multi-version concurrency control (MVCC) using a protocol called Snapshot Isolation (SI). An application calls ``com.persistit.Transaction#begin``, ``com.persistit.Transaction#commit``, ``com.persistit.Transaction#rollback# and ``com.persistit.Transaction#end`` methods to control the current transaction scope explicitly.  A Transaction allows an application to execute multiple database operations in an atomic, consistent, isolated and durable (ACID) manner.
+Akiban Persistit supports transactions with multi-version concurrency control (MVCC) using a protocol called Snapshot Isolation (SI). An application calls ``com.persistit.Transaction#begin``, ``com.persistit.Transaction#commit``, ``com.persistit.Transaction#rollback`` and ``com.persistit.Transaction#end`` methods to control the current transaction scope explicitly.  A Transaction allows an application to execute multiple database operations in an atomic, consistent, isolated and durable (ACID) manner.
 
 Applications manage transactions through an instance of a ``com.persistit.Transaction`` object. ``Transaction`` does not represent a single transaction, but is instead a context in which a thread may perform many sequential transactions. The general pattern is that the application gets the current thread’s ``Transaction`` instance, calls its ``begin`` method, performs work, calls ``commit`` and finally ``end``.  The thread uses the same ``Transaction`` instance repeatedly. Generally each thread has one ``Transaction`` that lasts for the entire life of the thread (but see com.persistit.Transaction#_threadManagement for a mechanism that allows a transaction to be serviced by multiple threads). 
 
