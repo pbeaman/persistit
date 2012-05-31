@@ -6,6 +6,13 @@
     <name>akiban-persistit</name>
     <version>3.1.1-SNAPSHOT</version>
     <packaging>jar</packaging>
+    <licenses>
+        <license>
+            <name>GNU Affero General Public License, version 3</name>
+            <url>http://www.gnu.org/licenses/agpl-3.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
     <properties>
         <!-- this is the default version number, Jenkins job sets this to the official number -->
         <BZR_REVISION></BZR_REVISION>
@@ -59,6 +66,14 @@
     <build>
         <finalName>${project.artifactId}-${project.version}${BZR_REVISION}</finalName>
         <resources>
+            <resource>
+                <directory>${basedir}</directory>
+                <targetPath>META-INF</targetPath>
+                <filtering>false</filtering>
+                <includes>
+                    <include>LICENSE.txt</include>
+                </includes>
+            </resource>
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
