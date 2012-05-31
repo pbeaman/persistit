@@ -1,4 +1,4 @@
-#/bin/sh
+#!/bin/bash
 #
 # Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
 # 
@@ -19,47 +19,55 @@
 # information, see www.akiban.com or contact licensing@akiban.com.
 # 
 
-# ---------------------
 #
 # Builds the Akiban Persistit doc set.  Currently this process is based on
-# the asciidoc tool (http://www.methods.co.nz/asciidoc/).
+# the Sphinx tool (http://sphinx.pocoo.org/).
 #
 # Here are the steps:
-# 1. Run a Java program AsciiDocPrep to prepare a text asciidoc file.
-#    Among other things, AsciiDocPrep fills in JavaDoc hyperlinks.
-# 2. Run asciidoc to generate an html file.
-# 3. Use sed to replace some characters.  Turns out asciidoc doesn't like
-#    to link to URLs having spaces, so AsciDocPrep replaces those spaces
-#    with the "`" character.  This step converts those back to spaces.
+# 1. Run a Java program SphinxDocPrep to prepare a text rst file.
+#    Among other things, SphinxDocPrep fills in JavaDoc hyperlinks.
+# 2. Run sphinx-build to generate html files.
+# 3. Use fold and sed to specially prepare an extra plain text file
+#    for the release notes.
 #
-# Run this script from the root of the persistit source directory. This
-# script writes changes only into a directory /tmp/akiban-persistit-doc.
-# The end-product files, user_guide.html and user_guide.xml are written
-# there.
+# Run this script from the doc/build/ directory of the persistit source
+# tree. This script writes all output into the ../../target/sphinx 
+# directory.
 #
-rm -rf ../../target/sphinx/source
-mkdir -p ../../target/sphinx/source
-mkdir -p ../../target/sphinx/classes
-mkdir -p ../../target/sphinx/html
-mkdir -p ../../target/sphinx/text
 
-cp ../index.rst ../../target/sphinx/source
-cp ../conf.py ../../target/sphinx/source
+APIDOC_INDEX="../../target/site/apidocs/index-all.html"
+APIDOC_URL=${APIDOC_URL:-"http://www.akiban.com/ak-docs/admin/persistit-api"}
+DOCPREP_CLASS="SphinxDocPrep"
+DOCPREP_CLASSPATH="../../target/sphinx/classes:../../target/classes"
+
+DOC_SOURCE_PATH=".."
+DOC_TARGET_PATH="../../target/sphinx/source"
+DOC_FINAL_PATH="../../target/sphinx/html"
+DOC_FILES="\
+    ReleaseNotes.rst\
+    BasicAPI.rst\
+    Configuration.rst\
+    GettingStarted.rst\
+    Management.rst\
+    Miscellaneous.rst\
+    PhysicalStorage.rst\
+    Security.rst\
+    Serialization.rst\
+    Transactions.rst\
+"
+
+rm -rf ../../target/sphinx/
+mkdir -p ../../target/sphinx/{classes,html,source/_static,text}
+
+cp ../index.rst ../conf.py ../../target/sphinx/source
 
 javac -d ../../target/sphinx/classes -cp ../../target/classes/ src/*.java
 
-java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../ReleaseNotes.rst out=../../target/sphinx/source/ReleaseNotes.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
-java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../BasicAPI.rst out=../../target/sphinx/source/BasicAPI.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
-java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Configuration.rst out=../../target/sphinx/source/Configuration.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
-java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../GettingStarted.rst out=../../target/sphinx/source/GettingStarted.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
-java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Management.rst out=../../target/sphinx/source/Management.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
-java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Miscellaneous.rst out=../../target/sphinx/source/Miscellaneous.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
-java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../PhysicalStorage.rst out=../../target/sphinx/source/PhysicalStorage.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
-java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Security.rst out=../../target/sphinx/source/Security.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
-java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Serialization.rst out=../../target/sphinx/source/Serialization.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
-java -cp ../../target/sphinx/classes:../../target/classes SphinxDocPrep in=../Transactions.rst out=../../target/sphinx/source/Transactions.rst base=http://www.akiban.com/ak-docs/admin/persistit/apidocs index=../../target/site/apidocs/index-all.html
+for f in $DOC_FILES; do
+    java -cp "$DOCPREP_CLASSPATH" "$DOCPREP_CLASS" in="${DOC_SOURCE_PATH}/${f}" out="${DOC_TARGET_PATH}/${f}" base="$APIDOC_URL" index="$APIDOC_INDEX"
+done
 
-sphinx-build -a  ../../target/sphinx/source ../../target/sphinx/html
+sphinx-build -a "$DOC_TARGET_PATH" "$DOC_FINAL_PATH"
 
-fold -s ../../target/sphinx/source/ReleaseNotes.rst | sed 's/``//g' | sed 's/\.\. note:/NOTE/' | sed 's/::/:/' > ../../target/sphinx/text/ReleaseNotes
+fold -s "${DOC_TARGET_PATH}/ReleaseNotes.rst" | sed 's/``//g' | sed 's/\.\. note:/NOTE/' | sed 's/::/:/' > ../../target/sphinx/text/ReleaseNotes
 

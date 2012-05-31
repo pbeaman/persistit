@@ -24,7 +24,7 @@ Download ``akiban-persistit-3.1.1.zip`` from link found at http://www.akiban.com
 
 Unpack the distribution kit into a convenient directory using any unzip utility. For example, use ``jar`` to unpack the distribution kit to the current working directory as follows::
   
-  jar xvf persistit-3.1.1.zip
+  jar xvf akiban-persistit-3.1.1.zip
 
 Review the ``LICENSE.txt`` file located in the root of the installation directory. Persistit is licensed under the GNU Affero General Public License or a free-use community license, see http://www.akiban.com/akiban-licensing-options for more details. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.
 
