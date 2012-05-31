@@ -1,11 +1,20 @@
 <?xml version="1.0"?>
 <project>
     <modelVersion>4.0.0</modelVersion>
+    
     <groupId>com.akiban</groupId>
     <artifactId>akiban-persistit</artifactId>
-    <name>akiban-persistit</name>
     <version>3.1.1-SNAPSHOT</version>
     <packaging>jar</packaging>
+    
+    <name>akiban-persistit</name>
+    <inceptionYear>2005</inceptionYear>
+    <url>http://www.akiban.com/akiban-persistit</url>
+    <organization>
+        <name>Akiban Technologies, Inc</name>
+        <url>http://www.akiban.com</url>
+    </organization>
+    
     <licenses>
         <license>
             <name>GNU Affero General Public License, version 3</name>
@@ -13,12 +22,14 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
     <properties>
         <!-- this is the default version number, Jenkins job sets this to the official number -->
         <BZR_REVISION></BZR_REVISION>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
+    
     <distributionManagement>
         <snapshotRepository>
             <id>akiban</id>
@@ -31,6 +42,7 @@
             <url>http://akiban.artifactoryonline.com/akiban/libs-releases-local</url>
         </repository>
     </distributionManagement>
+    
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -63,6 +75,7 @@
             </exclusions>
         </dependency>
     </dependencies>
+
     <build>
         <finalName>${project.artifactId}-${project.version}${BZR_REVISION}</finalName>
         <resources>
@@ -255,6 +268,7 @@
             </plugin>
         </plugins>
     </build>
+
     <reporting>
         <plugins>
             <plugin>
