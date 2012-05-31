@@ -686,8 +686,9 @@ public final class Value {
         if (target == this) {
             return;
         }
-        target.changeLongRecordMode(isLongRecordMode());
-        assert !_longMode;
+        Debug.$assert0.t(!isLongRecordMode());
+        Debug.$assert0.t(!target.isLongRecordMode());
+
         target.ensureFit(_size);
         System.arraycopy(_bytes, 0, target._bytes, 0, _size);
         target._size = _size;
@@ -754,10 +755,8 @@ public final class Value {
             byte[] bytes = new byte[Math.max(_size, newSize)];
             System.arraycopy(_bytes, 0, bytes, 0, _size);
             _bytes = bytes;
-            assertLongRecordMode();
             return true;
         } else {
-            assertLongRecordMode();
             return false;
         }
     }
@@ -779,9 +778,7 @@ public final class Value {
      *         larger array.
      */
     public boolean ensureFit(int length) {
-        
-        assertLongRecordMode();
-        
+
         if (length > 0 && length * SIZE_GROWTH_DENOMINATOR < _size) {
             length = _size / SIZE_GROWTH_DENOMINATOR;
         }
@@ -797,10 +794,7 @@ public final class Value {
         }
         byte[] bytes = new byte[newArraySize];
         System.arraycopy(_bytes, 0, bytes, 0, _size);
-        byte[] wasBytes = _bytes;
         _bytes = bytes;
-
-        assertLongRecordMode();
 
         return true;
     }
@@ -4075,9 +4069,7 @@ public final class Value {
 
     void changeLongRecordMode(boolean mode) {
         if (mode != _longMode) {
-            
-            assertLongRecordMode();
-            
+
             if (_longBytes == null || _longBytes.length < Buffer.LONGREC_SIZE) {
                 _longBytes = new byte[Buffer.LONGREC_SIZE];
                 _longSize = Buffer.LONGREC_SIZE;
@@ -4094,11 +4086,11 @@ public final class Value {
             _longSize = tempSize;
             _longMode = mode;
 
-            assertLongRecordMode();
+            assertLongRecordModeIsCorrect();
         }
     }
-    
-    void assertLongRecordMode() {
+
+    private void assertLongRecordModeIsCorrect() {
         if (_longMode) {
             Debug.$assert1.t(_bytes.length == Buffer.LONGREC_SIZE);
         } else {
@@ -5089,8 +5081,8 @@ public final class Value {
     }
 
     /**
-     * Construct a list of <code>Version</code> objects, each denoting one of the
-     * multi-value versions currently held in this Value object.
+     * Construct a list of <code>Version</code> objects, each denoting one of
+     * the multi-value versions currently held in this Value object.
      * 
      * @return the list of <code>Version<code>s
      * @throws PersistitException
