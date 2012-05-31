@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# coding: utf-8
 #
 # Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
 #
@@ -33,6 +35,12 @@ parser.add_option(
     "--xmx",
     default = "2G",
     help = "Maximum heap size for the JVM when running stress tests. [default: %default]"
+)
+
+parser.add_option(
+    "--jvm-opts",
+    default = "-ea -Dcom.sun.management.jmxremote.port=8082 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Xrunjdwp:transport=dt_socket,address=8000,suspend=n,server=y",
+    help = "Extra options to pass to the JVM (e.g. JMX, debug). [default: %default]"
 )
 
 parser.add_option(
@@ -93,10 +101,10 @@ if jar_file == "target":
     cmd = "grep version pom.xml | grep SNAPSHOT"
     (retcode, output) = commands.getstatusoutput(cmd)
     version = output.lstrip()[9:output.lstrip().find('SNAPSHOT')-1]
-    jar_file = "target/akiban-persistit-core-%s-SNAPSHOT-jar-with-dependencies-and-tests.jar" % version
+    jar_file = "target/akiban-persistit-%s-SNAPSHOT-jar-with-dependencies-and-tests.jar" % version
 
 if not os.path.isfile(jar_file):
-    print "PersistIT JAR file does not exist! Did you run mvn install?"
+    print "Persistit JAR file does not exist! Did you run mvn install?"
     sys.exit(1)
 
 test_failures = 0
@@ -107,7 +115,7 @@ for test in tests:
     full_test_path = options.test_dir + "/" + test
     test_data_path = options.test_run_dir + "/" + test
     os.makedirs(test_data_path)
-    run_cmd = "java -Xmx%s -cp %s com.persistit.test.TestRunner script=%s datapath=%s logpath=%s" % (options.xmx, jar_file, full_test_path, test_data_path, test_data_path)
+    run_cmd = "java %s -Xmx%s -cp %s com.persistit.test.TestRunner script=%s datapath=%s logpath=%s" % (options.jvm_opts, options.xmx, jar_file, full_test_path, test_data_path, test_data_path)
     print "%s\t\t\t" % test,
     (retcode, output) = commands.getstatusoutput(run_cmd)
     if retcode:
