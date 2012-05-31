@@ -3,7 +3,7 @@
 Basic API
 =========
 
-Akiban Persistit stores data as key-value pairs in highly optimized B-Tree. (Actually, implements `B-Link Tree <http://www.cs.cornell.edu/courses/cs4411/2009sp/blink.pdf>`_ trees for greater concurrency). Like a Java Map implementation, Persistit associates at most one value with each unique instance of a Key value.
+Akiban Persistit stores data as key-value pairs in highly optimized B+Tree. (Actually, implements `B-Link Tree <http://www.cs.cornell.edu/courses/cs4411/2009sp/blink.pdf>`_ trees for greater concurrency). Like a Java Map implementation, Persistit associates at most one value with each unique instance of a Key value.
 
 Persistit provides classes and methods to access and modify keys and their associated values. Application code calls Persistit API methods to store, fetch, traverse and remove keys and records to and from the database.
 
@@ -12,7 +12,7 @@ Persistit permits efficient multi-threaded concurrent access to database volumes
 The Persistit Instance
 ----------------------
 
-To access Persistit, the application first constructs an instance of the ``com.persistit.Persistit`` class and initializes it. This instance is the keystone of all subsequent operations.  It holds references to the buffers, maps, transaction contexts and other structures needed to access B-trees. The life cycle of a Persistit instance should be managed as follows:
+To access Persistit, the application first constructs an instance of the ``com.persistit.Persistit`` class and initializes it. This instance is the keystone of all subsequent operations.  It holds references to the buffers, maps, transaction contexts and other structures needed to access B+Trees. The life cycle of a Persistit instance should be managed as follows:
 
 .. code-block:: java
 
@@ -114,7 +114,7 @@ Value
 
 A ``com.persistit.Value`` object holds a value. Unlike keys, Value objects have no restriction on the types of data they can represent, and they can hold much larger objects. In particular, a Value may contain null, any of the primitive types, or an object of any class.
 
-The backing store of a ``Value`` is a byte array that is written to a B-Tree data page, or in the case of a long record, multiple pages. The ``com.persistit.Value#put`` method variants encode (serialize) a Java primitive or Object value into the backing store, and the ``com.persistit.Value#get`` method variants decode (deserialize) the value.
+The backing store of a ``Value`` is a byte array that is written to a B+Tree data page, or in the case of a long record, multiple pages. The ``com.persistit.Value#put`` method variants encode (serialize) a Java primitive or Object value into the backing store, and the ``com.persistit.Value#get`` method variants decode (deserialize) the value.
 
 For example, in ``HelloWorld.java``, the line
 

@@ -142,7 +142,7 @@ Volumes and Trees
 
 A configuration defines one or more volume files that will contain stored Persistit data. Usually you will specify the ``create`` flag, which allows Persistit to create a new volume if the file does not already exist. Creating a new file also establishes the initial size and growth parameters for that volume.
 
-Each volume may contain an unlimited number of named trees. Each tree within a volume embodies a logically distinct B-Tree index structure. Think of a tree as simply a named key space within a volume.
+Each volume may contain an unlimited number of named trees. Each tree within a volume embodies a logically distinct B+Tree index structure. Think of a tree as simply a named key space within a volume.
 
 ``HelloWorld.java`` stores its key/value pair in a tree called “greetings” in a volume named “hwdemo”. This is specified by constructing an Exchange.
 
@@ -220,7 +220,7 @@ deserializes and prints an object value from the Key and another object value fr
 Storing and Fetching Data
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Finally, it is these two methods in ``HelloWorld.java`` that cause the Exchange object to share data with the B-Tree, making it persistent and potentially available to other threads:
+Finally, it is these two methods in ``HelloWorld.java`` that cause the Exchange object to share data with the B+Tree, making it persistent and potentially available to other threads:
 
 .. code-block:: java
 
