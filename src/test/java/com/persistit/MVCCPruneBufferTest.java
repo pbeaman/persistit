@@ -183,6 +183,27 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         ex1.prune();
         assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
     }
+    
+    @Test
+    public void induceBug1006576() throws Exception {
+        _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
+        trx1.begin();
+        storeLongMVV(ex1, "x");
+        storeLongMVV(ex1, "y");
+        trx1.commit();
+        trx1.end();
+        _persistit.getTransactionIndex().cleanup();
+        ex1.prune();
+        assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
+        
+        trx1.begin();
+        storeLongMVV(ex1, "x");
+        trx1.commit();
+        trx1.end();
+        _persistit.getTransactionIndex().cleanup();
+        ex1.prune();
+        assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
+    }
 
     @Test
     public void testComplexPruning() throws Exception {

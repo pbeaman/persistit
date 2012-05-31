@@ -683,9 +683,12 @@ public final class Value {
      *            The <code>Value</code> to which state should be copied.
      */
     public void copyTo(Value target) {
-        if (target == this)
+        if (target == this) {
             return;
-        target.changeLongRecordMode(isLongRecordMode());
+        }
+        Debug.$assert0.t(!isLongRecordMode());
+        Debug.$assert0.t(!target.isLongRecordMode());
+
         target.ensureFit(_size);
         System.arraycopy(_bytes, 0, target._bytes, 0, _size);
         target._size = _size;
@@ -775,12 +778,14 @@ public final class Value {
      *         larger array.
      */
     public boolean ensureFit(int length) {
+
         if (length > 0 && length * SIZE_GROWTH_DENOMINATOR < _size) {
             length = _size / SIZE_GROWTH_DENOMINATOR;
         }
         final int newSize = _size + length;
-        if (newSize <= _bytes.length)
+        if (newSize <= _bytes.length) {
             return false;
+        }
         int newArraySize = ((newSize + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY) * SIZE_GRANULARITY;
         if (newArraySize > _maximumSize)
             newArraySize = _maximumSize;
@@ -4064,6 +4069,7 @@ public final class Value {
 
     void changeLongRecordMode(boolean mode) {
         if (mode != _longMode) {
+
             if (_longBytes == null || _longBytes.length < Buffer.LONGREC_SIZE) {
                 _longBytes = new byte[Buffer.LONGREC_SIZE];
                 _longSize = Buffer.LONGREC_SIZE;
@@ -4080,11 +4086,15 @@ public final class Value {
             _longSize = tempSize;
             _longMode = mode;
 
-            if (mode) {
-                Debug.$assert1.t(_bytes.length == Buffer.LONGREC_SIZE);
-            } else {
-                Debug.$assert1.t(_longBytes.length == Buffer.LONGREC_SIZE);
-            }
+            assertLongRecordModeIsCorrect();
+        }
+    }
+
+    private void assertLongRecordModeIsCorrect() {
+        if (_longMode) {
+            Debug.$assert1.t(_bytes.length == Buffer.LONGREC_SIZE);
+        } else {
+            Debug.$assert1.t(_longBytes == null || _longBytes.length == Buffer.LONGREC_SIZE);
         }
     }
 
@@ -5071,8 +5081,8 @@ public final class Value {
     }
 
     /**
-     * Construct a list of <code>Version</code> objects, each denoting one of the
-     * multi-value versions currently held in this Value object.
+     * Construct a list of <code>Version</code> objects, each denoting one of
+     * the multi-value versions currently held in this Value object.
      * 
      * @return the list of <code>Version<code>s
      * @throws PersistitException
