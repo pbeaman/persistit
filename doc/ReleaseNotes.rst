@@ -1,10 +1,10 @@
 ************************************
-Akiban-Persistit 3.1.1 Release Notes
+Akiban Persistit 3.1.1 Release Notes
 ************************************
 
 Release Date
 ============
-May 25, 2012
+May 31, 2012
 
 Overview
 ========

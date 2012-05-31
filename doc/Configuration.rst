@@ -261,7 +261,7 @@ The ``demo_data`` volume has the alias ``data``. Application code uses the name 
 Property Value Substitution
 ---------------------------
 
-This example also illustrates how property value substitution can be used within a Persistit configuration.  The value of the ``datapath`` replaces ``$\{datapath\}`` in the volume specification. The property name ``datapath`` is arbitrary; you may use any valid property name as a substitution variable. Similarly, the value of ``logpath`` replaces ``$\{logpath\}`` and the pseudo-property ``$\{timestamp\}`` expands to a timestamp in the form ``*yyyyMMddHHmm*`` to provides a unique time-based log file name.
+This example also illustrates how property value substitution can be used within a Persistit configuration.  The value of the ``datapath`` replaces ``${datapath}`` in the volume specification. The property name ``datapath`` is arbitrary; you may use any valid property name as a substitution variable. Similarly, the value of ``logpath`` replaces ``${logpath}`` and the pseudo-property ``${timestamp}`` expands to a timestamp in the form ``*yyyyMMddHHmm*`` to provides a unique time-based log file name.
 
 Incorporating Java System Properties
 ------------------------------------

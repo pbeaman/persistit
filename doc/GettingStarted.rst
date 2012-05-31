@@ -4,9 +4,9 @@ Getting Started with Akiban Persistit
 
 Welcome!
 
-We have worked hard to make Akiban Persistit(TM) exceptionally fast, reliable, simple and lightweight. We hope you will enjoy learning more about it and using it.
+We have worked hard to make Akiban Persistit™ exceptionally fast, reliable, simple and lightweight. We hope you will enjoy learning more about it and using it.
 
-Akiban Persistit is a key/value data storage library written in Java(TM). Key features include:
+Akiban Persistit is a key/value data storage library written in Java™. Key features include:
 
 - support for highly concurrent transaction processing with multi-version concurrency control
 - optimized serialization and deserialization mechanism for Java primitives and objects
@@ -20,19 +20,18 @@ This chapter briefly and informally introduces and demonstrates various Persisti
 Download and Install
 --------------------
 
-Download ``akiban-persistit-3.xx.yy.zip`` from http://www.akiban.com/persistit/download.html.
+Download ``akiban-persistit-3.1.1.zip`` from link found at http://www.akiban.com/akiban-persistit.
 
-Unpack the distribution kit into a convenient directory using any unzip utility. For example, use ``jar`` to unpack the distribution kit to the current working directory as follows:
-.. code-block::
+Unpack the distribution kit into a convenient directory using any unzip utility. For example, use ``jar`` to unpack the distribution kit to the current working directory as follows::
+  
+  jar xvf persistit-3.1.1.zip
 
-  jar xvzf akiban-persistit-core-3.xx.yy.zip
-
-Review the ``LICENSE.html`` and ``README.html`` files located in the root of the installation directory. Persistit is licensed under the GNU Affero General Public License. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.
+Review the ``LICENSE.txt`` file located in the root of the installation directory. Persistit is licensed under the GNU Affero General Public License or a free-use community license, see http://www.akiban.com/akiban-licensing-options for more details. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.
 
 Working with Persistit
 ----------------------
 
-Add the ``akiban-persistit-core-3.xx.yy.jar`` from the ``lib`` directory of the distribution kit to your project's classpath. For example, copy it to ``jre/lib/ext`` in your Java Runtime Environment, or add it to your classpath environment variable. 
+Add the ``akiban-persistit-3.1.1.jar``, as found in the root directory of the distribution kit, to your project's classpath. For example, copy it to ``jre/lib/ext`` in your Java Runtime Environment, or add it to your classpath environment variable. 
 
 That's it. You are ready to work with Persistit.
 
@@ -59,7 +58,7 @@ HelloWorld
 
 Before going further let's honor tradition with a small program that stores, fetches and displays the phrase “Hello World.” In this program we will create a record with the key “Hello” and the value “World”.
 
-.. HelloWorld.java
+**HelloWorld.java**
 
 .. code-block:: java
 

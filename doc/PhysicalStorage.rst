@@ -72,7 +72,7 @@ An index page has a structure similar to a data page except that instead of hold
 .. _Recovery:
 
 Recovery
-========
+--------
 
 Akiban Persistit is designed, implemented and tested to ensure that whether the application shuts down gracefully or crashes without cleanly closing the database, the database remains structurally intact and internally consistent after restart.
 
@@ -89,7 +89,7 @@ To accomplish this, Persistit writes all updates first to the :ref:`Journal`. Pe
 Recovery depends on the availability of the volume and journal files as they existed prior to abrupt termination. If these are modified or destroyed outside of Persistit, successful recovery is unlikely.
 
 Timestamps and Checkpoints
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Persistit maintains a universal counter called the *timestamp* counter. Every update operation assigns a new, larger timestamp, and every record in the journal includes the timestamp assigned to the operation writing the record. The timestamp counter is unrelated to clock time.  It is merely a counter.
 

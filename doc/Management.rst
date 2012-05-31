@@ -47,7 +47,7 @@ For details see the JavaDoc API documentation for each MXBean interface.
 Management Tasks
 ----------------
 
-Persistit provides several ways to launch and administer ``com.persistit.Task`` instances.  A ``Task`` is a management operation that may take a significant amount of time and usually runs in a separate thread. For example, ``com.persistit.IntegrityCheck`` is a ``Task`` that verifies the internal structural integrity of one or more trees and can run for minutes to hours, depending on the size of the database.  The :ref:`AdminUI` tool, ``com.persistit.mxbeans.ManagementMXBean`` and the command-line interface (:ref:`CLI`) provide mechanisms to launch, suspend or stop a task, and to monitor a task’s progress.
+Persistit provides several ways to launch and administer ``com.persistit.Task`` instances.  A ``Task`` is a management operation that may take a significant amount of time and usually runs in a separate thread. For example, ``com.persistit.IntegrityCheck`` is a ``Task`` that verifies the internal structural integrity of one or more trees and can run for minutes to hours, depending on the size of the database.  The AdminUI tool, ``com.persistit.mxbeans.ManagementMXBean`` and the command-line interface (:ref:`CLI`) provide mechanisms to launch, suspend or stop a task, and to monitor a task’s progress.
 
 Currently the following built-in Tasks are available:
 
@@ -224,7 +224,7 @@ Starts a com.persistit.StreamLoader task. Arguments:
   ``-v``
       Emit verbose output
 
-...‘*’ and ‘?’ are standard wildcards.
+‘*’ and ‘?’ are standard wildcards.
 
 Example::
 
