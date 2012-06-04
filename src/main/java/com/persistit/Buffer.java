@@ -3072,6 +3072,10 @@ public class Buffer extends SharedResource {
             int tbData = getInt(tail);
 
             int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+            if (size <= 0) {
+                _persistit.fatal("Buffer has invalid tailblock length " + size + " at " + tail + " in "
+                        + this, null);
+            }
 
             if ((tbData & TAILBLOCK_INUSE_MASK) != 0) {
                 plan[tail / TAILBLOCK_FACTOR] = (back << 16) | free;
@@ -3660,6 +3664,8 @@ public class Buffer extends SharedResource {
                         if (copy.getGeneration() > getGeneration()) {
                             bumpGeneration();
                         }
+                        setAlloc(copy._alloc);
+                        _slack = copy._slack;
                         setDirtyAtTimestamp(copyTimestamp);
                         deallocatePrunedVersions(_persistit, _vol, prunedVersions);
                         for (final Long oldLongRecordChain : oldChainsToDeallocate) {
