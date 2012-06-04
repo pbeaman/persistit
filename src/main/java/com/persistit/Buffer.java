@@ -3661,11 +3661,13 @@ public class Buffer extends SharedResource {
                         final long copyTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
                         writePageOnCheckpoint(copyTimestamp);
                         System.arraycopy(copy._bytes, 0, _bytes, 0, _bufferSize);
+                        _alloc = copy._alloc;
+                        _slack = copy._slack;
+                        _mvvCount = copy._mvvCount;
+                        _keyBlockEnd = copy._keyBlockEnd;
                         if (copy.getGeneration() > getGeneration()) {
                             bumpGeneration();
                         }
-                        setAlloc(copy._alloc);
-                        _slack = copy._slack;
                         setDirtyAtTimestamp(copyTimestamp);
                         deallocatePrunedVersions(_persistit, _vol, prunedVersions);
                         for (final Long oldLongRecordChain : oldChainsToDeallocate) {
@@ -3738,9 +3740,7 @@ public class Buffer extends SharedResource {
                         value.changeLongRecordMode(false);
                     }
                 }
-                boolean prunedAntiValue = pruneAntiValue(valueByte, p, tree);
-                changed |= prunedAntiValue;
-                if (prunedAntiValue) {
+                if (pruneAntiValue(valueByte, p, tree)) {
                     changed = true;
                     p -= KEYBLOCK_LENGTH;
                     if (!bumped) {
