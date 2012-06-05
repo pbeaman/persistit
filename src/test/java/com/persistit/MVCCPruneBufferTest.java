@@ -149,7 +149,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     
     @Test
     public void testPruneLongRecordsSimple() throws Exception {
-        _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
+        _persistit.getCleanupManager().setPollInterval(-1);
         trx1.begin();
         storeLongMVV(ex1, "x");
         trx1.commit();
@@ -161,7 +161,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
     @Test
     public void testPruneLongRecordsWithRollback() throws Exception {
-        _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
+        _persistit.getCleanupManager().setPollInterval(-1);
         /*
          * Start a concurrent transaction to prevent pruning during the store operations.
          */
@@ -186,7 +186,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     
     @Test
     public void induceBug1006576() throws Exception {
-        _persistit.getCleanupManager().setPollInterval(Long.MAX_VALUE);
+        _persistit.getCleanupManager().setPollInterval(-1);
         trx1.begin();
         storeLongMVV(ex1, "x");
         storeLongMVV(ex1, "y");
@@ -203,6 +203,27 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         _persistit.getTransactionIndex().cleanup();
         ex1.prune();
         assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
+    }
+
+    @Test
+    public void induceBug1005206() throws Exception {
+        _persistit.getCleanupManager().setPollInterval(-1);
+        trx1.begin();
+        storeLongMVV(ex1, "x");
+        
+        trx2.begin();
+        storeLongMVV(ex2, "y");
+        
+        trx1.commit();
+        trx2.rollback();
+
+        trx1.end();
+        trx2.end();
+        
+        _persistit.getTransactionIndex().cleanup();
+        ex1.prune();
+        assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
+        
     }
 
     @Test

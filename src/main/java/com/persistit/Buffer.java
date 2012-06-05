@@ -3072,6 +3072,10 @@ public class Buffer extends SharedResource {
             int tbData = getInt(tail);
 
             int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+            if (size <= 0) {
+                _persistit.fatal("Buffer has invalid tailblock length " + size + " at " + tail + " in "
+                        + this, null);
+            }
 
             if ((tbData & TAILBLOCK_INUSE_MASK) != 0) {
                 plan[tail / TAILBLOCK_FACTOR] = (back << 16) | free;
@@ -3657,6 +3661,10 @@ public class Buffer extends SharedResource {
                         final long copyTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
                         writePageOnCheckpoint(copyTimestamp);
                         System.arraycopy(copy._bytes, 0, _bytes, 0, _bufferSize);
+                        _alloc = copy._alloc;
+                        _slack = copy._slack;
+                        _mvvCount = copy._mvvCount;
+                        _keyBlockEnd = copy._keyBlockEnd;
                         if (copy.getGeneration() > getGeneration()) {
                             bumpGeneration();
                         }
@@ -3732,9 +3740,7 @@ public class Buffer extends SharedResource {
                         value.changeLongRecordMode(false);
                     }
                 }
-                boolean prunedAntiValue = pruneAntiValue(valueByte, p, tree);
-                changed |= prunedAntiValue;
-                if (prunedAntiValue) {
+                if (pruneAntiValue(valueByte, p, tree)) {
                     changed = true;
                     p -= KEYBLOCK_LENGTH;
                     if (!bumped) {
