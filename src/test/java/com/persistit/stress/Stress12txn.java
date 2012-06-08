@@ -41,14 +41,8 @@ public class Stress12txn extends StressBase {
             "count|int:1000:1:100000000|Number Repetitions per cycle",
             "size|int:1:1:100000|Number of nodes to populate", "seed|int:1:1:20000|Random seed", };
 
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    public Stress12txn(String argsString) {
+        super(argsString);
     }
 
     static boolean _initializedOnce = false;
@@ -64,7 +58,6 @@ public class Stress12txn extends StressBase {
         _repeatTotal = _ap.getIntValue("repeat");
         _total = _ap.getIntValue("count");
         _size = _ap.getIntValue("size");
-        _dotGranularity = 10000;
         _seed = _ap.getIntValue("seed");
         seed(_seed);
 
@@ -94,9 +87,6 @@ public class Stress12txn extends StressBase {
         }
         final Transaction txn = _exs.getTransaction();
         final Value value = _exs.getValue();
-        verboseln();
-        verboseln();
-        verboseln("Starting test cycle " + _repeat + " at " + tsString());
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {
@@ -126,8 +116,6 @@ public class Stress12txn extends StressBase {
             }
         }
 
-        verboseln();
-        verbose("done");
     }
 
     private void putCount(final Value value, final long v) {
@@ -168,7 +156,7 @@ public class Stress12txn extends StressBase {
                 return value.getLong();
             }
         } catch (final NullPointerException npe) {
-            printStackTrace(npe);
+            npe.printStackTrace();
             try {
                 Thread.sleep(10000);
             } catch (final InterruptedException ie) {
@@ -177,8 +165,4 @@ public class Stress12txn extends StressBase {
         }
     }
 
-    public static void main(final String[] args) {
-        final Stress12txn test = new Stress12txn();
-        test.runStandalone(args);
-    }
 }

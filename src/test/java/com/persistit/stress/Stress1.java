@@ -27,15 +27,6 @@ import com.persistit.util.ArgParser;
 
 public class Stress1 extends StressBase {
 
-    private final static String SHORT_DESCRIPTION = "Simple write/read/delete/traverse loops";
-
-    private final static String LONG_DESCRIPTION = "   Simple stress test that perform <repeat> iterations of the following: \r\n"
-            + "    - insert <count> sequentially ascending keys \r\n"
-            + "    - read and verify <count> sequentially ascending key/value pairs\r\n"
-            + "    - traverse and count all keys using next() \r\n"
-            + "    - delete <count> sequentially ascending keys \r\n"
-            + "   Optional <splay> value allows variations in key sequence: \r\n";
-
     private final static String[] ARGS_TEMPLATE = { "op|String:wrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions", "count|int:10000:0:1000000000|Number of nodes to populate",
             "size|int:30:1:20000|Size of each data value", "splay|int:1:1:1000|Splay", };
@@ -44,14 +35,8 @@ public class Stress1 extends StressBase {
     int _splay;
     String _opflags;
 
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    public Stress1(String argsString) {
+        super(argsString);
     }
 
     @Override
@@ -63,7 +48,6 @@ public class Stress1 extends StressBase {
         _size = _ap.getIntValue("size");
         _repeatTotal = _ap.getIntValue("repeat");
         _total = _ap.getIntValue("count");
-        _dotGranularity = 10000;
 
         try {
             // Exchange with Thread-private Tree
@@ -84,15 +68,11 @@ public class Stress1 extends StressBase {
         } catch (final Exception e) {
             handleThrowable(e);
         }
-        verboseln();
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            verboseln();
-            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
             if (_opflags.indexOf('w') >= 0) {
                 setPhase("w");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     final int keyInteger = keyInteger(_count);
                     _ex.clear().append(keyInteger);
                     setupTestValue(_ex, _count, _size);
@@ -108,7 +88,6 @@ public class Stress1 extends StressBase {
             if (_opflags.indexOf('r') >= 0) {
                 setPhase("r");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     final int keyInteger = keyInteger(_count);
                     _ex.clear().append(keyInteger);
                     setupTestValue(_ex, _count, _size);
@@ -127,7 +106,6 @@ public class Stress1 extends StressBase {
                 setPhase("t");
                 _ex.clear().append(Integer.MIN_VALUE);
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
-                    dot();
                     try {
                         if (!_ex.next()) {
                             break;
@@ -139,7 +117,6 @@ public class Stress1 extends StressBase {
                 if (_count != _total) {
                     _result = new TestResult(false, "Traverse count=" + _count + " out of " + _total + " repetition="
                             + _repeat + " in thread=" + _threadIndex);
-                    println(_result);
                     forceStop();
                     break;
                 }
@@ -148,7 +125,6 @@ public class Stress1 extends StressBase {
             if (_opflags.indexOf('d') >= 0) {
                 setPhase("d");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     final int keyInteger = keyInteger(_count);
                     _ex.clear().append(keyInteger);
                     try {
@@ -168,8 +144,6 @@ public class Stress1 extends StressBase {
             }
 
         }
-        verboseln();
-        verbose("done");
     }
 
     int keyInteger(final int counter) {
@@ -180,8 +154,4 @@ public class Stress1 extends StressBase {
         return keyInteger;
     }
 
-    public static void main(final String[] args) {
-        final Stress1 test = new Stress1();
-        test.runStandalone(args);
-    }
 }

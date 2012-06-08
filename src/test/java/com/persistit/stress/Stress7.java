@@ -34,21 +34,11 @@ import com.persistit.util.ArgParser;
  * 
  */
 public class Stress7 extends StressBase {
-    private final static String SHORT_DESCRIPTION = "Exercise page splits and rejoin";
 
-    private final static String LONG_DESCRIPTION = "   Inserts and deletes key/value pairs in a pattern that tests\r\n"
-            + "   split and rejoin logic extensively.";
-
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
+    public Stress7(String argsString) {
+        super(argsString);
     }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
-    }
-
+    
     private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Repetitions",
             "count|int:1000:0:100000|Number of nodes to populate", "size|int:500:1:10000|Max splitting value size",
             "seed|int:1:1:20000|Random seed",
@@ -67,8 +57,6 @@ public class Stress7 extends StressBase {
         _total = _ap.getIntValue("count");
         _size = _ap.getIntValue("size");
         _seed = _ap.getIntValue("seed");
-
-        _dotGranularity = 100;
 
         try {
             _exs = getPersistit().getExchange("persistit", "shared", true);
@@ -95,27 +83,16 @@ public class Stress7 extends StressBase {
                     _sb2.append('x');
                 }
 
-                verboseln();
-                verboseln();
-                verboseln("Starting test cycle " + _repeat + " at " + tsString());
-                describeTest("Deleting all records");
                 setPhase("@");
                 _exs.clear().append("stress7").append(_threadIndex).remove(Key.GTEQ);
-                verboseln();
 
-                describeTest("Creating baseline records");
                 setPhase("a");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     _exs.clear().append("stress7").append(_threadIndex).append(_count).append(_sb1);
                     _exs.store();
                 }
-                verboseln();
-
-                describeTest("Splitting and joining");
                 setPhase("b");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     _exs.clear().append("stress7").append(_threadIndex).append(_count).append(_sb1);
                     _sb2.setLength(0);
                     final int toSize = random(1, _size);
@@ -126,12 +103,8 @@ public class Stress7 extends StressBase {
                         _exs.remove();
                     }
                 }
-                verboseln();
-
-                describeTest("Verifying");
                 setPhase("c");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     _exs.clear().append("stress7").append(_threadIndex).append(_count).append(_sb1);
                     _exs.fetch();
                     if (_exs.getValue().isDefined()) {
@@ -141,26 +114,11 @@ public class Stress7 extends StressBase {
                         break;
                     }
                 }
-                verboseln();
-
             } catch (final Exception de) {
                 handleThrowable(de);
             }
-            verboseln("Done at " + tsString());
         }
     }
 
-    private void setupKey(final Exchange ex, final int length, final int depth, final int a, final int b,
-            final char fill) {
-        _sb1.setLength(0);
-        for (int i = 0; i < length; i++) {
-            _sb1.append(fill);
-        }
-        fillLong(b, depth, 5, true);
-        ex.clear().append(a).append(_sb1);
-    }
 
-    public static void main(final String[] args) {
-        new Stress7().runStandalone(args);
-    }
 }

@@ -30,11 +30,21 @@ import com.persistit.util.ArgParser;
 /**
  * A basic test sequence:
  * 
- * 1. Delete all to clean 2. Sequential Fixed-length set/get/traverse/reverse
- * traverse/remove 3. Child key insert / traverse / reverse /remove 4.
- * Sequential Replacement / Elongation / Shortening 5. Random insertion /
- * replacement / elongation / shortening 6. Long records insert / grow / shrink
- * / remove 7. Spotty removes 8. Key range remove
+ * 1. Delete all to clean
+ * 
+ * 2. Sequential Fixed-length set/get/traverse/reverse traverse/remove
+ * 
+ * 3. Child key insert / traverse / reverse /remove
+ * 
+ * 4. Sequential Replacement / Elongation / Shortening
+ * 
+ * 5. Random insertion / replacement / elongation / shortening
+ * 
+ * 6. Long records insert / grow / shrink / remove
+ * 
+ * 7. Spotty removes
+ * 
+ * 8. Key range remove
  * 
  */
 public abstract class Stress4Base extends StressBase {
@@ -49,6 +59,10 @@ public abstract class Stress4Base extends StressBase {
 
     private Exception _mostRecentException;
 
+    public Stress4Base(String argsString) {
+        super(argsString);
+    }
+
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -58,7 +72,6 @@ public abstract class Stress4Base extends StressBase {
         _total = _ap.getIntValue("count");
         _seed = _ap.getIntValue("seed");
         _splay = _ap.getIntValue("splay");
-        _dotGranularity = 10000;
 
         try {
             // Exchange with Thread-private Tree
@@ -82,14 +95,9 @@ public abstract class Stress4Base extends StressBase {
             } catch (final Exception e) {
                 handleThrowable(e);
             }
-            verboseln();
 
             for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-                verboseln();
-                verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
-
                 repeatedTasks();
-                verboseln();
             }
         } catch (final Throwable t) {
             handleThrowable(t);
@@ -179,7 +187,6 @@ public abstract class Stress4Base extends StressBase {
             throws PersistitException {
         setPhase("w");
         for (_count = 0; (_count < to) && !isStopped(); _count++) {
-            dot();
             int keyInteger;
             if (random) {
                 keyInteger = keyInteger(_count);
@@ -204,7 +211,6 @@ public abstract class Stress4Base extends StressBase {
         setPhase("r");
 
         for (_count = 0; (_count < to) && !isStopped(); _count++) {
-            dot();
             int keyInteger;
             if (random) {
                 keyInteger = keyInteger(_count);
@@ -228,7 +234,6 @@ public abstract class Stress4Base extends StressBase {
         setPhase("d");
 
         for (_count = 0; (_count < _total) && (_count < to) && !isStopped(); _count++) {
-            dot();
             int keyInteger;
             if (random) {
                 keyInteger = keyInteger(_count);

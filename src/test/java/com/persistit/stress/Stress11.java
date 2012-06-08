@@ -29,10 +29,6 @@ import com.persistit.util.ArgParser;
 
 public class Stress11 extends StressBase {
 
-    private final static String SHORT_DESCRIPTION = "Random key and value size write/read/delete/traverse loops";
-
-    private final static String LONG_DESCRIPTION = "   Simple stress test that randomly inserts, reads, traverses and\r\n"
-            + "   deletes records\r\n";
 
     private final static String[] ARGS_TEMPLATE = { "op|String:wrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions", "count|int:10000:0:1000000000|Number of nodes to populate",
@@ -46,14 +42,8 @@ public class Stress11 extends StressBase {
     ArrayList _objects = new ArrayList();
     ArrayList _objectsCopy = new ArrayList();
 
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    public Stress11(String argsString) {
+        super(argsString);
     }
 
     @Override
@@ -65,7 +55,6 @@ public class Stress11 extends StressBase {
         _seed = _ap.getIntValue("seed");
         _repeatTotal = _ap.getIntValue("repeat");
         _total = _ap.getIntValue("count");
-        _dotGranularity = 100000;
 
         try {
             // Exchange with Thread-private Tree
@@ -91,16 +80,12 @@ public class Stress11 extends StressBase {
         } catch (final Exception e) {
             handleThrowable(e);
         }
-        verboseln();
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            verboseln();
-            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
             _random.setSeed(_seed);
 
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {
 
-                dot();
                 final int keyInteger = keyInteger(_count);
                 int action = random(0, 10);
 
@@ -143,7 +128,6 @@ public class Stress11 extends StressBase {
                         if (size2 != size1) {
                             _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1 + " key="
                                     + _ex.getKey());
-                            println(_result);
                             forceStop();
                         }
                         if (size1 != 0) {
@@ -159,7 +143,6 @@ public class Stress11 extends StressBase {
 
                     _exs.clear().append("stress10").append(keyInteger);
                     for (int count = 0; (count < random(10, 1000)) && !isStopped(); count++) {
-                        dot();
                         try {
                             if (!_exs.next()) {
                                 break;
@@ -175,7 +158,6 @@ public class Stress11 extends StressBase {
                             if (size2 != size1) {
                                 _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1
                                         + " key=" + _ex.getKey());
-                                println(_result);
                                 forceStop();
                             }
                             if (size1 != 0) {
@@ -205,10 +187,6 @@ public class Stress11 extends StressBase {
                 }
             }
         }
-
-        verboseln();
-        verbose("done");
-
     }
 
     int keyInteger(final int counter) {
@@ -231,8 +209,4 @@ public class Stress11 extends StressBase {
         ex.getValue().put(_objectsCopy);
     }
 
-    public static void main(final String[] args) {
-        final Stress11 test = new Stress11();
-        test.runStandalone(args);
-    }
 }

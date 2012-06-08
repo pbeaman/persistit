@@ -50,16 +50,10 @@ public abstract class StressBase extends AbstractTestRunnerItem {
 
     protected Random _random = new Random();
 
-    @Override
-    public void tearDown() {
-        _ex = null;
-        _exs = null;
-        _sb = null;
-        _sb1 = null;
-        _sb2 = null;
-        _random = null;
+    protected StressBase(final String argsString) {
+        super(argsString);
     }
-
+    
     @Override
     public double getProgress() {
         return 0.5;
@@ -71,7 +65,6 @@ public abstract class StressBase extends AbstractTestRunnerItem {
     }
 
     protected void setPhase(final String phase) {
-        verbose(phase);
         _phase = phase;
     }
 
@@ -81,8 +74,8 @@ public abstract class StressBase extends AbstractTestRunnerItem {
 
     protected synchronized void handleThrowable(final Throwable thx) {
         _result = new TestResult(false, thx);
-        println(_result);
-        printStackTrace(thx);
+        System.out.println(_result);
+        thx.printStackTrace();
         forceStop();
     }
 
@@ -215,21 +208,5 @@ public abstract class StressBase extends AbstractTestRunnerItem {
         return value.hashCode();
     }
 
-    protected void dot() {
-        if (_forceStop) {
-            verboseln();
-            verboseln("STOPPED");
-            throw new RuntimeException("STOPPED");
-        }
-        if (isVerbose()) {
-            final int i = _count;
-            if ((i > 0) && (_dotGranularity > 0) && ((i % _dotGranularity) == 0)) {
-                if ((i % (_dotGranularity * 10)) == 0) {
-                    print(Integer.toString(i));
-                } else {
-                    print(".");
-                }
-            }
-        }
-    }
+
 }

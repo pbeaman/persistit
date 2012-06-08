@@ -37,23 +37,9 @@ import com.persistit.util.Debug;
  * @version 1.0
  */
 public class Stress8txn extends StressBase {
-    private final static String SHORT_DESCRIPTION = "Tests transactions";
 
-    private final static String LONG_DESCRIPTION = "   Tests transactions to ensure isolation, atomicity and\r\n"
-            + "   consistency.  Each transaction performs several updates\r\n"
-            + "   simulating moving cash between accounts.  To exercise\r\n"
-            + "   optimistic concurrency control, several threads should run\r\n"
-            + "   this test simultaneously.  At the beginning of the run, and\r\n"
-            + "   periodically, this class tests whether all 'accounts' are\r\n" + "   consistent";
-
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    public Stress8txn(String argsString) {
+        super(argsString);
     }
 
     private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Repetitions",
@@ -75,7 +61,6 @@ public class Stress8txn extends StressBase {
         _size = _ap.getIntValue("size");
         _seed = _ap.getIntValue("seed");
         seed(_seed);
-        _dotGranularity = 1000;
 
         try {
             _exs = getPersistit().getExchange("persistit", "shared", true);
@@ -121,7 +106,7 @@ public class Stress8txn extends StressBase {
                 _consistencyCheckDone = true;
                 try {
                     if (totalConsistencyCheck()) {
-                        println("Consistency check completed successfully");
+                        System.out.println("Consistency check completed successfully");
                     }
                 } catch (final PersistitException pe) {
                     _result = new TestResult(false, pe);
@@ -140,22 +125,15 @@ public class Stress8txn extends StressBase {
         ops[5] = new Operation5();
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            verboseln();
-            verboseln();
-            verboseln("Starting test cycle " + _repeat + " at " + tsString());
 
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                 try {
-                    dot();
                     final int selector = select();
                     final Operation op = ops[selector];
                     final int acct1 = random(0, _size);
                     final int acct2 = random(0, _size);
                     op.setup(acct1, acct2);
                     final int passes = txn.run(op, 100, 5, CommitPolicy.SOFT);
-                    if (passes > 10) {
-                        verboseln("pass count=" + passes);
-                    }
                     Debug.$assert1.t(passes <= 90);
                     if (op._result != null) {
                         _result = op._result;
@@ -451,7 +429,7 @@ public class Stress8txn extends StressBase {
                 return ex.getValue().getInt();
             }
         } catch (final NullPointerException npe) {
-            printStackTrace(npe);
+            npe.printStackTrace();
             try {
                 Thread.sleep(10000);
             } catch (final InterruptedException ie) {
@@ -483,10 +461,6 @@ public class Stress8txn extends StressBase {
         } else {
             ex.getValue().put(value);
         }
-    }
-
-    public static void main(final String[] args) {
-        new Stress8txn().runStandalone(args);
     }
 
     void inconsistent(TestResult result) {

@@ -30,11 +30,10 @@ import com.persistit.test.AbstractTestRunnerItem;
 import com.persistit.util.Util;
 
 public class MD5Sum extends AbstractTestRunnerItem {
-
-    private final static String SHORT_DESCRIPTION = "Computes and prints the MD5 sum of all keys and values";
-
-    private final static String LONG_DESCRIPTION = "   Computes and prints the MD5 sum of all keys and values.\n"
-            + "This value can be used to test whether the database state is consistent.";
+    /**
+     * Computes and prints the MD5 sum of all keys and values. This value can be
+     * used to test whether the database state is consistent.
+     */
 
     int _size;
     int _splay;
@@ -44,23 +43,14 @@ public class MD5Sum extends AbstractTestRunnerItem {
 
     private String progress = "Not started";
 
-    public MD5Sum() {
+    public MD5Sum(String argsString) {
+        super(argsString);
         try {
             md = MessageDigest.getInstance("MD5");
         } catch (Exception e) {
-            printStackTrace(e);
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
     }
 
     @Override
@@ -71,11 +61,11 @@ public class MD5Sum extends AbstractTestRunnerItem {
 
     @Override
     public void executeTest() throws Exception {
-        final Volume volume = _persistit.getVolume("persistit");
+        final Volume volume = getPersistit().getVolume("persistit");
         final String[] treeNames = volume.getTreeNames();
         long pairs = 0;
         for (int index = 0; index < treeNames.length; index++) {
-            final Exchange exchange = _persistit.getExchange(volume, treeNames[index], false);
+            final Exchange exchange = getPersistit().getExchange(volume, treeNames[index], false);
             exchange.clear().append(Key.BEFORE);
             while (exchange.next(true)) {
                 update(md, exchange.getKey().getEncodedBytes(), exchange.getKey().getEncodedSize());

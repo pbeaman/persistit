@@ -27,24 +27,14 @@ import com.persistit.util.ArgParser;
 
 public class StressUUID extends StressBase {
 
-    private final static String SHORT_DESCRIPTION = "Insert a large number of short records using random keys";
-
-    private final static String LONG_DESCRIPTION = "   Insert a large number of short records using random keys: \r\n";
-
     private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Number of major loops",
             "count|int:100000:0:1000000|Number of UUID keys to populate per major loop",
             "size|int:30:1:20000|Maximum size of each data value", };
 
     int _size;
 
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    public StressUUID(String argsString) {
+        super(argsString);
     }
 
     @Override
@@ -54,7 +44,6 @@ public class StressUUID extends StressBase {
         _size = _ap.getIntValue("size");
         _repeatTotal = _ap.getIntValue("repeat");
         _total = _ap.getIntValue("count");
-        _dotGranularity = 10000;
 
         try {
             // Exchange with Thread-private Tree
@@ -74,13 +63,9 @@ public class StressUUID extends StressBase {
             handleThrowable(e);
         }
         setPhase("w");
-        verboseln();
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            verboseln();
-            verbose("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal + "  ");
             final long start = System.nanoTime();
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                dot();
                 final UUID uuid = UUID.randomUUID();
                 final String uuidString = uuid.toString();
                 _ex.clear().append(uuidString.substring(0, 5)).append(uuidString.substring(5));
@@ -93,17 +78,7 @@ public class StressUUID extends StressBase {
                 }
             }
             final long end = System.nanoTime();
-            verboseln();
-            verboseln("  Ending cycle " + (_repeat + 1) + " of " + _repeatTotal
-                    + String.format(" cycle elapsed time=%,d msec", (end - start) / 1000000));
         }
-        verboseln();
-        verbose("done");
-        verboseln();
     }
 
-    public static void main(final String[] args) {
-        final StressUUID test = new StressUUID();
-        test.runStandalone(args);
-    }
 }

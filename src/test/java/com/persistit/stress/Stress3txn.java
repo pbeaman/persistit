@@ -34,14 +34,6 @@ import com.persistit.util.ArgParser;
 
 public class Stress3txn extends StressBase {
 
-    private final static String SHORT_DESCRIPTION = "Transactionally insert and index filename list from sample data file";
-
-    private final static String LONG_DESCRIPTION = "   Stress test that indexes filenames from sample data file in \r\n"
-            + "   various ways, including reverse spelling.  Uses the \r\n"
-            + "   incrementValue() method.  Tests integrity of resulting \r\n"
-            + "   data structures.  Performs random and whole-tree deletes \r\n"
-            + "   Same as Stress3, except this class tests Transaction support";
-
     private final static String DEFAULT_DATA_FILE_NAME = "src/test/resources/test3_data.txt";
 
     private final static String[] ARGS_TEMPLATE = { "op|String:wrd|Operations to perform",
@@ -58,14 +50,8 @@ public class Stress3txn extends StressBase {
     int _size;
     String _opflags;
 
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    public Stress3txn(String argsString) {
+        super(argsString);
     }
 
     @Override
@@ -78,7 +64,6 @@ public class Stress3txn extends StressBase {
         _size = _ap.getIntValue("size");
         _repeatTotal = _ap.getIntValue("repeat");
         _total = _ap.getIntValue("count");
-        _dotGranularity = 1000;
 
         try {
             // Exchange with Thread-private Tree
@@ -88,7 +73,6 @@ public class Stress3txn extends StressBase {
         }
 
         initialize(_ap.getStringValue("datafile"));
-        _persistit.getManagement().setAppendOnly(true); // debugging only
     }
 
     /**
@@ -132,22 +116,18 @@ public class Stress3txn extends StressBase {
         } catch (final Exception e) {
             handleThrowable(e);
         }
-        verboseln();
 
         final Exchange ex1 = new Exchange(_ex);
         final Exchange ex2 = new Exchange(_ex);
         final Exchange ex3 = new Exchange(_ex);
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            verboseln();
-            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
             final Transaction txn = ex1.getTransaction();
             if (_opflags.indexOf('w') >= 0) {
                 setPhase("w");
 
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     try {
                         final int keyInteger = randomSeq[_count];
 
@@ -194,10 +174,6 @@ public class Stress3txn extends StressBase {
                         handleThrowable(t);
                     }
 
-                    if ((_count > 0) && ((_count % 100) == 0)) {
-                        verboseln("Commits: " + txn.getCommittedTransactionCount() + " Rollbacks="
-                                + txn.getRolledBackTransactionCount());
-                    }
                 }
             }
 
@@ -205,7 +181,6 @@ public class Stress3txn extends StressBase {
                 setPhase("r");
                 final Value value2 = new Value(getPersistit());
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     try {
                         final int keyInteger = randomSeq[_count];
                         if (keyInteger < 0) {
@@ -273,7 +248,6 @@ public class Stress3txn extends StressBase {
 
                     for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                         try {
-                            dot();
                             final int keyInteger = randomUniqueSeq[_count];
                             if (keyInteger < 0) {
                                 continue;
@@ -290,7 +264,6 @@ public class Stress3txn extends StressBase {
                                         _result = new TestResult(false, "Expected filename <" + s
                                                 + "> was not found - key=" + ex1.getKey() + " keyInteger=" + keyInteger
                                                 + " at counter=" + _count);
-                                        println(_result);
                                         forceStop();
                                         break;
                                     }
@@ -319,13 +292,6 @@ public class Stress3txn extends StressBase {
                 }
             }
         }
-        verboseln();
-        verbose("done");
-
     }
 
-    public static void main(final String[] args) {
-        final Stress3txn test = new Stress3txn();
-        test.runStandalone(args);
-    }
 }

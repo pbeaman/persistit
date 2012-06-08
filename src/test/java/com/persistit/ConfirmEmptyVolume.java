@@ -26,19 +26,9 @@ import com.persistit.test.TestResult;
 public class ConfirmEmptyVolume extends AbstractTestRunnerItem {
 
     Volume[] _volumes;
-
-    private final static String SHORT_DESCRIPTION = "Confirm volume is empty";
-
-    private final static String LONG_DESCRIPTION = SHORT_DESCRIPTION;
-
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    
+    public ConfirmEmptyVolume(final String argsString) {
+        super(argsString);
     }
 
     @Override
@@ -63,7 +53,7 @@ public class ConfirmEmptyVolume extends AbstractTestRunnerItem {
         for (int index = 0; index < _args.length; index++) {
             final Volume volume = getPersistit().getVolume(_args[index]);
             if (volume == null) {
-                println("Volume name not found: " + _args[index]);
+                System.out.println("Volume name not found: " + _args[index]);
             } else {
                 _volumes[index] = volume;
             }
@@ -105,24 +95,16 @@ public class ConfirmEmptyVolume extends AbstractTestRunnerItem {
                 }
             }
             if (resultCount > 1) {
-                _result = new TestResult(passed, results);
+                _result = new TestResult(passed, results.toString());
             }
 
         } catch (final Exception ex) {
             _result = new TestResult(false, ex);
-            println(ex.toString());
         }
-        println();
-        print("done");
     }
 
     @Override
     public void executeTest() throws Exception {
         confirmEmpty();
-    }
-
-    public static void main(final String[] args) {
-        final ConfirmEmptyVolume test = new ConfirmEmptyVolume();
-        test.runStandalone(args);
     }
 }

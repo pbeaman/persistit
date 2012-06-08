@@ -32,14 +32,6 @@ import com.persistit.util.ArgParser;
 
 public class PersistitMapStress2 extends StressBase {
 
-    private final static String SHORT_DESCRIPTION = "PersistitMap test - write/read/delete/traverse loops using serialized values";
-
-    private final static String LONG_DESCRIPTION = "   Stress test that perform <repeat> iterations of the following: \r\n"
-            + "    - insert <count> sequentially ascending keys \r\n"
-            + "    - read and verify <count> sequentially ascending key/value pairs\r\n"
-            + "    - traverse and count all keys using next() \r\n"
-            + "    - delete <count> sequentially ascending keys \r\n"
-            + "   Optional <splay> value allows variations in key sequence: \r\n";
 
     private final static String[] ARGS_TEMPLATE = { "op|String:Cwrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions", "count|int:10000:0:1000000000|Number of nodes to populate",
@@ -57,17 +49,11 @@ public class PersistitMapStress2 extends StressBase {
     long _timeRead;
     long _timeIter;
     long _timeRemove;
-
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
+    
+    public PersistitMapStress2(String argsString) {
+        super(argsString);
     }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
-    }
-
+    
     @Override
     public void setUp() {
         _ap = new ArgParser("com.persistit.stress.PersistitMapStress2", _args, ARGS_TEMPLATE);
@@ -76,7 +62,6 @@ public class PersistitMapStress2 extends StressBase {
         _size = _ap.getIntValue("size");
         _repeatTotal = _ap.getIntValue("repeat");
         _total = _ap.getIntValue("count");
-        _dotGranularity = 10000;
 
         try {
             // Exchange with Thread-private Tree
@@ -112,12 +97,9 @@ public class PersistitMapStress2 extends StressBase {
             } catch (final Exception e) {
                 handleThrowable(e);
             }
-            verboseln();
         }
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            verboseln();
-            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
             long ts = ts();
             long tt;
@@ -125,7 +107,6 @@ public class PersistitMapStress2 extends StressBase {
             if (_opflags.indexOf('w') >= 0) {
                 setPhase("w");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     final int keyInteger = keyInteger(_count);
 
                     final Object o1 = testObject(_count, _size);
@@ -139,7 +120,6 @@ public class PersistitMapStress2 extends StressBase {
                 if (_dm1.size() != _total) {
                     _result = new TestResult(false, "PersistitMap.size()=" + _dm1.size() + " out of " + _total
                             + " repetition=" + _repeat + " in thread=" + _threadIndex);
-                    println(_result);
                     forceStop();
                     break;
                 }
@@ -151,7 +131,6 @@ public class PersistitMapStress2 extends StressBase {
             if (_opflags.indexOf('r') >= 0) {
                 setPhase("r");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     final int keyInteger = keyInteger(_count);
                     final Object o1 = testObject(_count, _size);
 
@@ -171,7 +150,6 @@ public class PersistitMapStress2 extends StressBase {
                 final Iterator itr = _dm1.keySet().iterator();
 
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
-                    dot();
                     try {
                         if (!itr.hasNext()) {
                             break;
@@ -184,7 +162,6 @@ public class PersistitMapStress2 extends StressBase {
                 if (_count != _total) {
                     _result = new TestResult(false, "Traverse count=" + _count + " out of " + _total + " repetition="
                             + _repeat + " in thread=" + _threadIndex);
-                    println(_result);
                     forceStop();
                     break;
                 }
@@ -195,7 +172,6 @@ public class PersistitMapStress2 extends StressBase {
             if (_opflags.indexOf('d') >= 0) {
                 setPhase("d");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     final int keyInteger = keyInteger(_count);
                     final Object o1 = testObject(_count, _size);
                     try {
@@ -212,7 +188,6 @@ public class PersistitMapStress2 extends StressBase {
                 final Iterator itr = _dm1.keySet().iterator();
 
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
-                    dot();
                     try {
                         if (!itr.hasNext()) {
                             break;
@@ -225,7 +200,6 @@ public class PersistitMapStress2 extends StressBase {
                 if (_count != 0) {
                     _result = new TestResult(false, "Traverse count=" + _count + " when 0 were expected"
                             + " repetition=" + _repeat + " in thread=" + _threadIndex);
-                    println(_result);
                     forceStop();
                     break;
                 }
@@ -241,7 +215,6 @@ public class PersistitMapStress2 extends StressBase {
                 final Iterator itr = _dm1.keySet().iterator();
 
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
-                    dot();
                     try {
                         if (!itr.hasNext()) {
                             break;
@@ -255,7 +228,6 @@ public class PersistitMapStress2 extends StressBase {
                 if (_dm1.size() != 0) {
                     _result = new TestResult(false, "PersistitMap.size()= " + _dm1.size() + " when 0 were expected"
                             + " repetition=" + _repeat + " in thread=" + _threadIndex);
-                    println(_result);
                     forceStop();
                     break;
                 }
@@ -272,10 +244,6 @@ public class PersistitMapStress2 extends StressBase {
             }
 
         }
-        verboseln();
-        verboseln(" timeWrite=" + _timeWrite + " timeRead=" + _timeRead + " timeIter=" + _timeIter + " timeRemove="
-                + _timeRemove + " total=" + (_timeWrite + _timeRead + _timeIter + _timeRemove));
-        verbose("done");
     }
 
     int keyInteger(final int counter) {
@@ -301,14 +269,9 @@ public class PersistitMapStress2 extends StressBase {
         if ((o1 != null) && o1.equals(o2)) {
             return true;
         }
-        println("Object o1 != o2:");
-        println("  o1=" + o1);
-        println("  o2=" + o2);
+        System.out.println("Object o1 != o2:");
+        System.out.println("  o1=" + o1);
+        System.out.println("  o2=" + o2);
         return false;
-    }
-
-    public static void main(final String[] args) {
-        final PersistitMapStress2 test = new PersistitMapStress2();
-        test.runStandalone(args);
     }
 }

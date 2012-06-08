@@ -29,18 +29,8 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
     IntegrityCheck[] _ichecks;
     int _icheckIndex = -1;
 
-    private final static String SHORT_DESCRIPTION = "Perform volume integrity check";
-
-    private final static String LONG_DESCRIPTION = SHORT_DESCRIPTION;
-
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    public ConfirmIntegrity(final String argsString) {
+        super(argsString);
     }
 
     @Override
@@ -75,7 +65,6 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
 
     @Override
     public void setUp() throws Exception {
-        super.setUp(false);
         if (_args.length == 0) {
             _args = new String[] { "persistit" };
         }
@@ -85,7 +74,7 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
         for (int index = 0; index < _args.length; index++) {
             final Volume volume = getPersistit().getVolume(_args[index]);
             if (volume == null) {
-                println("Volume name not found: " + _args[index]);
+                System.out.println("Volume name not found: " + _args[index]);
             } else {
                 _volumes[index] = volume;
             }
@@ -108,13 +97,10 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
             for (_icheckIndex = 0; _icheckIndex < _volumes.length; _icheckIndex++) {
                 final Volume volume = _volumes[_icheckIndex];
                 if (volume != null) {
-                    print("Performing integrity check on " + volume);
                     final IntegrityCheck icheck = new IntegrityCheck(getPersistit());
                     _ichecks[_icheckIndex] = icheck;
 
                     icheck.checkVolume(volume);
-                    println(" - " + icheck.toString(true));
-
                     _result = new TestResult(!icheck.hasFaults(), icheck.toString());
 
                     results[_icheckIndex] = _result;
@@ -130,14 +116,12 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
                 }
             }
             if (resultCount > 1) {
-                _result = new TestResult(passed, results);
+                _result = new TestResult(passed, results.toString());
             }
 
         } catch (final Exception ex) {
             _result = new TestResult(false, ex);
-            println(ex.toString());
         }
-        println("done");
     }
 
     @Override
@@ -145,8 +129,4 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
         checkIntegrity();
     }
 
-    public static void main(final String[] args) {
-        final ConfirmIntegrity test = new ConfirmIntegrity();
-        test.runStandalone(args);
-    }
 }

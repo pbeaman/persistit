@@ -28,19 +28,9 @@ import com.persistit.test.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress5 extends StressBase {
-    private final static String SHORT_DESCRIPTION = "Extreme variations in key and record length";
-
-    private final static String LONG_DESCRIPTION = "   Inserts, reads and deletes key/value pairs with very long keys, \r\n"
-            + "   and keys with large variation in elision count";
-
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    
+    public Stress5(String argsString) {
+        super(argsString);
     }
 
     private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Repetitions",
@@ -64,7 +54,6 @@ public class Stress5 extends StressBase {
         _splay1 = _ap.getIntValue("splay1");
         _splay2 = _ap.getIntValue("splay2");
         _size = _ap.getIntValue("size");
-        _dotGranularity = 10000;
 
         try {
             // Exchange with Thread-private Tree
@@ -89,37 +78,25 @@ public class Stress5 extends StressBase {
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
             try {
-                verboseln();
-                verboseln();
-                verboseln("Starting test cycle " + _repeat + " at " + tsString());
-                describeTest("Deleting all records");
+
                 setPhase("@");
                 _ex.clear().remove(Key.GTEQ);
-                verboseln();
-
-                describeTest("Creating baseline records");
                 setPhase("a");
                 for (_count = 0; (_count < baselineCount) && !isStopped(); _count++) {
                     setupKey(_ex, keyLength, keyLength - 5, _count, _count, '5');
                     setupTestValue(_ex, _count, _size);
                     _ex.store();
-                    dot();
                 }
-                verboseln();
                 if (isStopped()) {
                     break;
                 }
-
-                describeTest("Creating eliding keys");
                 setPhase("b");
                 int depth;
                 for (_count = 0, depth = maxDepth; (depth > minDepth) && !isStopped(); depth -= _splay1, _count++) {
                     setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 + depth, '5');
                     setupTestValue(_ex, 55555 + depth, _size);
                     _ex.store();
-                    dot();
                 }
-                verboseln();
                 if (isStopped()) {
                     break;
                 }
@@ -129,14 +106,11 @@ public class Stress5 extends StressBase {
                     setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 - depth, '5');
                     setupTestValue(_ex, 55555 - depth, _size);
                     _ex.store();
-                    dot();
                 }
-                verboseln();
                 if (isStopped()) {
                     break;
                 }
 
-                describeTest("Verifying and removing eliding keys");
                 setPhase("d");
                 for (_count = 0, depth = maxDepth; (depth > minDepth) && !isStopped(); depth -= _splay1, _count++) {
                     setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 + depth, '5');
@@ -147,9 +121,7 @@ public class Stress5 extends StressBase {
                         break;
                     }
                     _ex.remove();
-                    dot();
                 }
-                verboseln();
                 if (isStopped()) {
                     break;
                 }
@@ -168,36 +140,28 @@ public class Stress5 extends StressBase {
                         forceStop();
                         break;
                     }
-                    dot();
                 }
-                verboseln();
                 if (isStopped()) {
                     break;
                 }
 
-                describeTest("Deleting baseline records");
                 setPhase("f");
                 for (_count = 0; _count < baselineCount; _count++) {
                     setupKey(_ex, keyLength, keyLength - 5, _count, _count, '5');
                     if (!_ex.remove()) {
-                        println("Failed to remove counter=" + _count);
+                        System.out.println("Failed to remove counter=" + _count);
                     }
-                    dot();
                 }
-                verboseln();
 
-                describeTest("Verifying empty tree");
                 setPhase("g");
                 _ex.clear();
                 if (_ex.traverse(Key.GT, true)) {
-                    println("Tree is not empty");
+                    System.out.println("Tree is not empty");
                 }
-                verboseln();
 
             } catch (final PersistitException de) {
                 handleThrowable(de);
             }
-            verboseln("Done at " + tsString());
         }
     }
 
@@ -211,7 +175,4 @@ public class Stress5 extends StressBase {
         ex.clear().append(a).append(_sb1);
     }
 
-    public static void main(final String[] args) {
-        new Stress5().runStandalone(args);
-    }
 }

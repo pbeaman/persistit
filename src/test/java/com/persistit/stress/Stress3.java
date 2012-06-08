@@ -35,13 +35,6 @@ import com.persistit.util.ArgParser;
 
 public class Stress3 extends StressBase {
 
-    private final static String SHORT_DESCRIPTION = "Insert and index filename list from sample data file";
-
-    private final static String LONG_DESCRIPTION = "   Stress test that indexes filenames from sample data file in \r\n"
-            + "   various ways, including reverse spelling.  Uses the \r\n"
-            + "   incrementValue() method.  Tests integrity of resulting \r\n"
-            + "   data structures.  Performs random and whole-tree deletes \r\n";
-
     private final static String DEFAULT_PATH = "../../";
 
     private final static String[] ARGS_TEMPLATE = { "op|String:wrd|Operations to perform",
@@ -57,14 +50,8 @@ public class Stress3 extends StressBase {
     int _size;
     String _opflags;
 
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    public Stress3(String argsString) {
+        super(argsString);
     }
 
     @Override
@@ -76,7 +63,6 @@ public class Stress3 extends StressBase {
         _size = _ap.getIntValue("size");
         _repeatTotal = _ap.getIntValue("repeat");
         _total = _ap.getIntValue("count");
-        _dotGranularity = 1000;
 
         try {
             // Exchange with Thread-private Tree
@@ -147,11 +133,8 @@ public class Stress3 extends StressBase {
         } catch (final Exception e) {
             handleThrowable(e);
         }
-        verboseln();
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            verboseln();
-            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
             if (_opflags.indexOf('w') >= 0) {
                 setPhase("w");
@@ -160,7 +143,6 @@ public class Stress3 extends StressBase {
                 final Exchange ex3 = new Exchange(_ex);
 
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     try {
                         final int keyInteger = randomSeq[_count];
 
@@ -200,7 +182,6 @@ public class Stress3 extends StressBase {
                 final Exchange ex3 = new Exchange(_ex);
                 final Value value2 = new Value(getPersistit());
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     try {
                         final int keyInteger = randomSeq[_count];
 
@@ -268,7 +249,6 @@ public class Stress3 extends StressBase {
                     final Exchange ex3 = new Exchange(_ex);
 
                     for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                        dot();
                         try {
                             final int keyInteger = randomUniqueSeq[_count];
                             if (keyInteger < 0) {
@@ -281,7 +261,6 @@ public class Stress3 extends StressBase {
                             if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
                                 _result = new TestResult(false, "Expected filename <" + s + "> was not found - key="
                                         + ex1.getKey() + " keyInteger=" + keyInteger + " at counter=" + _count);
-                                println(_result);
                                 forceStop();
                                 break;
                             }
@@ -300,13 +279,6 @@ public class Stress3 extends StressBase {
                 }
             }
         }
-        verboseln();
-        verbose("done");
-
     }
 
-    public static void main(final String[] args) {
-        final Stress3 test = new Stress3();
-        test.runStandalone(args);
-    }
 }

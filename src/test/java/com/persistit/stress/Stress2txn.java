@@ -32,15 +32,6 @@ import com.persistit.util.ArgParser;
 
 public class Stress2txn extends StressBase {
 
-    private final static String SHORT_DESCRIPTION = "Transactional random key and value size write/read/delete/traverse loops";
-
-    private final static String LONG_DESCRIPTION = "   Simple stress test that repeats the following steps <repeat> times: \r\n"
-            + "    - insert <count> random keys with random value length \r\n"
-            + "    - read and verify <count> key/value pairs \r\n"
-            + "    - traverse and count all keys using next() \r\n"
-            + "    - delete <count> random keys\r\n"
-            + "   Same as Stress2 except uses Transactions";
-
     private final static String[] ARGS_TEMPLATE = { "op|String:wrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions", "count|int:10000:0:1000000000|Number of nodes to populate",
             "size|int:200:1:200000|Size of each data value", "seed|int:1:1:20000|Random seed",
@@ -51,14 +42,8 @@ public class Stress2txn extends StressBase {
     int _seed;
     String _opflags;
 
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    public Stress2txn(String argsString) {
+        super(argsString);
     }
 
     @Override
@@ -71,7 +56,6 @@ public class Stress2txn extends StressBase {
         _seed = _ap.getIntValue("seed");
         _repeatTotal = _ap.getIntValue("repeat");
         _total = _ap.getIntValue("count");
-        _dotGranularity = 10000;
 
         try {
             // Exchange with Thread-private Tree
@@ -121,17 +105,13 @@ public class Stress2txn extends StressBase {
             }
 
         }
-        verboseln();
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            verboseln();
-            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
             if (_opflags.indexOf('w') >= 0) {
                 setPhase("w");
                 _random.setSeed(_seed);
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     final int keyInteger = keyInteger(_count);
 
                     _exs.clear().append("stress2").append(keyInteger).append(_threadIndex);
@@ -148,9 +128,6 @@ public class Stress2txn extends StressBase {
                                 _ex.store();
                             }
                         }, 10, 0, CommitPolicy.SOFT);
-                        if (passes > 1) {
-                            verboseln("Transaction completed in " + passes + " passes");
-                        }
                     } catch (final Exception e) {
                         handleThrowable(e);
 
@@ -163,7 +140,6 @@ public class Stress2txn extends StressBase {
                 setPhase("r");
                 _random.setSeed(_seed);
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     final int keyInteger = keyInteger(_count);
                     _exs.clear().append("stress2").append(keyInteger).append(_threadIndex);
                     setupTestValue(_exs, keyInteger, random(20, _size));
@@ -182,7 +158,6 @@ public class Stress2txn extends StressBase {
                                 if (size2 != size1) {
                                     _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1
                                             + " key=" + _ex.getKey());
-                                    println(_result);
                                     forceStop();
                                 }
                             }
@@ -200,7 +175,6 @@ public class Stress2txn extends StressBase {
                 int count1 = 0;
                 int count2 = 0;
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
-                    dot();
                     try {
                         if (!_exs.next()) {
                             break;
@@ -217,7 +191,6 @@ public class Stress2txn extends StressBase {
                 setPhase("T");
                 _ex.clear().append(Key.BEFORE);
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
-                    dot();
                     try {
                         if (!_ex.next()) {
                             break;
@@ -240,7 +213,6 @@ public class Stress2txn extends StressBase {
                 _random.setSeed(_seed);
 
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
-                    dot();
                     final int keyInteger = keyInteger(_count);
                     _exs.clear().append("stress2").append(keyInteger).append(_threadIndex);
                     _ex.clear().append(keyInteger);
@@ -261,8 +233,6 @@ public class Stress2txn extends StressBase {
                 }
             }
         }
-        verboseln();
-        verbose("done");
 
     }
 
@@ -271,8 +241,4 @@ public class Stress2txn extends StressBase {
         return keyInteger;
     }
 
-    public static void main(final String[] args) {
-        final Stress2txn test = new Stress2txn();
-        test.runStandalone(args);
-    }
 }

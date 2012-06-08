@@ -71,12 +71,6 @@ import com.persistit.util.ArgParser;
  */
 public class StressRecovery extends StressBase {
 
-    private final static String SHORT_DESCRIPTION = "Issues a series of transactions with external logging";
-
-    private final static String LONG_DESCRIPTION = "   Execute transactions in single- or multi-threaded pattern: \r\n"
-            + "    write progress to stdout.  This can be recorded, and played back to ensure that the"
-            + "    resulting database after recovery contains all the committed transactions \r\n";
-
     private final static String[] ARGS_TEMPLATE = { "size|int:30:1:20000|Maximum size of each data value",
             "verify|String:|Path name of ticket list to verify",
             "latency|long:0:0:60000|Maximum acceptable fault latency" };
@@ -127,14 +121,8 @@ public class StressRecovery extends StressBase {
         void verifyTransaction(final long ticketId) throws Exception;
     }
 
-    @Override
-    public String shortDescription() {
-        return SHORT_DESCRIPTION;
-    }
-
-    @Override
-    public String longDescription() {
-        return LONG_DESCRIPTION;
+    public StressRecovery(String argsString) {
+        super(argsString);
     }
 
     @Override
@@ -151,9 +139,6 @@ public class StressRecovery extends StressBase {
                 _verifyReader = new BufferedReader(new FileReader(_verifyPath));
             }
         }
-        _dotGranularity = 10000;
-
-        super.setUp(!_verifyMode);
         try {
             // Exchange with shared Tree
             _exs = getPersistit().getExchange("persistit", "shared", true);
@@ -192,7 +177,7 @@ public class StressRecovery extends StressBase {
                 emit(ticketId, start - zero, now - start, commitTs);
             } catch (Exception e) {
                 emit(ticketId, start - zero, -1, -1);
-                printStackTrace(e);
+                e.printStackTrace();
             }
         }
     }
@@ -234,7 +219,7 @@ public class StressRecovery extends StressBase {
                 elapsed = Long.parseLong(s[2]);
                 last = Math.max(last, start + elapsed);
             } catch (Exception e) {
-                fail(e + " while reading line " + _count + " of " + _verifyPath + ": " + line);
+                System.out.println(e + " while reading line " + _count + " of " + _verifyPath + ": " + line);
             }
             if (elapsed >= 0) {
                 try {
@@ -258,7 +243,7 @@ public class StressRecovery extends StressBase {
                                 + "PASS because acceptable latency setting is %,dms First-failed ticketId=%,d laterSuccess=%,d.",
                                 faults, (last - firstFault) / 1000000l, _maxLatency / 1000000l, firstFaultTicket,
                                 successAfterFailureCount);
-                println(msg);
+                System.out.println(msg);
                 _result = new TestResult(true, msg);
             } else {
                 _result = new TestResult(
@@ -290,7 +275,7 @@ public class StressRecovery extends StressBase {
 
         @Override
         public long performTransaction(long ticketId) throws Exception {
-            Transaction txn = _persistit.getTransaction();
+            Transaction txn = getPersistit().getTransaction();
             for (;;) {
                 txn.begin();
                 try {
@@ -328,7 +313,7 @@ public class StressRecovery extends StressBase {
             for (int i = 0; i < size; i++) {
                 sb.append('-');
             }
-            Transaction txn = _persistit.getTransaction();
+            Transaction txn = getPersistit().getTransaction();
             for (;;) {
                 txn.begin();
                 try {
@@ -411,11 +396,6 @@ public class StressRecovery extends StressBase {
         if (!s.startsWith(expected)) {
             throw new RuntimeException("Ticket " + ticketId + " incorrect value at " + ex.getKey());
         }
-    }
-
-    public static void main(final String[] args) {
-        final StressRecovery test = new StressRecovery();
-        test.runStandalone(args);
     }
 
 }
