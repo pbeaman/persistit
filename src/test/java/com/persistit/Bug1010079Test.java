@@ -60,9 +60,10 @@ public class Bug1010079Test extends MVCCTestBase {
          * 
          * 4. Prune the Buffer to liberate the long record chain.
          * 
+         * 5. Store a value in the page (not yet certain why this is needed to
+         * induce the bug, but it is.)
          * 
-         * 
-         * 6. Attempt the read the first value back in.
+         * 6. Attempt to the read the first value back in.
          * 
          * Theory of bug is that the read attempt will not see a generation
          * change, will use the LevelCache, and will attempt to read a long
