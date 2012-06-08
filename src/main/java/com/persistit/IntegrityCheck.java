@@ -1134,7 +1134,7 @@ public class IntegrityCheck extends Task {
                 _counters._mvvPageCount++;
                 if (_prune && !_currentVolume.isReadOnly() && _counters._pruningErrorCount < MAX_PRUNING_ERRORS) {
                     try {
-                        buffer.pruneMvvValues(tree);
+                        buffer.pruneMvvValues(tree, true);
                         _counters._prunedPageCount++;
                     } catch (PersistitException e) {
                         _counters._pruningErrorCount++;

@@ -1548,7 +1548,7 @@ public class Exchange {
                     if (splitRequired && !treeClaimAcquired) {
                         if (!didPrune && buffer.isDataPage()) {
                             didPrune = true;
-                            if (buffer.pruneMvvValues(_tree)) {
+                            if (buffer.pruneMvvValues(_tree, false)) {
                                 continue;
                             }
                         }
@@ -3616,7 +3616,7 @@ public class Exchange {
             search(key, true);
             buffer = _levelCache[0]._buffer;
             if (buffer != null) {
-                return buffer.pruneMvvValues(_tree);
+                return buffer.pruneMvvValues(_tree, true);
             } else {
                 return false;
             }
@@ -3638,7 +3638,7 @@ public class Exchange {
 
             while (buffer != null) {
                 checkPageType(buffer, Buffer.PAGE_TYPE_DATA, false);
-                pruned |= buffer.pruneMvvValues(_tree);
+                pruned |= buffer.pruneMvvValues(_tree, true);
                 final int foundAt = buffer.findKey(key2);
                 if (!buffer.isAfterRightEdge(foundAt)) {
                     break;
@@ -3664,7 +3664,7 @@ public class Exchange {
         Buffer buffer = null;
         try {
             buffer = _pool.get(_volume, page, true, true);
-            return buffer.pruneMvvValues(_tree);
+            return buffer.pruneMvvValues(_tree, true);
         } finally {
             if (buffer != null) {
                 buffer.release();
