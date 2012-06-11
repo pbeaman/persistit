@@ -70,7 +70,7 @@ Persistit uses the following algorithm to determine the number of buffers to all
   memoryToUse = fraction * (maxHeap - reservedMemory)
   memoryToUse = min(memoryToUse, maximumMemory)
   bufferCount = memoryToUse / bufferSizeWithOverhead
-  bufferCount = max(minimumCount, min(maximumCount, count))
+  bufferCount = max(minimumCount, min(maximumCount, bufferCount))
   if (bufferCount * bufferSize > maximumMemory) then FAIL
   if ((bufferCount + 1) * bufferSize < minimumMemory) then FAIL
   allocate bufferCount buffers
@@ -214,7 +214,7 @@ The following additional properties are defined for Persistit. Other properties 
       ``com.persistit.Management`` interface at the specified external registry. The ``rmihost`` and ``rmiport`` 
       properties are mutually exclusive.
 
-  ``jmx``: (``com.persistit.Configuration#setJmxEnabled``), True or false (default). 
+  ``jmx``: (``com.persistit.Configuration#setJmxEnabled``), True (default) or false. 
       Specifies whether Persistit registers MXBeans with the platform MBean server. Set this value to ``true`` to enable 
       access from ``jconsole`` and other management tools.
 

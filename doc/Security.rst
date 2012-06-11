@@ -5,11 +5,12 @@ Security Notes
 
 Akiban Persistit provides no built-in data access control because it is intended for embedded use in applications that provide their own logical access control. Security-conscious applications must also prevent unauthorized access to Persistit's physical files and to the Persistit API. The following resources must be protected from unauthorized access:
 
-- Persistit volume files
+- volume and journal files
 - configuration properties file, if one is used
 - access by unauthorized code to the API exposed by the Persistit library
 - the port opened and exposed by Persistit when either the ``com.persistit.rmiport`` or ``com.persistit.rmihost`` property is set. If you are using Persistit's remote administration feature, be sure to block unauthorized access to the RMI port.
-- the :ref:`cliserver` if instantiated
+- access to MXBeans via JMX
+- the CLI server (see :ref:`cliserver`) if instantiated
 
 In addition to these general deployment considerations, Persistit requires certain permissions in an environment controlled by a security manager.
 
@@ -18,7 +19,7 @@ Java programs run from the command line typically do not install a security mana
 Security Domains
 ----------------
 
-This section assumes a basic understanding of the Java security model. See http://download.oracle.com/javase/1.5.0/docs/guide/security/spec/security-spec.doc2.html[New Protection Mechanisms - Overview of Basic Concepts] for further information.
+This section assumes a basic understanding of the Java security model. See `New Protection Mechanisms - Overview of Basic Concepts <http://docs.oracle.com/javase/1.5.0/docs/guide/security/spec/security-spec.doc2.html>`_ for further information.
 
 Note that when Java is started from the command line, as is often the case in server applications, all security privileges are granted by default. The information in this section is intended for cases where security privileges need to be controlled.
 

@@ -68,7 +68,7 @@ public class SphinxDocPrep {
     }
 
     private void processLine(final String line) throws Exception {
-        if (line.contains(".. code-block:")) {
+        if (line.contains(".. code-block:") || line.endsWith("::")) {
             block = BlockState.WAIT_FIRST_BLANK_LINE;
         } else if (line.isEmpty()) {
             switch (block) {

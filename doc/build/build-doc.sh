@@ -36,7 +36,7 @@
 #
 
 APIDOC_INDEX="../../target/site/apidocs/index-all.html"
-APIDOC_URL=${APIDOC_URL:-"http://www.akiban.com/ak-docs/admin/persistit-api"}
+APIDOC_URL=${APIDOC_URL:-"http://www.akiban.com/sites/all/libraries/persistit-api"}
 DOCPREP_CLASS="SphinxDocPrep"
 DOCPREP_CLASSPATH="../../target/sphinx/classes:../../target/classes"
 

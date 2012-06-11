@@ -22,9 +22,10 @@ See the ``com.persistit.Persistit#createTemporaryVolume`` method for additional 
 Logging
 -------
 
-By default Persistit emits log messages to a file called persistit.log  and also writes high level log messages to System.out.  You can change this behavior by plugging in a different logging implementation. In particular, Persistit provides pluggable adapters for various other logging implementations, including Log4J, SLF4J, and the Java logging API introduced in JDK 1.4. For details see the API documentation for com.persistit.logging.AbstractPersistitLogger.
+By default Persistit emits log messages to a file called persistit.log  and also writes high level log messages to System.out.  You can change this behavior by plugging in a different logging implementation. In particular, Persistit provides pluggable adapters for various other logging implementations, including Log4J, SLF4J, and the Java logging API introduced in JDK 1.4.
+An adapter must implement the interface ``com.persistit.logging.PersistitLogger``. For example, see source code for ``com.persistit.logging.Slf4jAdapter``.
 
-Using one of these logging frameworks is simple.  For example, the following code connects Persistit to an application-supplied SLF4J logger:
+Using one of these logging frameworks is simple. For example, the following code connects Persistit to an application-supplied SLF4J logger:
 
 .. code-block:: java
 
