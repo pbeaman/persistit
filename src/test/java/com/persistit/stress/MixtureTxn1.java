@@ -32,12 +32,16 @@ import com.persistit.stress.unit.Stress8txn;
 
 public class MixtureTxn1 extends AbstractSuite {
 
+    static String name() {
+        return MixtureTxn1.class.getSimpleName();
+    }
+    
     public static void main(String[] args) throws Exception {
         new MixtureTxn1(args).runTest();
     }
 
     private MixtureTxn1(final String[] args) {
-        super(MixtureTxn1.class.getSimpleName(), args);
+        super(name(), args);
     }
 
     public void runTest() throws Exception {

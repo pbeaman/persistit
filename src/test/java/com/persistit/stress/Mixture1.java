@@ -31,12 +31,16 @@ import com.persistit.stress.unit.Stress7;
 
 public class Mixture1 extends AbstractSuite {
 
+    static String name() {
+        return Mixture1.class.getSimpleName();
+    }
+    
     public static void main(String[] args) throws Exception {
         new Mixture1(args).runTest();
     }
 
     private Mixture1(final String[] args) {
-        super(Mixture1.class.getSimpleName(), args);
+        super(name(), args);
     }
 
     public void runTest() throws Exception {

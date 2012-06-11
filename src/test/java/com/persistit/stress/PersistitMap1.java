@@ -26,12 +26,16 @@ import com.persistit.stress.unit.PersistitMapStress1;
 
 public class PersistitMap1 extends AbstractSuite {
 
+    static String name() {
+        return PersistitMap1.class.getSimpleName();
+    }
+    
     public static void main(String[] args) throws Exception {
         new PersistitMap1(args).runTest();
     }
 
     private PersistitMap1(final String[] args) {
-        super(PersistitMap1.class.getSimpleName(), args);
+        super(name(), args);
     }
 
     public void runTest() throws Exception {

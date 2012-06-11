@@ -38,9 +38,9 @@ public class AbstractSuite {
 
     private final static SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMddHHmm");
 
-    private final static String[] ARGS_TEMPLATE = { "duration|int:60:1:|Maximum duration in seconds",
+    private final static String[] ARGS_TEMPLATE = { "duration|int::10|Maximum duration in seconds",
             "datapath|String:/tmp/persistit_test_data|Data path",
-            "progress|int:10::600|Progress message interval in seconds", };
+            "progress|int:60:1:|Progress message interval in seconds", };
 
     protected final static long PROGRESS_LOG_INTERVAL = 600000;
 
@@ -55,8 +55,8 @@ public class AbstractSuite {
     final private String _name;
     final private String _logPath;
     final private String _dataPath;
-    final private long _duration;
     final private long _progressLogInterval;
+    private long _duration;
     private boolean _untilStopped;
 
     String _timeStamp = SDF.format(new Date());
@@ -78,6 +78,10 @@ public class AbstractSuite {
         return _duration;
     }
     
+    public void setDuration(final long duration) {
+        _duration = duration;
+    }
+    
     public boolean isUntilStopped() {
         return _untilStopped;
     }
@@ -97,6 +101,8 @@ public class AbstractSuite {
 
     protected void clear() {
         _tests.clear();
+        _nextReport = 0;
+        _accumulatedWork = 0;
     }
 
     protected void execute(final Persistit persistit) {
@@ -122,7 +128,7 @@ public class AbstractSuite {
                 if (poll(_tests, now - start, end - now) == 0) {
                     break;
                 }
-                if (now > end) {
+                if (now > end && isUntilStopped()) {
                     for (AbstractStressTest test : _tests) {
                         test.forceStop();
                     }
@@ -173,7 +179,7 @@ public class AbstractSuite {
             work += test.getTotalWorkDone();
         }
 
-        if ((elapsed > _nextReport || remaining <= 0)  && _nextReport != 0) {
+        if (_nextReport != 0 && (elapsed > _nextReport || remaining <= 0 && isUntilStopped())) {
             long rate = 0;
             if (elapsed > 0) {
                 rate = (work * NS_PER_MS * MS_PER_S) / elapsed;

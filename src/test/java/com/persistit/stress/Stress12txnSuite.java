@@ -26,12 +26,16 @@ import com.persistit.stress.unit.Stress12txn;
 
 public class Stress12txnSuite extends AbstractSuite {
 
+    static String name() {
+        return Stress12txnSuite.class.getSimpleName();
+    }
+    
     public static void main(String[] args) throws Exception {
         new Stress12txnSuite(args).runTest();
     }
 
     private Stress12txnSuite(final String[] args) {
-        super(Stress12txnSuite.class.getSimpleName(), args);
+        super(name(), args);
     }
 
     public void runTest() throws Exception {

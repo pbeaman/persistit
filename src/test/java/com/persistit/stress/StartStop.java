@@ -27,12 +27,16 @@ import com.persistit.stress.unit.Stress3txn;
 
 public class StartStop extends AbstractSuite {
 
+    static String name() {
+        return StartStop.class.getSimpleName();
+    }
+    
     public static void main(String[] args) throws Exception {
         new StartStop(args).runTest();
     }
 
     private StartStop(final String[] args) {
-        super(StartStop.class.getSimpleName(), args);
+        super(name(), args);
     }
 
     public void runTest() throws Exception {
@@ -80,7 +84,6 @@ public class StartStop extends AbstractSuite {
                         break;
                     default:
                         throw new RuntimeException("Missing case: " + stage);
-
                     }
 
                 } finally {

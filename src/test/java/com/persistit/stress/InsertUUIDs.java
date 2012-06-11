@@ -26,12 +26,16 @@ import com.persistit.stress.unit.StressUUID;
 
 public class InsertUUIDs extends AbstractSuite {
 
+    static String name() {
+        return InsertUUIDs.class.getSimpleName();
+    }
+
     public static void main(String[] args) throws Exception {
         new InsertUUIDs(args).runTest();
     }
 
     private InsertUUIDs(final String[] args) {
-        super(InsertUUIDs.class.getSimpleName(), args);
+        super(name(), args);
     }
 
     public void runTest() throws Exception {

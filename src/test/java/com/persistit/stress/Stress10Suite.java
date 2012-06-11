@@ -26,23 +26,29 @@ import com.persistit.stress.unit.Stress10;
 
 public class Stress10Suite extends AbstractSuite {
 
+    static String name() {
+        return Stress10Suite.class.getSimpleName();
+    }
+    
     public static void main(String[] args) throws Exception {
         new Stress10Suite(args).runTest();
     }
 
     private Stress10Suite(final String[] args) {
-        super(Stress10Suite.class.getSimpleName(), args);
+        super(name(), args);
     }
 
     public void runTest() throws Exception {
-
+        
+        if (isUntilStopped()) {
+            setDuration(getDuration() / 5);
+        }
         for (int pageSize = 1024; pageSize <= 16384; pageSize *= 2) {
 
-            System.out.printf("Starting %s for page size %,d\n", "Stress10Suite", pageSize);
+            System.out.printf("Starting %s for page size %,d\n", name(), pageSize);
 
             deleteFiles(substitute("$datapath$/persistit*"));
 
-            clear();
             add(new Stress10("repeat=1 count=50000 size=3000 seed=1"));
             add(new Stress10("repeat=1 count=50000 size=3000 seed=2"));
             add(new Stress10("repeat=1 count=50000 size=3000 seed=3"));
@@ -65,6 +71,7 @@ public class Stress10Suite extends AbstractSuite {
                 persistit.close();
             }
 
+            clear();
             System.out.println();
         }
     }

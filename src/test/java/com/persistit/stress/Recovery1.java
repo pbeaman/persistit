@@ -26,12 +26,16 @@ import com.persistit.stress.unit.StressRecovery;
 
 public class Recovery1 extends AbstractSuite {
 
+    static String name() {
+        return Recovery1.class.getSimpleName();
+    }
+    
     public static void main(String[] args) throws Exception {
         new Recovery1(args).runTest();
     }
 
     private Recovery1(final String[] args) {
-        super(Recovery1.class.getSimpleName(), args);
+        super(name(), args);
     }
 
     public void runTest() throws Exception {
