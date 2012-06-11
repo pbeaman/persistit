@@ -26,10 +26,10 @@ import java.security.MessageDigest;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Volume;
-import com.persistit.test.AbstractTestRunnerItem;
+import com.persistit.suite.AbstractStressTest;
 import com.persistit.util.Util;
 
-public class MD5Sum extends AbstractTestRunnerItem {
+public class MD5Sum extends AbstractStressTest {
     /**
      * Computes and prints the MD5 sum of all keys and values. This value can be
      * used to test whether the database state is consistent.

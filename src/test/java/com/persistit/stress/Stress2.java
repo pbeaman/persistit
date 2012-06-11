@@ -22,7 +22,7 @@ package com.persistit.stress;
 
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress2 extends StressBase {
@@ -74,6 +74,8 @@ public class Stress2 extends StressBase {
                 _exs.append(_threadIndex);
                 _exs.remove(Key.GTEQ);
                 _exs.cut();
+                addWork(1);
+
             }
         } catch (final Exception e) {
             handleThrowable(e);
@@ -96,6 +98,8 @@ public class Stress2 extends StressBase {
                     try {
                         _exs.store();
                         _ex.store();
+                        addWork(2);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
 
@@ -114,6 +118,8 @@ public class Stress2 extends StressBase {
                     _ex.clear().append(keyInteger);
                     try {
                         _ex.fetch();
+                        addWork(1);
+
                         int size1 = 0;
                         if (_ex.getValue().isDefined() && !_ex.getValue().isNull()) {
                             size1 = _ex.getValue().getInt();
@@ -139,12 +145,16 @@ public class Stress2 extends StressBase {
                 int count2 = 0;
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
                     try {
+                        addWork(1);
+
                         if (!_exs.next()) {
                             break;
                         }
                         if (_exs.append(_threadIndex).fetch().getValue().isDefined()) {
                             count1++;
                         }
+                        addWork(1);
+                        
                         _exs.cut();
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -155,6 +165,8 @@ public class Stress2 extends StressBase {
                 _ex.clear().append(Key.BEFORE);
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
                     try {
+                        addWork(1);
+
                         if (!_ex.next()) {
                             break;
                         }
@@ -182,6 +194,8 @@ public class Stress2 extends StressBase {
                     try {
                         _exs.remove();
                         _ex.remove();
+                        addWork(2);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                     }

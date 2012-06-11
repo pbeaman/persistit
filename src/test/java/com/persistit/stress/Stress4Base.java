@@ -200,6 +200,8 @@ public abstract class Stress4Base extends StressBase {
             }
             setupTestValue(_ex, _count, size);
             _ex.store();
+            addWork(1);
+
             _checksum[keyInteger] = checksum(_ex.getValue());
         }
     }
@@ -226,6 +228,8 @@ public abstract class Stress4Base extends StressBase {
             // fetch to a different Value object so we can compare
             // with the original.
             _ex.fetch(value2);
+            addWork(1);
+
             compareValues(value1, value2);
         }
     }
@@ -243,6 +247,8 @@ public abstract class Stress4Base extends StressBase {
 
             _ex.clear().append(keyInteger);
             _ex.remove();
+            addWork(1);
+
             _checksum[keyInteger] = -1;
         }
     }

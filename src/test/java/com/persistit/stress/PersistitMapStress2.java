@@ -27,11 +27,10 @@ import java.util.TreeMap;
 
 import com.persistit.PersistitMap;
 import com.persistit.Value;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 public class PersistitMapStress2 extends StressBase {
-
 
     private final static String[] ARGS_TEMPLATE = { "op|String:Cwrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions", "count|int:10000:0:1000000000|Number of nodes to populate",
@@ -94,6 +93,8 @@ public class PersistitMapStress2 extends StressBase {
             setPhase("C");
             try {
                 _dm1.clear();
+                addWork(1);
+
             } catch (final Exception e) {
                 handleThrowable(e);
             }
@@ -112,6 +113,8 @@ public class PersistitMapStress2 extends StressBase {
                     final Object o1 = testObject(_count, _size);
                     try {
                         _dm1.put(new Integer(keyInteger), o1);
+                        addWork(1);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                         break;
@@ -136,6 +139,8 @@ public class PersistitMapStress2 extends StressBase {
 
                     try {
                         final Object o2 = _dm1.get(new Integer(keyInteger));
+                        addWork(1);
+
                         compareObjects(o1, o2);
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -155,6 +160,8 @@ public class PersistitMapStress2 extends StressBase {
                             break;
                         }
                         itr.next();
+                        addWork(1);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                     }
@@ -176,6 +183,8 @@ public class PersistitMapStress2 extends StressBase {
                     final Object o1 = testObject(_count, _size);
                     try {
                         final Object o2 = _dm1.remove(new Integer(keyInteger));
+                        addWork(1);
+
                         compareObjects(o1, o2);
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -193,6 +202,8 @@ public class PersistitMapStress2 extends StressBase {
                             break;
                         }
                         itr.next();
+                        addWork(1);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                     }
@@ -221,6 +232,8 @@ public class PersistitMapStress2 extends StressBase {
                         }
                         itr.next();
                         itr.remove();
+                        addWork(1);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                     }

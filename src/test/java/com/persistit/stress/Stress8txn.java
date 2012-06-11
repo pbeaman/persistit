@@ -29,7 +29,7 @@ import com.persistit.Transaction;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.TransactionRunnable;
 import com.persistit.exception.PersistitException;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 import com.persistit.util.Debug;
 
@@ -150,6 +150,8 @@ public class Stress8txn extends StressBase {
         try {
             _exs.clear().append("stress8txn");
             while (_exs.next(true)) {
+                addWork(1);
+
                 if ((_exs.getValue().isType(String.class)) && (getAccountValue(_exs) > 8000)) {
                     // System.out.println("len=" + getAccountValue(_exs) +
                     // " Key=" + _exs.getKey().toString());
@@ -208,10 +210,13 @@ public class Stress8txn extends StressBase {
                 _exs.clear().append("stress8txn").append(_a1).append(_b1).append(_c1).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _c1 == 1);
                 _exs.store();
+                addWork(1);
 
                 _exs.clear().append("stress8txn").append(_a1).append(_b1).append(_c2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _c2 == 1);
                 _exs.store();
+                addWork(1);
+
             }
         }
     }
@@ -228,30 +233,41 @@ public class Stress8txn extends StressBase {
                 _exs.clear().append("stress8txn").append(_a1).append(_b1).append(_c1).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _c1 == 1);
                 _exs.store();
+                addWork(1);
 
                 _exs.clear().append("stress8txn").append(_a2).append(_b2).append(_c2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _c2 == 1);
                 _exs.store();
+                addWork(1);
+
             }
 
             if ((_b1 != _b2) || (_a1 != _a2)) {
                 _exs.clear().append("stress8txn").append(_a1).append(_b1).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _b1 == 1);
                 _exs.store();
+                addWork(1);
+
 
                 _exs.clear().append("stress8txn").append(_a2).append(_b2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _b1 == 1);
                 _exs.store();
+                addWork(1);
+
             }
 
             if (_a1 != _a2) {
                 _exs.clear().append("stress8txn").append(_a1).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _a1 == 1);
                 _exs.store();
+                addWork(1);
+
 
                 _exs.clear().append("stress8txn").append(_a2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _a1 == 1);
                 _exs.store();
+                addWork(1);
+
             }
         }
     }
@@ -264,6 +280,8 @@ public class Stress8txn extends StressBase {
         public void runTransaction() throws PersistitException {
             _result = null;
             _exs.clear().append("stress8txn").append(_a1).append(_b1).fetch();
+            addWork(1);
+
             final int valueB = getAccountValue(_exs);
             final int totalC = accountTotal(_exs);
             if (valueB != totalC) {
@@ -282,6 +300,8 @@ public class Stress8txn extends StressBase {
         public void runTransaction() throws PersistitException {
             _result = null;
             _exs.clear().append("stress8txn").append(_a1).fetch();
+            addWork(1);
+
             final int valueA = getAccountValue(_exs);
             final int totalB = accountTotal(_exs);
             if (valueA != totalB) {
@@ -326,6 +346,8 @@ public class Stress8txn extends StressBase {
         int total = 0;
         ex.append(Key.BEFORE);
         while (ex.next()) {
+            addWork(1);
+
             int value = getAccountValue(ex);
             total += value;
         }
@@ -342,6 +364,8 @@ public class Stress8txn extends StressBase {
         int countA = 0;
         exa.clear().append("stress8txn").append(Key.BEFORE);
         while (exa.next()) {
+            addWork(1);
+
             countA++;
             exa.fetch();
             final int valueA = getAccountValue(exa);
@@ -355,6 +379,8 @@ public class Stress8txn extends StressBase {
             while (exb.next()) {
                 countB++;
                 exb.fetch();
+                addWork(1);
+
                 final int valueB = getAccountValue(exb);
                 final int valueBB = getAccountValue(exb);
                 Debug.$assert1.t(valueB == valueBB);
@@ -365,10 +391,14 @@ public class Stress8txn extends StressBase {
                 exc.append(Key.BEFORE);
                 int countC = 0;
                 while (exc.next()) {
+                    addWork(1);
+
                     countC++;
                     Key key1 = new Key(exc.getKey());
                     final int valueC = getAccountValue(exc);
                     exc.fetch();
+                    addWork(1);
+
                     Key key2 = new Key(exc.getKey());
 
                     final int valueCC = getAccountValue(exc);
@@ -384,6 +414,8 @@ public class Stress8txn extends StressBase {
                         Key key1 = new Key(exc.getKey());
                         final int valueC1 = getAccountValue(exc);
                         exc.fetch();
+                        addWork(1);
+
                         Key key2 = new Key(exc.getKey());
 
                         final int valueCC1 = getAccountValue(exc);

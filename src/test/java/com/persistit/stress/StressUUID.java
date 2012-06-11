@@ -72,6 +72,7 @@ public class StressUUID extends StressBase {
                 setupTestValue(_ex, _count, _size);
                 try {
                     _ex.store();
+                    addWork(1);
                 } catch (final Exception e) {
                     handleThrowable(e);
                     break;

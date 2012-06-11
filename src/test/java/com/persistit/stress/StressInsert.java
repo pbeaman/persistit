@@ -24,7 +24,7 @@ import java.util.Random;
 
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 public class StressInsert extends StressBase {
@@ -68,6 +68,8 @@ public class StressInsert extends StressBase {
         setPhase("@");
         try {
             _ex.clear().remove(Key.GTEQ);
+            addWork(1);
+
         } catch (final Exception e) {
             handleThrowable(e);
         }
@@ -82,6 +84,8 @@ public class StressInsert extends StressBase {
                     setupTestValue(_ex, _count, _size);
                     try {
                         _ex.store();
+                        addWork(1);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                         break;
@@ -100,6 +104,8 @@ public class StressInsert extends StressBase {
                         // fetch to a different Value object so we can compare
                         // with the original.
                         _ex.fetch(value2);
+                        addWork(1);
+
                         compareValues(value1, value2);
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -113,6 +119,8 @@ public class StressInsert extends StressBase {
                 _ex.clear().append(Integer.MIN_VALUE);
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
                     try {
+                        addWork(1);
+
                         if (!_ex.next()) {
                             break;
                         }
@@ -136,6 +144,8 @@ public class StressInsert extends StressBase {
                     _ex.clear().append(keyInteger);
                     try {
                         _ex.remove();
+                        addWork(1);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                     }

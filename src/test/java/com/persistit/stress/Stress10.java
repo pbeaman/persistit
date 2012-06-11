@@ -21,7 +21,7 @@
 package com.persistit.stress;
 
 import com.persistit.Key;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 import com.persistit.util.Debug;
 
@@ -70,6 +70,8 @@ public class Stress10 extends StressBase {
                 _exs.append(_threadIndex);
                 _exs.remove(Key.GTEQ);
                 _exs.cut();
+                addWork(1);
+
             }
         } catch (final Exception e) {
             handleThrowable(e);
@@ -100,6 +102,8 @@ public class Stress10 extends StressBase {
                     try {
                         _exs.store();
                         _ex.store();
+                        addWork(2);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
 
@@ -114,11 +118,15 @@ public class Stress10 extends StressBase {
                     _ex.clear().append(keyInteger);
                     try {
                         _ex.fetch();
+                        addWork(1);
+
                         int size1 = 0;
                         if (_ex.getValue().isDefined() && !_ex.getValue().isNull()) {
                             size1 = _ex.getValue().getInt();
                         }
                         _exs.fetch();
+                        addWork(1);
+
                         final int size2 = _exs.getValue().getEncodedSize();
                         if (size2 != size1) {
                             _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1 + " key="
@@ -137,13 +145,18 @@ public class Stress10 extends StressBase {
                     _exs.clear().append("stress10").append(keyInteger);
                     for (int count = 0; (count < random(10, 1000)) && !isStopped(); count++) {
                         try {
+                            addWork(1);
                             if (!_exs.next()) {
                                 break;
                             }
                             final int curKeyInteger = _exs.getKey().indexTo(1).decodeInt();
                             _exs.append(_threadIndex).fetch().getValue();
+                            addWork(1);
+
                             final int size2 = _exs.getValue().getEncodedSize();
                             _ex.clear().append(curKeyInteger).fetch();
+                            addWork(1);
+
                             int size1 = 0;
                             if (_ex.getValue().isDefined()) {
                                 size1 = _ex.getValue().getInt();
@@ -169,6 +182,8 @@ public class Stress10 extends StressBase {
                     try {
                         _exs.remove();
                         _ex.remove();
+                        addWork(2);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                     }

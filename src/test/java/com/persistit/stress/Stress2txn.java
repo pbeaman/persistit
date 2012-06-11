@@ -27,7 +27,7 @@ import com.persistit.TransactionRunnable;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress2txn extends StressBase {
@@ -84,6 +84,8 @@ public class Stress2txn extends StressBase {
                     _exs.append(_threadIndex);
                     _exs.remove(Key.GTEQ);
                     _exs.cut();
+                    addWork(1);
+
                 }
 
                 txn.commit();
@@ -126,6 +128,8 @@ public class Stress2txn extends StressBase {
                             public void runTransaction() throws PersistitException {
                                 _exs.store();
                                 _ex.store();
+                                addWork(2);
+
                             }
                         }, 10, 0, CommitPolicy.SOFT);
                     } catch (final Exception e) {
@@ -149,11 +153,15 @@ public class Stress2txn extends StressBase {
                             @Override
                             public void runTransaction() throws PersistitException {
                                 _ex.fetch();
+                                addWork(1);
+
                                 int size1 = 0;
                                 if (_ex.getValue().isDefined() && !_ex.getValue().isNull()) {
                                     size1 = _ex.getValue().getInt();
                                 }
                                 _exs.fetch(value2);
+                                addWork(1);
+
                                 final int size2 = value2.getEncodedSize();
                                 if (size2 != size1) {
                                     _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1
@@ -176,9 +184,12 @@ public class Stress2txn extends StressBase {
                 int count2 = 0;
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
                     try {
+                        addWork(1);
+
                         if (!_exs.next()) {
                             break;
                         }
+                        addWork(1);
                         if (_exs.append(_threadIndex).fetch().getValue().isDefined()) {
                             count1++;
                         }
@@ -192,6 +203,8 @@ public class Stress2txn extends StressBase {
                 _ex.clear().append(Key.BEFORE);
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
                     try {
+                        addWork(1);
+
                         if (!_ex.next()) {
                             break;
                         }
@@ -219,6 +232,8 @@ public class Stress2txn extends StressBase {
                     try {
                         _exs.remove();
                         _ex.remove();
+                        addWork(2);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                     }

@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress9 extends StressBase {
@@ -78,6 +78,8 @@ public class Stress9 extends StressBase {
                 _exs.append(_threadIndex);
                 _exs.remove(Key.GTEQ);
                 _exs.cut();
+                addWork(1);
+
             }
         } catch (final Exception e) {
             handleThrowable(e);
@@ -100,6 +102,8 @@ public class Stress9 extends StressBase {
                     try {
                         _exs.fetchAndStore();
                         _ex.store();
+                        addWork(2);
+
                         if (_exs.getValue().isDefined()) {
                             final Object obj = _exs.getValue().get();
                             if ((obj != null) && !(obj instanceof ArrayList)) {
@@ -124,11 +128,15 @@ public class Stress9 extends StressBase {
                     _ex.clear().append(keyInteger);
                     try {
                         _ex.fetch();
+                        addWork(1);
+
                         int size1 = 0;
                         if (_ex.getValue().isDefined() && !_ex.getValue().isNull()) {
                             size1 = _ex.getValue().getInt();
                         }
                         _exs.fetch(value2);
+                        addWork(1);
+
                         final int size2 = value2.getEncodedSize();
                         if (size2 != size1) {
                             _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1 + " key="
@@ -149,12 +157,16 @@ public class Stress9 extends StressBase {
                 int count2 = 0;
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
                     try {
+                        addWork(1);
+
                         if (!_exs.next()) {
                             break;
                         }
                         if (_exs.append(_threadIndex).fetch().getValue().isDefined()) {
                             count1++;
                         }
+                        addWork(1);
+
                         _exs.cut();
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -165,6 +177,8 @@ public class Stress9 extends StressBase {
                 _ex.clear().append(Key.BEFORE);
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
                     try {
+                        addWork(1);
+
                         if (!_ex.next()) {
                             break;
                         }
@@ -192,6 +206,8 @@ public class Stress9 extends StressBase {
                     try {
                         _exs.fetchAndRemove();
                         _ex.remove();
+                        addWork(2);
+
                         if (_exs.getValue().isDefined()) {
                             final Object obj = _exs.getValue().get();
                             if ((obj != null) && !(obj instanceof ArrayList)) {

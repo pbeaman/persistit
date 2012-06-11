@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.persistit.Exchange;
 import com.persistit.Transaction;
 import com.persistit.exception.RollbackException;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 /**
@@ -173,6 +173,8 @@ public class StressRecovery extends StressBase {
             final long start = System.nanoTime();
             try {
                 long commitTs = tt.performTransaction(ticketId);
+                addWork(1);
+
                 final long now = System.nanoTime();
                 emit(ticketId, start - zero, now - start, commitTs);
             } catch (Exception e) {
@@ -225,6 +227,8 @@ public class StressRecovery extends StressBase {
                 try {
                     TransactionType tt = registry.get((int) (ticketId % registry.size()));
                     tt.verifyTransaction(ticketId);
+                    addWork(1);
+
                     if (start + elapsed > firstFault) {
                         successAfterFailureCount++;
                     }

@@ -24,11 +24,11 @@ import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress5 extends StressBase {
-    
+
     public Stress5(String argsString) {
         super(argsString);
     }
@@ -81,11 +81,15 @@ public class Stress5 extends StressBase {
 
                 setPhase("@");
                 _ex.clear().remove(Key.GTEQ);
+                addWork(1);
+
                 setPhase("a");
                 for (_count = 0; (_count < baselineCount) && !isStopped(); _count++) {
                     setupKey(_ex, keyLength, keyLength - 5, _count, _count, '5');
                     setupTestValue(_ex, _count, _size);
                     _ex.store();
+                    addWork(1);
+
                 }
                 if (isStopped()) {
                     break;
@@ -96,6 +100,8 @@ public class Stress5 extends StressBase {
                     setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 + depth, '5');
                     setupTestValue(_ex, 55555 + depth, _size);
                     _ex.store();
+                    addWork(1);
+
                 }
                 if (isStopped()) {
                     break;
@@ -106,6 +112,8 @@ public class Stress5 extends StressBase {
                     setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 - depth, '5');
                     setupTestValue(_ex, 55555 - depth, _size);
                     _ex.store();
+                    addWork(1);
+
                 }
                 if (isStopped()) {
                     break;
@@ -116,6 +124,8 @@ public class Stress5 extends StressBase {
                     setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 + depth, '5');
                     setupTestValue(_ex, 55555 + depth, _size);
                     _ex.fetch(value);
+                    addWork(1);
+
                     compareValues(_ex.getValue(), value);
                     if (isStopped()) {
                         break;
@@ -131,10 +141,13 @@ public class Stress5 extends StressBase {
                     setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 - depth, '5');
                     setupTestValue(_ex, 55555 - depth, _size);
                     _ex.fetch(value);
+                    addWork(1);
+
                     compareValues(_ex.getValue(), value);
                     if (isStopped()) {
                         break;
                     }
+                    addWork(1);
                     if (!_ex.remove()) {
                         _result = new TestResult(false, "Failed to remove depth=" + depth);
                         forceStop();
@@ -148,6 +161,7 @@ public class Stress5 extends StressBase {
                 setPhase("f");
                 for (_count = 0; _count < baselineCount; _count++) {
                     setupKey(_ex, keyLength, keyLength - 5, _count, _count, '5');
+                    addWork(1);
                     if (!_ex.remove()) {
                         System.out.println("Failed to remove counter=" + _count);
                     }
@@ -155,6 +169,8 @@ public class Stress5 extends StressBase {
 
                 setPhase("g");
                 _ex.clear();
+                addWork(1);
+
                 if (_ex.traverse(Key.GT, true)) {
                     System.out.println("Tree is not empty");
                 }

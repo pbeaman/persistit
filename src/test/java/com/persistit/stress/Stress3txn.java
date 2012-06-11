@@ -29,7 +29,7 @@ import com.persistit.Key;
 import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.RollbackException;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress3txn extends StressBase {
@@ -92,7 +92,7 @@ public class Stress3txn extends StressBase {
      */
     @Override
     public void executeTest() {
-        final int[] sizeArray = new int[_total * 40];
+        final int[] sizeArray = new int[_total * 100];
 
         final int[] randomSeq = new int[_total];
         final int[] randomUniqueSeq = new int[_total];
@@ -145,13 +145,18 @@ public class Stress3txn extends StressBase {
                                     atomic = _counter.incrementAndGet();
                                     ex1.getValue().put(atomic);
                                     ex1.store();
+                                    addWork(1);
+
                                 } else {
                                     atomic = ex1.getValue().getLong();
                                 }
 
                                 setupTestValue(ex2, _count, random(30, _size));
-                                sizeArray[(int) atomic] = ex2.getValue().getEncodedSize();
+                                if (atomic < sizeArray.length) {
+                                    sizeArray[(int) atomic] = ex2.getValue().getEncodedSize();
+                                }
                                 ex2.clear().append("byCounter").append(atomic).store();
+                                addWork(1);
 
                                 _sb1.setLength(0);
                                 _sb1.append(s);
@@ -159,6 +164,8 @@ public class Stress3txn extends StressBase {
 
                                 ex3.getValue().put(atomic);
                                 ex3.clear().append("byReversedName").append(_sb1).store();
+                                addWork(1);
+
                                 txn.commit();
                                 break;
                             } catch (final RollbackException rbe) {
@@ -190,6 +197,8 @@ public class Stress3txn extends StressBase {
                         final String s = _fileNames[keyInteger];
 
                         ex1.clear().append("byName").append(s).fetch();
+                        addWork(1);
+
                         if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
                             throw new RuntimeException("Expected filename <" + s + "> was not found - key="
                                     + ex1.getKey());
@@ -198,22 +207,27 @@ public class Stress3txn extends StressBase {
 
                         setupTestValue(ex2, _count, random(30, _size));
                         ex2.clear().append("byCounter").append(atomic).fetch(value2);
+                        addWork(1);
 
                         if (!value2.isDefined() || value2.isNull()) {
                             throw new RuntimeException("Expected value for byCounter " + atomic
                                     + " was not found - key=" + ex2.getKey());
                         }
                         final int size2 = value2.getEncodedSize();
-                        final int size1 = sizeArray[(int) atomic];
-                        if (size1 != size2) {
-                            throw new RuntimeException("Value is size " + size2 + ", should be " + size1 + " key="
-                                    + ex2.getKey());
+                        if (atomic < sizeArray.length) {
+                            final int size1 = sizeArray[(int) atomic];
+                            if (size1 != size2) {
+                                throw new RuntimeException("Value is size " + size2 + ", should be " + size1 + " key="
+                                        + ex2.getKey());
+                            }
                         }
 
                         _sb1.setLength(0);
                         _sb1.append(s);
                         _sb1.reverse();
                         ex3.clear().append("byReversedName").append(_sb1).fetch();
+                        addWork(1);
+
                         if (!ex3.getValue().isDefined() || ex3.getValue().isNull()
                                 || (ex3.getValue().getLong() != atomic)) {
                             throw new RuntimeException("Missing or incorrect value " + ex3.getValue() + " should be "
@@ -233,6 +247,8 @@ public class Stress3txn extends StressBase {
                         ex2.clear().append("byCounter").remove(Key.GTEQ);
                         ex3.clear().append("byReversedName").remove(Key.GTEQ);
                         ex1.clear().append("counter").remove();
+                        addWork(4);
+
                         Arrays.fill(sizeArray, 0);
                         // We've deleted everything, so we might as well restart
                         continue;
@@ -260,6 +276,8 @@ public class Stress3txn extends StressBase {
                                     final String s = _fileNames[keyInteger];
 
                                     ex1.clear().append("byName").append(s).fetch();
+                                    addWork(1);
+
                                     if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
                                         _result = new TestResult(false, "Expected filename <" + s
                                                 + "> was not found - key=" + ex1.getKey() + " keyInteger=" + keyInteger
@@ -270,11 +288,17 @@ public class Stress3txn extends StressBase {
                                     final long atomic = ex1.getValue().getLong();
                                     ex1.remove();
                                     ex2.clear().append("byCounter").append(atomic).remove();
-                                    sizeArray[(int) atomic] = 0;
+                                    addWork(1);
+
+                                    if (atomic < sizeArray.length) {
+                                        sizeArray[(int) atomic] = 0;
+                                    }
                                     _sb1.setLength(0);
                                     _sb1.append(s);
                                     _sb1.reverse();
                                     ex3.clear().append("byReversedName").append(_sb1).remove();
+                                    addWork(1);
+
                                     txn.commit();
                                     break;
                                 } catch (final RollbackException rbe) {

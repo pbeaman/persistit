@@ -20,9 +20,8 @@
 
 package com.persistit.stress;
 
-import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 /**
@@ -85,11 +84,15 @@ public class Stress7 extends StressBase {
 
                 setPhase("@");
                 _exs.clear().append("stress7").append(_threadIndex).remove(Key.GTEQ);
+                addWork(1);
+
 
                 setPhase("a");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     _exs.clear().append("stress7").append(_threadIndex).append(_count).append(_sb1);
                     _exs.store();
+                    addWork(1);
+
                 }
                 setPhase("b");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
@@ -101,12 +104,16 @@ public class Stress7 extends StressBase {
                         _exs.getValue().putString(_sb2);
                         _exs.store();
                         _exs.remove();
+                        addWork(1);
+
                     }
                 }
                 setPhase("c");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     _exs.clear().append("stress7").append(_threadIndex).append(_count).append(_sb1);
                     _exs.fetch();
+                    addWork(1);
+
                     if (_exs.getValue().isDefined()) {
                         _result = new TestResult(false, "Value for key " + _exs.getKey()
                                 + " is defined but should not be");

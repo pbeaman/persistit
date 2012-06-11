@@ -1,5 +1,5 @@
 /**
- * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright © 2005-2012 Akiban Technologies, Inc.  All rights reserved.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -26,7 +26,7 @@ import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress12txn extends StressBase {
@@ -76,6 +76,8 @@ public class Stress12txn extends StressBase {
                 _initializedOnce = true;
                 try {
                     _exs.removeAll();
+                    addWork(1);
+
                     for (int index = 0; index < _size; index++) {
                         _counters[index] = new AtomicLong();
                     }
@@ -95,11 +97,17 @@ public class Stress12txn extends StressBase {
                     while (true) {
                         try {
                             txn.begin();
+                            addWork(1);
+
                             final int keyInteger = _random.nextInt(_size);
                             _exs.clear().append(keyInteger).fetch();
+                            addWork(1);
+
                             final long currentValue = getCount(_exs.getValue());
                             putCount(_exs.getValue(), currentValue + 1);
                             _exs.store();
+                            addWork(1);
+
                             txn.commit();
                             break;
                         } catch (final RollbackException re) {

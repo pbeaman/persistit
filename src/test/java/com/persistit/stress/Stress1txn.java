@@ -25,7 +25,7 @@ import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress1txn extends StressBase {
@@ -71,6 +71,8 @@ public class Stress1txn extends StressBase {
         try {
             txn.begin();
             _ex.clear().remove(Key.GTEQ);
+            addWork(1);
+
             txn.commit();
         } catch (final Exception e) {
             handleThrowable(e);
@@ -88,6 +90,8 @@ public class Stress1txn extends StressBase {
                         _ex.clear().append(keyInteger);
                         setupTestValue(_ex, _count, _size);
                         _ex.store();
+                        addWork(1);
+
                     }
                     txn.commit();
                 } catch (final Exception e) {
@@ -113,6 +117,8 @@ public class Stress1txn extends StressBase {
                                 // compare
                                 // with the original.
                                 _ex.fetch(value2);
+                                addWork(1);
+
                                 compareValues(value1, value2);
                             }
                         });
@@ -128,6 +134,8 @@ public class Stress1txn extends StressBase {
                     txn.begin();
                     _ex.clear().append(Integer.MIN_VALUE);
                     for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
+                        addWork(1);
+
                         if (!_ex.next()) {
                             break;
                         }
@@ -154,6 +162,8 @@ public class Stress1txn extends StressBase {
                         final int keyInteger = keyInteger(_count);
                         _ex.clear().append(keyInteger);
                         _ex.remove();
+                        addWork(1);
+
                     }
                     txn.commit();
                 } catch (final Exception e) {

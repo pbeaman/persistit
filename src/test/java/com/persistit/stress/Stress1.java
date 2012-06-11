@@ -22,7 +22,7 @@ package com.persistit.stress;
 
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.test.TestResult;
+import com.persistit.suite.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress1 extends StressBase {
@@ -65,6 +65,8 @@ public class Stress1 extends StressBase {
         setPhase("@");
         try {
             _ex.clear().remove(Key.GTEQ);
+            addWork(1);
+
         } catch (final Exception e) {
             handleThrowable(e);
         }
@@ -78,6 +80,8 @@ public class Stress1 extends StressBase {
                     setupTestValue(_ex, _count, _size);
                     try {
                         _ex.store();
+                        addWork(1);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                         break;
@@ -95,6 +99,8 @@ public class Stress1 extends StressBase {
                         // fetch to a different Value object so we can compare
                         // with the original.
                         _ex.fetch(value2);
+                        addWork(1);
+
                         compareValues(value1, value2);
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -107,6 +113,7 @@ public class Stress1 extends StressBase {
                 _ex.clear().append(Integer.MIN_VALUE);
                 for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
                     try {
+                        addWork(1);
                         if (!_ex.next()) {
                             break;
                         }
@@ -129,6 +136,8 @@ public class Stress1 extends StressBase {
                     _ex.clear().append(keyInteger);
                     try {
                         _ex.remove();
+                        addWork(1);
+
                     } catch (final Exception e) {
                         handleThrowable(e);
                     }

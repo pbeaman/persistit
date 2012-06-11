@@ -20,10 +20,10 @@
 
 package com.persistit;
 
-import com.persistit.test.AbstractTestRunnerItem;
-import com.persistit.test.TestResult;
+import com.persistit.suite.AbstractStressTest;
+import com.persistit.suite.TestResult;
 
-public class ConfirmEmptyVolume extends AbstractTestRunnerItem {
+public class ConfirmEmptyVolume extends AbstractStressTest {
 
     Volume[] _volumes;
     
