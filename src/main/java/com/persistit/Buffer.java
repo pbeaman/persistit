@@ -3073,8 +3073,7 @@ public class Buffer extends SharedResource {
 
             int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
             if (size <= 0) {
-                _persistit.fatal("Buffer has invalid tailblock length " + size + " at " + tail + " in "
-                        + this, null);
+                _persistit.fatal("Buffer has invalid tailblock length " + size + " at " + tail + " in " + this, null);
             }
 
             if ((tbData & TAILBLOCK_INUSE_MASK) != 0) {
@@ -3571,11 +3570,10 @@ public class Buffer extends SharedResource {
      * @return
      * @throws PersistitException
      */
-    boolean pruneMvvValues(final Tree tree) throws PersistitException {
+    boolean pruneMvvValues(final Tree tree, boolean pruneLongMVVs) throws PersistitException {
 
         boolean changed = false;
         try {
-            boolean bumped = false;
             boolean hasLongMvvRecords = false;
 
             if (!isMine()) {
@@ -3630,15 +3628,9 @@ public class Buffer extends SharedResource {
                             incCountIfMvv(_bytes, offset, newSize);
                         }
 
-                        boolean prunedAntiValue = pruneAntiValue(valueByte, p, tree);
-                        changed |= prunedAntiValue;
-                        if (prunedAntiValue) {
+                        if (pruneAntiValue(valueByte, p, tree)) {
                             changed = true;
                             p -= KEYBLOCK_LENGTH;
-                            if (!bumped) {
-                                bumpGeneration();
-                                bumped = true;
-                            }
                         }
                     }
                 }
@@ -3649,7 +3641,7 @@ public class Buffer extends SharedResource {
                 deallocatePrunedVersions(_persistit, _vol, prunedVersions);
                 prunedVersions.clear();
 
-                if (hasLongMvvRecords) {
+                if (pruneLongMVVs && hasLongMvvRecords) {
                     List<PersistitException> deferredExceptions = new ArrayList<PersistitException>();
                     List<Long> oldChainsToDeallocate = new ArrayList<Long>();
 
@@ -3664,9 +3656,9 @@ public class Buffer extends SharedResource {
                         _alloc = copy._alloc;
                         _slack = copy._slack;
                         _mvvCount = copy._mvvCount;
-                        _keyBlockEnd = copy._keyBlockEnd;
-                        if (copy.getGeneration() > getGeneration()) {
-                            bumpGeneration();
+                        if (_keyBlockEnd != copy._keyBlockEnd) {
+                            _keyBlockEnd = copy._keyBlockEnd;
+                            invalidateFastIndex();
                         }
                         setDirtyAtTimestamp(copyTimestamp);
                         deallocatePrunedVersions(_persistit, _vol, prunedVersions);
@@ -3700,7 +3692,6 @@ public class Buffer extends SharedResource {
             final List<PersistitException> deferredExceptions, final List<Long> toDeallocate) {
 
         boolean changed = false;
-        boolean bumped = false;
         for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
             final int kbData = getInt(p);
             final int tail = decodeKeyBlockTail(kbData);
@@ -3743,10 +3734,6 @@ public class Buffer extends SharedResource {
                 if (pruneAntiValue(valueByte, p, tree)) {
                     changed = true;
                     p -= KEYBLOCK_LENGTH;
-                    if (!bumped) {
-                        bumpGeneration();
-                        bumped = true;
-                    }
                 }
             }
         }
