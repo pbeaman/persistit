@@ -122,9 +122,8 @@ public class Stress1 extends StressBase {
                     }
                 }
                 if (_count != _total) {
-                    _result = new TestResult(false, "Traverse count=" + _count + " out of " + _total + " repetition="
+                    fail("Traverse count=" + _count + " out of " + _total + " repetition="
                             + _repeat + " in thread=" + _threadIndex);
-                    forceStop();
                     break;
                 }
             }

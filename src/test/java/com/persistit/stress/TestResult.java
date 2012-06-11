@@ -43,7 +43,6 @@ public class TestResult {
     public TestResult(final boolean passed, final Throwable throwable) {
         _passed = passed;
         _throwable = throwable;
-        _message = _throwable.toString();
     }
 
     @Override

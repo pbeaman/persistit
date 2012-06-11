@@ -279,9 +279,8 @@ public class Stress3 extends StressBase {
                             addWork(1);
 
                             if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
-                                _result = new TestResult(false, "Expected filename <" + s + "> was not found - key="
+                                fail("Expected filename <" + s + "> was not found - key="
                                         + ex1.getKey() + " keyInteger=" + keyInteger + " at counter=" + _count);
-                                forceStop();
                                 break;
                             }
                             final long atomic = ex1.getValue().getLong();

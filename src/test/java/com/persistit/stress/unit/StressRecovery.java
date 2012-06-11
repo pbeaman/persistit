@@ -248,11 +248,9 @@ public class StressRecovery extends StressBase {
                                 faults, (last - firstFault) / 1000000l, _maxLatency / 1000000l, firstFaultTicket,
                                 successAfterFailureCount);
                 System.out.println(msg);
-                _result = new TestResult(true, msg);
+                pass(msg);
             } else {
-                _result = new TestResult(
-                        false,
-                        String.format(
+                fail(String.format(
                                 "There were %,d faults. Last one occurred %,dms before crash: "
                                         + "FAIL because acceptable latency setting is %,dms First-failed ticketId=%,d laterSuccess=%,d.",
                                 faults, (last - firstFault) / 1000000l, _maxLatency / 1000000l, firstFaultTicket,

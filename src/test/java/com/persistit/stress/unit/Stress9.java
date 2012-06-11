@@ -139,9 +139,8 @@ public class Stress9 extends StressBase {
 
                         final int size2 = value2.getEncodedSize();
                         if (size2 != size1) {
-                            _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1 + " key="
+                            fail("Value is size " + size2 + ", should be " + size1 + " key="
                                     + _ex.getKey());
-                            forceStop();
                         }
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -188,9 +187,8 @@ public class Stress9 extends StressBase {
                     }
                 }
                 if (count1 != count2) {
-                    _result = new TestResult(false, "Traverse count is " + count1 + " but should be " + count2
+                    fail("Traverse count is " + count1 + " but should be " + count2
                             + " on repetition=" + _repeat + " in thread=" + _threadIndex);
-
                     break;
                 }
             }

@@ -29,7 +29,7 @@ public class Stress10Suite extends AbstractSuite {
     static String name() {
         return Stress10Suite.class.getSimpleName();
     }
-    
+
     public static void main(String[] args) throws Exception {
         new Stress10Suite(args).runTest();
     }
@@ -39,7 +39,7 @@ public class Stress10Suite extends AbstractSuite {
     }
 
     public void runTest() throws Exception {
-        
+
         if (isUntilStopped()) {
             setDuration(getDuration() / 5);
         }

@@ -30,12 +30,12 @@
 
 sleep_time=180
 datapath="/tmp/persistit_test_data"
-scriptpath="core/src/test/resources/tscripts"
+
 jvm_options="-Xmx2G -Xrunjdwp:transport=dt_socket,address=8000,suspend=n,server=y"
 
-testrunner_command="java $jvm_options -cp `find . -name akiban-persistit-core*with-dependencies*.jar` -Dstress_recovery_test_signature=1 com.persistit.test.TestRunner "
+testrunner_command="java $jvm_options -cp `find . -name akiban-persistit\*with-dependencies\*.jar` -Dstress_recovery_test_signature=1 "
 
-command="$testrunner_command script=$scriptpath/recovery_1.plan datapath=$datapath"
+command="$testrunner_command com.persistit.stress.Recovery1 datapath=$datapath"
 echo "$command  > $datapath/recovery.log"
 $command > $datapath/recovery.log &
 
@@ -51,7 +51,7 @@ done
 
 echo -----
 
-command="$testrunner_command script=$scriptpath/recovery_2.plan datapath=$datapath"
+command="$testrunner_command com.persistit.stress.Recovery2 datapath=$datapath"
 echo $command
 $command
 sleep 2

@@ -29,7 +29,7 @@ public class Recovery2 extends AbstractSuite {
     static String name() {
         return Recovery2.class.getSimpleName();
     }
-    
+
     public static void main(String[] args) throws Exception {
         new Recovery2(args).runTest();
     }
@@ -40,9 +40,9 @@ public class Recovery2 extends AbstractSuite {
 
     public void runTest() throws Exception {
 
-        deleteFiles(substitute("$datapath$/persistit*"));
+        // Don't delete persistit data here!
 
-        add(new StressRecovery("verify=stdin latency=1000"));
+        add(new StressRecovery(substitute("verify=$datapath$/recovery.log latency=1000")));
 
         final Persistit persistit = makePersistit(16384, "64M,1T,256M,0.7", CommitPolicy.SOFT);
         persistit.getManagement().setAppendOnly(true);

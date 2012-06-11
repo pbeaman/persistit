@@ -49,13 +49,13 @@ public abstract class AbstractStressTest implements Runnable {
     protected boolean _verbose;
 
     private volatile long _totalWorkDone;
-    
+
     Persistit _persistit;
-    
+
     protected Persistit getPersistit() {
         return _persistit;
     }
-    
+
     protected void setPersistit(Persistit db) {
         _persistit = db;
     }
@@ -63,7 +63,11 @@ public abstract class AbstractStressTest implements Runnable {
     protected abstract void executeTest() throws Exception;
 
     protected AbstractStressTest(final String argsString) {
-        _args = argsString.split(" ");
+        if (argsString == null) {
+            _args = new String[0];
+        } else {
+            _args = argsString.split(" ");
+        }
     }
 
     void initialize(final int index) {
@@ -87,22 +91,47 @@ public abstract class AbstractStressTest implements Runnable {
             executeTest();
             _endTime = System.nanoTime();
             tearDown();
-            
+
         } catch (final Throwable t) {
             if ((t instanceof RuntimeException) && "STOPPED".equals(t.getMessage())) {
-                if (_result == null) {
-                    _result = new TestResult(true);
-                }
+                pass();
             } else {
-                if ((_result == null) || _result._passed) {
-                    _result = new TestResult(false, t);
-                }
+                fail(t);
             }
         }
         if (isFailed()) {
             System.err.printf("\n%s: %s\n", toString(), _result.toString());
         }
         _finished = true;
+    }
+
+    protected void pass() {
+        if (_result == null) {
+            _result = new TestResult(true);
+        }
+    }
+
+    protected void pass(final String message) {
+        if (_result == null) {
+            _result = new TestResult(true, message);
+        }
+    }
+
+    protected void fail(final String message) {
+        if (!isFailed()) {
+            _result = new TestResult(false, message);
+        }
+        forceStop();
+        System.err.printf("\n%s: %s\n", getThreadName(), _result);
+    }
+
+    protected void fail(final Throwable throwable) {
+        if (!isFailed()) {
+            _result = new TestResult(false, throwable);
+        }
+        forceStop();
+        long elapsed = (System.nanoTime() - _startTime) / AbstractSuite.NS_PER_S;
+        System.err.printf("\n%s at %,d seconds: %s\n", getThreadName(), elapsed, _result);
     }
 
     protected TestResult getResult() {
@@ -159,22 +188,21 @@ public abstract class AbstractStressTest implements Runnable {
     public String getThreadName() {
         return Thread.currentThread().getName();
     }
-  
+
     public void setUntilStopped(final boolean untilStopped) {
         _untilStopped = untilStopped;
     }
-    
+
     public boolean isUntilStopped() {
         return _untilStopped;
     }
-    
+
     protected void addWork(final long work) {
         _totalWorkDone += work;
     }
-    
+
     public long getTotalWorkDone() {
         return _totalWorkDone;
     }
-    
 
 }

@@ -29,7 +29,7 @@ public class Stress8txnSuite extends AbstractSuite {
     static String name() {
         return Stress8txnSuite.class.getSimpleName();
     }
-    
+
     public static void main(String[] args) throws Exception {
         new Stress8txnSuite(args).runTest();
     }

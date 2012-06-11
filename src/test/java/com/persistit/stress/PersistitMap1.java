@@ -29,7 +29,7 @@ public class PersistitMap1 extends AbstractSuite {
     static String name() {
         return PersistitMap1.class.getSimpleName();
     }
-    
+
     public static void main(String[] args) throws Exception {
         new PersistitMap1(args).runTest();
     }

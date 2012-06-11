@@ -29,7 +29,7 @@ public class Recovery1 extends AbstractSuite {
     static String name() {
         return Recovery1.class.getSimpleName();
     }
-    
+
     public static void main(String[] args) throws Exception {
         new Recovery1(args).runTest();
     }
@@ -43,7 +43,7 @@ public class Recovery1 extends AbstractSuite {
         deleteFiles(substitute("$datapath$/persistit*"));
 
         for (int thread = 0; thread < 5; thread++) {
-            add(new StressRecovery(""));
+            add(new StressRecovery(null));
         }
 
         final Persistit persistit = makePersistit(16384, "64M,1T,256M,0.7", CommitPolicy.SOFT);

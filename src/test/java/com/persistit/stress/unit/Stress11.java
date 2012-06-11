@@ -134,9 +134,8 @@ public class Stress11 extends StressBase {
 
                         final int size2 = _exs.getValue().getEncodedSize();
                         if (size2 != size1) {
-                            _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1 + " key="
+                            fail("Value is size " + size2 + ", should be " + size1 + " key="
                                     + _ex.getKey());
-                            forceStop();
                         }
                         if (size1 != 0) {
                             _exs.getValue().get();
@@ -168,9 +167,8 @@ public class Stress11 extends StressBase {
                                 size1 = _ex.getValue().getInt();
                             }
                             if (size2 != size1) {
-                                _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1
+                                fail("Value is size " + size2 + ", should be " + size1
                                         + " key=" + _ex.getKey());
-                                forceStop();
                             }
                             if (size1 != 0) {
                                 _exs.getValue().get();

@@ -46,7 +46,8 @@ public class AbstractSuite {
 
     protected final static long NS_PER_MS = 1000000;
     protected final static long MS_PER_S = 1000;
-    
+    protected final static long NS_PER_S = NS_PER_MS * MS_PER_S;
+
     private long _nextReport;
     private long _accumulatedWork;
 
@@ -65,27 +66,27 @@ public class AbstractSuite {
         _name = name;
         final ArgParser ap = new ArgParser("RunnerBase", args, ARGS_TEMPLATE);
         _logPath = _dataPath = ap.getStringValue("datapath");
-        _duration = ap.getLongValue("duration") * MS_PER_S;
+        _duration = ap.getLongValue("duration");
         _progressLogInterval = ap.getLongValue("progress");
         _untilStopped = ap.isSpecified("duration");
     }
-    
+
     public String getName() {
         return _name;
     }
-    
+
     public long getDuration() {
         return _duration;
     }
-    
+
     public void setDuration(final long duration) {
         _duration = duration;
     }
-    
+
     public boolean isUntilStopped() {
         return _untilStopped;
     }
-    
+
     public boolean takeUntilStopped() {
         if (_untilStopped) {
             _untilStopped = false;
@@ -117,7 +118,7 @@ public class AbstractSuite {
                 threads.add(new Thread(test));
             }
             final long start = System.nanoTime();
-            final long end = start + (NS_PER_MS * _duration);
+            final long end = start + (NS_PER_S * _duration);
 
             for (Thread thread : threads) {
                 thread.start();
@@ -148,9 +149,9 @@ public class AbstractSuite {
                 }
                 work += test.getTotalWorkDone();
             }
-            long elapsed = (System.nanoTime() - start) / (NS_PER_MS * MS_PER_S);
-            System.out.printf("\n---Result %s: %s work=%,d time=%,d rate=%,d ---\n", this._name, failed ? "FAILED" : "PASSED", work,
-                    elapsed, elapsed > 0 ? work / elapsed : 0);
+            long elapsed = (System.nanoTime() - start) / NS_PER_S;
+            System.out.printf("\n---Result %s: %s work=%,d time=%,d rate=%,d ---\n", this._name, failed ? "FAILED"
+                    : "PASSED", work, elapsed, elapsed > 0 ? work / elapsed : 0);
 
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -185,13 +186,13 @@ public class AbstractSuite {
                 rate = (work * NS_PER_MS * MS_PER_S) / elapsed;
             }
             System.out.printf("%s at %,9d seconds: live=%,5d ended=%,5d stopped = %,5d, failed=%,5d "
-                    + "totalwork=%,12d intervalwork=%,12d  workrate=%,12d\n", _name, elapsed / NS_PER_MS / MS_PER_S,
+                    + "totalwork=%,12d intervalwork=%,12d  workrate=%,12d\n", _name, elapsed / NS_PER_S,
                     live, ended, stopped, failed, work, work - _accumulatedWork, rate);
             _accumulatedWork = work;
         }
-        
+
         if (elapsed > _nextReport) {
-            _nextReport += (NS_PER_MS * MS_PER_S * _progressLogInterval);
+            _nextReport += (NS_PER_S * _progressLogInterval);
         }
 
         return live;

@@ -79,7 +79,7 @@ public class ConfirmEmptyVolume extends AbstractStressTest {
                     }
                     resultCount++;
                 } else {
-                    _result = new TestResult(false, "Volume name " + _args[index] + " not found");
+                    fail("Volume name " + _args[index] + " not found");
                     results[index] = _result;
                     resultCount++;
                 }
@@ -89,7 +89,7 @@ public class ConfirmEmptyVolume extends AbstractStressTest {
             }
 
         } catch (final Exception ex) {
-            _result = new TestResult(false, ex);
+            fail(ex);
         }
     }
 

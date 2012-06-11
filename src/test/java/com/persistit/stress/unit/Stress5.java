@@ -149,8 +149,7 @@ public class Stress5 extends StressBase {
                     }
                     addWork(1);
                     if (!_ex.remove()) {
-                        _result = new TestResult(false, "Failed to remove depth=" + depth);
-                        forceStop();
+                        fail("Failed to remove depth=" + depth);
                         break;
                     }
                 }

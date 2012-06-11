@@ -30,7 +30,7 @@ public class StartStop extends AbstractSuite {
     static String name() {
         return StartStop.class.getSimpleName();
     }
-    
+
     public static void main(String[] args) throws Exception {
         new StartStop(args).runTest();
     }
@@ -40,10 +40,10 @@ public class StartStop extends AbstractSuite {
     }
 
     public void runTest() throws Exception {
-        long end = System.nanoTime() + getDuration() * NS_PER_MS;
+        long end = System.nanoTime() + getDuration() * NS_PER_S;
         int cycle = 0;
         boolean untilStopped = takeUntilStopped();
-        
+
         while (cycle++ == 0 || untilStopped && System.nanoTime() < end) {
 
             deleteFiles(substitute("$datapath$/persistit*"));

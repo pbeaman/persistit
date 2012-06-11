@@ -30,7 +30,7 @@ public class Stress4Suite extends AbstractSuite {
     static String name() {
         return Stress4Suite.class.getSimpleName();
     }
-    
+
     public static void main(String[] args) throws Exception {
         new Stress4Suite(args).runTest();
     }
@@ -40,11 +40,11 @@ public class Stress4Suite extends AbstractSuite {
     }
 
     public void runTest() throws Exception {
-        
+
         if (isUntilStopped()) {
             setDuration(getDuration() / 2);
         }
-        
+
         for (int pageSize = 8192; pageSize <= 16384; pageSize *= 2) {
 
             System.out.printf("Starting %s for page size %,d\n", Stress4Suite.class.getSimpleName(), pageSize);
@@ -61,7 +61,7 @@ public class Stress4Suite extends AbstractSuite {
             } finally {
                 persistit.close();
             }
-            
+
             clear();
         }
     }

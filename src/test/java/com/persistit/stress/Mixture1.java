@@ -34,7 +34,7 @@ public class Mixture1 extends AbstractSuite {
     static String name() {
         return Mixture1.class.getSimpleName();
     }
-    
+
     public static void main(String[] args) throws Exception {
         new Mixture1(args).runTest();
     }

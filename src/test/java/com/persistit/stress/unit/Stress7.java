@@ -26,7 +26,7 @@ import com.persistit.util.ArgParser;
 
 /**
  * Test to try all split and join locations and conditions. Plan: 1. For each of
- * several key and valuesizes, create a tree with enough key/value pairs of that
+ * several key and value sizes, create a tree with enough key/value pairs of that
  * size to yield 3-level tree 2. Between each key position on one or more pages,
  * insert one or more key/value pairs to force a split, then delete them to
  * cause a rejoin 3. Make sure the resulting tree is valid.
@@ -115,9 +115,8 @@ public class Stress7 extends StressBase {
                     addWork(1);
 
                     if (_exs.getValue().isDefined()) {
-                        _result = new TestResult(false, "Value for key " + _exs.getKey()
+                        fail("Value for key " + _exs.getKey()
                                 + " is defined but should not be");
-                        forceStop();
                         break;
                     }
                 }

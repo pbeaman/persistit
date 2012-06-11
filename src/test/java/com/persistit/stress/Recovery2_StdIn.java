@@ -29,7 +29,7 @@ public class Recovery2_StdIn extends AbstractSuite {
     static String name() {
         return Recovery2_StdIn.class.getSimpleName();
     }
-    
+
     public static void main(String[] args) throws Exception {
         new Recovery2_StdIn(args).runTest();
     }

@@ -121,9 +121,8 @@ public class PersistitMapStress2 extends StressBase {
                     }
                 }
                 if (_dm1.size() != _total) {
-                    _result = new TestResult(false, "PersistitMap.size()=" + _dm1.size() + " out of " + _total
+                    fail("PersistitMap.size()=" + _dm1.size() + " out of " + _total
                             + " repetition=" + _repeat + " in thread=" + _threadIndex);
-                    forceStop();
                     break;
                 }
                 _timeWrite += (tt = ts()) - ts;
@@ -167,9 +166,8 @@ public class PersistitMapStress2 extends StressBase {
                     }
                 }
                 if (_count != _total) {
-                    _result = new TestResult(false, "Traverse count=" + _count + " out of " + _total + " repetition="
+                    fail("Traverse count=" + _count + " out of " + _total + " repetition="
                             + _repeat + " in thread=" + _threadIndex);
-                    forceStop();
                     break;
                 }
                 _timeIter += (tt = ts()) - ts;
@@ -209,9 +207,8 @@ public class PersistitMapStress2 extends StressBase {
                     }
                 }
                 if (_count != 0) {
-                    _result = new TestResult(false, "Traverse count=" + _count + " when 0 were expected"
+                    fail("Traverse count=" + _count + " when 0 were expected"
                             + " repetition=" + _repeat + " in thread=" + _threadIndex);
-                    forceStop();
                     break;
                 }
                 _timeRemove += (tt = ts()) - ts;
@@ -239,9 +236,8 @@ public class PersistitMapStress2 extends StressBase {
                     }
                 }
                 if (_dm1.size() != 0) {
-                    _result = new TestResult(false, "PersistitMap.size()= " + _dm1.size() + " when 0 were expected"
+                    fail("PersistitMap.size()= " + _dm1.size() + " when 0 were expected"
                             + " repetition=" + _repeat + " in thread=" + _threadIndex);
-                    forceStop();
                     break;
                 }
                 _timeRemove += (tt = ts()) - ts;

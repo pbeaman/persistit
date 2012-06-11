@@ -31,12 +31,6 @@ import com.persistit.util.ArgParser;
 
 public class Stress12txn extends StressBase {
 
-    private final static String SHORT_DESCRIPTION = "Transactional counter with isolation test";
-
-    private final static String LONG_DESCRIPTION = "   Transaction counter with isolation test\r\n"
-            + "    Increments one of several values in a B-Tree and keeps a copy in memory.\r\n"
-            + "    Verifies the in-memory copy with the transactionally stored value.\r\n";
-
     private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Number of cycles",
             "count|int:1000:1:100000000|Number Repetitions per cycle",
             "size|int:1:1:100000|Number of nodes to populate", "seed|int:1:1:20000|Random seed", };
@@ -82,8 +76,7 @@ public class Stress12txn extends StressBase {
                         _counters[index] = new AtomicLong();
                     }
                 } catch (Exception e) {
-                    _result = new TestResult(false, e);
-                    forceStop();
+                    fail(e);
                 }
             }
         }

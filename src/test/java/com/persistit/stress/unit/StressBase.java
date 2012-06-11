@@ -63,10 +63,7 @@ public abstract class StressBase extends AbstractStressTest {
     }
 
     protected synchronized void handleThrowable(final Throwable thx) {
-        _result = new TestResult(false, thx);
-        System.out.println(_result);
-        thx.printStackTrace();
-        forceStop();
+        fail(thx);
     }
 
     protected void seed(final long seedValue) {
@@ -95,11 +92,11 @@ public abstract class StressBase extends AbstractStressTest {
     protected void compareValues(final Value value1, final Value value2) {
         boolean ok = true;
         if (!value2.isDefined() || value2.isNull()) {
-            _result = new TestResult(false, "value not expected to be null");
+            fail("value not expected to be null");
             ok = false;
         } else if (!value1.equals(value2)) {
             final String difference = displayDifference(value1.getString(), value2.getString());
-            _result = new TestResult(false, "Values differ: " + difference);
+            fail("Values differ: " + difference);
             ok = false;
         }
         if (!ok) {
@@ -110,11 +107,11 @@ public abstract class StressBase extends AbstractStressTest {
     protected void compareStrings(final String value1, final String value2) {
         boolean ok = true;
         if (value2 == null) {
-            _result = new TestResult(false, "value not expected to be null");
+            fail("value not expected to be null");
             ok = false;
         } else if (!value2.equals(value1)) {
             final String difference = displayDifference(value1, value2);
-            _result = new TestResult(false, "Values differ: " + difference);
+            fail("Values differ: " + difference);
             ok = false;
         }
         if (!ok) {

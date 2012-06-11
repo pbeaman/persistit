@@ -20,16 +20,12 @@
 
 package com.persistit.stress.unit;
 
-import java.io.FileWriter;
-import java.io.PrintWriter;
-
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.TransactionRunnable;
 import com.persistit.exception.PersistitException;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 import com.persistit.util.Debug;
 
@@ -109,8 +105,7 @@ public class Stress8txn extends StressBase {
                         System.out.println("Consistency check completed successfully");
                     }
                 } catch (final PersistitException pe) {
-                    _result = new TestResult(false, pe);
-                    forceStop();
+                    fail(pe);
                 }
             }
         }
@@ -135,14 +130,8 @@ public class Stress8txn extends StressBase {
                     op.setup(acct1, acct2);
                     final int passes = txn.run(op, 100, 5, CommitPolicy.SOFT);
                     Debug.$assert1.t(passes <= 90);
-                    if (op._result != null) {
-                        _result = op._result;
-                        Debug.$assert1.t(false);
-                        forceStop();
-                    }
                 } catch (final Exception pe) {
-                    _result = new TestResult(false, pe);
-                    forceStop();
+                    fail(pe);
                 }
             }
         }
@@ -158,8 +147,7 @@ public class Stress8txn extends StressBase {
                 }
             }
         } catch (final PersistitException pe) {
-            _result = new TestResult(false, pe);
-            forceStop();
+            fail(pe);
         }
     }
 
@@ -196,7 +184,6 @@ public class Stress8txn extends StressBase {
             _c2 = (acct2 % 5);
         }
 
-        TestResult _result = null;
     }
 
     private class Operation0 extends Operation {
@@ -278,16 +265,13 @@ public class Stress8txn extends StressBase {
          */
         @Override
         public void runTransaction() throws PersistitException {
-            _result = null;
             _exs.clear().append("stress8txn").append(_a1).append(_b1).fetch();
             addWork(1);
 
             final int valueB = getAccountValue(_exs);
             final int totalC = accountTotal(_exs);
             if (valueB != totalC) {
-                _result = new TestResult(false, "totalC=" + totalC + " valueB=" + valueB + " at " + _exs);
-                inconsistent(_result);
-                Debug.$assert1.t(false);
+                fail("totalC=" + totalC + " valueB=" + valueB + " at " + _exs);
             }
         }
     }
@@ -298,16 +282,13 @@ public class Stress8txn extends StressBase {
          */
         @Override
         public void runTransaction() throws PersistitException {
-            _result = null;
             _exs.clear().append("stress8txn").append(_a1).fetch();
             addWork(1);
 
             final int valueA = getAccountValue(_exs);
             final int totalB = accountTotal(_exs);
             if (valueA != totalB) {
-                _result = new TestResult(false, "totalB=" + totalB + " valueA=" + valueA + " at " + _exs);
-                inconsistent(_result);
-                Debug.$assert1.t(false);
+                fail("totalB=" + totalB + " valueA=" + valueA + " at " + _exs);
             }
         }
     }
@@ -318,13 +299,10 @@ public class Stress8txn extends StressBase {
          */
         @Override
         public void runTransaction() throws PersistitException {
-            _result = null;
             _exs.clear().append("stress8txn");
             final int totalA = accountTotal(_exs);
             if (totalA != 0) {
-                _result = new TestResult(false, "totalA=" + totalA + " at " + _exs);
-                inconsistent(_result);
-                Debug.$assert1.t(false);
+                fail("totalA=" + totalA + " at " + _exs);
             }
         }
     }
@@ -337,7 +315,7 @@ public class Stress8txn extends StressBase {
         public void runTransaction() throws PersistitException {
             totalConsistencyCheck();
             if ((_mvvReports++ % 1000) == 0) {
-                inconsistent(new TestResult(true, "Consistency check passed"));
+                System.out.println("Consistency check passed");
             }
         }
     }
@@ -423,26 +401,17 @@ public class Stress8txn extends StressBase {
                         Debug.$assert1.t(valueC1 == valueCC1);
                         totalC1 += valueC1;
                     }
-                    _result = new TestResult(false, "totalC=" + totalC + " valueB=" + valueB + " at " + exb);
-                    inconsistent(_result);
-                    Debug.$assert1.t(false);
-                    forceStop();
+                    fail("totalC=" + totalC + " valueB=" + valueB + " at " + exb);
                     return false;
                 }
             }
             if (totalB != valueA) {
-                _result = new TestResult(false, "totalB=" + totalB + " valueA=" + valueA + " at " + exa);
-                inconsistent(_result);
-                Debug.$assert1.t(false);
-                forceStop();
+                fail("totalB=" + totalB + " valueA=" + valueA + " at " + exa);
                 return false;
             }
         }
         if (totalA != 0) {
-            _result = new TestResult(false, "totalA=" + totalA + " at " + exa);
-            inconsistent(_result);
-            Debug.$assert1.t(false);
-            forceStop();
+            fail("totalA=" + totalA + " at " + exa);
             return false;
         }
         return true;
@@ -494,17 +463,5 @@ public class Stress8txn extends StressBase {
             ex.getValue().put(value);
         }
     }
-
-    void inconsistent(TestResult result) {
-        String fileName = "/tmp/out_" + Thread.currentThread().getName();
-        try {
-            PrintWriter pw = new PrintWriter(new FileWriter(fileName));
-            pw.println(result);
-            pw.println();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
 
 }

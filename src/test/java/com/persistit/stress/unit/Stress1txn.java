@@ -25,7 +25,6 @@ import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress1txn extends StressBase {
@@ -141,9 +140,8 @@ public class Stress1txn extends StressBase {
                         }
                     }
                     if (_count != _total) {
-                        _result = new TestResult(false, "Traverse count=" + _count + " out of " + _total
+                        fail("Traverse count=" + _count + " out of " + _total
                                 + " repetition=" + _repeat + " in thread=" + _threadIndex);
-                        forceStop();
                         break;
                     }
                     txn.commit();
