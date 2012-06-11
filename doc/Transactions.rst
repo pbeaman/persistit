@@ -5,7 +5,7 @@ Transactions
 
 Akiban Persistit supports transactions with multi-version concurrency control (MVCC) using a protocol called Snapshot Isolation (SI). An application calls ``com.persistit.Transaction#begin``, ``com.persistit.Transaction#commit``, ``com.persistit.Transaction#rollback`` and ``com.persistit.Transaction#end`` methods to control the current transaction scope explicitly.  A Transaction allows an application to execute multiple database operations in an atomic, consistent, isolated and durable (ACID) manner.
 
-Applications manage transactions through an instance of a ``com.persistit.Transaction`` object. ``Transaction`` does not represent a single transaction, but is instead a context in which a thread may perform many sequential transactions. The general pattern is that the application gets the current thread’s ``Transaction`` instance, calls its ``begin`` method, performs work, calls ``commit`` and finally ``end``.  The thread uses the same ``Transaction`` instance repeatedly. Generally each thread has one ``Transaction`` that lasts for the entire life of the thread (but see com.persistit.Transaction#_threadManagement for a mechanism that allows a transaction to be serviced by multiple threads). 
+Applications manage transactions through an instance of a ``com.persistit.Transaction`` object. ``Transaction`` does not represent a single transaction, but is instead a context in which a thread may perform many sequential transactions. The general pattern is that the application gets the current thread’s ``Transaction`` instance, calls its ``begin`` method, performs work, calls ``commit`` and finally ``end``.  The thread uses the same ``Transaction`` instance repeatedly. Generally each thread has one ``Transaction`` that lasts for the entire life of the thread (but see com.persistit.Transaction for a mechanism that allows a transaction to be serviced by multiple threads). 
 
 Using Transactions
 ------------------
@@ -152,7 +152,7 @@ The problem with this approach is that under SI, concurrent transactions running
 
 Persistit provides the ``com.persistit.Accumulator`` class to avoid this problem.  An accumulator is designed to manage contributions from multiple concurrent transactions without causing write-write dependencies. Accumulators are durable in the sense that each transaction’s contribution is made durable with the transaction itself, and Persistit automatically recovers a correct state for each Accumulator in the event of a system crash.
 
-There are four types of accumulator in Persistit. Each a concrete subclass of the abstract ``com.persistit.Accumulator`` class:
+There are four types of accumulator in Persistit. Each is a concrete subclass of the abstract ``com.persistit.Accumulator`` class:
 
   ``SUM``
       Tallies a count or sum of contributions by each transaction

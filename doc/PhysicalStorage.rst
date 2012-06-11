@@ -26,7 +26,7 @@ The Journal
 
 The *journal* is a set of files containing variable length records. The journal is append-only. New records are written only at the end; existing records are never overwritten. The journal consists of a numbered series of files having a configurable maximum size. When a journal file becomes full Persistit closes it and begins a new file with the next counter value. The maximum size of a journal file is determined by a configuration property called its block size.  The default block size value is 1,000,000,000 bytes which works well with today’s standard server hardware.
 
-Every record in the journal has a 64-bit integer *journal address*. The journal address denotes which file contains the record and the record’s offset within that file. Journal addresses start at zero in a new database instance and grow perpetually. footnote:[Even on a system executing 1 million transactions per second the address space is large enough to last for hundreds of years.]
+Every record in the journal has a 64-bit integer *journal address*. The journal address denotes which file contains the record and the record’s offset within that file. Journal addresses start at zero in a new database instance and grow perpetually [#f1]_.
 
 Persistit writes two major types of records to journal files.
 
@@ -60,7 +60,7 @@ Persistit manages a potentially large number of trees by maintaining a tree of t
 Data Pages
 ^^^^^^^^^^
 
-A data page contains a representation of one or more variable-length key/value pairs. The number of key/value pairs depends on the page size, and the sizes of the serialized keys and values. The first key in each data page is stored in its entirety, while subsequent keys are stored with *prefix compression* to reduce storage footprint and accelerate searches. Therefore the storage size of the second and subsequent keys in a data page depend on how many of the leading bytes of its serialized form match its predecessor. (See :ref:`Key` and :ref:`Value` for information on how Persistit encodes logical Java values into the byte arrays stored in a data page.)
+A data page contains a representation of one or more variable-length key/value pairs. The number of key/value pairs depends on the page size, and the sizes of the serialized keys and values. The first key in each data page is stored in its entirety, while subsequent keys are stored with *prefix compression* to reduce storage footprint and accelerate searches. Therefore the storage sizes of the second and subsequent keys in a data page depend on how many of the leading bytes of their serialized form match their predecessors. (See :ref:`Key` and :ref:`Value` for information on how Persistit encodes logical Java values into the byte arrays stored in a data page.)
 
 Index Pages
 ^^^^^^^^^^^
@@ -78,13 +78,13 @@ Akiban Persistit is designed, implemented and tested to ensure that whether the 
 
 To do this, Persistit performs a process called *recovery* every time it starts up.  The recovery process is generally very fast after a normal shutdown. However, it can take a considerable amount of time after a crash because many committed transactions may need to be executed.
 
-Recovery performs two major activities:
+Recovery performs three major activities:
 
 - Restores all B+Trees to an internally consistent state with a known timestamp.
 - Replays all transaction that committed after that timestamp.
 - Prunes multi-version values belonging to certain aborted transactions (see :ref:`Pruning`).
 
-To accomplish this, Persistit writes all updates first to the :ref:`Journal`. Persistit also periodically writes *checkpoint* records to the journal. During recovery, Persistit finds the last valid checkpoint written before shutdown or crash, restores B+Trees to state consistent with that checkpoint, and then replays transactions that committed after the checkpoint.
+To accomplish this, Persistit writes all updates first to the journal. Persistit also periodically writes *checkpoint* records to the journal. During recovery, Persistit finds the last valid checkpoint written before shutdown or crash, restores B+Trees to state consistent with that checkpoint, and then replays transactions that committed after the checkpoint.
 
 Recovery depends on the availability of the volume and journal files as they existed prior to abrupt termination. If these are modified or destroyed outside of Persistit, successful recovery is unlikely.
 
@@ -111,7 +111,7 @@ An application may require certainty at various points that all pending updates 
 
   ``com.persistit.Persistit#flush``
       causes Persistit to write all pending updates to the journal. Upon successful completion of flush any pages that needed writing prior to the call to flush are 
-      guaranteed to have been written to their respective volume files.
+      guaranteed to have been written to the journal or their respective volume files.
   ``com.persistit.Persistit#force``
       forces the underlying operating system to write pending updates from the operating system’s write-behind cache to the actual disk. (This operation relies on 
       the underlying ``java.io.Filechannel#force(boolean)`` method.)
@@ -139,4 +139,6 @@ Tools
 
 The command-line interface (see :ref:`CLI`) includes tools you can use to examine pages in volumes and records in the journal. Two of these include the ``jview`` and ``pview`` tasks. The ``jview`` command displays journal records selected within an address range, by type, by page address, and using other selection criteria in a readable form.  The ``pview`` command displays the contents of pages selected by page address or key from a volume, or by journal address from the journal.
 
+.. rubric:: Footnotes
 
+.. [#f1] Even on a system executing 1 million transactions per second the address space is large enough to last for hundreds of years.

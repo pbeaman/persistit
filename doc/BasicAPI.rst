@@ -3,7 +3,7 @@
 Basic API
 =========
 
-Akiban Persistit stores data as key-value pairs in highly optimized B+Tree. (Actually, implements `B-Link Tree <http://www.cs.cornell.edu/courses/cs4411/2009sp/blink.pdf>`_ trees for greater concurrency). Like a Java Map implementation, Persistit associates at most one value with each unique instance of a Key value.
+Akiban Persistit stores data as key-value pairs in highly optimized B+Tree. (Actually, Akiban Persistit implements `B-Link Tree <http://www.cs.cornell.edu/courses/cs4411/2009sp/blink.pdf>`_ architecture for greater concurrency). Like a Java Map implementation, Persistit associates at most one value with each unique instance of a Key value.
 
 Persistit provides classes and methods to access and modify keys and their associated values. Application code calls Persistit API methods to store, fetch, traverse and remove keys and records to and from the database.
 
@@ -170,7 +170,7 @@ Exchange
 
 The primary low-level interface for interacting with Persistit is ``com.persistit.Exchange``. The Exchange class provides all methods for storing, deleting, fetching and traversing key/value pairs. These methods are summarized here and described in detail in the Javadoc API documentation.
 
-An Exchange instance contains references to a ``Key`` and a ``Value``. The methods ``com.persistit.Exchange.getKey()`` and ``com.persistit.Exchange.getValue()`` access these instances.
+An Exchange instance contains references to a ``Key`` and a ``Value``. The methods ``com.persistit.Exchange#getKey()`` and ``com.persistit.Exchange#getValue()`` access these instances.
 
 To construct an Exchange you specify a Volume (or alias) and a tree name in its constructor. The constructor will optionally create a new tree in that Volume if a tree having the specified name has not already been created. An application may construct an arbitrary number of Exchange objects. Creating a new Exchange has no effect on the database if the specified tree already exists. Tree creation is thread-safe: multiple threads concurrently constructing Exchanges using the same Tree name will safely result in the creation of only one new tree.
 
@@ -183,7 +183,7 @@ An Exchange internally maintains some optimization information such that referen
 Concurrent Operations on Exchanges
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Although the underlying Persistit database is designed for highly concurrent multi-threaded operation, the ``Exchange`` class and its associated ``Key`` and ``Value`` instances are *not* thread-safe. Each thread should acquire and use its own Exchange objects when accessing the database. Nonetheless, multiple threads can execute database operations on overlapping data concurrently using their thread-private ``Exchange`` instances.
+Although the underlying Persistit database is designed for highly concurrent multi-threaded operation, the ``Exchange`` class and its associated ``Key`` and ``Value`` instances are *not* thread-safe. Each thread should acquire and use its own Exchange object when accessing the database. Nonetheless, multiple threads can execute database operations on overlapping data concurrently using their thread-private ``Exchange`` instances.
 
 Because Persistit permits concurrent operations by multiple threads, there is no guarantee that the underlying database will remain unchanged after an Exchange fetches or modifies its data. However, each operation on an Exchange is atomic, meaning that the inputs and outputs of each method are consistent with some valid state of the underlying Persistit backing store at some instant in time. The Exchange’s Value and Key objects represent that consistent state even if another thread subsequently modifies the database. Transactions, described below, allow multiple database operations to be performed atomically and consistently.
 
@@ -252,7 +252,7 @@ For example, this code from ``HelloWorld.java`` prints out the key and value of 
                	dbex.getValue().get());
        	}
 
-In general, the traversal methods let you find a key in a tree related to the key you supply. In Persistit programs you frequently prime a key value by appending either ``com.persistit.Key#BEFORE`` or ``com.persistit.Key#AFTER``. A key containing either of these special values can never be stored in a tree; these are reserved to represent positions in key traversal order before the first valid key and after the last valid key, respectively. You then invoke next or previous, or any of the other traverse family variants, to enumerate keys within the tree.
+In general, the traversal methods let you find a key in a tree related to the key you supply. In Persistit programs you frequently prime a key value by appending either ``Key#BEFORE`` or ``Key#AFTER``. A key containing either of these special values can never be stored in a tree; these are reserved to represent positions in key traversal order before the first valid key and after the last valid key, respectively. You then invoke next or previous, or any of the other traverse family variants, to enumerate keys within the tree.
 
 You can specify whether traversal is *deep* or *shallow*.  Deep traversal traverses the logical children (see com.persistit.Key) of a key. Shallow traversal traverses only the logical siblings.
 
@@ -270,13 +270,13 @@ Use of a KeyFilter is illustrated by the following code fragment:
 .. code-block:: java
 
   Exchange ex = new Exchange("myVolume", "myTree", true);
-  KeyFilter kf = new KeyFilter("{\"Bellini\":\"Britten\"}");
+  KeyFilter kf = new KeyFilter("{\"Beethoven\":\"Britten\"}");
   ex.append(Key.BEFORE);
   while (ex.next(kf)){
       System.out.println(ex.getKey().reset().decodeString());
   }
 
-This simple example emits the string-valued keys within Tree “myTree” whose values fall alphabetically between “Bellini” and “Britten”, inclusive.
+This simple example emits the string-valued keys within Tree “myTree” whose values fall alphabetically between “Beethoven” and “Britten”, inclusive.
 
 
 You will find an example with a KeyFilter in the examples/FindFileDemo directory.

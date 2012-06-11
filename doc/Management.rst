@@ -15,30 +15,37 @@ Suppose a Persistit-based application is running on a host named “somehost” 
 
 where classpath includes the Persistit ``com.persistit.ui`` package. 
 
-The JMX interface can be used by third-party management utilities, from applications such as ``jconsole`` and ``visualvm``, and from command-line JMX clients such as ``jmxterm``. To enable JMX access, the configuration must specify the property ``jmx=true``.  This causes Persistit to register several MBeans with the platform MBean server during initialization.
-
 MXBeans
 -------
+
+The JMX interface can be used by third-party management utilities, from applications such as ``jconsole`` and ``visualvm``, and from command-line JMX clients such as ``jmxterm``. To enable JMX access, the configuration must specify the property ``jmx=true``.  This causes Persistit to register several MBeans with the platform MBean server during initialization.
+
 The following JMX MXBeans are available:
 
   ``com.persistit:type=Persistit``
       See ``com.persistit.mxbeans.ManagementMXBean``
   ``com.persistit:type=Persistit,class=AlertMonitorMXBean``
+      See ``com.persistit.mxbeans.AlertMonitorMXBean``.
       Accumulates, logs and emits notifications about abnormal events such as IOExceptions and measurements outside of 
       expected thresholds.
   ``com.persistit:type=Persistit,class=CleanupManagerMXBean``
+      See ``com.persistit.mxbeans.CleanupManagerMXBean``.
       View current state of the Cleanup Manager. The Cleanup Manager performs background pruning and tree maintenance 
       activities.
   ``com.persistit:type=Persistit,class=IOMeter``
+      See ``com.persistit.mxbeans.IOMeterMXBean``.
       Maintains statistics on file system I/O operations.
   ``com.persistit.type=Persistit,class=JournalManager``
+      See ``com.persistit.mxbeans.JournalManagerMXBean``.
       Views current journal status.
   ``com.persistit.type=Persistit,class=RecoveryManager``
+      See ``com.persistit.mxbeans.RecoveryManagerMXBean``.
       Views current status of the recovery process. Attributes of this MXBean change only during the recovery process.
   ``com.persistit:type=Persistit,class=TransactionIndexMXBean``
+      See ``com.persistit.mxbeans.TransactionIndexMXBean``.
       View internal state of transaction index queues and tables.
   ``com.persistit.type=Persistit,class=BufferPool.*SSSS*``
-      where *SSSS* is a buffer size (512, 1024, 2048, 4096 or 16394). View utilization statistics for buffers of the 
+      where *SSSS* is a buffer size (512, 1024, 2048, 4096 or 16394). See ``com.persistit.mxbeans.BufferPoolMXBean``. View utilization statistics for buffers of the 
       selected size.
 
 

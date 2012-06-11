@@ -234,6 +234,7 @@ Closing Persistit
 Persistit creates one or more background threads that lazily write data to the Volume files and perform other maintenance activities. Be sure to invoke the ``com.persistit.Persistit#close`` method to allow these threads to finish their work and exit properly. The pattern illustrated in ``HelloWorld.java``, using a *try/finally* block to invoke ``close``, is strongly recommended.
 
 The ``com.persistit.Persistit#close(boolean)`` method optionally flushes all data to disk from the buffer pool before shutting down. Specifying the ``false`` option will close Persistit more quickly will lose recent updates if they were not performed inside of transactions, or will potentially require a longer recovery process during the next startup to reapply committed transactions.
+
 Additional Topics
 -----------------
 
@@ -251,7 +252,7 @@ A ``com.persistit.KeyFilter`` can be supplied to restrict the results traversal 
 Transactions
 ^^^^^^^^^^^^
 
-Persistit provides ACID Transaction support with multi-version concurrency control (MCC) and adjustable durability policy.
+Persistit provides ACID Transaction support with multi-version concurrency control (MVCC) and adjustable durability policy.
 
 See :ref:`Transactions`.
 

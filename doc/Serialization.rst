@@ -16,7 +16,7 @@ Akiban Persistit uses one of several mechanisms to serialize a Java Object into 
 
 * An application can register a custom ``com.persistit.encoding.ValueCoder`` to handle serialization of a particular class
 * Default serialization using Persistit's built-in serialization mechanism described below, or
-* Standard Java serialization as described in http://download.oracle.com/javase/1.5.0/docs/guide/serialization/spec/serial-arch.html[Java Object Serialization Specification].
+* Standard Java serialization as described in `Java Object Serialization Specification <http://docs.oracle.com/javase/7/docs/platform/serialization/spec/serialTOC.html>`_.
 
 Persistit's default serialization method serializes objects into approximately 33% fewer bytes, and depending on the structure of objects being serialized, is about 40% faster than Java serialization.
 
@@ -39,7 +39,7 @@ Of course, Persistit cannot actually store a live object on disk.  Instead it cr
 
 The resulting MyClass instance is a newly constructed object instance that is equivalent - subject to the accuracy of the serialization code - to the original object. This process is equivalent to the serialization and deserialization capabilities provided by java.io.ObjectOutputStream and java.io.ObjectInputStream.
 
-Persistit makes use of helper classes called “coders” to marshal data between live objects and their stored byte-array representations. Value coders, which implement ``com.persistit.encoding.ValueCoder``, marshal data to and from Value objects; ``com.persistit.encoding.KeyCoder`` implementations do the same for ``com.persistit.Key``s. A value coder provides capability somewhat like the custom serialization logic implemented through ``readObject``, ``writeObject``, ``readExternal`` and ``writeExternal``. However, a value coder can provide this logic for any class without modifying the class itself, which may be important if the class is part of a closed library.
+Persistit makes use of helper classes called “coders” to marshal data between live objects and their stored byte-array representations. Value coders, which implement ``com.persistit.encoding.ValueCoder``, marshal data to and from Value objects; ``com.persistit.encoding.KeyCoder`` implementations do the same for instances of ``com.persistit.Key``. A ``ValueCoder`` provides capability somewhat like the custom serialization logic implemented through ``readObject``, ``writeObject``, ``readExternal`` and ``writeExternal``. However, a ``ValueCoder`` can provide this logic for any class without modifying the class itself, which may be important if the class is part of a closed library.
 
 You may create and register a value coder for almost any class, including classes that are not marked Serializable. The exceptions are those listed which have built-in, non-overridable serialization logic.
 
