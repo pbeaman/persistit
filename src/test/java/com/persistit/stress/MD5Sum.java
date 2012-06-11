@@ -36,12 +36,9 @@ public class MD5Sum extends AbstractTestRunnerItem {
      */
 
     int _size;
-    int _splay;
     String _opflags;
 
     private MessageDigest md;
-
-    private String progress = "Not started";
 
     public MD5Sum(String argsString) {
         super(argsString);
@@ -53,11 +50,6 @@ public class MD5Sum extends AbstractTestRunnerItem {
         }
     }
 
-    @Override
-    public void setUp() throws Exception {
-        super.setUp();
-
-    }
 
     @Override
     public void executeTest() throws Exception {
@@ -71,28 +63,13 @@ public class MD5Sum extends AbstractTestRunnerItem {
                 update(md, exchange.getKey().getEncodedBytes(), exchange.getKey().getEncodedSize());
                 update(md, exchange.getValue().getEncodedBytes(), exchange.getValue().getEncodedSize());
                 pairs++;
-                if (pairs % 10000 == 0) {
-                    progress = String.format("%,10d pairs scanned.  Tree %3d of %4d: %s", pairs, index,
-                            treeNames.length, treeNames[index]);
-                }
             }
         }
-        final byte[] digest = md.digest();
-        progress = Util.bytesToHex(digest);
     }
 
     private void update(final MessageDigest md, final byte[] bytes, final int length) throws DigestException {
         md.update(bytes, 0, length);
     }
 
-    @Override
-    protected String getProgressString() {
-        return progress;
-    }
 
-    @Override
-    protected double getProgress() {
-        // TODO Auto-generated method stub
-        return 0;
-    }
 }

@@ -31,13 +31,14 @@ import com.persistit.Configuration.BufferPoolConfiguration;
 import com.persistit.Persistit;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.VolumeSpecification;
+import com.persistit.exception.PersistitException;
 import com.persistit.util.ArgParser;
 
 public class RunnerBase {
 
     private final static SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMddHHmm");
 
-    private final static String[] ARGS_TEMPLATE = { "duration|int:1::60|Maximum duration in seconds",
+    private final static String[] ARGS_TEMPLATE = { "duration|int:60:1:|Maximum duration in seconds",
             "path|String:/tmp/persistit_test_data|Data path",
             "progress|int:10::600|Progress message interval in seconds", };
 
@@ -54,6 +55,7 @@ public class RunnerBase {
     String _dataPath;
     long _duration;
     long _progressLogInterval;
+    boolean _untilStopped;
 
     String _timeStamp = SDF.format(new Date());
 
@@ -63,6 +65,7 @@ public class RunnerBase {
         _logPath = _dataPath = ap.getStringValue("path");
         _duration = ap.getLongValue("duration") * MS_PER_S;
         _progressLogInterval = ap.getLongValue("progress");
+        _untilStopped = ap.isSpecified("duration");
     }
 
     protected void add(AbstractTestRunnerItem test) {
@@ -81,6 +84,7 @@ public class RunnerBase {
                 index++;
                 test.initialize(index);
                 test.setPersistit(persistit);
+                test.setUntilStopped(_untilStopped);
                 threads.add(new Thread(test));
             }
             final long start = System.nanoTime();
@@ -178,6 +182,14 @@ public class RunnerBase {
             file.delete();
             System.out.println("deleted " + file.toString());
         }
+    }
+
+    protected Persistit makePersistit(final int pageSize, final String mem, final CommitPolicy policy)
+            throws PersistitException {
+        final Persistit persistit = new Persistit();
+        persistit.initialize(makeConfiguration(pageSize, mem, policy));
+        return persistit;
+
     }
 
     protected Configuration makeConfiguration(final int pageSize, final String mem, final CommitPolicy policy) {

@@ -98,7 +98,7 @@ public class PersistitMapStress1 extends StressBase {
             }
         }
 
-        for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
+        for (_repeat = 0; (_repeat < _repeatTotal || isUntilStopped()) && !isStopped(); _repeat++) {
 
             long ts = ts();
             long tt;

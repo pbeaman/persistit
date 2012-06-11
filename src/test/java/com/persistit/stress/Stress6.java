@@ -65,7 +65,7 @@ public class Stress6 extends StressBase {
      */
     @Override
     public void executeTest() {
-        for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
+        for (_repeat = 0; (_repeat < _repeatTotal || isUntilStopped()) && !isStopped(); _repeat++) {
             try {
                 _exs.getValue().putString("");
                 final int keyLength = (_repeat) + 10;

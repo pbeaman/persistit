@@ -41,27 +41,17 @@ public abstract class StressBase extends AbstractTestRunnerItem {
     protected String _rootName = "test";
 
     protected int _debugCount;
-    protected int _repeatTotal;
-    protected int _repeat;
+    protected volatile int _repeatTotal;
+    protected volatile int _repeat;
 
-    protected int _total;
-    protected int _count;
-    protected String _phase = "";
+    protected volatile int _total;
+    protected volatile int _count;
+    protected volatile String _phase = "";
 
     protected Random _random = new Random();
 
     protected StressBase(final String argsString) {
         super(argsString);
-    }
-    
-    @Override
-    public double getProgress() {
-        return 0.5;
-    }
-
-    @Override
-    public String getProgressString() {
-        return _repeat + "/" + _repeatTotal + " " + _phase + ":" + _count + "/" + _total;
     }
 
     protected void setPhase(final String phase) {
@@ -207,6 +197,4 @@ public abstract class StressBase extends AbstractTestRunnerItem {
         }
         return value.hashCode();
     }
-
-
 }

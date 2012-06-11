@@ -75,7 +75,7 @@ public class Stress10 extends StressBase {
             handleThrowable(e);
         }
 
-        for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
+        for (_repeat = 0; (_repeat < _repeatTotal || isUntilStopped()) && !isStopped(); _repeat++) {
             _random.setSeed(_seed);
 
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {

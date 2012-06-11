@@ -124,7 +124,7 @@ public class Stress8txn extends StressBase {
         ops[4] = new Operation4();
         ops[5] = new Operation5();
 
-        for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
+        for (_repeat = 0; (_repeat < _repeatTotal || isUntilStopped()) && !isStopped(); _repeat++) {
 
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                 try {

@@ -33,35 +33,6 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
         super(argsString);
     }
 
-    @Override
-    public double getProgress() {
-        if ((_ichecks == null) || (_icheckIndex < 0)) {
-            return 0;
-        }
-        if (_icheckIndex == _ichecks.length) {
-            return 1.0;
-        }
-        final IntegrityCheck icheck = _ichecks[_icheckIndex];
-        if (icheck != null) {
-            return icheck.getProgress();
-        }
-        return 0;
-    }
-
-    @Override
-    public String getProgressString() {
-        if ((_ichecks == null) || (_icheckIndex < 0)) {
-            return "not started";
-        }
-        if (_icheckIndex == _ichecks.length) {
-            return "done";
-        }
-        final IntegrityCheck icheck = _ichecks[_icheckIndex];
-        if (icheck != null) {
-            return icheck.getStatus();
-        }
-        return "unknown";
-    }
 
     @Override
     public void setUp() throws Exception {

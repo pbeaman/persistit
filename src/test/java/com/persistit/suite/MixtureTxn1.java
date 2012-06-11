@@ -64,23 +64,20 @@ public class MixtureTxn1 extends RunnerBase {
 
         add(new Stress1("repeat=10 count=25000"));
         add(new Stress1("repeat=10 count=25000"));
-        add(new Stress2txn("repeat=2 count=2500 size=4000 seed=118"));
-        add(new Stress2txn("repeat=5 count=25000 seed=119"));
+        add(new Stress2txn("repeat=10 count=2500 size=4000 seed=118"));
+        add(new Stress2txn("repeat=2 count=25000 seed=119"));
         add(new Stress3("repeat=5 count=25000 seed=119"));
         add(new Stress3txn("repeat=5 count=25000 seed=120"));
         add(new Stress3txn("repeat=5 count=25000"));
         add(new Stress5("repeat=5 count=25000"));
-        add(new Stress6("repeat=10 count=1000 size=250"));
+        add(new Stress6("repeat=5 count=1000 size=250"));
         add(new Stress6("repeat=10 count=1000 size=250"));
         add(new Stress8txn("repeat=2 count=1000 size=1000 seed=1"));
         add(new Stress8txn("repeat=2 count=1000 size=1000 seed=2"));
         add(new Stress8txn("repeat=2 count=1000 size=1000 seed=3"));
         add(new Stress8txn("repeat=2 count=1000 size=1000 seed=4"));
 
-        final Persistit persistit = new Persistit();
-        final Configuration configuration = makeConfiguration(16384, "1000", CommitPolicy.SOFT);
-        
-        persistit.initialize(configuration);
+        final Persistit persistit = makePersistit(16384, "1000", CommitPolicy.SOFT);
         
         try {
             execute(persistit);

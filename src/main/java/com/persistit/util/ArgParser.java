@@ -44,7 +44,7 @@ public class ArgParser {
     private final String _flags;
     private final String[] _strArgs;
     private final long[] _longArgs;
-    private final boolean[] _isDefault;
+    private final boolean[] _specified;
     private boolean _usageOnly;
 
     /**
@@ -100,7 +100,7 @@ public class ArgParser {
         _template = template;
         _strArgs = new String[template.length];
         _longArgs = new long[template.length];
-        _isDefault = new boolean[template.length];
+        _specified = new boolean[template.length];
 
         StringBuilder flags = new StringBuilder();
 
@@ -129,9 +129,11 @@ public class ArgParser {
             } else {
                 String fieldName = piece(args[i], '=', 0);
                 int position = lookupName(fieldName);
-                if (position < 0)
+                if (position < 0) {
                     throw new IllegalArgumentException("No such parameter name " + fieldName + " in argument " + arg);
+                }
                 String argValue = arg.substring(fieldName.length() + 1);
+                _specified[position] = true;
                 doField(argValue, position);
             }
         }
@@ -288,8 +290,8 @@ public class ArgParser {
      * @param fieldName
      * @return <code>true</code> if the field contains its default value
      */
-    public boolean isDefault(String fieldName) {
-        return _isDefault[lookupName(fieldName)];
+    public boolean isSpecified(String fieldName) {
+        return _specified[lookupName(fieldName)];
     }
 
     private int lookupName(String name) {
@@ -306,13 +308,12 @@ public class ArgParser {
         String t = piece(type, ':', 0);
         if (arg == null) {
             arg = piece(type, ':', 1);
-            _isDefault[position] = true;
         }
         if ("int".equals(t)) {
             long lo = longVal(piece(type, ':', 2), 0);
             long hi = longVal(piece(type, ':', 3), Integer.MAX_VALUE);
             long argInt = longVal(arg, Long.MIN_VALUE);
-            if (!_isDefault[position]
+            if (_specified[position]
                     && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi || argInt > Integer.MAX_VALUE)) {
                 throw new IllegalArgumentException("Invalid argument " + piece(_template[position], '|', 0) + "=" + arg);
             }
@@ -321,7 +322,7 @@ public class ArgParser {
             long lo = longVal(piece(type, ':', 2), 0);
             long hi = longVal(piece(type, ':', 3), Long.MAX_VALUE);
             long argInt = longVal(arg, Long.MIN_VALUE);
-            if (!_isDefault[position] && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi)) {
+            if (_specified[position] && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi)) {
                 throw new IllegalArgumentException("Invalid argument " + piece(_template[position], '|', 0) + "=" + arg);
             }
             _longArgs[position] = argInt;

@@ -20,13 +20,7 @@
 
 package com.persistit.test;
 
-import java.io.PrintStream;
-
-import javax.swing.text.Document;
-
 import com.persistit.Persistit;
-import com.persistit.exception.PersistitException;
-import com.persistit.unit.UnitTestProperties;
 
 /**
  * Test classes must extend this class. The subclass must implement
@@ -40,15 +34,15 @@ public abstract class AbstractTestRunnerItem implements Runnable {
     /**
      * Subclass posts Result to this
      */
-    protected TestResult _result = null;
+    protected volatile TestResult _result = null;
     /**
      * Subclass should
      */
     protected String _name = getTestName() + ":" + getName();
-    protected boolean _started = false;
-    protected boolean _finished = false;
-    protected boolean _forceStop = false;
-    protected String _status = "not started";
+    protected volatile boolean _started = false;
+    protected volatile boolean _finished = false;
+    protected volatile boolean _forceStop = false;
+    protected volatile boolean _untilStopped = false;
     protected String[] _args;
     protected int _threadIndex;
     protected boolean _verbose;
@@ -67,10 +61,6 @@ public abstract class AbstractTestRunnerItem implements Runnable {
 
     protected abstract void executeTest() throws Exception;
 
-    protected abstract String getProgressString();
-
-    protected abstract double getProgress();
-
     protected AbstractTestRunnerItem(final String argsString) {
         _args = argsString.split(" ");
     }
@@ -81,7 +71,6 @@ public abstract class AbstractTestRunnerItem implements Runnable {
         _finished = false;
         _forceStop = false;
         _threadIndex = index;
-        _status = "not started";
     }
 
     public void run() {
@@ -111,34 +100,34 @@ public abstract class AbstractTestRunnerItem implements Runnable {
         _finished = true;
     }
 
-    protected synchronized TestResult getResult() {
+    protected TestResult getResult() {
         return _result;
     }
 
-    protected synchronized boolean isStarted() {
+    protected boolean isStarted() {
         return _started;
     }
 
-    protected synchronized boolean isFinished() {
+    protected boolean isFinished() {
         return _finished;
     }
 
-    protected synchronized void forceStop() {
+    protected void forceStop() {
         _forceStop = true;
     }
 
-    protected synchronized boolean isStopped() {
+    protected boolean isStopped() {
         return _forceStop;
     }
 
-    protected synchronized boolean isPassed() {
+    protected boolean isPassed() {
         if (isFinished()) {
             return (_result == null) || _result._passed;
         }
         return false;
     }
 
-    protected synchronized boolean isFailed() {
+    protected boolean isFailed() {
         if (isFinished()) {
             return (_result != null) && !_result._passed;
         }
@@ -168,4 +157,11 @@ public abstract class AbstractTestRunnerItem implements Runnable {
         return Thread.currentThread().getName();
     }
     
+    public void setUntilStopped(final boolean untilStopped) {
+        _untilStopped = untilStopped;
+    }
+    
+    public boolean isUntilStopped() {
+        return _untilStopped;
+    }
 }

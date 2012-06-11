@@ -79,7 +79,7 @@ public class Stress2 extends StressBase {
             handleThrowable(e);
         }
 
-        for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
+        for (_repeat = 0; (_repeat < _repeatTotal || isUntilStopped()) && !isStopped(); _repeat++) {
 
             if (_opflags.indexOf('w') >= 0) {
                 setPhase("w");

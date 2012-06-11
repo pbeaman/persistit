@@ -88,7 +88,7 @@ public class Stress12txn extends StressBase {
         final Transaction txn = _exs.getTransaction();
         final Value value = _exs.getValue();
 
-        for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
+        for (_repeat = 0; (_repeat < _repeatTotal || isUntilStopped()) && !isStopped(); _repeat++) {
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                 int retries = 100;
                 try {

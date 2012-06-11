@@ -96,7 +96,7 @@ public abstract class Stress4Base extends StressBase {
                 handleThrowable(e);
             }
 
-            for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
+            for (_repeat = 0; (_repeat < _repeatTotal || isUntilStopped()) && !isStopped(); _repeat++) {
                 repeatedTasks();
             }
         } catch (final Throwable t) {

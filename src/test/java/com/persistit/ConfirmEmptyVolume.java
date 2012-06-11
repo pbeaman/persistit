@@ -32,16 +32,6 @@ public class ConfirmEmptyVolume extends AbstractTestRunnerItem {
     }
 
     @Override
-    public double getProgress() {
-        return 0;
-    }
-
-    @Override
-    public String getProgressString() {
-        return "unknown";
-    }
-
-    @Override
     public void setUp() throws Exception {
         super.setUp();
         if (_args.length == 0) {

@@ -121,7 +121,7 @@ public class Stress3txn extends StressBase {
         final Exchange ex2 = new Exchange(_ex);
         final Exchange ex3 = new Exchange(_ex);
 
-        for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
+        for (_repeat = 0; (_repeat < _repeatTotal || isUntilStopped()) && !isStopped(); _repeat++) {
 
             final Transaction txn = ex1.getTransaction();
             if (_opflags.indexOf('w') >= 0) {

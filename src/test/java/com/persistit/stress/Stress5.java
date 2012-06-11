@@ -76,7 +76,7 @@ public class Stress5 extends StressBase {
         final int maxDepth = keyLength - 10;
         final int minDepth = 20;
 
-        for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
+        for (_repeat = 0; (_repeat < _repeatTotal || isUntilStopped()) && !isStopped(); _repeat++) {
             try {
 
                 setPhase("@");
