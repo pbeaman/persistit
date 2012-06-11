@@ -20,8 +20,8 @@
 
 package com.persistit;
 
-import com.persistit.suite.AbstractStressTest;
-import com.persistit.suite.TestResult;
+import com.persistit.stress.AbstractStressTest;
+import com.persistit.stress.TestResult;
 
 public class ConfirmIntegrity extends AbstractStressTest {
 
