@@ -1,0 +1,199 @@
+/**
+ * Copyright © 2012 Akiban Technologies, Inc.  All rights reserved.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, version 3 (only) of the
+ * License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * This program may also be available under different license terms. For more
+ * information, see www.akiban.com or contact licensing@akiban.com.
+ */
+
+package com.persistit.stress;
+
+import com.persistit.Persistit;
+import com.persistit.Transaction.CommitPolicy;
+import com.persistit.stress.unit.Stress1;
+import com.persistit.stress.unit.Stress2;
+import com.persistit.stress.unit.Stress3;
+import com.persistit.stress.unit.Stress5;
+import com.persistit.stress.unit.Stress6;
+import com.persistit.stress.unit.Stress7;
+
+public class Mixture3 extends AbstractSuite {
+
+    static String name() {
+        return Mixture3.class.getSimpleName();
+    }
+
+    public static void main(String[] args) throws Exception {
+        new Mixture3(args).runTest();
+    }
+
+    private Mixture3(final String[] args) {
+        super(name(), args);
+    }
+
+    public void runTest() throws Exception {
+
+        deleteFiles(substitute("$datapath$/persistit*"));
+
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=10000"));
+        add(new Stress2("repeat=5 count=100000 seed=117"));
+        add(new Stress2("repeat=5 count=100000 seed=118"));
+        add(new Stress3("repeat=5 count=100000 seed=119"));
+        add(new Stress3("repeat=5 count=100000 seed=120"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=217"));
+        add(new Stress2("repeat=5 count=100000 seed=218"));
+        add(new Stress3("repeat=5 count=100000 seed=219"));
+        add(new Stress3("repeat=5 count=100000 seed=220"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=121"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=122"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=317"));
+        add(new Stress2("repeat=5 count=100000 seed=318"));
+        add(new Stress3("repeat=5 count=100000 seed=319"));
+        add(new Stress3("repeat=5 count=100000 seed=320"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=417"));
+        add(new Stress2("repeat=5 count=100000 seed=418"));
+        add(new Stress3("repeat=5 count=100000 seed=419"));
+        add(new Stress3("repeat=5 count=100000 seed=420"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=221"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=222"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=517"));
+        add(new Stress2("repeat=5 count=100000 seed=518"));
+        add(new Stress3("repeat=5 count=100000 seed=519"));
+        add(new Stress3("repeat=5 count=100000 seed=520"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=617"));
+        add(new Stress2("repeat=5 count=100000 seed=618"));
+        add(new Stress3("repeat=5 count=100000 seed=619"));
+        add(new Stress3("repeat=5 count=100000 seed=620"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=321"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=322"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=717"));
+        add(new Stress2("repeat=5 count=100000 seed=718"));
+        add(new Stress3("repeat=5 count=100000 seed=719"));
+        add(new Stress3("repeat=5 count=100000 seed=720"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=817"));
+        add(new Stress2("repeat=5 count=100000 seed=818"));
+        add(new Stress3("repeat=5 count=100000 seed=819"));
+        add(new Stress3("repeat=5 count=100000 seed=820"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=4121"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=422"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=917"));
+        add(new Stress2("repeat=5 count=100000 seed=918"));
+        add(new Stress3("repeat=5 count=100000 seed=919"));
+        add(new Stress3("repeat=5 count=100000 seed=920"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=1017"));
+        add(new Stress2("repeat=5 count=100000 seed=1018"));
+        add(new Stress3("repeat=5 count=100000 seed=1019"));
+        add(new Stress3("repeat=5 count=100000 seed=1020"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=521"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=522"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=1117"));
+        add(new Stress2("repeat=5 count=100000 seed=1118"));
+        add(new Stress3("repeat=5 count=100000 seed=1119"));
+        add(new Stress3("repeat=5 count=100000 seed=1120"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=1217"));
+        add(new Stress2("repeat=5 count=100000 seed=1218"));
+        add(new Stress3("repeat=5 count=100000 seed=1219"));
+        add(new Stress3("repeat=5 count=100000 seed=1220"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=621"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=622"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=1317"));
+        add(new Stress2("repeat=5 count=100000 seed=1318"));
+        add(new Stress3("repeat=5 count=100000 seed=1319"));
+        add(new Stress3("repeat=5 count=100000 seed=1320"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress1("repeat=10 count=100000"));
+        add(new Stress2("repeat=5 count=100000 seed=1417"));
+        add(new Stress2("repeat=5 count=100000 seed=1418"));
+        add(new Stress3("repeat=5 count=100000 seed=1419"));
+        add(new Stress3("repeat=5 count=100000 seed=1420"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress5("repeat=20 count=20000"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress6("repeat=10 count=5000 size=250"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=721"));
+        add(new Stress7("repeat=10 count=5000 size=250 seed=722"));
+
+        final Persistit persistit = makePersistit(16384, "50000", CommitPolicy.SOFT);
+
+        try {
+            execute(persistit);
+        } finally {
+            persistit.close();
+        }
+    }
+}

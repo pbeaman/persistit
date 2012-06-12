@@ -609,7 +609,7 @@ public class Configuration {
     private final Map<Integer, BufferPoolConfiguration> bufferPoolMap;
     private final List<VolumeSpecification> volumeSpecifications = new ArrayList<VolumeSpecification>();
     private String journalPath = DEFAULT_JOURNAL_PATH;
-    private long journalSize;
+    private long journalSize = JournalManager.DEFAULT_BLOCK_SIZE;
     private String sysVolume = DEFAULT_SYSTEM_VOLUME_NAME;
     private CommitPolicy commitPolicy = DEFAULT_TRANSACTION_COMMIT_POLICY;
     private JoinPolicy joinPolicy = DEFAULT_JOIN_POLICY;
@@ -622,7 +622,7 @@ public class Configuration {
     private String rmiHost;
     private int rmiPort;
     private int rmiServerPort;
-    private boolean jmx;
+    private boolean jmx = true;
     private boolean appendOnly;
     private String tmpVolDir;
     private int tmpVolPageSize;

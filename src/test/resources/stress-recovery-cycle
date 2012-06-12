@@ -2,7 +2,7 @@
 echo
 echo "------------ starting cycle $1 ----------------"
 mkdir /tmp/persistit_test_data
-./core/src/test/resources/stress-recovery
+./src/test/resources/stress-recovery
 mv /tmp/persistit_test_data /home/akiba/crash-recovery-tests/run_$1
 echo "------------   ending cycle $1 ----------------"
 echo
