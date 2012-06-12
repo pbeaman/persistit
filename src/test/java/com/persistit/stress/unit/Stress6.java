@@ -133,14 +133,4 @@ public class Stress6 extends StressBase {
         }
     }
 
-    private void setupKey(final Exchange ex, final int length, final int depth, final int a, final int b,
-            final char fill) {
-        _sb1.setLength(0);
-        for (int i = 0; i < length; i++) {
-            _sb1.append(fill);
-        }
-        fillLong(b, depth, 5, true);
-        ex.clear().append(a).append(_sb1);
-    }
-
 }

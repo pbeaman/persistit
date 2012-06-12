@@ -212,7 +212,7 @@ public class Stress2txn extends StressBase {
                         handleThrowable(e);
                     }
                 }
-                if (count1 != count2) {
+                if (count1 != count2 && !isStopped()) {
                     fail("Traverse count is " + count1 + " but should be " + count2
                             + " on repetition=" + _repeat + " in thread=" + _threadIndex);
                     break;

@@ -122,7 +122,7 @@ public abstract class AbstractStressTest implements Runnable {
             _result = new TestResult(false, message);
         }
         forceStop();
-        System.err.printf("\n%s: %s\n", getThreadName(), _result);
+        System.err.printf("\n%s: %s\n", this, _result);
     }
 
     protected void fail(final Throwable throwable) {
@@ -131,7 +131,7 @@ public abstract class AbstractStressTest implements Runnable {
         }
         forceStop();
         long elapsed = (System.nanoTime() - _startTime) / AbstractSuite.NS_PER_S;
-        System.err.printf("\n%s at %,d seconds: %s\n", getThreadName(), elapsed, _result);
+        System.err.printf("\n%s at %,d seconds: %s\n", this, elapsed, _result);
     }
 
     protected TestResult getResult() {
@@ -170,7 +170,7 @@ public abstract class AbstractStressTest implements Runnable {
 
     @Override
     public String toString() {
-        return getTestName() + ":" + getThreadName();
+        return getTestName() + "[" + getThreadName() + "]";
     }
 
     protected String getTestName() {

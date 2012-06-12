@@ -22,7 +22,6 @@ package com.persistit.stress.unit;
 
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress2 extends StressBase {
@@ -174,7 +173,7 @@ public class Stress2 extends StressBase {
                         handleThrowable(e);
                     }
                 }
-                if (count1 != count2) {
+                if (count1 != count2 && !isStopped()) {
                     fail("Traverse count is " + count1 + " but should be " + count2
                             + " on repetition=" + _repeat + " in thread=" + _threadIndex);
 

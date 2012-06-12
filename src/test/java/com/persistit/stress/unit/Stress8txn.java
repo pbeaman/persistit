@@ -136,19 +136,6 @@ public class Stress8txn extends StressBase {
             }
         }
 
-        try {
-            _exs.clear().append("stress8txn");
-            while (_exs.next(true)) {
-                addWork(1);
-
-                if ((_exs.getValue().isType(String.class)) && (getAccountValue(_exs) > 8000)) {
-                    // System.out.println("len=" + getAccountValue(_exs) +
-                    // " Key=" + _exs.getKey().toString());
-                }
-            }
-        } catch (final PersistitException pe) {
-            fail(pe);
-        }
     }
 
     private int select() {
@@ -372,12 +359,10 @@ public class Stress8txn extends StressBase {
                     addWork(1);
 
                     countC++;
-                    Key key1 = new Key(exc.getKey());
                     final int valueC = getAccountValue(exc);
                     exc.fetch();
                     addWork(1);
 
-                    Key key2 = new Key(exc.getKey());
 
                     final int valueCC = getAccountValue(exc);
 
@@ -389,12 +374,10 @@ public class Stress8txn extends StressBase {
                     int countC1 = 0;
                     while (exc.next()) {
                         countC1++;
-                        Key key1 = new Key(exc.getKey());
                         final int valueC1 = getAccountValue(exc);
                         exc.fetch();
                         addWork(1);
 
-                        Key key2 = new Key(exc.getKey());
 
                         final int valueCC1 = getAccountValue(exc);
 
@@ -440,7 +423,7 @@ public class Stress8txn extends StressBase {
     }
 
     private void putAccountValue(final Exchange ex, final int value, final boolean string) {
-        if ((value > 0) && (value < 1000) && ((random(0, 100) == 0) || string)) {
+        if ((value > 0) && (value < 20000) && ((random(0, 100) == 0) || string)) {
             _sb.setLength(0);
             int i = 0;
             for (i = 100; i < value; i += 100) {

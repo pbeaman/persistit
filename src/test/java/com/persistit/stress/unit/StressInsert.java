@@ -128,7 +128,7 @@ public class StressInsert extends StressBase {
                         handleThrowable(e);
                     }
                 }
-                if (_count != _total) {
+                if (_count != _total && !isStopped()) {
                     fail("Traverse count=" + _count + " out of " + _total + " repetition="
                             + _repeat + " in thread=" + _threadIndex);
                     break;
