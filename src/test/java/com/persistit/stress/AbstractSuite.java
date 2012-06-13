@@ -246,7 +246,8 @@ public abstract class AbstractSuite {
             if (file.isDirectory()) {
                 final File[] files = file.listFiles();
                 for (final File child : files) {
-                    if (child.getPath().startsWith(pattern.substring(0, pattern.length() - 1))) {
+                    if (child.getPath().startsWith(pattern.substring(0, pattern.length() - 1))
+                            && !child.getName().startsWith("_failed")) {
                         child.delete();
                         System.out.println("deleted " + child.toString());
                     }
