@@ -34,7 +34,7 @@ public class Stress8txnSuite extends AbstractSuite {
         new Stress8txnSuite(args).runTest();
     }
 
-    private Stress8txnSuite(final String[] args) {
+    public Stress8txnSuite(final String[] args) {
         super(name(), args);
     }
 

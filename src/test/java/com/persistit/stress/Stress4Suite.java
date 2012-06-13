@@ -35,7 +35,7 @@ public class Stress4Suite extends AbstractSuite {
         new Stress4Suite(args).runTest();
     }
 
-    private Stress4Suite(final String[] args) {
+    public Stress4Suite(final String[] args) {
         super(name(), args);
     }
 

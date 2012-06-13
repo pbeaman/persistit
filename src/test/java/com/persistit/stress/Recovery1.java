@@ -34,7 +34,7 @@ public class Recovery1 extends AbstractSuite {
         new Recovery1(args).runTest();
     }
 
-    private Recovery1(final String[] args) {
+    public Recovery1(final String[] args) {
         super(name(), args);
     }
 

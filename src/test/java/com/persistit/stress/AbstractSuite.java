@@ -34,7 +34,7 @@ import com.persistit.VolumeSpecification;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.ArgParser;
 
-public class AbstractSuite {
+public abstract class AbstractSuite {
 
     private final static SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMddHHmm");
 
@@ -59,6 +59,8 @@ public class AbstractSuite {
     final private long _progressLogInterval;
     private long _duration;
     private boolean _untilStopped;
+    private long _elapsed;
+    private boolean _failed;
 
     String _timeStamp = SDF.format(new Date());
 
@@ -81,6 +83,14 @@ public class AbstractSuite {
 
     public void setDuration(final long duration) {
         _duration = duration;
+    }
+    
+    public long getRate() {
+        return  _elapsed > 0 ? _accumulatedWork / _elapsed : 0;
+    }
+    
+    public boolean isFailed() {
+        return _failed;
     }
 
     public boolean isUntilStopped() {
@@ -106,6 +116,8 @@ public class AbstractSuite {
         _accumulatedWork = 0;
     }
 
+    protected abstract void runTest() throws Exception;
+    
     protected void execute(final Persistit persistit) {
         try {
             int index = 0;
@@ -141,17 +153,17 @@ public class AbstractSuite {
                 thread.join(MS_PER_S);
             }
 
-            boolean failed = false;
+            _failed = false;
             long work = 0;
             for (AbstractStressTest test : _tests) {
                 if (test.isFailed()) {
-                    failed = true;
+                    _failed = true;
                 }
                 work += test.getTotalWorkDone();
             }
-            long elapsed = (System.nanoTime() - start) / NS_PER_S;
-            System.out.printf("\n---Result %s: %s work=%,d time=%,d rate=%,d ---\n", this._name, failed ? "FAILED"
-                    : "PASSED", work, elapsed, elapsed > 0 ? work / elapsed : 0);
+            _elapsed = (System.nanoTime() - start) / NS_PER_S;
+            System.out.printf("\n---Result %s: %s work=%,d time=%,d rate=%,d ---\n", this._name, _failed ? "FAILED"
+                    : "PASSED", work, _elapsed, _elapsed > 0 ? work / _elapsed : 0);
 
         } catch (Exception e) {
             throw new RuntimeException(e);
