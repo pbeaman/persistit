@@ -22,19 +22,18 @@ package com.persistit.stress;
 
 import com.persistit.Persistit;
 import com.persistit.Transaction.CommitPolicy;
-import com.persistit.stress.unit.StressUUID;
 
-public class InsertUUIDs extends AbstractSuite {
+public class IntentionalFailure extends AbstractSuite {
 
     static String name() {
-        return InsertUUIDs.class.getSimpleName();
+        return IntentionalFailure.class.getSimpleName();
     }
 
     public static void main(String[] args) throws Exception {
-        new InsertUUIDs(args).runTest();
+        new IntentionalFailure(args).runTest();
     }
 
-    public InsertUUIDs(final String[] args) {
+    public IntentionalFailure(final String[] args) {
         super(name(), args);
     }
 
@@ -42,14 +41,27 @@ public class InsertUUIDs extends AbstractSuite {
 
         deleteFiles(substitute("$datapath$/persistit*"));
 
-        add(new StressUUID("repeat=100000 count=1000"));
+        add(new Fail(null));
 
-        final Persistit persistit = makePersistit(16384, "50000", CommitPolicy.SOFT);
+        final Persistit persistit = makePersistit(16384, "1000", CommitPolicy.SOFT);
 
         try {
             execute(persistit);
         } finally {
             persistit.close();
         }
+    }
+    
+    class Fail extends AbstractStressTest {
+
+        protected Fail(String argsString) {
+            super(argsString);
+        }
+
+        @Override
+        protected void executeTest() throws Exception {
+            throw new RuntimeException("Intentional Failure");
+        }
+        
     }
 }
