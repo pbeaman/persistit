@@ -71,7 +71,7 @@ public abstract class AbstractSuite {
 
     protected AbstractSuite(final String name, final String[] args) {
         _name = name;
-        final ArgParser ap = new ArgParser("RunnerBase", args, ARGS_TEMPLATE);
+        final ArgParser ap = new ArgParser(getClass().getSimpleName(), args, ARGS_TEMPLATE);
         _logPath = _dataPath = ap.getStringValue("datapath");
         _duration = ap.getLongValue("duration");
         _progressLogInterval = ap.getLongValue("progress");
@@ -122,7 +122,7 @@ public abstract class AbstractSuite {
         _accumulatedWork = 0;
     }
 
-    protected abstract void runTest() throws Exception;
+    public abstract void runTest() throws Exception;
 
     protected void execute(final Persistit persistit) {
         try {

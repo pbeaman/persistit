@@ -55,7 +55,7 @@ public class PersistitMapStress1 extends StressBase {
 
     @Override
     public void setUp() {
-        _ap = new ArgParser("com.persistit.stress.PersistitMapStress2", _args, ARGS_TEMPLATE);
+        _ap = new ArgParser("com.persistit.stress.PersistitMapStress2", _args, ARGS_TEMPLATE).strict();
         _splay = _ap.getIntValue("splay");
         _opflags = _ap.getStringValue("op");
         _size = _ap.getIntValue("size");
@@ -120,7 +120,7 @@ public class PersistitMapStress1 extends StressBase {
                         break;
                     }
                 }
-                if (_dm1.size() != _total) {
+                if (_dm1.size() != _total && !isStopped()) {
                     fail("PersistitMap.size()=" + _dm1.size() + " out of " + _total
                             + " repetition=" + _repeat + " in thread=" + _threadIndex);
                     break;
@@ -168,7 +168,7 @@ public class PersistitMapStress1 extends StressBase {
                         handleThrowable(e);
                     }
                 }
-                if (_count != _total) {
+                if (_count != _total && !isStopped()) {
                     fail("Traverse count=" + _count + " out of " + _total + " repetition="
                             + _repeat + " in thread=" + _threadIndex);
                     break;
@@ -210,7 +210,7 @@ public class PersistitMapStress1 extends StressBase {
                         handleThrowable(e);
                     }
                 }
-                if (_count != 0) {
+                if (_count != 0 && !isStopped()) {
                     fail("Traverse count=" + _count + " when 0 were expected"
                             + " repetition=" + _repeat + " in thread=" + _threadIndex);
                     break;
@@ -239,7 +239,7 @@ public class PersistitMapStress1 extends StressBase {
                         handleThrowable(e);
                     }
                 }
-                if (_dm1.size() != 0) {
+                if (_dm1.size() != 0 && !isStopped()) {
                     fail("PersistitMap.size()= " + _dm1.size() + " when 0 were expected"
                             + " repetition=" + _repeat + " in thread=" + _threadIndex);
                     break;

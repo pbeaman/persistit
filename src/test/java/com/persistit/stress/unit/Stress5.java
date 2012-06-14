@@ -45,7 +45,7 @@ public class Stress5 extends StressBase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        _ap = new ArgParser("com.persistit.Stress5", _args, ARGS_TEMPLATE);
+        _ap = new ArgParser("com.persistit.Stress5", _args, ARGS_TEMPLATE).strict();
         _total = _ap.getIntValue("count");
         _repeatTotal = _ap.getIntValue("repeat");
         _total = _ap.getIntValue("count");
