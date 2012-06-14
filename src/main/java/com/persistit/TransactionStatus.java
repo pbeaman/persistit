@@ -127,7 +127,7 @@ class TransactionStatus {
      * {@link TransactionIndexBucket#notifyCompleted(long)}. Until then the
      * <code>TransactionStatus</code> may not be placed on the free list.
      */
-    private boolean _notified;
+    private volatile boolean _notified;
 
     TransactionStatus(final TransactionIndexBucket bucket) {
         _bucket = bucket;

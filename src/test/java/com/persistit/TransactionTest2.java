@@ -21,14 +21,22 @@
 package com.persistit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import java.io.InterruptedIOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -45,13 +53,16 @@ public class TransactionTest2 extends PersistitUnitTestCase {
 
     final static CommitPolicy policy = CommitPolicy.SOFT;
 
-    static int _threads = 5;
-    static int _iterationsPerThread = 25000;
+    final static long TIMEOUT = 100;
+    final static long NS_PER_S = 1000000000;
+
+    static int _threadCount = 10;
+    static int _iterationsPerThread = 50000;
     static int _accounts = 5000;
 
-    static int _retriedTransactionCount = 0;
-    static int _completedTransactionCount = 0;
-    static int _failedTransactionCount = 0;
+    static AtomicInteger _retriedTransactionCount = new AtomicInteger();
+    static AtomicInteger _completedTransactionCount = new AtomicInteger();
+    static AtomicInteger _failedTransactionCount = new AtomicInteger();
 
     static int _threadCounter = 0;
 
@@ -60,7 +71,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
     public static void main(final String[] args) throws Exception {
         try {
             if (args.length > 0) {
-                _threads = Integer.parseInt(args[0]);
+                _threadCount = Integer.parseInt(args[0]);
             }
             if (args.length > 1) {
                 _iterationsPerThread = Integer.parseInt(args[1]);
@@ -92,13 +103,8 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         return Thread.currentThread().getName();
     }
 
-    @Override
-    public void runAllTests() throws Exception {
-        test1();
-    }
-
     @Test
-    public void test1() throws Exception {
+    public void transactions() throws Exception {
         //
         // An Exchange for the Tree containing account "balances".
         //
@@ -114,8 +120,8 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         //
         // Create the threads
         //
-        final Thread[] threadArray = new Thread[_threads];
-        for (int index = 0; index < _threads; index++) {
+        final Thread[] threadArray = new Thread[_threadCount];
+        for (int index = 0; index < _threadCount; index++) {
             threadArray[index] = new Thread(new Runnable() {
                 public void run() {
                     runIt();
@@ -129,12 +135,12 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         long time = System.currentTimeMillis();
         System.out.println("Starting transaction threads");
 
-        for (int index = 0; index < _threads; index++) {
+        for (int index = 0; index < _threadCount; index++) {
             threadArray[index].start();
         }
 
         System.out.println("Waiting for threads to end");
-        for (int index = 0; index < _threads; index++) {
+        for (int index = 0; index < _threadCount; index++) {
             threadArray[index].join();
         }
         //
@@ -152,12 +158,83 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         assertEquals(startingBalance, endingBalance);
     }
 
+    @Test
+    public void transactionsWithInterrupts() throws Exception {
+        final TransactionIndex ti = _persistit.getTransactionIndex();
+        final Exchange accountEx = _persistit.getExchange("persistit", "account", true);
+        accountEx.removeAll();
+        int index = 0;
+
+        System.out.println("Computing balance");
+        final int startingBalance = balance(accountEx);
+        System.out.println("Starting balance is " + startingBalance);
+
+        final long expires = System.nanoTime() + (TIMEOUT * NS_PER_S);
+
+        List<Thread> threads = new ArrayList<Thread>();
+        while (System.nanoTime() < expires) {
+            //
+            // Remove any Thread instances that died (due to interrupt)
+            //
+            for (Iterator<Thread> iter = threads.iterator(); iter.hasNext();) {
+                if (!iter.next().isAlive()) {
+                    iter.remove();
+                }
+            }
+            //
+            // Top up the set of running threads
+            //
+            while (threads.size() < _threadCount) {
+                Thread thread = new Thread(new Runnable() {
+                    public void run() {
+                        runIt();
+                    }
+                }, "TransactionThread_" + ++index);
+                threads.add(thread);
+                thread.start();
+            }
+
+            Thread victim = threads.get(index % threads.size());
+            victim.interrupt();
+            Thread.sleep(50);
+        }
+        //
+        // Now interrupt all remaining threads and wait for them to die
+        //
+        for (final Thread thread : threads) {
+            thread.interrupt();
+        }
+        for (final Thread thread : threads) {
+            thread.join();
+        }
+        //
+        // Just to be sure this has been done after all threads died
+        //
+        ti.updateActiveTransactionCache();
+
+        //
+        System.out.println("Completed transactions: " + _completedTransactionCount);
+        System.out.println("Failed transactions: " + _failedTransactionCount);
+        System.out.println("Retried transactions: " + _retriedTransactionCount);
+
+        System.out.printf("\nCurrentCount=%,d  AbortedCount=%,d  "
+                + "LongRunningCount=%,d  FreeCount=%,d\natCache=%s\n", ti.getCurrentCount(), ti.getAbortedCount(), ti
+                .getLongRunningCount(), ti.getFreeCount(), ti.getActiveTransactionCache());
+
+        final int endingBalance = balance(accountEx);
+        System.out.print("Ending balance is " + endingBalance + " which ");
+        System.out.println(endingBalance == startingBalance ? "AGREES" : "DISAGREES");
+        assertEquals("Starting and ending balance don't agree", startingBalance, endingBalance);
+        assertTrue("ATC has very old transaction",
+                ti.getActiveTransactionCeiling() - ti.getActiveTransactionFloor() < 10000);
+    }
+
     public void runIt() {
         try {
             final Exchange accountEx = _persistit.getExchange("persistit", "account", true);
             //
             final Random random = new Random();
-            for (int iterations = 0; iterations < _iterationsPerThread; iterations++) {
+            for (int iterations = 1; iterations <= _iterationsPerThread; iterations++) {
                 final int accountNo1 = random.nextInt(_accounts);
                 // int accountNo2 = random.nextInt(_accounts - 1);
                 // if (accountNo2 == accountNo1) accountNo2++;
@@ -167,20 +244,25 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 // final int delta = 1;
 
                 transfer(accountEx, accountNo1, accountNo2, delta);
-                synchronized (LOCK) {
-                    _completedTransactionCount++;
-                }
+                _completedTransactionCount.incrementAndGet();
 
                 if (iterations % 25000 == 0) {
                     System.out.println(this + " has finished " + iterations + " iterations");
                     System.out.flush();
                 }
             }
+        } catch (final PersistitInterruptedException exception) {
+            // expected
+        } catch (PersistitIOException exception) {
+            if (InterruptedIOException.class.equals(exception.getCause().getClass())) {
+                // expected
+            } else {
+                exception.printStackTrace();
+                _failedTransactionCount.incrementAndGet();
+            }
         } catch (final Exception exception) {
             exception.printStackTrace();
-            synchronized (LOCK) {
-                _failedTransactionCount++;
-            }
+            _failedTransactionCount.incrementAndGet();
         }
     }
 
@@ -223,9 +305,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 //
                 done = true;
             } catch (final RollbackException rollbackException) {
-                synchronized (LOCK) {
-                    _retriedTransactionCount++;
-                }
+                _retriedTransactionCount.incrementAndGet();
                 if (--remainingAttempts <= 0) {
                     throw rollbackException;
                 }
