@@ -405,7 +405,7 @@ public class Buffer extends SharedResource {
         _byteBuffer = ByteBuffer.allocate(size);
         _bytes = _byteBuffer.array();
         _bufferSize = size;
-        _fastIndex = new FastIndex(this, (size - HEADER_SIZE) / MAX_KEY_RATIO);
+        _fastIndex = new FastIndex(this, 1 + (size - HEADER_SIZE) / MAX_KEY_RATIO);
     }
 
     Buffer(Buffer original) {
