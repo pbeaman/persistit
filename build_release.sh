@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
+# Copyright © 2012 Akiban Technologies, Inc.  All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -34,12 +34,30 @@
 
 set -e
 
-REQUIRED_PROGS="bzr mvn javac sphinx-build curl awk sed tr zip tar"
-BRANCH_DEF="lp:~akiban-technologies/akiban-persistit"
-COMMUNITY_LICENSE_URL="http://www.akiban.com/akiban-persistit-community-license-agreement-plaintext"
+# $1 - APIDOC_URL (empty OK)
+function docs_build {
+    rm -rf target/site/apidocs
+    rm -rf target/sphinx
+    mvn javadoc:javadoc >/dev/null
+    cd doc/build
+    APIDOC_URL="$1" bash -e build-doc.sh >/dev/null
+    cd ../../
+    rm -r target/sphinx/html/{.buildinfo,.doctrees,objects.inv}
+}
+
+# $1 - revno
+# $2 - args to maven
+function maven_build {
+    mvn $2 -DBZR_REVISION="$1" -DskipTests=true clean compile test-compile package >/dev/null
+}
+
+
+REQUIRED_PROGS="bzr mvn javac sphinx-build curl awk sed tr basename zip tar gpg"
+BRANCH_DEFAULT="lp:~akiban-technologies/akiban-persistit"
+COMM_LICENSE_URL="http://www.akiban.com/akiban-persistit-community-license-agreement-plaintext"
 
 VERSION=""
-BRANCH=""
+BRANCH_URL=""
 WORKSPACE="/tmp/persistit_release"
 
 while getopts "hb:v:w:" FLAG; do
@@ -58,12 +76,14 @@ if [ "${VERSION}" = "" ]; then
 fi
 
 if [ "${BRANCH}" = "" ]; then
-    BRANCH="${BRANCH_DEF}/${VERSION}"
+    BRANCH_URL="${BRANCH_DEFAULT}/${VERSION}"
 fi
 
+
 echo "Build packages for version: ${VERSION}"
-echo "Use source branch: ${BRANCH}"
+echo "Use source branch: ${BRANCH_URL}"
 echo "Use workspace location: ${WORKSPACE}"
+
 
 echo "Checking for required programs"
 for PROG in ${REQUIRED_PROGS}; do
@@ -73,55 +93,54 @@ for PROG in ${REQUIRED_PROGS}; do
     fi
 done
 
+
+NAME="akiban-persistit"
+BRANCH_DIR="${WORKSPACE}/${VERSION}"
+SOURCE_DIR="${WORKSPACE}/${NAME}-${VERSION}-source"
+OPEN_DIR="${WORKSPACE}/${NAME}-${VERSION}"
+COMM_DIR="${WORKSPACE}/${NAME}-community-${VERSION}"
+WEBDOCS_DIR="${WORKSPACE}/${NAME}-${VERSION}-website-docs"
+
+
 echo "Cleaning workspace ${WORKSPACE}"
 rm -rf "${WORKSPACE}"
 mkdir -p "${WORKSPACE}"
 cd "${WORKSPACE}"
 
+
 echo "Fetching revision number"
-REVNO=$(bzr revno -q "${BRANCH}")
+REVNO=$(bzr revno -q "${BRANCH_URL}")
 echo "Revision $REVNO"
 
+
 echo "Exporting branch"
-bzr export -q "${VERSION}" "${BRANCH}"
+bzr export -q "${BRANCH_DIR}" "${BRANCH_URL}"
+
 
 echo "Making package directories"
-NAME_PREFIX="akiban-persistit"
-OPEN_NAME="${NAME_PREFIX}-${VERSION}"
-COMMUNITY_NAME="${NAME_PREFIX}-community-${VERSION}"
-cp -r "${VERSION}" "${OPEN_NAME}-source"
-cp -r "${VERSION}" "${OPEN_NAME}"
-rm -r "${OPEN_NAME}/doc"
-mkdir "${OPEN_NAME}/doc"
-rm -r "${OPEN_NAME}/examples/scripts"
-rm -r "${OPEN_NAME}/src"
+cp -r "${BRANCH_DIR}" "${SOURCE_DIR}"
+cp -r "${BRANCH_DIR}" "${OPEN_DIR}"
+rm -r "${OPEN_DIR}"/{doc,examples/scripts,src,pom.xml}
+mkdir "${OPEN_DIR}/doc"
+cp -r "${OPEN_DIR}" "${COMM_DIR}"
 
 
-echo "Compiling and packaging"
-cd "${VERSION}"
-mvn -DBZR_REVISION="${REVNO}" compile test-compile package -DskipTests=true >/dev/null
+echo "Building open edition and docs"
+cd "${BRANCH_DIR}"
+maven_build "${REVNO}"
+docs_build "../apidocs"
 
-echo "Building javadoc"
-mvn javadoc:javadoc >/dev/null
 
-echo "Building docs (for packages)"
-cd doc/build
-APIDOC_URL="../apidocs" bash -e  build-doc.sh >/dev/null
-cd ../../..
+echo "Copying docs and jars"
+cd "${WORKSPACE}"
+cp -r "${BRANCH_DIR}"/target/{site/apidocs,sphinx/html} "${OPEN_DIR}/doc"
+cp "${BRANCH_DIR}/target/${NAME}-${VERSION}${REVNO}.jar" "${OPEN_DIR}/${NAME}-${VERSION}.jar"
+cp "${BRANCH_DIR}/target/${NAME}-${VERSION}${REVNO}-sources.jar" "${OPEN_DIR}/${NAME}-${VERSION}-sources.jar"
 
-echo "Copying docs"
-cp -r "${VERSION}/target/site/apidocs" "${OPEN_NAME}/doc"
-cp -r "${VERSION}/target/sphinx/html" "${OPEN_NAME}/doc"
-rm -r "${OPEN_NAME}/doc/html/.buildinfo"
-rm -r "${OPEN_NAME}/doc/html/.doctrees"
-
-echo "Copying jars"
-cp "${VERSION}/target/${NAME_PREFIX}-${VERSION}${REVNO}.jar" "${OPEN_NAME}/${NAME_PREFIX}-${VERSION}.jar"
-cp -r "${OPEN_NAME}" "${COMMUNITY_NAME}"
-cp "${VERSION}/target/${NAME_PREFIX}-${VERSION}${REVNO}-sources.jar" "${OPEN_NAME}/${NAME_PREFIX}-${VERSION}-sources.jar"
 
 echo "Downloading and formating community license"
-curl -s "${COMMUNITY_LICENSE_URL}" |
+cd "${WORKSPACE}"
+curl -s "${COMM_LICENSE_URL}" |
     # Pull out the content between the two regexes, excluding the matches themselves
     awk '/<div class="content">/ {flag=1;next} /<\/div>/ {flag=0} flag {print}' |
     # Replace paragraph end marks for the first 4 paragraphs with newlines
@@ -136,35 +155,46 @@ curl -s "${COMMUNITY_LICENSE_URL}" |
     tr -s ' ' |
     # Wrap nicely at 80 characters 
     fold -s \
-    > "${COMMUNITY_NAME}/LICENSE.txt"
+    > "${COMM_DIR}/LICENSE.txt"
 
-echo "Creating zip and tar.gz files"
-zip -r "${OPEN_NAME}.zip" "${OPEN_NAME}" >/dev/null
-zip -r "${OPEN_NAME}-source.zip" "${OPEN_NAME}-source" >/dev/null
-zip -r "${COMMUNITY_NAME}.zip" "${COMMUNITY_NAME}" >/dev/null
-tar czf "${OPEN_NAME}.tar.gz" "${OPEN_NAME}"
-tar czf "${OPEN_NAME}-source.tar.gz" "${OPEN_NAME}-source"
-tar czf "${COMMUNITY_NAME}.tar.gz" "${COMMUNITY_NAME}"
+
+echo "Building community edition and docs"
+cd "${BRANCH_DIR}"
+cp "${COMM_DIR}/LICENSE.txt" .
+awk 'BEGIN { FS="\n"; RS="";}\
+    {sub(/[ ]*<licenses>.*<\/licenses>/,\
+    "<licenses>\n<license>\n<name>Proprietary</name>\n<url>http://www.akiban.com/akiban-persistit-community-license-agreement</url>\n<distribution>manual</distribution>\n</license>\n</licenses>\n"); print;}'\
+    pom.xml > pom_comm.xml
+maven_build "${REVNO}" "-f pom_comm.xml"
+docs_build ""
+cp "target/${NAME}-${VERSION}${REVNO}.jar" "${COMM_DIR}/${NAME}-${VERSION}.jar"
+
+
+echo "Creatio g zip and tar.gz files"
+cd "${WORKSPACE}"
+for DIR in "${OPEN_DIR}" "${SOURCE_DIR}" "${COMM_DIR}"; do
+    BASE_DIR="`basename ${DIR}`"
+    zip -r "${DIR}.zip" "$BASE_DIR" >/dev/null
+    tar czf "${DIR}.tar.gz" "${BASE_DIR}"
+done
+
 
 echo "Building docs for website"
-cd "${VERSION}"
-rm -r "target/sphinx"
-cd doc/build
-bash -e build-doc.sh >/dev/null
-cd ../../../
-WEBSITE_DOCS="${NAME_PREFIX}-${VERSION}-website-docs"
-mkdir "${WEBSITE_DOCS}"
-cp -r "${VERSION}/target/site/apidocs" "${WEBSITE_DOCS}"
-cp -r "${VERSION}/target/sphinx/html" "${WEBSITE_DOCS}"
-rm -r "${WEBSITE_DOCS}/html/.buildinfo"
-rm -r "${WEBSITE_DOCS}/html/.doctrees"
-tar czf "${WEBSITE_DOCS}.tar.gz" "${WEBSITE_DOCS}"
+mkdir "${WEBDOCS_DIR}"
+cd "${BRANCH_DIR}"
+docs_build "" 
+cp -r target/{site/apidocs,sphinx/html} "${WEBDOCS_DIR}"
+cd ..
+tar czf "${WEBDOCS_DIR}.tar.gz" "${WEBDOCS_DIR}"
 
-echo "Signing files for Launchpad upload"
-FILES_TO_SIGN="${OPEN_NAME}.zip ${OPEN_NAME}-source.zip ${OPEN_NAME}.tar.gz ${OPEN_NAME}-source.tar.gz"
-for FILE in ${FILES_TO_SIGN}; do
-    gpg --armor --sign --detach-sig $FILE
-done
+
+if [ "$SKIP_SIGNING" = "" ]; then
+    echo "Signing files for Launchpad upload"
+    for FILE in `ls *.zip *.tar.gz`; do
+        gpg --armor --sign --detach-sig "${FILE}"
+    done
+fi
+
 
 echo "All output files are in: ${WORKSPACE}"
 echo "Done"
