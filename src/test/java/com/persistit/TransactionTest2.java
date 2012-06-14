@@ -41,7 +41,7 @@ import com.persistit.exception.RollbackException;
 import com.persistit.unit.PersistitUnitTestCase;
 
 /**
- * Demonstrates the use of Persisit Transactions. This demo runs multiple
+ * Demonstrates the use of Persistit Transactions. This demo runs multiple
  * threads that transfer "money" between accounts. At all times the sum of all
  * balances should remain unchanged.
  * 
@@ -53,11 +53,10 @@ public class TransactionTest2 extends PersistitUnitTestCase {
 
     final static CommitPolicy policy = CommitPolicy.SOFT;
 
-    final static long TIMEOUT = 100;
-    final static long NS_PER_S = 1000000000;
+    final static long TIMEOUT = 20000; // seconds
 
-    static int _threadCount = 10;
-    static int _iterationsPerThread = 50000;
+    static int _threadCount = 8;
+    static int _iterationsPerThread = 25000;
     static int _accounts = 5000;
 
     static AtomicInteger _retriedTransactionCount = new AtomicInteger();
@@ -169,10 +168,10 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         final int startingBalance = balance(accountEx);
         System.out.println("Starting balance is " + startingBalance);
 
-        final long expires = System.nanoTime() + (TIMEOUT * NS_PER_S);
+        final long expires = System.currentTimeMillis() + TIMEOUT;
 
         List<Thread> threads = new ArrayList<Thread>();
-        while (System.nanoTime() < expires) {
+        while (System.currentTimeMillis() < expires) {
             //
             // Remove any Thread instances that died (due to interrupt)
             //
