@@ -269,7 +269,7 @@ public class Buffer extends SharedResource {
     public final static int MAX_KEY_RATIO = 16;
 
     private final static int BINARY_SEARCH_THRESHOLD = 6;
-
+    
     abstract static class VerifyVisitor {
 
         protected void visitPage(long timestamp, Volume volume, long page, int type, int bufferSize, int keyBlockStart,
@@ -318,28 +318,28 @@ public class Buffer extends SharedResource {
     /**
      * A ByteBuffer facade for this Buffer used in NIO operations
      */
-    private ByteBuffer _byteBuffer;
+    private final ByteBuffer _byteBuffer;
+
+    /**
+     * The size of this buffer
+     */
+    private final int _bufferSize;
 
     /**
      * The bytes in this buffer. Note these bytes are also the backing store of
      * _byteBuffer.
      */
     private byte[] _bytes;
+    
+    /**
+     * FastIndex structure used for rapid page searching
+     */
+    private final FastIndex _fastIndex;
 
     /**
      * The right sibling page address
      */
     private volatile long _rightSibling;
-
-    /**
-     * The size of this buffer
-     */
-    private int _bufferSize;
-
-    /**
-     * FastIndex structure used for rapid page searching
-     */
-    private FastIndex _fastIndex;
 
     /**
      * Type code for this page.
@@ -405,6 +405,7 @@ public class Buffer extends SharedResource {
         _byteBuffer = ByteBuffer.allocate(size);
         _bytes = _byteBuffer.array();
         _bufferSize = size;
+        _fastIndex = new FastIndex(this, (size - HEADER_SIZE) / MAX_KEY_RATIO);
     }
 
     Buffer(Buffer original) {
@@ -421,20 +422,6 @@ public class Buffer extends SharedResource {
         setKeyBlockEnd(original._keyBlockEnd);
         _tailHeaderSize = original._tailHeaderSize;
         System.arraycopy(original._bytes, 0, _bytes, 0, _bytes.length);
-    }
-
-    Buffer(Persistit persistit, Volume vol, long page, byte[] bytes) throws InvalidPageStructureException,
-            PersistitInterruptedException {
-        this(bytes.length, -1, persistit.getBufferPool(bytes.length), persistit);
-        System.arraycopy(bytes, 0, _bytes, 0, bytes.length);
-        _vol = vol;
-        _page = page;
-        claim(true);
-        try {
-            load();
-        } finally {
-            release();
-        }
     }
 
     /**
@@ -823,7 +810,6 @@ public class Buffer extends SharedResource {
      * @throws PersistitInterruptedException
      */
     int findKey(Key key) throws PersistitInterruptedException {
-        final FastIndex fastIndex = getFastIndex();
         byte[] kbytes = key.getEncodedBytes();
         int klength = key.getEncodedSize();
         int depth = 0;
@@ -838,7 +824,7 @@ public class Buffer extends SharedResource {
             //
             int kbData = getInt(p);
             int index = (p - start) >> 2;
-            int runCount = fastIndex.getRunCount(index);
+            int runCount = _fastIndex.getRunCount(index);
             int ebc = decodeKeyBlockEbc(kbData);
 
             if (depth < ebc) {
@@ -907,7 +893,7 @@ public class Buffer extends SharedResource {
                                 // -
                                 // in that case we use the cross count to skip
                                 // all of them.
-                                int runCount2 = fastIndex.getRunCount(index + runCount);
+                                int runCount2 = _fastIndex.getRunCount(index + runCount);
                                 assert runCount2 <= 0;
                                 p = p2 + KEYBLOCK_LENGTH * (-runCount + 1);
                                 continue;
@@ -987,7 +973,7 @@ public class Buffer extends SharedResource {
                             // the crossCount if non-zero.
                             //
                             index = (p2 - start) >> 2;
-                            runCount = fastIndex.getRunCount(index);
+                            runCount = _fastIndex.getRunCount(index);
                             assert runCount <= 0;
                             p = p2 + KEYBLOCK_LENGTH * (-runCount + 1);
                             continue;
@@ -2831,35 +2817,11 @@ public class Buffer extends SharedResource {
     }
 
     void invalidateFastIndex() {
-        if (_fastIndex != null) {
             _fastIndex.invalidate();
-        }
     }
 
-    synchronized FastIndex getFastIndex() throws PersistitInterruptedException {
-        // TODO - replace synchronized with CAS instructions
-        if (_fastIndex == null) {
-            _fastIndex = _pool.allocFastIndex();
-            _fastIndex.setBuffer(this);
-        }
-        if (!_fastIndex.isValid()) {
-            _fastIndex.recompute();
-        }
-        _fastIndex.setTouched();
+    FastIndex getFastIndex() throws PersistitInterruptedException {
         return _fastIndex;
-    }
-
-    synchronized void takeFastIndex() {
-        _fastIndex = null;
-    }
-
-    /**
-     * Only for unit tests.
-     * 
-     * @param fastIndex
-     */
-    void setFastIndex(final FastIndex fastIndex) {
-        _fastIndex = fastIndex;
     }
 
     private void reduceEbc(int p, int newEbc, byte[] indexKeyBytes) {
@@ -3305,8 +3267,7 @@ public class Buffer extends SharedResource {
 
     static int bufferSizeWithOverhead(final int bufferSize) {
         int fastIndexSize = ((bufferSize - HEADER_SIZE) / MAX_KEY_RATIO) * FastIndex.BYTES_PER_ENTRY;
-        int fastIndexOverhead = (int) (fastIndexSize * BufferPool.FAST_INDEX_RATIO);
-        return bufferSize + fastIndexOverhead + ESTIMATED_FIXED_BUFFER_OVERHEAD;
+        return bufferSize + fastIndexSize + ESTIMATED_FIXED_BUFFER_OVERHEAD;
     }
 
     /**

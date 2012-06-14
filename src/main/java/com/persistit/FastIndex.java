@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.persistit.util.Debug;
 
-
 /**
  * FastIndex is a wrapper for an array of integers that contain information used
  * in searching for a key in a page. There is one meaningful element in that
@@ -166,9 +165,10 @@ class FastIndex {
     /**
      * The buffer this fast index is associated with.
      */
-    private Buffer _buffer;
+    private final Buffer _buffer;
 
-    FastIndex(int elementSize) {
+    FastIndex(Buffer buffer, int elementSize) {
+        _buffer = buffer;
         _findexElements = new short[elementSize];
         _isValid = false;
     }
@@ -605,26 +605,6 @@ class FastIndex {
             }
         }
         return start - end + 1;
-    }
-
-    void setBuffer(final Buffer buffer) {
-        _buffer = buffer;
-    }
-
-    Buffer getBuffer() {
-        return _buffer;
-    }
-
-    void setTouched() {
-        _bits.set(1);
-    }
-
-    void clearTouched() {
-        _bits.set(0);
-    }
-
-    boolean testTouched() {
-        return (_bits.get()) != 0;
     }
 
     // TODO - unnecessary after debugging

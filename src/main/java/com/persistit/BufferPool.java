@@ -76,10 +76,6 @@ public class BufferPool {
      * Maximum number of buffers this pool may have
      */
     public final static int MAXIMUM_POOL_COUNT = Integer.MAX_VALUE;
-    /**
-     * Ratio of FastIndex to buffers
-     */
-    final static float FAST_INDEX_RATIO = 1.0f;
 
     /**
      * The maximum number of lock buckets
@@ -126,15 +122,6 @@ public class BufferPool {
     private final int _bufferSize;
 
     /**
-     * Count of FastIndex instances, computed as a fraction of buffer count
-     */
-    private final int _fastIndexCount;
-    /**
-     * FastIndex array
-     */
-    private final FastIndex[] _fastIndexes;
-
-    /**
      * Bit map for invalidated pages. Elements in this array, one bit per page,
      * indicate buffers that have been invalidated and are therefore able to be
      * allocated without evicting a valid page.
@@ -152,11 +139,6 @@ public class BufferPool {
      * Pointer to next location to look for a replacement buffer
      */
     private final AtomicInteger _clock = new AtomicInteger();
-
-    /**
-     * Pointer to next FastIndex to allocate
-     */
-    private final AtomicInteger _fastIndexClock = new AtomicInteger();
 
     /**
      * Count of buffer pool misses (buffer not found in pool)
@@ -260,15 +242,12 @@ public class BufferPool {
         _hashTable = new Buffer[_bufferCount * HASH_MULTIPLE];
         _hashLocks = new ReentrantLock[HASH_LOCKS];
         _maxKeys = (_bufferSize - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO;
-        _fastIndexCount = (int) (count * FAST_INDEX_RATIO);
-        _fastIndexes = new FastIndex[_fastIndexCount];
 
         for (int index = 0; index < HASH_LOCKS; index++) {
             _hashLocks[index] = new ReentrantLock();
         }
 
         int buffers = 0;
-        int fastIndexes = 0;
         //
         // Allocate this here so that in the event of an OOME we can release it
         // to free enough memory to write the error information out.
@@ -279,11 +258,6 @@ public class BufferPool {
                 Buffer buffer = new Buffer(size, index, this, _persistit);
                 _buffers[index] = buffer;
                 buffers++;
-            }
-            for (int index = 0; index < _fastIndexCount; index++) {
-                _fastIndexes[index] = new FastIndex(_maxKeys + 1);
-                _fastIndexes[index].setBuffer(_buffers[index]);
-                fastIndexes++;
             }
         } catch (OutOfMemoryError e) {
             //
@@ -297,12 +271,7 @@ public class BufferPool {
             System.err.print(buffers);
             System.err.print("/");
             System.err.print(_bufferCount);
-            System.err.print(" buffers and ");
-            System.err.print(fastIndexes);
-            System.err.print("/");
-            System.err.print(_fastIndexCount);
-            System.err.print(" fast indexes ");
-            System.err.print(" from maximum heap ");
+            System.err.print(" buffers from maximum heap ");
             System.err.println(_persistit.getAvailableHeap());
             throw e;
         }
@@ -1014,30 +983,6 @@ public class BufferPool {
             retry++;
         }
         throw new IllegalStateException("No available Buffers");
-    }
-
-    FastIndex allocFastIndex() throws PersistitInterruptedException {
-        for (int retry = 0; retry < _fastIndexCount * 2;) {
-            int clock = _fastIndexClock.get();
-            if (!_fastIndexClock.compareAndSet(clock, (clock + 1) % _fastIndexCount)) {
-                continue;
-            }
-            FastIndex findex = _fastIndexes[clock];
-
-            if (findex.testTouched()) {
-                findex.clearTouched();
-            } else {
-                Buffer buffer = findex.getBuffer();
-                if (buffer.claim(true, 0)) {
-                    buffer.takeFastIndex();
-                    buffer.release();
-                    findex.invalidate();
-                    return findex;
-                }
-            }
-            retry++;
-        }
-        throw new IllegalStateException("No FastIndex buffers available");
     }
 
     enum Result {
