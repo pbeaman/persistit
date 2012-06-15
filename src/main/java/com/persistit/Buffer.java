@@ -810,7 +810,7 @@ public class Buffer extends SharedResource {
      * @throws PersistitInterruptedException
      */
     int findKey(Key key) throws PersistitInterruptedException {
-        FastIndex fastIndex = getFastIndex();
+        final FastIndex fastIndex = getFastIndex();
         byte[] kbytes = key.getEncodedBytes();
         int klength = key.getEncodedSize();
         int depth = 0;
