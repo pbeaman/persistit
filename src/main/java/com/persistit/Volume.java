@@ -144,19 +144,36 @@ public class Volume {
     /**
      * Release all resources for this <code>Volume</code> and invalidate all its
      * buffers in the {@link BufferPool}. Exchanges based on this
-     * <code>Volume</code> may no longer be used after this call.
+     * <code>Volume</code> may no longer be used after this call. Waits up to
+     * {@value com.persistit.SharedResource#DEFAULT_MAX_WAIT_TIME} milliseconds
+     * for other threads to relinquish access to the volume.
      * 
      * @throws PersistitException
      */
     public void close() throws PersistitException {
+        close(SharedResource.DEFAULT_MAX_WAIT_TIME);
+    }
+
+    /**
+     * Release all resources for this <code>Volume</code> and invalidate all its
+     * buffers in the {@link BufferPool}. Exchanges based on this
+     * <code>Volume</code> may no longer be used after this call.
+     * 
+     * @param timeout
+     *            Maximum time in milliseconds to wait for other threads to
+     *            relinquish access to the volume.
+     * @throws PersistitException
+     */
+    public void close(final long timeout) throws PersistitException {
         closing();
+        final long expiration = System.currentTimeMillis() + timeout;
         for (;;) {
             //
             // Prevents read/write operations from starting while the
             // volume is being closed.
             //
             final VolumeStorage storage = getStorage();
-            if (!storage.claim(true)) {
+            if (!storage.claim(true, timeout)) {
                 throw new InUseException("Unable to acquire claim on " + this);
             }
             try {
@@ -173,6 +190,9 @@ public class Volume {
                 }
             } finally {
                 storage.release();
+            }
+            if (System.currentTimeMillis() >= expiration) {
+                throw new InUseException("Unable invalidate all pages on " + this);
             }
             Util.sleep(Persistit.SHORT_DELAY);
         }

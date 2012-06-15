@@ -35,6 +35,7 @@ import com.persistit.unit.UnitTestProperties;
 import org.junit.Test;
 
 import com.persistit.exception.CorruptVolumeException;
+import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.VolumeFullException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -184,12 +185,12 @@ public class VolumeTest extends PersistitUnitTestCase {
         final Volume vol2 = _persistit.loadVolume(vs);
         final long statTimestamp = vol2.getStatistics().getLastGlobalTimestamp();
         // Greater than is ok (other activity may have occurred)
-        if(statTimestamp < MARKER) {
+        if (statTimestamp < MARKER) {
             assertEquals("Saved and loaded timestamp", MARKER, statTimestamp);
         }
     }
 
-    @Test(expected=CorruptVolumeException.class)
+    @Test(expected = CorruptVolumeException.class)
     public void volumeFromFutureIsRejected() throws Exception {
         final int RECORDS = 100;
 
@@ -227,6 +228,25 @@ public class VolumeTest extends PersistitUnitTestCase {
         _persistit.initialize(properties);
     }
 
+    @Test
+    public void timeoutWhenPageIsInUse() throws Exception {
+        final Exchange exchange = _persistit.getExchange(UnitTestProperties.VOLUME_NAME, "VolumeTest", true);
+        final Buffer buffer = exchange.getBufferPool().get(exchange.getVolume(), 1, false, true);
+        try {
+            final long start = System.currentTimeMillis();
+            try {
+                exchange.getVolume().close(5000);
+                fail("Expect an InUseException");
+            } catch (InUseException e) {
+                final long elapsed = System.currentTimeMillis() - start;
+                assertTrue("Expected InUseException to happen at 5000 ms but was " + elapsed, elapsed > 4000
+                        && elapsed < 10000);
+            }
+        } finally {
+            buffer.release();
+        }
+    }
+
     private VolumeSpecification validVolumeSpecification(final String specification) throws Exception {
         try {
             return _persistit.getConfiguration().volumeSpecification(specification);
@@ -243,12 +263,6 @@ public class VolumeTest extends PersistitUnitTestCase {
         } catch (InvalidVolumeSpecificationException e) {
             // ok
         }
-    }
-
-    @Override
-    public void runAllTests() throws Exception {
-        // TODO Auto-generated method stub
-
     }
 
 }
