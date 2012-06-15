@@ -134,8 +134,9 @@ docs_build "../apidocs"
 echo "Copying docs and jars"
 cd "${WORKSPACE}"
 cp -r "${BRANCH_DIR}"/target/{site/apidocs,sphinx/html} "${OPEN_DIR}/doc"
-cp "${BRANCH_DIR}/target/${NAME}-${VERSION}${REVNO}.jar" "${OPEN_DIR}/${NAME}-${VERSION}.jar"
-cp "${BRANCH_DIR}/target/${NAME}-${VERSION}${REVNO}-sources.jar" "${OPEN_DIR}/${NAME}-${VERSION}-sources.jar"
+cp -r "${BRANCH_DIR}"/target/sphinx/text/ReleaseNotes "${OPEN_DIR}/ReleaseNotes.txt"
+mv "${BRANCH_DIR}"/target/*-sources.jar "${OPEN_DIR}/${NAME}-${VERSION}-sources.jar"
+mv "${BRANCH_DIR}"/target/*.jar "${OPEN_DIR}/${NAME}-${VERSION}.jar"
 
 
 echo "Downloading and formating community license"
@@ -166,11 +167,14 @@ awk 'BEGIN { FS="\n"; RS="";}\
     "<licenses>\n<license>\n<name>Proprietary</name>\n<url>http://www.akiban.com/akiban-persistit-community-license-agreement</url>\n<distribution>manual</distribution>\n</license>\n</licenses>\n"); print;}'\
     pom.xml > pom_comm.xml
 maven_build "${REVNO}" "-f pom_comm.xml"
-docs_build ""
-cp "target/${NAME}-${VERSION}${REVNO}.jar" "${COMM_DIR}/${NAME}-${VERSION}.jar"
+docs_build "../apidocs"
+cp -r target/{site/apidocs,sphinx/html} "${COMM_DIR}/doc"
+cp target/sphinx/text/ReleaseNotes "${COMM_DIR}/ReleaseNotes.txt"
+rm target/*-sources.jar
+mv target/*.jar "${COMM_DIR}/${NAME}-${VERSION}.jar"
 
 
-echo "Creatio g zip and tar.gz files"
+echo "Creating zip and tar.gz files"
 cd "${WORKSPACE}"
 for DIR in "${OPEN_DIR}" "${SOURCE_DIR}" "${COMM_DIR}"; do
     BASE_DIR="`basename ${DIR}`"
