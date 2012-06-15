@@ -184,14 +184,14 @@ mkdir "${WEBDOCS_DIR}"
 cd "${BRANCH_DIR}"
 docs_build ""
 cp -r target/{site/apidocs,sphinx/html} "${WEBDOCS_DIR}"
-cd ..
-tar czf "${WEBDOCS_DIR}.tar.gz" "${WEBDOCS_DIR}"
+cd ${WORKSPACE}
+tar czf "${WEBDOCS_DIR}.tar.gz" "$(basename $WEBDOCS_DIR)"
 
 
 if [ "$SKIP_SIGNING" = "" ]; then
     echo "Signing files for Launchpad upload"
     for FILE in `ls *.zip *.tar.gz`; do
-        gpg --armor --sign --detach-sig "${FILE}"
+        gpg --armor --sign --detach-sig "${FILE}" 1>/dev/null
     done
 fi
 
