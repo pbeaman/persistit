@@ -495,11 +495,11 @@ public class Buffer extends SharedResource {
                 } else if (isIndexPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_INDEX;
                 }
-                invalidateFastIndex();
             }
         } else {
             _type = PAGE_TYPE_HEAD;
         }
+        invalidateFastIndex();
         bumpGeneration();
     }
 
@@ -810,6 +810,7 @@ public class Buffer extends SharedResource {
      * @throws PersistitInterruptedException
      */
     int findKey(Key key) throws PersistitInterruptedException {
+        FastIndex fastIndex = getFastIndex();
         byte[] kbytes = key.getEncodedBytes();
         int klength = key.getEncodedSize();
         int depth = 0;
@@ -824,7 +825,7 @@ public class Buffer extends SharedResource {
             //
             int kbData = getInt(p);
             int index = (p - start) >> 2;
-            int runCount = _fastIndex.getRunCount(index);
+            int runCount = fastIndex.getRunCount(index);
             int ebc = decodeKeyBlockEbc(kbData);
 
             if (depth < ebc) {
@@ -893,7 +894,7 @@ public class Buffer extends SharedResource {
                                 // -
                                 // in that case we use the cross count to skip
                                 // all of them.
-                                int runCount2 = _fastIndex.getRunCount(index + runCount);
+                                int runCount2 = fastIndex.getRunCount(index + runCount);
                                 assert runCount2 <= 0;
                                 p = p2 + KEYBLOCK_LENGTH * (-runCount + 1);
                                 continue;
@@ -973,7 +974,7 @@ public class Buffer extends SharedResource {
                             // the crossCount if non-zero.
                             //
                             index = (p2 - start) >> 2;
-                            runCount = _fastIndex.getRunCount(index);
+                            runCount = fastIndex.getRunCount(index);
                             assert runCount <= 0;
                             p = p2 + KEYBLOCK_LENGTH * (-runCount + 1);
                             continue;
@@ -1392,7 +1393,7 @@ public class Buffer extends SharedResource {
         if (Debug.ENABLED) {
             assertVerify();
         }
-        final FastIndex fastIndex = _fastIndex;
+        final FastIndex fastIndex = getFastIndex();
 
         boolean exactMatch = (foundAt & EXACT_MASK) > 0;
         int p = foundAt & P_MASK;
@@ -2816,11 +2817,14 @@ public class Buffer extends SharedResource {
 
     }
 
-    void invalidateFastIndex() {
+    synchronized void invalidateFastIndex() {
             _fastIndex.invalidate();
     }
 
-    FastIndex getFastIndex() throws PersistitInterruptedException {
+    synchronized FastIndex getFastIndex() {
+        if (!_fastIndex.isValid()) {
+            _fastIndex.recompute();
+        }
         return _fastIndex;
     }
 
