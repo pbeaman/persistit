@@ -20,18 +20,16 @@ This chapter briefly and informally introduces and demonstrates various Persisti
 Download and Install
 --------------------
 
-Download ``akiban-persistit-3.1.1.zip`` from link found at http://www.akiban.com/akiban-persistit.
+Download |zip_file_name| from the `Launchpad project <https://launchpad.net/akiban-persistit/+download>`_ or directly from `akiban.com <http://www.akiban.com/akiban-persistit>`_.
 
-Unpack the distribution kit into a convenient directory using any unzip utility. For example, use ``jar`` to unpack the distribution kit to the current working directory as follows::
-  
-  jar xvf akiban-persistit-3.1.1.zip
+Unpack the distribution kit into a convenient directory using any unzip utility. For example, use |unpack_zip_cmd| to unpack the distribution kit into the current working directory.
 
-Review the ``LICENSE.txt`` file located in the root of the installation directory. Persistit is licensed under the GNU Affero General Public License or a free-use community license, see http://www.akiban.com/akiban-licensing-options for more details. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.
+Review the ``LICENSE.txt`` file located in the root of the installation directory. Persistit is licensed under the GNU Affero General Public License or a free-use community license, see our `licensing options <http://www.akiban.com/akiban-licensing-options>`_ for more details. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.
 
 Working with Persistit
 ----------------------
 
-Add the ``akiban-persistit-3.1.1.jar``, as found in the root directory of the distribution kit, to your project's classpath. For example, copy it to ``jre/lib/ext`` in your Java Runtime Environment, or add it to your classpath environment variable. 
+Add the |jar_file_name|, is found in the root directory of the distribution kit, to your project's classpath. For example, copy it to ``jre/lib/ext`` in your Java Runtime Environment, or add it to your classpath environment variable. 
 
 That's it. You are ready to work with Persistit.
 
@@ -131,8 +129,7 @@ In this example, ``persistit.properties`` looks like this::
 
   datapath=.
   buffer.count.8192=32
-  volume.1=${datapath}/hwdemo,create,pageSize:8192,\
-	  initialPages:5,extensionPages:5,maximumPages:100000
+  volume.1=${datapath}/hwdemo,create,pageSize:8192,initialPages:5,extensionPages:5,maximumPages:100000
   journalpath=${datapath}/hwdemo_journal
 
 See :ref:`Configuration` for additional information about Persistit configuration properties.

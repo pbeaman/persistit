@@ -34,13 +34,16 @@
 
 set -e
 
-# $1 - APIDOC_URL (empty OK)
+# $1 - Version passed to build-doc.sh
+# $2 - APIDOC_URL (empty OK)
 function docs_build {
     rm -rf target/site/apidocs
     rm -rf target/sphinx
     mvn javadoc:javadoc >/dev/null
-    cd doc/build
-    APIDOC_URL="$1" bash -e build-doc.sh >/dev/null
+    cd doc
+    sed -i"" "s/version = '\d+\.\d+\.\d+'/version = '$1'/" conf.py
+    cd build
+    APIDOC_URL="$2" bash -e build-doc.sh >/dev/null
     cd ../../
     rm -r target/sphinx/html/{.buildinfo,.doctrees,objects.inv}
 }
@@ -128,7 +131,7 @@ cp -r "${OPEN_DIR}" "${COMM_DIR}"
 echo "Building open edition and docs"
 cd "${BRANCH_DIR}"
 maven_build "${REVNO}"
-docs_build "../apidocs"
+docs_build "${VERSION}" "../apidocs"
 
 
 echo "Copying docs and jars"
@@ -166,7 +169,7 @@ awk 'BEGIN { FS="\n"; RS="";}\
     "<licenses>\n<license>\n<name>Proprietary</name>\n<url>http://www.akiban.com/akiban-persistit-community-license-agreement</url>\n<distribution>manual</distribution>\n</license>\n</licenses>\n"); print;}'\
     pom.xml > pom_comm.xml
 maven_build "${REVNO}" "-f pom_comm.xml"
-docs_build ""
+docs_build "${VERSION}"
 cp "target/${NAME}-${VERSION}${REVNO}.jar" "${COMM_DIR}/${NAME}-${VERSION}.jar"
 
 
@@ -182,7 +185,7 @@ done
 echo "Building docs for website"
 mkdir "${WEBDOCS_DIR}"
 cd "${BRANCH_DIR}"
-docs_build "" 
+docs_build "${VERSION}"
 cp -r target/{site/apidocs,sphinx/html} "${WEBDOCS_DIR}"
 cd ..
 tar czf "${WEBDOCS_DIR}.tar.gz" "${WEBDOCS_DIR}"
