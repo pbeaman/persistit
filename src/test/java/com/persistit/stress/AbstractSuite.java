@@ -163,21 +163,22 @@ public abstract class AbstractSuite {
                 thread.join(MS_PER_S);
             }
 
-            _failed = false;
+            boolean failed = false;
             long work = 0;
             for (AbstractStressTest test : _tests) {
                 if (test.isFailed()) {
-                    _failed = true;
+                    failed = true;
                 }
                 work += test.getTotalWorkDone();
             }
             _elapsed = (System.nanoTime() - start) / NS_PER_S;
-            System.out.printf("\n---Result %s: %s work=%,d time=%,d rate=%,d ---\n", this._name, _failed ? "FAILED"
+            System.out.printf("\n---Result %s: %s work=%,d time=%,d rate=%,d ---\n", this._name, failed ? "FAILED"
                     : "PASSED", work, _elapsed, _elapsed > 0 ? work / _elapsed : 0);
 
-            if (_failed && _saveOnFailure) {
+            if (failed && _saveOnFailure) {
                 saveOnFailure();
             }
+            _failed |= failed;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
