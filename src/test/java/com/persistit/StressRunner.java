@@ -66,7 +66,6 @@ public class StressRunner {
 
     private final static String[] ARGS_TEMPLATE = {
             "duration|int::10|Maximum duration in seconds",
-            "_flag|S|Save on failure",
             "report|String:StressRunner_" + String.format("%1$tY%1$tm%1$td%1$tH%1$tM%1$tS", System.currentTimeMillis()),
             "tests|String:*|List of comma-separated patterns" };
 

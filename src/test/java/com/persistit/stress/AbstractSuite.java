@@ -72,7 +72,11 @@ public abstract class AbstractSuite {
     protected AbstractSuite(final String name, final String[] args) {
         _name = name;
         final ArgParser ap = new ArgParser(getClass().getSimpleName(), args, ARGS_TEMPLATE);
-        _logPath = _dataPath = ap.getStringValue("datapath");
+        String dataPath = ap.getStringValue("datapath");
+        if (dataPath.endsWith("/") || dataPath.endsWith("\\")) {
+            dataPath = dataPath.substring(0, dataPath.length() - 1);
+         }
+        _logPath = _dataPath = dataPath;
         _duration = ap.getLongValue("duration");
         _progressLogInterval = ap.getLongValue("progress");
         _untilStopped = ap.isSpecified("duration");
