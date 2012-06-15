@@ -305,7 +305,7 @@ class JournalTool {
     }
 
     public void init(final String[] args) {
-        ArgParser ap = new ArgParser("com.persistit.JournalTool", args, ARGS_TEMPLATE);
+        ArgParser ap = new ArgParser("com.persistit.JournalTool", args, ARGS_TEMPLATE).strict();
         if (ap.isUsageOnly()) {
             return;
         }

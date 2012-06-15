@@ -21,6 +21,9 @@
 package com.persistit.stress;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -34,13 +37,13 @@ import com.persistit.VolumeSpecification;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.ArgParser;
 
-public class AbstractSuite {
+public abstract class AbstractSuite {
 
     private final static SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMddHHmm");
 
     private final static String[] ARGS_TEMPLATE = { "duration|int::10|Maximum duration in seconds",
             "datapath|String:/tmp/persistit_test_data|Data path",
-            "progress|int:60:1:|Progress message interval in seconds", };
+            "progress|int:60:1:|Progress message interval in seconds", "_flag|S|Save on failure", };
 
     protected final static long PROGRESS_LOG_INTERVAL = 600000;
 
@@ -57,18 +60,23 @@ public class AbstractSuite {
     final private String _logPath;
     final private String _dataPath;
     final private long _progressLogInterval;
+    final private boolean _saveOnFailure;
+
     private long _duration;
     private boolean _untilStopped;
+    private long _elapsed;
+    private boolean _failed;
 
     String _timeStamp = SDF.format(new Date());
 
     protected AbstractSuite(final String name, final String[] args) {
         _name = name;
-        final ArgParser ap = new ArgParser("RunnerBase", args, ARGS_TEMPLATE);
+        final ArgParser ap = new ArgParser(getClass().getSimpleName(), args, ARGS_TEMPLATE);
         _logPath = _dataPath = ap.getStringValue("datapath");
         _duration = ap.getLongValue("duration");
         _progressLogInterval = ap.getLongValue("progress");
         _untilStopped = ap.isSpecified("duration");
+        _saveOnFailure = ap.isFlag('S');
     }
 
     public String getName() {
@@ -81,6 +89,14 @@ public class AbstractSuite {
 
     public void setDuration(final long duration) {
         _duration = duration;
+    }
+
+    public long getRate() {
+        return _elapsed > 0 ? _accumulatedWork / _elapsed : 0;
+    }
+
+    public boolean isFailed() {
+        return _failed;
     }
 
     public boolean isUntilStopped() {
@@ -105,6 +121,8 @@ public class AbstractSuite {
         _nextReport = 0;
         _accumulatedWork = 0;
     }
+
+    public abstract void runTest() throws Exception;
 
     protected void execute(final Persistit persistit) {
         try {
@@ -141,18 +159,21 @@ public class AbstractSuite {
                 thread.join(MS_PER_S);
             }
 
-            boolean failed = false;
+            _failed = false;
             long work = 0;
             for (AbstractStressTest test : _tests) {
                 if (test.isFailed()) {
-                    failed = true;
+                    _failed = true;
                 }
                 work += test.getTotalWorkDone();
             }
-            long elapsed = (System.nanoTime() - start) / NS_PER_S;
-            System.out.printf("\n---Result %s: %s work=%,d time=%,d rate=%,d ---\n", this._name, failed ? "FAILED"
-                    : "PASSED", work, elapsed, elapsed > 0 ? work / elapsed : 0);
+            _elapsed = (System.nanoTime() - start) / NS_PER_S;
+            System.out.printf("\n---Result %s: %s work=%,d time=%,d rate=%,d ---\n", this._name, _failed ? "FAILED"
+                    : "PASSED", work, _elapsed, _elapsed > 0 ? work / _elapsed : 0);
 
+            if (_failed && _saveOnFailure) {
+                saveOnFailure();
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -186,8 +207,8 @@ public class AbstractSuite {
                 rate = (work * NS_PER_MS * MS_PER_S) / elapsed;
             }
             System.out.printf("%s at %,9d seconds: live=%,5d ended=%,5d stopped = %,5d, failed=%,5d "
-                    + "totalwork=%,12d intervalwork=%,12d  workrate=%,12d\n", _name, elapsed / NS_PER_S,
-                    live, ended, stopped, failed, work, work - _accumulatedWork, rate);
+                    + "totalwork=%,12d intervalwork=%,12d  workrate=%,12d\n", _name, elapsed / NS_PER_S, live, ended,
+                    stopped, failed, work, work - _accumulatedWork, rate);
             _accumulatedWork = work;
         }
 
@@ -225,7 +246,8 @@ public class AbstractSuite {
             if (file.isDirectory()) {
                 final File[] files = file.listFiles();
                 for (final File child : files) {
-                    if (child.getPath().startsWith(pattern.substring(0, pattern.length() - 1))) {
+                    if (child.getPath().startsWith(pattern.substring(0, pattern.length() - 1))
+                            && !child.getName().startsWith("_failed")) {
                         child.delete();
                         System.out.println("deleted " + child.toString());
                     }
@@ -236,6 +258,28 @@ public class AbstractSuite {
             file.delete();
             System.out.println("deleted " + file.toString());
         }
+    }
+
+    protected void saveOnFailure() throws IOException {
+        File dir = new File(_dataPath);
+        File moveTo = new File(dir, String.format("_failed_%s_%2$tY%2$tm%2$td%2$tH%2$tM%2$tS", getName(), System
+                .currentTimeMillis()));
+        moveTo.mkdirs();
+
+        final File[] files = dir.listFiles();
+        for (final File child : files) {
+            if (!child.isDirectory()) {
+                File to = new File(moveTo, child.getName());
+                boolean moved = child.renameTo(to);
+                System.out.printf("%s %s to %s\n", moved ? "moved" : "failed to move", child, to);
+            }
+        }
+
+        PrintWriter pw = new PrintWriter(new FileWriter(new File(moveTo, "results")));
+        for (final AbstractStressTest test : _tests) {
+            pw.printf("%s [%s] %s \n\n", test.getTestName(), test.getThreadName(), test.getResult());
+        }
+        pw.close();
     }
 
     protected Persistit makePersistit(final int pageSize, final String mem, final CommitPolicy policy)

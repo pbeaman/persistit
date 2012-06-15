@@ -34,7 +34,7 @@ public class Recovery2_StdIn extends AbstractSuite {
         new Recovery2_StdIn(args).runTest();
     }
 
-    private Recovery2_StdIn(final String[] args) {
+    public Recovery2_StdIn(final String[] args) {
         super(name(), args);
     }
 

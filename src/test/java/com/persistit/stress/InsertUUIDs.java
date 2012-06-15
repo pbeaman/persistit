@@ -34,7 +34,7 @@ public class InsertUUIDs extends AbstractSuite {
         new InsertUUIDs(args).runTest();
     }
 
-    private InsertUUIDs(final String[] args) {
+    public InsertUUIDs(final String[] args) {
         super(name(), args);
     }
 

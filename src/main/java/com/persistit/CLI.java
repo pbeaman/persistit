@@ -357,7 +357,7 @@ public class CLI {
             return null;
         }
         Task task = command.createTask(persistit, new ArgParser(commandName, pieces.toArray(new String[pieces.size()]),
-                command.argTemplate));
+                command.argTemplate).strict());
         if (task != null) {
             task.setPersistit(persistit);
         }
@@ -532,7 +532,7 @@ public class CLI {
         public String toString() {
             StringBuilder sb = new StringBuilder(name);
             sb.append(Util.NEW_LINE);
-            sb.append(new ArgParser(name, new String[0], argTemplate));
+            sb.append(new ArgParser(name, new String[0], argTemplate).strict());
             return sb.toString();
         }
     }
@@ -638,7 +638,7 @@ public class CLI {
                     list.remove(0);
                     try {
                         final String[] args = list.toArray(new String[list.size()]);
-                        final ArgParser ap = new ArgParser(commandName, args, command.argTemplate);
+                        final ArgParser ap = new ArgParser(commandName, args, command.argTemplate).strict();
                         if (!ap.isUsageOnly()) {
                             String result = command.execute(this, ap);
                             if (result != null) {
@@ -922,7 +922,7 @@ public class CLI {
 
                 _currentTree = null;
                 _currentVolume = null;
-                
+
                 if (_persistit == null) {
                     postMessage("Persistit not loaded", LOG_NORMAL);
                     return;

@@ -20,6 +20,10 @@
 
 package com.persistit.util;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * <p>
  * A simple command line argument parser that provides primitive type conversion
@@ -46,6 +50,7 @@ public class ArgParser {
     private final long[] _longArgs;
     private final boolean[] _specified;
     private boolean _usageOnly;
+    private List<String> _unparsed = new ArrayList<String>();
 
     /**
      * <p>
@@ -123,18 +128,19 @@ public class ArgParser {
                     } else if (flagsTemplate.indexOf(ch) >= 0) {
                         flags.append(ch);
                     } else {
-                        throw new IllegalArgumentException("Invalid flag (" + ch + ") in " + arg);
+                        _unparsed.add(arg);
                     }
                 }
             } else {
                 String fieldName = piece(args[i], '=', 0);
                 int position = lookupName(fieldName);
                 if (position < 0) {
-                    throw new IllegalArgumentException("No such parameter name " + fieldName + " in argument " + arg);
+                    _unparsed.add(args[i]);
+                } else {
+                    String argValue = arg.substring(fieldName.length() + 1);
+                    _specified[position] = true;
+                    doField(argValue, position);
                 }
-                String argValue = arg.substring(fieldName.length() + 1);
-                _specified[position] = true;
-                doField(argValue, position);
             }
         }
         _flags = flags.toString();
@@ -160,6 +166,33 @@ public class ArgParser {
             sb.append(Util.NEW_LINE);
         }
         return sb.toString();
+    }
+
+    public ArgParser strict() {
+        if (!_unparsed.isEmpty()) {
+            throw new IllegalArgumentException("Unrecognized arguments: " + _unparsed);
+        }
+        return this;
+    }
+
+    /**
+     * Array of arguments that were not parsed by this template. This array may
+     * be passed into another ArgParser for further processing.
+     * 
+     * @return array of argument strings
+     */
+    public String[] getUnparsedArray() {
+        return _unparsed.toArray(new String[_unparsed.size()]);
+    }
+
+    /**
+     * List of the arguments that were not parsed by this template. The list is
+     * modifiable.
+     * 
+     * @return List of argument strings
+     */
+    public List<String> getUnparsedList() {
+        return _unparsed;
     }
 
     /**

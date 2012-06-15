@@ -57,7 +57,7 @@ public class Stress3txn extends StressBase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        _ap = new ArgParser("com.persistit.Stress3txn", _args, ARGS_TEMPLATE);
+        _ap = new ArgParser("com.persistit.Stress3txn", _args, ARGS_TEMPLATE).strict();
         _splay = _ap.getIntValue("splay");
         _opflags = _ap.getStringValue("op");
         _seed = _ap.getIntValue("seed");

@@ -38,7 +38,7 @@ public class Mixture2 extends AbstractSuite {
         new Mixture2(args).runTest();
     }
 
-    private Mixture2(final String[] args) {
+    public Mixture2(final String[] args) {
         super(name(), args);
     }
 

@@ -43,7 +43,7 @@ public class Stress10 extends StressBase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        _ap = new ArgParser("com.persistit.Stress10", _args, ARGS_TEMPLATE);
+        _ap = new ArgParser("com.persistit.Stress10", _args, ARGS_TEMPLATE).strict();
         _opflags = _ap.getStringValue("op");
         _size = _ap.getIntValue("size");
         _seed = _ap.getIntValue("seed");

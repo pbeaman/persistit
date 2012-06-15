@@ -127,7 +127,7 @@ public class StressRecovery extends StressBase {
 
     @Override
     public void setUp() throws Exception {
-        _ap = new ArgParser("com.persistit.StressRecovery", _args, ARGS_TEMPLATE);
+        _ap = new ArgParser("com.persistit.StressRecovery", _args, ARGS_TEMPLATE).strict();
         _size = _ap.getIntValue("size");
         _maxLatency = _ap.getLongValue("latency") * 1000000l;
         _verifyPath = _ap.getStringValue("verify");

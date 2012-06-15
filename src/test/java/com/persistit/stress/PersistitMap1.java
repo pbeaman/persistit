@@ -34,7 +34,7 @@ public class PersistitMap1 extends AbstractSuite {
         new PersistitMap1(args).runTest();
     }
 
-    private PersistitMap1(final String[] args) {
+    public PersistitMap1(final String[] args) {
         super(name(), args);
     }
 
