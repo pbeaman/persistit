@@ -69,5 +69,5 @@ done
 
 sphinx-build -a "$DOC_TARGET_PATH" "$DOC_FINAL_PATH"
 
-fold -s "${DOC_TARGET_PATH}/ReleaseNotes.rst" | sed 's/``//g' | sed 's/\.\. note:/NOTE/' | sed 's/::/:/' > ../../target/sphinx/text/ReleaseNotes
+fold -s "${DOC_TARGET_PATH}/ReleaseNotes.rst" | sed -e 's/``//g' -e 's/\.\. note:/NOTE/' -e 's/::/:/' -e 's/^|$//' > ../../target/sphinx/text/ReleaseNotes
 
