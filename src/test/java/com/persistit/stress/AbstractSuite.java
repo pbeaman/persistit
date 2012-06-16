@@ -72,7 +72,11 @@ public abstract class AbstractSuite {
     protected AbstractSuite(final String name, final String[] args) {
         _name = name;
         final ArgParser ap = new ArgParser(getClass().getSimpleName(), args, ARGS_TEMPLATE);
-        _logPath = _dataPath = ap.getStringValue("datapath");
+        String dataPath = ap.getStringValue("datapath");
+        if (dataPath.endsWith("/") || dataPath.endsWith("\\")) {
+            dataPath = dataPath.substring(0, dataPath.length() - 1);
+         }
+        _logPath = _dataPath = dataPath;
         _duration = ap.getLongValue("duration");
         _progressLogInterval = ap.getLongValue("progress");
         _untilStopped = ap.isSpecified("duration");
@@ -159,21 +163,22 @@ public abstract class AbstractSuite {
                 thread.join(MS_PER_S);
             }
 
-            _failed = false;
+            boolean failed = false;
             long work = 0;
             for (AbstractStressTest test : _tests) {
                 if (test.isFailed()) {
-                    _failed = true;
+                    failed = true;
                 }
                 work += test.getTotalWorkDone();
             }
             _elapsed = (System.nanoTime() - start) / NS_PER_S;
-            System.out.printf("\n---Result %s: %s work=%,d time=%,d rate=%,d ---\n", this._name, _failed ? "FAILED"
+            System.out.printf("\n---Result %s: %s work=%,d time=%,d rate=%,d ---\n", this._name, failed ? "FAILED"
                     : "PASSED", work, _elapsed, _elapsed > 0 ? work / _elapsed : 0);
 
-            if (_failed && _saveOnFailure) {
+            if (failed && _saveOnFailure) {
                 saveOnFailure();
             }
+            _failed |= failed;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
