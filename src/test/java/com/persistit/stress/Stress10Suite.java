@@ -34,7 +34,7 @@ public class Stress10Suite extends AbstractSuite {
         new Stress10Suite(args).runTest();
     }
 
-    private Stress10Suite(final String[] args) {
+    public Stress10Suite(final String[] args) {
         super(name(), args);
     }
 

@@ -449,7 +449,7 @@ class IOMeter implements IOMeterMXBean {
     public static void main(final String[] args) throws Exception {
         final ArgParser ap = new ArgParser("com.persistit.IOMeter", args, new String[] { "file||log file name",
                 "skip|long:0:0:1000000000000|event skip count", "count|long:0:0:2000000000|event count nlimit",
-                "_flag|a|Analyze page pattern" });
+                "_flag|a|Analyze page pattern" }).strict();
         final String fileName = ap.getStringValue("file");
         final long skip = ap.getLongValue("skip");
         final int count = ap.getIntValue("count");

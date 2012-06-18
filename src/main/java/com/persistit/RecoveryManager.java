@@ -1692,7 +1692,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 "path||pathname of journal, e.g., /xxx/yyy/zzz_journal "
                         + "for files such as /xxx/yyy/zzz_journal.0000000000000047",
                 "_flags|t|emit transaction details" };
-        final ArgParser argParser = new ArgParser("RecoveryManager", args, template);
+        final ArgParser argParser = new ArgParser("RecoveryManager", args, template).strict();
         final Persistit persistit = new Persistit();
         persistit.initializeJournal();
         final RecoveryManager rman = new RecoveryManager(persistit);

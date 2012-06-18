@@ -48,7 +48,7 @@ public class Stress9 extends StressBase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        _ap = new ArgParser("com.persistit.Stress9", _args, ARGS_TEMPLATE);
+        _ap = new ArgParser("com.persistit.Stress9", _args, ARGS_TEMPLATE).strict();
         _splay = _ap.getIntValue("splay");
         _opflags = _ap.getStringValue("op");
         _size = _ap.getIntValue("size");

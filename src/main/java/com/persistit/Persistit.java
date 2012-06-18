@@ -2478,7 +2478,7 @@ public class Persistit {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        final ArgParser ap = new ArgParser("Persistit", args, ARG_TEMPLATE);
+        final ArgParser ap = new ArgParser("Persistit", args, ARG_TEMPLATE).strict();
         if (ap.isUsageOnly()) {
             return;
         }

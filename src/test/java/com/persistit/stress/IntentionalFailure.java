@@ -22,19 +22,18 @@ package com.persistit.stress;
 
 import com.persistit.Persistit;
 import com.persistit.Transaction.CommitPolicy;
-import com.persistit.stress.unit.Stress8txn;
 
-public class Stress8txnSuite extends AbstractSuite {
+public class IntentionalFailure extends AbstractSuite {
 
     static String name() {
-        return Stress8txnSuite.class.getSimpleName();
+        return IntentionalFailure.class.getSimpleName();
     }
 
     public static void main(String[] args) throws Exception {
-        new Stress8txnSuite(args).runTest();
+        new IntentionalFailure(args).runTest();
     }
 
-    public Stress8txnSuite(final String[] args) {
+    public IntentionalFailure(final String[] args) {
         super(name(), args);
     }
 
@@ -42,19 +41,27 @@ public class Stress8txnSuite extends AbstractSuite {
 
         deleteFiles(substitute("$datapath$/persistit*"));
 
-        add(new Stress8txn("repeat=10 count=25000 size=10000 seed=1"));
-        add(new Stress8txn("repeat=10 count=25000 size=10000 seed=2"));
-        add(new Stress8txn("repeat=10 count=25000 size=10000 seed=3"));
-        add(new Stress8txn("repeat=10 count=25000 size=10000 seed=4"));
-        add(new Stress8txn("repeat=10 count=25000 size=10000 seed=5"));
-        add(new Stress8txn("repeat=10 count=25000 size=10000 seed=6"));
+        add(new Fail(null));
 
-        final Persistit persistit = makePersistit(16384, "20K", CommitPolicy.SOFT);
+        final Persistit persistit = makePersistit(16384, "1000", CommitPolicy.SOFT);
 
         try {
             execute(persistit);
         } finally {
             persistit.close();
         }
+    }
+    
+    class Fail extends AbstractStressTest {
+
+        protected Fail(String argsString) {
+            super(argsString);
+        }
+
+        @Override
+        protected void executeTest() throws Exception {
+            throw new RuntimeException("Intentional Failure");
+        }
+        
     }
 }

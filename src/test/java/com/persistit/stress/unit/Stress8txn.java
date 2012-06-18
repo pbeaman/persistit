@@ -51,7 +51,7 @@ public class Stress8txn extends StressBase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        _ap = new ArgParser("com.persistit.Stress8txn", _args, ARGS_TEMPLATE);
+        _ap = new ArgParser("com.persistit.Stress8txn", _args, ARGS_TEMPLATE).strict();
         _total = _ap.getIntValue("count");
         _repeatTotal = _ap.getIntValue("repeat");
         _size = _ap.getIntValue("size");

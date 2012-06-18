@@ -35,7 +35,7 @@ public class StartStop extends AbstractSuite {
         new StartStop(args).runTest();
     }
 
-    private StartStop(final String[] args) {
+    public StartStop(final String[] args) {
         super(name(), args);
     }
 

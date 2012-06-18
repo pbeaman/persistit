@@ -66,7 +66,7 @@ public abstract class Stress4Base extends StressBase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        _ap = new ArgParser("com.persistit.Stress4", _args, ARGS_TEMPLATE);
+        _ap = new ArgParser("com.persistit.Stress4", _args, ARGS_TEMPLATE).strict();
         _total = _ap.getIntValue("count");
         _repeatTotal = _ap.getIntValue("repeat");
         _total = _ap.getIntValue("count");

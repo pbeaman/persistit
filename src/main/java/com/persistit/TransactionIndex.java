@@ -594,6 +594,7 @@ class TransactionIndex implements TransactionIndexMXBean {
             }
         } catch (InterruptedException ie) {
             status.abort();
+            status.complete(0);
             throw ie;
         }
         return status;
