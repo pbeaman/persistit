@@ -1393,7 +1393,6 @@ public class Buffer extends SharedResource {
         if (Debug.ENABLED) {
             assertVerify();
         }
-        final FastIndex fastIndex = getFastIndex();
 
         boolean exactMatch = (foundAt & EXACT_MASK) > 0;
         int p = foundAt & P_MASK;
@@ -1509,11 +1508,10 @@ public class Buffer extends SharedResource {
                         _bytes.length); // TODO limit
                 incCountIfMvv(_bytes, newTail + _tailHeaderSize + klength, storedLength & MVV.STORE_LENGTH_MASK);
             }
-
-            if (fastIndex != null) {
-                fastIndex.insertKeyBlock(p, ebcSuccessor, fixupSuccessor);
-            }
-
+            //
+            // Correct not to call getFastIndex()
+            //
+            _fastIndex.insertKeyBlock(p, ebcSuccessor, fixupSuccessor);
             bumpGeneration();
 
             if (p > KEY_BLOCK_START) {
@@ -2281,7 +2279,7 @@ public class Buffer extends SharedResource {
             if (foundAtPosition >= splitAtPosition && (!lastLeft || foundAtPosition > splitAtPosition)) {
                 foundAt -= (splitAtPosition - KEY_BLOCK_START);
                 if (firstRight && !fixupSuccessor) {
-                    foundAt = (foundAt & P_MASK) | FIXUP_MASK | (ebc << DEPTH_SHIFT);
+                    foundAt = (foundAt & P_MASK) | (ebc > 0 ? FIXUP_MASK : 0) | (ebc << DEPTH_SHIFT);
                 }
                 final int t = rightSibling.putValue(key, valueHelper, foundAt, true);
                 whereInserted = -foundAt;
