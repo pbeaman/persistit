@@ -79,7 +79,7 @@ Database operations running outside the scope of an explicitly defined transacti
 Optimistic Transaction Scheduling
 ---------------------------------
 
-To achieve high performance and scalability, Persistit supports an optimistic transaction scheduling protocol called MVCC with http://wikipedia.org/wiki/Snapshot_isolation[Snapshot Isolation]. Under this protocol multiple threads are permitted to execute transactions at full speed without blocking until a potentially inconsistent state is recognized. At that point a transaction suspected of causing the inconsistent state is automatically forced to roll back.
+To achieve high performance and scalability, Persistit supports an optimistic transaction scheduling protocol called MVCC with `Snapshot Isolation <http://wikipedia.org/wiki/Snapshot_isolation>`_. Under this protocol multiple threads are permitted to execute transactions at full speed without blocking until a potentially inconsistent state is recognized. At that point a transaction suspected of causing the inconsistent state is automatically forced to roll back.
 
 Optimistic scheduling works because transactions usually do not collide, especially when individual database operations are fast, and so in practice transactions are seldom rolled back. But because any transaction may be rolled back at any point, applications must be designed carefully to avoid unintended side-effects. For example, a transaction should never perform non-repeatable or externally visible operations such as file or network I/O within its scope.
 
