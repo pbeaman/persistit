@@ -99,8 +99,12 @@ Upon start-up Persistit starts by finding the last valid checkpoint timestamp, a
 
 Then Persistit locates and reapplies all transaction records in the journal for transactions that committed after the last valid checkpoint timestamp. These transactions are reapplied to the database, with the result that:
 
-- The B+Tree index and data structures are intact. All store, fetch, remove and traverse operations will complete successfully. footnote:[Persistit provides the utility class com.persistit.IntegrityCheck to verify the integrity of a Volume.]
+- The B+Tree index and data structures are intact. All store, fetch, remove and traverse operations will complete successfully.
 - All committed transactions are present in the recovered database.  (See :ref:`Transactions` for durability determined by ``CommitPolicy``.)
+
+.. note::
+
+   Persistit provides the utility class ``com.persistit.IntegrityCheck`` to verify the integrity of individual Trees or entire Volumes.
 
 For updates occurring outside of a transaction the resulting state is identical to some consistent, reasonably recent state prior to the termination. (“Reasonably recent” depends on the checkpoint interval, which by default is set to two minutes.)
 
