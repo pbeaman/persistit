@@ -25,6 +25,9 @@ import java.io.Serializable;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Date;
+import java.util.Map;
+
+import javax.management.ObjectName;
 
 import com.persistit.encoding.CoderContext;
 import com.persistit.mxbeans.ManagementMXBean;
@@ -696,6 +699,29 @@ public interface Management extends Remote, ManagementMXBean {
     public DisplayFilter getDisplayFilter() throws RemoteException;
 
     public void setDisplayFilter(DisplayFilter displayFilter) throws RemoteException;
+
+    /**
+     * Return an unmodifiable map of all MXBeans registered in the Persistit
+     * instance. The map key is the ObjectName used in identifying the MXBean
+     * within the JMX framework. For most of the MXBean instance you can
+     * construct the ObjectName from a constant in the interface. for example
+     * 
+     * <code><pre>
+     *    ObjectName on = 
+     *        new ObjectName(JournalManagerMXBean.MXBEAN_NAME);
+     * </pre></code>
+     * 
+     * For BufferPoolMXBean instances, use
+     * 
+     * <code><pre>
+     *    ObjectName on = 
+     *        new ObjectName(BufferPoolMXBean.MXBEAN_NAME + "." + bufferSize);
+     * </pre></code>
+     * 
+     * 
+     * @return Map of ObjectName to Object for all registered MXBeans
+     */
+    Map<ObjectName, Object> getMXBeans() throws RemoteException;
 
     /**
      * A DisplayFilter formats the String value presented in the Tree tab of the

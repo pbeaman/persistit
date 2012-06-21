@@ -774,6 +774,8 @@ public class Persistit {
             monitor.setObjectName(on);
             emitter = monitor;
         }
+
+        @SuppressWarnings({ "unchecked", "rawtypes" })
         MXBeanWrapper wrapper = new MXBeanWrapper(mbean, mbeanInterface, emitter);
         server.registerMBean(wrapper, on);
 
@@ -782,6 +784,10 @@ public class Persistit {
         if (mbean instanceof AlertMonitorMXBean) {
             _alertMonitors.add((AlertMonitorMXBean) mbean);
         }
+    }
+    
+    Map<ObjectName, Object> getMXBeans() {
+        return Collections.unmodifiableMap(_mxbeans);
     }
 
     private void unregisterMXBeans() {

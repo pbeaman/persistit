@@ -27,10 +27,14 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
+
+import javax.management.ObjectName;
 
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.ValueCoder;
@@ -162,6 +166,11 @@ class ManagementImpl implements Management {
         return getVolumeInfoArray();
     }
 
+    @Override
+    public Map<ObjectName, Object> getMXBeans() {
+        return _persistit.getMXBeans();
+    }
+
     /**
      * Indicates whether Persistit will suspend its shutdown activities on
      * invocation of {@link #close}. This flag is intended for use by management
@@ -273,11 +282,13 @@ class ManagementImpl implements Management {
     public String getDefaultCommitPolicy() {
         return _persistit.getDefaultTransactionCommitPolicy().toString();
     }
-    
+
     /**
-     * Modify the current default <code>CommitPolicy</code>.  The
-     * policy name must be one of "hard", "group" or "commit".
-     * @param policyName name of the <code>CommitPolicy</code> to set.
+     * Modify the current default <code>CommitPolicy</code>. The policy name
+     * must be one of "hard", "group" or "commit".
+     * 
+     * @param policyName
+     *            name of the <code>CommitPolicy</code> to set.
      */
     @Override
     public void setDefaultCommitPolicy(String policyName) {
@@ -1030,8 +1041,8 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public synchronized long startTask(String description, String owner, String commandLine, long maximumTime, int verbosity)
-            throws RemoteException {
+    public synchronized long startTask(String description, String owner, String commandLine, long maximumTime,
+            int verbosity) throws RemoteException {
         try {
             Task task = CLI.parseTask(_persistit, commandLine);
             if (task == null) {
@@ -1047,8 +1058,7 @@ class ManagementImpl implements Management {
             throw new WrappedRemoteException(ex);
         }
     }
-    
-    
+
     /**
      * Queries the current status of one or all tasks. If the specified taskId
      * value is -1, this method returns status information for all currently
@@ -1069,7 +1079,7 @@ class ManagementImpl implements Management {
     public synchronized TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages) {
         return queryTaskStatus(taskId, details, clearMessages, true);
     }
-    
+
     /**
      * Queries the current status of one or all tasks. If the specified taskId
      * value is -1, this method returns status information for all currently
@@ -1090,7 +1100,8 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public synchronized TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages, boolean clearTasks) {
+    public synchronized TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages,
+            boolean clearTasks) {
         if (taskId == -1) {
             int size = _tasks.size();
             int index = 0;
