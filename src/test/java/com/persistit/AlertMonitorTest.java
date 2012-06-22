@@ -78,8 +78,8 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
 
     class AggregatingEvent extends Event {
 
-        AggregatingEvent(LogItem logItem, Object... args) {
-            super(logItem, args);
+        AggregatingEvent(AlertLevel level, LogItem logItem, Object... args) {
+            super(level, logItem, args);
         }
 
         protected void added(final History h) {
@@ -102,7 +102,7 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
     public void testPostEvents() throws Exception {
         AlertMonitor monitor = _persistit.getAlertMonitor();
         for (int index = 0; index < 100; index++) {
-            monitor.post(new Event(_persistit.getLogBase().copyright, index), CATEGORY, AlertLevel.NORMAL);
+            monitor.post(new Event(AlertLevel.NORMAL, _persistit.getLogBase().copyright, index), CATEGORY);
         }
         History history = monitor.getHistory(CATEGORY);
         assertNotNull(history);
@@ -120,8 +120,8 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
         monitor.poll(true);
         assertNull("At AlertLevel.NORMAL there should not be a log message", _lastMessage);
         for (int index = 0; index < 100; index++) {
-            monitor.post(new Event(_persistit.getLogBase().exception, new RuntimeException("Bogus " + index)),
-                    CATEGORY, AlertLevel.ERROR);
+            monitor.post(new Event(AlertLevel.ERROR, _persistit.getLogBase().exception, new RuntimeException("Bogus "
+                    + index)), CATEGORY);
         }
         monitor.poll(true);
         assertNotNull("At AlertLevel.ERROR there should be a log message", _lastMessage);
@@ -140,13 +140,13 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
     public void testChangeHistoryLength() throws Exception {
         AlertMonitor monitor = _persistit.getAlertMonitor();
         for (int index = 0; index < 100; index++) {
-            monitor.post(new AggregatingEvent(_persistit.getLogBase().copyright, index), CATEGORY, AlertLevel.NORMAL);
+            monitor.post(new AggregatingEvent(AlertLevel.NORMAL, _persistit.getLogBase().copyright, index), CATEGORY);
         }
         History history = monitor.getHistory(CATEGORY);
         assertEquals("History should have 10 events", 10, history.getEventList().size());
         monitor.setHistoryLength(5);
         assertEquals("History should now have 5 events", 5, history.getEventList().size());
-        monitor.post(new AggregatingEvent(_persistit.getLogBase().copyright, 101), CATEGORY, AlertLevel.NORMAL);
+        monitor.post(new AggregatingEvent(AlertLevel.NORMAL, _persistit.getLogBase().copyright, 101), CATEGORY);
         assertEquals("History should still have 5 events", 5, history.getEventList().size());
         assertEquals("Total of 101 events added", 101, _added);
         assertEquals("Total of 101-5 events removed", 101 - 5, _removed);
@@ -161,7 +161,7 @@ public class AlertMonitorTest extends PersistitUnitTestCase {
                 ((AlertMonitorTest) handback)._notification = notification;
             }
         }, null, this);
-        monitor.post(new Event(_persistit.getLogBase().copyright, 2012), CATEGORY, AlertLevel.ERROR);
+        monitor.post(new Event(AlertLevel.ERROR, _persistit.getLogBase().copyright, 2012), CATEGORY);
         Thread.sleep(1000);
         assertNotNull(_notification);
     }

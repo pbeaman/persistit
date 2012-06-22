@@ -685,8 +685,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             return false;
         }
 
-        PageNode pn = new PageNode(pnLookup.getVolumeHandle(), pnLookup.getPageAddress(),
-                                   pnLookup.getJournalAddress(), pnLookup.getTimestamp());
+        PageNode pn = new PageNode(pnLookup.getVolumeHandle(), pnLookup.getPageAddress(), pnLookup.getJournalAddress(),
+                pnLookup.getTimestamp());
         sequence(PAGE_MAP_READ_INVALIDATE_A);
 
         /*
@@ -1125,6 +1125,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         TX.putTimestamp(_writeBuffer, startTimestamp);
         TX.putCommitTimestamp(_writeBuffer, commitTimestamp);
         TX.putBackchainAddress(_writeBuffer, backchainAddress);
+        _persistit.getIOMeter().chargeWriteTXtoJournal(recordSize, _currentAddress);
         advance(TX.OVERHEAD);
         try {
             _writeBuffer.put(buffer);
@@ -2305,9 +2306,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                         _closed.set(true);
                     } else if (e instanceof PersistitException) {
                         _persistit.getAlertMonitor().post(
-                                new Event(_persistit.getLogBase().journalWriteError, e,
+                                new Event(AlertLevel.ERROR, _persistit.getLogBase().journalWriteError, e,
                                         addressToFile(_writeBufferAddress), addressToOffset(_writeBufferAddress)),
-                                AlertMonitor.JOURNAL_CATEGORY, AlertLevel.ERROR);
+                                AlertMonitor.JOURNAL_CATEGORY);
                     } else {
                         _persistit.getLogBase().journalWriteError.log(e, addressToFile(_writeBufferAddress),
                                 addressToOffset(_writeBufferAddress));
@@ -2630,17 +2631,17 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         int journalFileCount = getJournalFileCount();
         if (journalFileCount != _lastReportedJournalFileCount) {
             if (journalFileCount > TOO_MANY_ERROR_THRESHOLD) {
-                _persistit.getAlertMonitor().post(
-                        new Event(_persistit.getLogBase().tooManyJournalFilesError, journalFileCount),
-                        AlertMonitor.MANY_JOURNAL_FILES, AlertLevel.ERROR);
+                _persistit.getAlertMonitor()
+                        .post(new Event(AlertLevel.ERROR, _persistit.getLogBase().tooManyJournalFilesError,
+                                journalFileCount), AlertMonitor.MANY_JOURNAL_FILES);
             } else if (journalFileCount > TOO_MANY_WARN_THRESHOLD) {
-                _persistit.getAlertMonitor().post(
-                        new Event(_persistit.getLogBase().tooManyJournalFilesWarning, journalFileCount),
-                        AlertMonitor.MANY_JOURNAL_FILES, AlertLevel.WARN);
+                _persistit.getAlertMonitor()
+                        .post(new Event(AlertLevel.WARN, _persistit.getLogBase().tooManyJournalFilesWarning,
+                                journalFileCount), AlertMonitor.MANY_JOURNAL_FILES);
             } else {
                 _persistit.getAlertMonitor().post(
-                        new Event(_persistit.getLogBase().normalJournalFileCount, journalFileCount),
-                        AlertMonitor.MANY_JOURNAL_FILES, AlertLevel.NORMAL);
+                        new Event(AlertLevel.NORMAL, _persistit.getLogBase().normalJournalFileCount, journalFileCount),
+                        AlertMonitor.MANY_JOURNAL_FILES);
             }
             _lastReportedJournalFileCount = journalFileCount;
         }
@@ -2687,7 +2688,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     class ProactiveRollbackListener implements TransactionPlayerListener {
-        
+
         TransactionStatus status;
 
         @Override

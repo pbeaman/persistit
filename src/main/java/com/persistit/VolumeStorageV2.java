@@ -450,8 +450,9 @@ class VolumeStorageV2 extends VolumeStorage {
                 _volume.getStatistics().bumpReadCounter();
 
             } catch (IOException ioe) {
-                _persistit.getAlertMonitor().post(new Event(_persistit.getLogBase().readException, ioe, _volume, page, buffer.getIndex()),
-                        AlertMonitor.READ_PAGE_CATEGORY, AlertLevel.ERROR);
+                _persistit.getAlertMonitor().post(
+                        new Event(AlertLevel.ERROR, _persistit.getLogBase().readException, ioe, _volume, page, buffer
+                                .getIndex()), AlertMonitor.READ_PAGE_CATEGORY);
                 throw new PersistitIOException(ioe);
             }
         } finally {
@@ -488,8 +489,9 @@ class VolumeStorageV2 extends VolumeStorage {
         try {
             _channel.write(bb, page * _volume.getStructure().getPageSize());
         } catch (IOException ioe) {
-            _persistit.getAlertMonitor().post(new Event(_persistit.getLogBase().writeException, ioe, _volume, page),
-                    AlertMonitor.WRITE_PAGE_CATEGORY, AlertLevel.ERROR);
+            _persistit.getAlertMonitor().post(
+                    new Event(AlertLevel.ERROR, _persistit.getLogBase().writeException, ioe, _volume, page),
+                    AlertMonitor.WRITE_PAGE_CATEGORY);
             throw new PersistitIOException(ioe);
         }
     }
@@ -625,8 +627,9 @@ class VolumeStorageV2 extends VolumeStorage {
             _volume.getStatistics().setLastExtensionTime(System.currentTimeMillis());
             _extendedPageCount = pageCount;
         } catch (IOException ioe) {
-            _persistit.getAlertMonitor().post(new Event(_persistit.getLogBase().extendException, ioe, currentSize, newSize),
-                    AlertMonitor.EXTEND_VOLUME_CATEGORY, AlertLevel.ERROR);
+            _persistit.getAlertMonitor().post(
+                    new Event(AlertLevel.ERROR, _persistit.getLogBase().extendException, ioe, currentSize, newSize),
+                    AlertMonitor.EXTEND_VOLUME_CATEGORY);
             throw new PersistitIOException(ioe);
         }
     }

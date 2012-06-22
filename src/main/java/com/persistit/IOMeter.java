@@ -68,17 +68,13 @@ class IOMeter implements IOMeterMXBean {
     private final static int READ_PAGE_FROM_JOURNAL = 2;
     private final static int COPY_PAGE_TO_VOLUME = 3;
     private final static int WRITE_PAGE_TO_JOURNAL = 4;
-    private final static int WRITE_TS_TO_JOURNAL = 5;
-    private final static int WRITE_TC_TO_JOURNAL = 6;
-    private final static int WRITE_SR_TO_JOURNAL = 7;
-    private final static int WRITE_DR_TO_JOURNAL = 8;
-    private final static int WRITE_DT_TO_JOURNAL = 9;
-    private final static int WRITE_OTHER_TO_JOURNAL = 10;
-    private final static int EVICT_PAGE_FROM_POOL = 11;
-    private final static int FLUSH_JOURNAL = 12;
-    private final static int GET_PAGE = 13;
+    private final static int WRITE_TX_TO_JOURNAL = 5;
+    private final static int WRITE_OTHER_TO_JOURNAL = 6;
+    private final static int EVICT_PAGE_FROM_POOL = 7;
+    private final static int FLUSH_JOURNAL = 8;
+    private final static int GET_PAGE = 9;
 
-    private final static int ITEM_COUNT = 14;
+    private final static int ITEM_COUNT = 10;
 
     private long _quiescentIOthreshold = DEFAULT_QUIESCENT_IO_THRESHOLD;
 
@@ -321,29 +317,9 @@ class IOMeter implements IOMeterMXBean {
         charge(size, WRITE_PAGE_TO_JOURNAL);
     }
 
-    public void chargeWriteTStoJournal(final int size, final long journalAddress) {
-        log(WRITE_TS_TO_JOURNAL, null, -1, size, journalAddress, -1);
-        charge(size, WRITE_TS_TO_JOURNAL);
-    }
-
-    public void chargeWriteTCtoJournal(final int size, final long journalAddress) {
-        log(WRITE_TC_TO_JOURNAL, null, -1, size, journalAddress, -1);
-        charge(size, WRITE_TC_TO_JOURNAL);
-    }
-
-    public void chargeWriteSRtoJournal(final int size, final long journalAddress) {
-        log(WRITE_SR_TO_JOURNAL, null, -1, size, journalAddress, -1);
-        charge(size, WRITE_SR_TO_JOURNAL);
-    }
-
-    public void chargeWriteDRtoJournal(final int size, final long journalAddress) {
-        log(WRITE_DR_TO_JOURNAL, null, -1, size, journalAddress, -1);
-        charge(size, WRITE_DR_TO_JOURNAL);
-    }
-
-    public void chargeWriteDTtoJournal(final int size, final long journalAddress) {
-        log(WRITE_DT_TO_JOURNAL, null, -1, size, journalAddress, -1);
-        charge(size, WRITE_DT_TO_JOURNAL);
+    public void chargeWriteTXtoJournal(final int size, final long journalAddress) {
+        log(WRITE_TX_TO_JOURNAL, null, -1, size, journalAddress, -1);
+        charge(size, WRITE_TX_TO_JOURNAL);
     }
 
     public void chargeWriteOtherToJournal(final int size, final long journalAddress) {
