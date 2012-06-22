@@ -2175,7 +2175,7 @@ public class Persistit {
         return _ioMeter;
     }
 
-    AlertMonitor getAlertMonitor() {
+    public AlertMonitor getAlertMonitor() {
         return _alertMonitor;
     }
 

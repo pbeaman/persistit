@@ -446,6 +446,49 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
         }
     }
 
+    public static class AlertRecord {
+        final String _category;
+        final AlertLevel _level;
+        final long _time;
+        final String _message;
+
+        private AlertRecord(final String category, final Event event) {
+            _category = category;
+            _level = event.getLevel();
+            _time = event.getTime();
+            _message = event.logMessage();
+        }
+
+        /**
+         * @return the category
+         */
+        public String getCategory() {
+            return _category;
+        }
+
+        /**
+         * @return the level
+         */
+        public AlertLevel getLevel() {
+            return _level;
+        }
+
+        /**
+         * @return the _time
+         */
+        public long getTime() {
+            return _time;
+        }
+
+        /**
+         * @return the message
+         */
+        public String getMessage() {
+            return _message;
+        }
+
+    }
+
     final static String NOTIFICATION_TYPE = "com.persistit.AlertMonitor";
 
     private final Map<String, History> _historyMap = new TreeMap<String, History>();
@@ -607,6 +650,22 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
         for (final History history : _historyMap.values()) {
             history.trim(historyLength);
         }
+    }
+
+    /**
+     * Generate a list of event data suitable for the Akiban Server in-memory
+     * tables implementation.
+     * 
+     * @return List of AlertRecord elements.
+     */
+    public synchronized AlertRecord[] getAlertRecordArray() {
+        List<AlertRecord> list = new ArrayList<AlertRecord>();
+        for (final Map.Entry<String, History> entry : _historyMap.entrySet()) {
+            for (final Event event : entry.getValue().getEventList()) {
+                list.add(new AlertRecord(entry.getKey(), event));
+            }
+        }
+        return list.toArray(new AlertRecord[list.size()]);
     }
 
     /**
