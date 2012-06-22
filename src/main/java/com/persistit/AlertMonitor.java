@@ -23,6 +23,7 @@ package com.persistit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -288,7 +289,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
          * @param level
          *            the <code>AlertLevel</code> that should be assigned to it
          */
-        private void addEvent(final Event event, final AlertLevel level) {
+        private void addEvent(final Event event) {
             trim(_historyLength - 1);
             _eventList.add(event);
             _count++;
@@ -297,7 +298,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
                 _firstEvent = event;
             }
             event.added(this);
-            _level = level;
+            _level = event.getLevel();
         }
 
         /**
@@ -320,6 +321,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * event was posted.
      */
     public static class Event {
+        private AlertLevel _level;
         private final LogItem _logItem;
         private final Object[] _args;
         private final long _time;
@@ -328,19 +330,23 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
          * Construct an <code>Event</code> for the specified {@link LogItem} and
          * arguments with the current system time.
          * 
+         * @param level
+         *            AlertLevel assigned to this event by the posting process
          * @param logItem
          *            <code>LogItem</code> to be used in logging this event
          * @param args
          *            arguments specific to the <code>LogItem</code>
          */
-        public Event(LogItem logItem, Object... args) {
-            this(System.currentTimeMillis(), logItem, args);
+        public Event(AlertLevel level, LogItem logItem, Object... args) {
+            this(level, System.currentTimeMillis(), logItem, args);
         }
 
         /**
          * Construct an <code>Event</code> for the specified {@link LogItem} and
          * arguments with the specified system time.
          * 
+         * @param level
+         *            AlertLevel assigned to this event by the posting process
          * @param time
          *            System time in milliseconds at which the event occurred
          * @param logItem
@@ -348,10 +354,19 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
          * @param args
          *            arguments specific to the <code>LogItem</code>
          */
-        public Event(long time, LogItem logItem, Object... args) {
+        public Event(AlertLevel level, long time, LogItem logItem, Object... args) {
+            _level = level;
             _logItem = logItem;
             _args = args;
             _time = time;
+        }
+
+        /**
+         * 
+         * @return the AlertLevel assigned to this Event.
+         */
+        public AlertLevel getLevel() {
+            return _level;
         }
 
         /**
@@ -417,14 +432,61 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
             // Default: do nothing
         }
 
+        public String logMessage() {
+            return _logItem.logMessage(_args);
+        }
+
         /**
          * @return a description of the event with human-readable time and log
          *         message
          */
         @Override
         public String toString() {
-            return Util.date(_time) + " " + _logItem.logMessage(_args);
+            return Util.date(_time) + " " + logMessage();
         }
+    }
+
+    public static class AlertRecord {
+        final String _category;
+        final AlertLevel _level;
+        final long _time;
+        final String _message;
+
+        private AlertRecord(final String category, final Event event) {
+            _category = category;
+            _level = event.getLevel();
+            _time = event.getTime();
+            _message = event.logMessage();
+        }
+
+        /**
+         * @return the category
+         */
+        public String getCategory() {
+            return _category;
+        }
+
+        /**
+         * @return the level
+         */
+        public AlertLevel getLevel() {
+            return _level;
+        }
+
+        /**
+         * @return the _time
+         */
+        public long getTime() {
+            return _time;
+        }
+
+        /**
+         * @return the message
+         */
+        public String getMessage() {
+            return _message;
+        }
+
     }
 
     final static String NOTIFICATION_TYPE = "com.persistit.AlertMonitor";
@@ -478,13 +540,13 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * @param level
      *            Indicates whether this event is a warning or an error.
      */
-    public synchronized final void post(Event event, final String category, AlertLevel level) {
+    public synchronized final void post(Event event, final String category) {
         History history = _historyMap.get(category);
         if (history == null) {
             history = new History();
             _historyMap.put(category, history);
         }
-        history.addEvent(event, level);
+        history.addEvent(event);
         history.poll(event.getTime(), false);
     }
 
@@ -563,6 +625,14 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
     }
 
     /**
+     * @return Map sorted by category name of all History elements.
+     */
+
+    public synchronized SortedMap<String, History> getHistoryMap() {
+        return new TreeMap<String, History>(_historyMap);
+    }
+
+    /**
      * Set the number of <code>Event</code>s per category to keep in the
      * <code>History</code>. Once the number of events exceeds this count,
      * earlier events are removed when new events are added. (However, the first
@@ -580,6 +650,22 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
         for (final History history : _historyMap.values()) {
             history.trim(historyLength);
         }
+    }
+
+    /**
+     * Generate a list of event data suitable for the Akiban Server in-memory
+     * tables implementation.
+     * 
+     * @return List of AlertRecord elements.
+     */
+    public synchronized AlertRecord[] getAlertRecordArray() {
+        List<AlertRecord> list = new ArrayList<AlertRecord>();
+        for (final Map.Entry<String, History> entry : _historyMap.entrySet()) {
+            for (final Event event : entry.getValue().getEventList()) {
+                list.add(new AlertRecord(entry.getKey(), event));
+            }
+        }
+        return list.toArray(new AlertRecord[list.size()]);
     }
 
     /**

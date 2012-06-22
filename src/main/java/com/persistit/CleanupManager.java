@@ -155,8 +155,8 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
                 _performed.incrementAndGet();
             } catch (PersistitException e) {
                 lastException(e);
-                _persistit.getAlertMonitor().post(new Event(_persistit.getLogBase().cleanupException, e, action),
-                        AlertMonitor.CLEANUP_CATEGORY, AlertLevel.ERROR);
+                _persistit.getAlertMonitor().post(new Event(AlertLevel.ERROR, _persistit.getLogBase().cleanupException, e, action),
+                        AlertMonitor.CLEANUP_CATEGORY);
                 _errors.incrementAndGet();
             }
         }

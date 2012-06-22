@@ -21,6 +21,8 @@
 package com.persistit.mxbeans;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.management.MXBean;
 
@@ -47,30 +49,27 @@ public interface IOMeterMXBean {
      * <dt>RJ</dt>
      * <dd>Read page from Journal</dd>
      * <dt>CC</dt>
-     * <dd>Page copy from Journal to Volume</dd>
+     * <dd>Copy page from journal to volume</dd>
      * <dt>WJ</dt>
      * <dd>Write page from Journal</dd>
-     * <dt>TS</dt>
-     * <dd>Transaction Start</dd>
-     * <dt>TC</dt>
-     * <dd>Transaction Commit</dd>
-     * <dt>SR</dt>
-     * <dd>Store Record</dd>
-     * <dt>DR</dt>
-     * <dd>Delete Record or Range</dd>
-     * <dt>DT</dt>
-     * <dd>Delete Tree</dd>
+     * <dt>TJ</dt>
+     * <dd>Write Transaction to Journal</dd>
      * <dt>XX</dt>
      * <dd>Other</dd>
      * <dt>EV</dt>D
      * <dd>Evict page from pool</dd>
      * <dt>FJ</dt>
      * <dd>Flush journal</dd>
+     * <dt>GP</dt>
+     * <dd>Get Page</dd>
      * </dl>
      * 
      */
-    public final static String[] OPERATIONS = { "??", "RV", "RJ", "CC", "WJ", "TS", "TC", "SR", "DR", "DT", "XX", "EV",
-            "FJ", "GP" };
+    public final static String[] OPERATION_NAMES = { "Unknown", "Read page from Volume", "Read page from Journal",
+            "Copy page from journal to volume", "Write page from Journal", "Write Transaction to Journal", "Other",
+            "Evict page from pool", "Flush journal", "Get page" };
+
+    public final static String[] OPERATIONS = { "??", "RV", "RJ", "CC", "WJ", "TJ", "XX", "EV", "FJ", "GP" };
 
     public final static String[] SUMMARY_ITEMS = { "CC", "RV", "RJ", "WJ", "EV", "FJ" };
 

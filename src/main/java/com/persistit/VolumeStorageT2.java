@@ -282,8 +282,8 @@ class VolumeStorageT2 extends VolumeStorage {
                 _volume.getStatistics().bumpReadCounter();
             } catch (IOException ioe) {
                 _persistit.getAlertMonitor().post(
-                        new Event(_persistit.getLogBase().readException, ioe, _volume, page, buffer.getIndex()),
-                        AlertMonitor.READ_PAGE_CATEGORY, AlertLevel.ERROR);
+                        new Event(AlertLevel.ERROR, _persistit.getLogBase().readException, ioe, _volume, page, buffer
+                                .getIndex()), AlertMonitor.READ_PAGE_CATEGORY);
                 throw new PersistitIOException(ioe);
             }
         } finally {
@@ -319,8 +319,8 @@ class VolumeStorageT2 extends VolumeStorage {
 
             } catch (IOException ioe) {
                 _persistit.getAlertMonitor().post(
-                        new Event(_persistit.getLogBase().writeException, ioe, _volume, page),
-                        AlertMonitor.WRITE_PAGE_CATEGORY, AlertLevel.ERROR);
+                        new Event(AlertLevel.ERROR, _persistit.getLogBase().writeException, ioe, _volume, page),
+                        AlertMonitor.WRITE_PAGE_CATEGORY);
                 throw new PersistitIOException(ioe);
             }
         } finally {
