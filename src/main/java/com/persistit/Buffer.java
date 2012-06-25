@@ -2298,8 +2298,7 @@ public class Buffer extends SharedResource {
             }
             //
             // It is really bad if whereInserted is less than 0. Means that we
-            // failed
-            // to replace the value.
+            // failed to replace the value.
             //
             Debug.$assert0.t(whereInserted > 0);
             if (whereInserted <= 0) {
