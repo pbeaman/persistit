@@ -269,7 +269,7 @@ public class Buffer extends SharedResource {
     public final static int MAX_KEY_RATIO = 16;
 
     private final static int BINARY_SEARCH_THRESHOLD = 6;
-
+    
     abstract static class VerifyVisitor {
 
         protected void visitPage(long timestamp, Volume volume, long page, int type, int bufferSize, int keyBlockStart,
@@ -318,28 +318,28 @@ public class Buffer extends SharedResource {
     /**
      * A ByteBuffer facade for this Buffer used in NIO operations
      */
-    private ByteBuffer _byteBuffer;
+    private final ByteBuffer _byteBuffer;
+
+    /**
+     * The size of this buffer
+     */
+    private final int _bufferSize;
 
     /**
      * The bytes in this buffer. Note these bytes are also the backing store of
      * _byteBuffer.
      */
     private byte[] _bytes;
+    
+    /**
+     * FastIndex structure used for rapid page searching
+     */
+    private final FastIndex _fastIndex;
 
     /**
      * The right sibling page address
      */
     private volatile long _rightSibling;
-
-    /**
-     * The size of this buffer
-     */
-    private int _bufferSize;
-
-    /**
-     * FastIndex structure used for rapid page searching
-     */
-    private FastIndex _fastIndex;
 
     /**
      * Type code for this page.
@@ -405,6 +405,7 @@ public class Buffer extends SharedResource {
         _byteBuffer = ByteBuffer.allocate(size);
         _bytes = _byteBuffer.array();
         _bufferSize = size;
+        _fastIndex = new FastIndex(this, 1 + (size - HEADER_SIZE) / MAX_KEY_RATIO);
     }
 
     Buffer(Buffer original) {
@@ -421,20 +422,6 @@ public class Buffer extends SharedResource {
         setKeyBlockEnd(original._keyBlockEnd);
         _tailHeaderSize = original._tailHeaderSize;
         System.arraycopy(original._bytes, 0, _bytes, 0, _bytes.length);
-    }
-
-    Buffer(Persistit persistit, Volume vol, long page, byte[] bytes) throws InvalidPageStructureException,
-            PersistitInterruptedException {
-        this(bytes.length, -1, persistit.getBufferPool(bytes.length), persistit);
-        System.arraycopy(bytes, 0, _bytes, 0, bytes.length);
-        _vol = vol;
-        _page = page;
-        claim(true);
-        try {
-            load();
-        } finally {
-            release();
-        }
     }
 
     /**
@@ -508,11 +495,11 @@ public class Buffer extends SharedResource {
                 } else if (isIndexPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_INDEX;
                 }
-                invalidateFastIndex();
             }
         } else {
             _type = PAGE_TYPE_HEAD;
         }
+        invalidateFastIndex();
         bumpGeneration();
     }
 
@@ -1406,7 +1393,6 @@ public class Buffer extends SharedResource {
         if (Debug.ENABLED) {
             assertVerify();
         }
-        final FastIndex fastIndex = _fastIndex;
 
         boolean exactMatch = (foundAt & EXACT_MASK) > 0;
         int p = foundAt & P_MASK;
@@ -1522,11 +1508,10 @@ public class Buffer extends SharedResource {
                         _bytes.length); // TODO limit
                 incCountIfMvv(_bytes, newTail + _tailHeaderSize + klength, storedLength & MVV.STORE_LENGTH_MASK);
             }
-
-            if (fastIndex != null) {
-                fastIndex.insertKeyBlock(p, ebcSuccessor, fixupSuccessor);
-            }
-
+            //
+            // Correct not to call getFastIndex()
+            //
+            _fastIndex.insertKeyBlock(p, ebcSuccessor, fixupSuccessor);
             bumpGeneration();
 
             if (p > KEY_BLOCK_START) {
@@ -2294,7 +2279,7 @@ public class Buffer extends SharedResource {
             if (foundAtPosition >= splitAtPosition && (!lastLeft || foundAtPosition > splitAtPosition)) {
                 foundAt -= (splitAtPosition - KEY_BLOCK_START);
                 if (firstRight && !fixupSuccessor) {
-                    foundAt = (foundAt & P_MASK) | FIXUP_MASK | (ebc << DEPTH_SHIFT);
+                    foundAt = (foundAt & P_MASK) | (ebc > 0 ? FIXUP_MASK : 0) | (ebc << DEPTH_SHIFT);
                 }
                 final int t = rightSibling.putValue(key, valueHelper, foundAt, true);
                 whereInserted = -foundAt;
@@ -2313,8 +2298,7 @@ public class Buffer extends SharedResource {
             }
             //
             // It is really bad if whereInserted is less than 0. Means that we
-            // failed
-            // to replace the value.
+            // failed to replace the value.
             //
             Debug.$assert0.t(whereInserted > 0);
             if (whereInserted <= 0) {
@@ -2830,36 +2814,15 @@ public class Buffer extends SharedResource {
 
     }
 
-    void invalidateFastIndex() {
-        if (_fastIndex != null) {
+    synchronized void invalidateFastIndex() {
             _fastIndex.invalidate();
-        }
     }
 
-    synchronized FastIndex getFastIndex() throws PersistitInterruptedException {
-        // TODO - replace synchronized with CAS instructions
-        if (_fastIndex == null) {
-            _fastIndex = _pool.allocFastIndex();
-            _fastIndex.setBuffer(this);
-        }
+    synchronized FastIndex getFastIndex() {
         if (!_fastIndex.isValid()) {
             _fastIndex.recompute();
         }
-        _fastIndex.setTouched();
         return _fastIndex;
-    }
-
-    synchronized void takeFastIndex() {
-        _fastIndex = null;
-    }
-
-    /**
-     * Only for unit tests.
-     * 
-     * @param fastIndex
-     */
-    void setFastIndex(final FastIndex fastIndex) {
-        _fastIndex = fastIndex;
     }
 
     private void reduceEbc(int p, int newEbc, byte[] indexKeyBytes) {
@@ -3305,8 +3268,7 @@ public class Buffer extends SharedResource {
 
     static int bufferSizeWithOverhead(final int bufferSize) {
         int fastIndexSize = ((bufferSize - HEADER_SIZE) / MAX_KEY_RATIO) * FastIndex.BYTES_PER_ENTRY;
-        int fastIndexOverhead = (int) (fastIndexSize * BufferPool.FAST_INDEX_RATIO);
-        return bufferSize + fastIndexOverhead + ESTIMATED_FIXED_BUFFER_OVERHEAD;
+        return bufferSize + fastIndexSize + ESTIMATED_FIXED_BUFFER_OVERHEAD;
     }
 
     /**

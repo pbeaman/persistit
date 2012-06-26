@@ -29,6 +29,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.Arrays;
+
 import org.junit.Test;
 
 import com.persistit.ValueHelper.RawValueWriter;
@@ -331,6 +333,53 @@ public class BufferTest2 extends PersistitUnitTestCase {
         b1.removeKeys(foundAt1 & ~EXACT_MASK, foundAt2, ex.getAuxiliaryKey1());
     }
 
+    @Test
+    public void splitAndJoinBuffersWithZeroEbcKeys() throws Exception {
+        b1.init(Buffer.PAGE_TYPE_DATA);
+        b2.init(Buffer.PAGE_TYPE_DATA);
+        setUpValue(true, b1.getBufferSize() / 100);
+
+        int a;
+        for (a = 1;; a++) {
+            setUpShallowKey(a);
+            if (b1.putValue(ex.getKey(), vw) == -1) {
+                break;
+            }
+        }
+        setUpShallowKey(a / 2);
+        ex.getKey().getEncodedBytes()[6] = 0x7F;
+        ex.getKey().setEncodedSize(7);
+        int foundAt = b1.findKey(ex.getKey());
+        int splitAt = b1.split(b2, ex.getKey(), vw, foundAt, ex.getAuxiliaryKey1(), Exchange.Sequence.NONE,
+                SplitPolicy.EVEN_BIAS);
+
+        assertTrue("Split failed", splitAt != -1);
+        assertTrue("Verify failed", b1.verify(null, null) == null);
+        assertTrue("Verify failed", b2.verify(null, null) == null);
+        
+        for (int b = 1; b < a; b++) {
+            setUpShallowKey(b);
+            if (b <= a / 2) {
+                b1.fetch(b1.findKey(ex.getKey()), ex.getValue());
+            } else {
+                b2.fetch(b2.findKey(ex.getKey()), ex.getValue());
+            }
+            assertTrue("Value should be defined", ex.getValue().isDefined());
+        }
+        
+        setUpShallowKey(a / 2);
+        ex.getKey().getEncodedBytes()[6] = 0x7F;
+        ex.getKey().setEncodedSize(7);
+        int foundAt1 = b1.findKey(ex.getKey());
+        int foundAt2 = b2.findKey(ex.getKey());
+        assertTrue("Should have found exact match", (foundAt2 & EXACT_MASK) > 0);
+        foundAt2 = b2.nextKeyBlock(foundAt2);
+        boolean rebalanced = b1.join(b2, foundAt1, foundAt2, ex.getKey(), ex.getAuxiliaryKey1(), JoinPolicy.EVEN_BIAS);
+        assertTrue("Should have joined pages", !rebalanced);
+        assertTrue("Verify failed", b1.verify(null, null) == null);
+        assertTrue("Verify failed", b2.verify(null, null) == null);
+    }
+
     private void setUpPrettyFullBufferWithChangingEbc(final int valueLength) throws PersistitException {
         b1.init(Buffer.PAGE_TYPE_DATA);
         setUpValue(false, valueLength);
@@ -398,6 +447,26 @@ public class BufferTest2 extends PersistitUnitTestCase {
 
     private void setUpDeepKey(Exchange ex, char fill, int n, long pointer) {
         ex.getKey().clear().append(keyString(fill, n, n - 4, 4, n)).append(1);
+        ex.getValue().setPointerValue(pointer);
+    }
+
+    private void setUpShallowKey(final int a) {
+        setUpShallowKey(ex, a, 0);
+    }
+
+    private void setUpShallowKey(Exchange ex, int value, long pointer) {
+        byte[] bytes = ex.getKey().clear().getEncodedBytes();
+        Arrays.fill(bytes, (byte) 0);
+        /*
+         * Convert int to little-endian form so that byte 0 varies fastest. 7
+         * bits per byte, no zeroes.
+         */
+        bytes[0] = (byte) (((value >>> 0) & 0x7F) + 1);
+        bytes[1] = (byte) (((value >>> 7) & 0x7F) + 1);
+        bytes[2] = (byte) (((value >>> 14) & 0x7F) + 1);
+        bytes[3] = (byte) (((value >>> 21) & 0x7F) + 1);
+        bytes[5] = (byte) (((value >>> 28) & 0x7F) + 1);
+        ex.getKey().setEncodedSize(6);
         ex.getValue().setPointerValue(pointer);
     }
 
