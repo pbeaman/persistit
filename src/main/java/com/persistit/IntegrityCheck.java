@@ -87,7 +87,6 @@ public class IntegrityCheck extends Task {
     private Value _value = new Value((Persistit) null);
     private MVVVisitor _versionVisitor = new MVVVisitor();
 
-
     private static class Counters {
 
         private long _indexPageCount = 0;
@@ -777,9 +776,12 @@ public class IntegrityCheck extends Task {
         counters.difference(_counters);
         faults = _faults.size() - faults;
         if (_csv) {
-            postMessage(String.format("\"%s\",\"%s\",%d,%s", resourceName(volume), "*", faults, counters.toCSV()), LOG_NORMAL);
+            postMessage(String.format("\"%s\",\"%s\",%d,%s", resourceName(volume), "*", faults, counters.toCSV()),
+                    LOG_NORMAL);
         } else {
-            postMessage("Volume " + resourceName(volume) + String.format(" Faults:%,3d ", faults) + counters.toString(), LOG_VERBOSE);
+            postMessage(
+                    "Volume " + resourceName(volume) + String.format(" Faults:%,3d ", faults) + counters.toString(),
+                    LOG_VERBOSE);
         }
 
         return faults == 0;
@@ -1078,13 +1080,15 @@ public class IntegrityCheck extends Task {
                 }
 
                 if (page <= 0 || page > Buffer.MAX_VALID_PAGE_ADDR) {
-                    addFault("Invalid right sibling address", buffer.getPageAddress(), level, 0);
+                    addFault(String.format("Invalid right sibling address in page %,d after walking right %,d", buffer
+                            .getPageAddress(), walkCount), startingBuffer.getPageAddress(), level, 0);
                     key.clear();
                     oldBuffer = buffer;
                     return startingBuffer;
                 }
                 if (walkCount-- <= 0) {
-                    addFault("More than " + Exchange.MAX_WALK_RIGHT + " unindexed siblings", page, level, 0);
+                    addFault("More than " + Exchange.MAX_WALK_RIGHT + " unindexed siblings", startingBuffer
+                            .getPageAddress(), level, 0);
                     key.clear();
                     oldBuffer = buffer;
                     return startingBuffer;
