@@ -826,9 +826,9 @@ public class IntegrityCheck extends Task {
                 }
                 _currentTree = null;
             }
-            if (_holes.size() > 0) {
-                postMessage("  Tree " + resourceName(tree) + " has " + plural(_holes.size(), "unindexed page"),
-                        LOG_NORMAL);
+            if (_counters._indexHoleCount > 0) {
+                postMessage("  Tree " + resourceName(tree) + " has "
+                        + plural((int) _counters._indexHoleCount, "unindexed page"), LOG_NORMAL);
                 if (_fixHoles) {
                     int offered = 0;
                     for (final CleanupIndexHole hole : _holes) {
@@ -1075,7 +1075,8 @@ public class IntegrityCheck extends Task {
                 }
 
                 _counters._indexHoleCount++;
-                if (_holes.size() < MAX_HOLES_TO_FIX) {
+                final int treeHandle = _currentTree.getHandle();
+                if (treeHandle != 0 && _holes.size() < MAX_HOLES_TO_FIX) {
                     _holes.add(new CleanupIndexHole(_currentTree.getHandle(), page, level));
                 }
 

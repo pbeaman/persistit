@@ -3711,8 +3711,9 @@ public class Buffer extends SharedResource {
             if (p == KEY_BLOCK_START) {
                 if (tree != null) {
                     if (!_enqueuedForAntiValuePruning) {
-                        if (_persistit.getCleanupManager().offer(
-                                new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
+                        final int treeHandle = tree.getHandle();
+                        if (treeHandle != 0 && _persistit.getCleanupManager().offer(
+                                new CleanupAntiValue(treeHandle, getPageAddress()))) {
                             _enqueuedForAntiValuePruning = true;
                         }
                     }
