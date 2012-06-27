@@ -188,7 +188,9 @@ class VolumeStructure {
         } else {
             return null;
         }
-        _persistit.getJournalManager().handleForTree(tree);
+        if (!_volume.isTemporary()) {
+            _persistit.getJournalManager().handleForTree(tree);
+        }
         _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
         return tree;
     }
