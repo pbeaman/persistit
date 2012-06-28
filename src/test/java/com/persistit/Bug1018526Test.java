@@ -76,10 +76,11 @@ public class Bug1018526Test extends PersistitUnitTestCase {
     public void temporaryVolumesAndTreesNotReloaded() throws Exception {
         final Set<Integer> permTreeHandleSet = new HashSet<Integer>();
         final Volume permVolume = _persistit.getVolume("persistit");
+        _persistit.getJournalManager().unitTestAllowHandlesForTemporaryVolumesAndTrees();
         for (int i = 0; i < 20; i++) {
             final Volume tempVolume = _persistit.createTemporaryVolume();
             for (int j = 0; j < 10; j++) {
-                final Tree tempTree= tempVolume.getTree("temp_tree_" + i + "_" + j, true);
+                final Tree tempTree = tempVolume.getTree("temp_tree_" + i + "_" + j, true);
                 _persistit.getJournalManager().handleForTree(tempTree);
                 final Tree permTree= permVolume.getTree("perm_tree_" + i + "_" + j, true);
                 _persistit.getJournalManager().handleForTree(permTree);

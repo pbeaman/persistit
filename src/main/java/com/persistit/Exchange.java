@@ -1330,7 +1330,8 @@ public class Exchange {
 
         final int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
         final Value spareValue = _persistit.getThreadLocalValue();
-        assert !(doMVCC & value == spareValue || doFetch && value == _spareValue): "storeInternal may be use the supplied Value: " + value;
+        assert !(doMVCC & value == spareValue || doFetch && value == _spareValue) : "storeInternal may be use the supplied Value: "
+                + value;
 
         //
         // First insert the record in the data page
@@ -1356,7 +1357,7 @@ public class Exchange {
             // This method may delay significantly for I/O and must
             // be called when there are no other claimed resources.
             //
-            newLongRecordPointer = getLongRecordHelper().storeLongRecord(value,  _transaction.isActive());
+            newLongRecordPointer = getLongRecordHelper().storeLongRecord(value, _transaction.isActive());
         }
 
         if (!_ignoreTransactions && ((options & StoreOptions.DONT_JOURNAL) == 0)) {
@@ -1460,9 +1461,8 @@ public class Exchange {
                             }
                             /*
                              * If it was a long MVV we saved it into the
-                             * variable above. Otherwise it is a
-                             * primordial value that we can't get rid
-                             * of.
+                             * variable above. Otherwise it is a primordial
+                             * value that we can't get rid of.
                              */
                             oldLongRecordPointer = 0;
 
@@ -1521,7 +1521,8 @@ public class Exchange {
                             spareValue.setEncodedSize(storedLength);
 
                             if (spareValue.getEncodedSize() > maxSimpleValueSize) {
-                                newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(spareValue, _transaction.isActive());
+                                newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(spareValue,
+                                        _transaction.isActive());
                             }
                         }
                     }
@@ -2148,7 +2149,8 @@ public class Exchange {
                         if (matches) {
                             index = _key.nextElementIndex(parentIndex);
                             if (index > 0) {
-                                boolean isVisibleMatch = fetchFromBufferInternal(buffer, outValue, foundAt, minimumBytes);
+                                boolean isVisibleMatch = fetchFromBufferInternal(buffer, outValue, foundAt,
+                                        minimumBytes);
                                 //
                                 // In any case (matching sibling, child or
                                 // niece/nephew) we need to ignore this
@@ -2736,7 +2738,8 @@ public class Exchange {
      *             As thrown from any internal method.
      * @return <code>true</code> if the value was visible.
      */
-    private boolean fetchFromBufferInternal(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
+    private boolean fetchFromBufferInternal(Buffer buffer, Value value, int foundAt, int minimumBytes)
+            throws PersistitException {
         buffer.fetch(foundAt, value);
         return fetchFromValueInternal(value, minimumBytes, buffer);
     }
@@ -2744,20 +2747,21 @@ public class Exchange {
     /**
      * Helper for finalizing the value to return from a, potentially, MVV
      * contained in the given Value.
-     *
+     * 
      * @param value
      *            Value to finalize.
      * @param minimumBytes
      *            Minimum amount of LONG_RECORD to fetch. If &lt;0, the
      *            <code>value</code> will contain just the descriptor portion.
      * @param bufferForPruning
-     *            If not <code>null</code> and <code>Value</code> did contain
-     *            an MVV, call {@link Buffer#enqueuePruningAction(int)}.
+     *            If not <code>null</code> and <code>Value</code> did contain an
+     *            MVV, call {@link Buffer#enqueuePruningAction(int)}.
      * @throws PersistitException
      *             As thrown from any internal method.
      * @return <code>true</code> if the value was visible.
      */
-    private boolean fetchFromValueInternal(Value value, int minimumBytes, Buffer bufferForPruning) throws PersistitException {
+    private boolean fetchFromValueInternal(Value value, int minimumBytes, Buffer bufferForPruning)
+            throws PersistitException {
         boolean visible = true;
         /*
          * We must fetch the full LONG_RECORD, if needed, while buffer is
@@ -2773,9 +2777,8 @@ public class Exchange {
             if (MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
                 if (bufferForPruning != null) {
                     final int treeHandle = _tree.getHandle();
-                    if (treeHandle != 0) {
-                        bufferForPruning.enqueuePruningAction(treeHandle);
-                    }
+                    assert treeHandle != 0 : "MVV found in a temporary tree " + _tree;
+                    bufferForPruning.enqueuePruningAction(treeHandle);
                 }
                 visible = mvccFetch(value, minimumBytes);
                 fetchFixupForLongRecords(value, minimumBytes);
