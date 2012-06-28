@@ -289,7 +289,14 @@ public class Volume {
         return getStructure().getDirectoryTree();
     }
 
-    boolean isTemporary() { // TODO
+    boolean isTemporary() {
+        if (_storage == null) {
+            /*
+             * TODO - Temporary code to detect temporary volumes on existing
+             * systems to resolve side-effects of bug 1018526.
+             */
+            return _id == 12345 && _name.endsWith("_temporary_volume");
+        }
         return getStorage().isTemp();
     }
 

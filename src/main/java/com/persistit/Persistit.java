@@ -1108,7 +1108,7 @@ public class Persistit {
      * <p />
      * The backing store file for a temporary volume is created in the directory
      * specified by the configuration property <code>tmpvoldir</code>, or if
-     * unspecified, the system temporary directory..
+     * unspecified, the system temporary directory.
      * 
      * @param pageSize
      *            The page size for the volume. Must be one of 1024, 2048, 4096,
