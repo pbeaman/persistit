@@ -279,6 +279,17 @@ public class Tree extends SharedResource {
     }
 
     /**
+     * Assign are set the tree handle. The tree must may not be a member of a
+     * temporary volume.
+     * 
+     * @throws PersistitException
+     */
+    void loadHandle() throws PersistitException {
+        assert !_volume.isTemporary() : "Handle allocation for temporary tree " + this;
+        _persistit.getJournalManager().handleForTree(this);
+    }
+
+    /**
      * Return an <code>Accumulator</code> for this Tree. The caller provides the
      * type (SUM, MAX, MIN or SEQ) of accumulator, and an index value between 0
      * and 63, inclusive. If the <code>Tree</code> does not yet have an
