@@ -38,7 +38,7 @@ import static com.persistit.Key.LT;
 import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
-import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_A;
+import static com.persistit.util.SequencerConstants.*;
 import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.util.ArrayList;
@@ -3497,6 +3497,9 @@ public class Exchange {
                         LevelCache lc = _levelCache[level];
                         if (lc._deferredReindexPage != 0) {
                             if (!treeClaimAcquired) {
+                                
+                                sequence(REMOVE_KEY_1017857_A);
+                                
                                 if (!_treeHolder.claim(treeWriterClaimRequired)) {
                                     Debug.$assert0.t(false);
                                     throw new InUseException("Thread " + Thread.currentThread().getName()

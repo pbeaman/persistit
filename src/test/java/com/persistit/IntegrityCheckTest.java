@@ -211,6 +211,16 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         _persistit.getTransactionIndex().cleanup();
         assertEquals(0, _persistit.getTransactionIndex().getAbortedCount());
     }
+    
+    @Test
+    public void testCorruptGarbageChain() throws PersistitException {
+        final Exchange ex = _persistit.getExchange(_volumeName, "mvv", true);
+        nonTransactionalStore(ex);
+        corrupt4(ex);
+        IntegrityCheck icheck = icheck();
+        icheck.checkVolume(ex.getVolume());
+        assertTrue(icheck.getFaults().length > 0);
+    }
 
     private String key(final int i) {
         return String.format("%05d%s", i, RED_FOX);
@@ -312,6 +322,19 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         buffer.nextKey(key, buffer.toKeyBlock(0));
         buffer.removeKeys(36, 52, ex.getKey());
         buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
+        buffer.release();
+    }
+    
+    /**
+     * Corrupts garbage chain by adding a live data chain to it
+     * @throw PersistitException
+     */
+    private void corrupt4(final Exchange ex) throws PersistitException {
+        Key key = ex.getKey();
+        ex.clear().to(key(500));
+        Buffer copy = ex.fetchBufferCopy(0);
+        Buffer buffer = ex.getBufferPool().get(ex.getVolume(), copy.getPageAddress(), true, true);
+        ex.getVolume().getStructure().deallocateGarbageChain(buffer.getPageAddress(), buffer.getRightSibling());
         buffer.release();
     }
 

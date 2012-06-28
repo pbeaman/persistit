@@ -339,7 +339,14 @@ public class IntegrityCheck extends Task {
     }
 
     private void addFault(String description, long page, int level, int position) {
-        Fault fault = new Fault(resourceName(), this, description, page, level, position);
+        Fault fault = new Fault(resourceName(), this, description, page, _treeDepth, level, position);
+        if (_faults.size() < MAX_FAULTS)
+            _faults.add(fault);
+        postMessage(fault.toString(), LOG_VERBOSE);
+    }
+
+    private void addGarbageFault(String description, long page, int level, int position) {
+        Fault fault = new Fault(resourceName(), this, description, page, 3, level, position);
         if (_faults.size() < MAX_FAULTS)
             _faults.add(fault);
         postMessage(fault.toString(), LOG_VERBOSE);
@@ -645,10 +652,10 @@ public class IntegrityCheck extends Task {
         int _depth;
         int _position;
 
-        Fault(String treeName, IntegrityCheck work, String description, long page, int level, int position) {
+        Fault(String treeName, IntegrityCheck work, String description, long page, int depth, int level, int position) {
             _treeName = treeName;
             _description = description;
-            _depth = work._treeDepth;
+            _depth = depth;
             _path = new long[_depth - level];
             for (int index = _depth; --index > level;) {
                 if (index >= work._edgeBuffers.length) {
@@ -657,7 +664,7 @@ public class IntegrityCheck extends Task {
                     _path[index - level] = work._edgePages[index];
                 }
             }
-            _path[level] = page;
+            _path[0] = page;
             _level = level;
             _depth = work._treeDepth;
             _position = position;
@@ -994,11 +1001,11 @@ public class IntegrityCheck extends Task {
     private void checkGarbagePage(Buffer garbageBuffer) throws PersistitException {
         long page = garbageBuffer.getPageAddress();
         if (!garbageBuffer.isGarbagePage()) {
-            addFault("Unexpected page type " + garbageBuffer.getPageType() + " expected a garbage page", page, 1, 0);
+            addGarbageFault("Unexpected page type " + garbageBuffer.getPageType() + " expected a garbage page", page, 1, 0);
             return;
         }
         if (_usedPageBits.get(page)) {
-            addFault("Garbage page is referenced by multiple parents", page, 1, 0);
+            addGarbageFault("Garbage page is referenced by multiple parents", page, 1, 0);
             return;
         }
 
@@ -1007,7 +1014,7 @@ public class IntegrityCheck extends Task {
         int size = garbageBuffer.getBufferSize();
         int count = (size - next) / Buffer.GARBAGE_BLOCK_SIZE;
         if (count * Buffer.GARBAGE_BLOCK_SIZE != (size - next)) {
-            addFault("Garbage page is malformed: _alloc=" + next + " is not at a multiple of "
+            addGarbageFault("Garbage page is malformed: _alloc=" + next + " is not at a multiple of "
                     + Buffer.GARBAGE_BLOCK_SIZE + " bytes", page, 1, 0);
         }
         _usedPageBits.set(page, true);
@@ -1026,12 +1033,12 @@ public class IntegrityCheck extends Task {
         _edgePages[2] = page;
         while (page != 0 && page != right) {
             if (_usedPageBits.get(page)) {
-                addFault("Page on garbage chain is referenced by multiple parents", page, 3, 0);
+                addGarbageFault("Page on garbage chain is referenced by multiple parents", page, 0, 0);
                 return;
             }
             Buffer buffer = getPage(page);
             if (!buffer.isDataPage() && !buffer.isIndexPage() && !buffer.isLongRecordPage()) {
-                addFault("Page of type " + buffer.getPageTypeName() + " found on garbage page", page, 3, 0);
+                addGarbageFault("Page of type " + buffer.getPageTypeName() + " found on garbage page", page, 0, 0);
             }
             _counters._garbagePageCount++;
             _pagesVisited++;

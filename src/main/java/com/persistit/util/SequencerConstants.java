@@ -97,4 +97,16 @@ public interface SequencerConstants {
     int LONG_RECORD_ALLOCATE_A = allocate("LONG_RECORD_ALLOCATE_A");
     int LONG_RECORD_ALLOCATE_B = allocate("LONG_RECORD_ALLOCATE_B");
     int[][] LONG_RECORD_ALLOCATE_SCHEDULED = new int[][]{array(LONG_RECORD_ALLOCATE_B), array(LONG_RECORD_ALLOCATE_A, LONG_RECORD_ALLOCATE_B)};
+    
+    /*
+     * Used in testing bug 1017957, a race in Exchange#raw_removeKeyRangeInternal
+     */
+    
+    int REMOVE_KEY_1017857_A = allocate("REMOVE_KEY_1017857_A");
+    int REMOVE_KEY_1017857_B = allocate("REMOVE_KEY_1017857_B");
+    int REMOVE_KEY_1017857_C = allocate("REMOVE_KEY_1017857_C");
+    int[][] REMOVE_KEY_1017857_SCHEDULED = new int[][]{
+            array(REMOVE_KEY_1017857_A, REMOVE_KEY_1017857_B), array( REMOVE_KEY_1017857_B),
+            array(REMOVE_KEY_1017857_A, REMOVE_KEY_1017857_C), array(REMOVE_KEY_1017857_A, REMOVE_KEY_1017857_C)};
+
 }
