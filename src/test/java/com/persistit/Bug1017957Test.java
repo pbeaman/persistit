@@ -110,7 +110,7 @@ public class Bug1017957Test extends PersistitUnitTestCase {
         return UnitTestProperties.getBiggerProperties(cleanup);
     }
 
-    private final long STRESS_NANOS = 20L * 1000000000L;
+    private final long STRESS_NANOS = 10L * 1000000000L;
 
     /**
      * 
@@ -131,7 +131,7 @@ public class Bug1017957Test extends PersistitUnitTestCase {
                             Key key = createUnsafeStructure(ex);
                             removeInterestingKey(ex, key);
                             if (++count % 5000 == 0) {
-                                System.out.printf("T1 iteration %,d\n", count);
+                                System.out.printf("T1 iterations %,d\n", count);
                             }
                         } catch (Exception e) {
                             if (++errors < 10) {
@@ -157,7 +157,7 @@ public class Bug1017957Test extends PersistitUnitTestCase {
                             removeCoveringRange(ex);
                             insertOtherStuff(ex);
                             if (++count % 5000 == 0) {
-                                System.out.printf("T2 iteration %,d\n", count);
+                                System.out.printf("T2 iterations %,d\n", count);
                             }
                         } catch (Exception e) {
                             if (++errors < 10) {
