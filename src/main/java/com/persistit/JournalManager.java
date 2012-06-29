@@ -542,7 +542,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         return Math.min(urgency, URGENT);
     }
 
-    public int handleForVolume(final Volume volume) throws PersistitException {
+    int handleForVolume(final Volume volume) throws PersistitException {
         if (!_allowHandlesForTempVolumesAndTrees && volume.isTemporary()) {
             throw new IllegalStateException("Creating handle for temporary volume " + volume);
         }

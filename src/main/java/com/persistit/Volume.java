@@ -62,6 +62,16 @@ public class Volume {
     private volatile VolumeStatistics _statistics;
     private volatile VolumeStructure _structure;
 
+    /*
+     * These two constants are used to identify temporary volumes that may have
+     * been identified in existing journal files due to bug 1018526. They are
+     * used in code to detect and remove these records. Once all existing
+     * Persistit volumes sites have been cleaned up, we can remove these
+     * constants and the logic that depends on them.
+     */
+    private final static long TEMP_VOLUME_ID_FOR_FIXUP_DETECTION = 12345;
+    private final static String TEMP_VOLUME_NAME_SUFFIX_FOR_FIXUP_DETECTION = "_temporary_volume";
+
     public static boolean isValidPageSize(final int pageSize) {
         for (int b = 1024; b <= 16384; b *= 2) {
             if (b == pageSize) {
@@ -295,7 +305,8 @@ public class Volume {
              * TODO - Temporary code to detect temporary volumes on existing
              * systems to resolve side-effects of bug 1018526.
              */
-            return _id == 12345 && _name.endsWith("_temporary_volume");
+            return _id == TEMP_VOLUME_ID_FOR_FIXUP_DETECTION
+                    && _name.endsWith(TEMP_VOLUME_NAME_SUFFIX_FOR_FIXUP_DETECTION);
         }
         return getStorage().isTemp();
     }

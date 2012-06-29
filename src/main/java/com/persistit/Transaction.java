@@ -1097,8 +1097,7 @@ public class Transaction {
     void store(Exchange exchange, Key key, Value value) throws PersistitException {
         if (_nestedDepth > 0) {
             checkPendingRollback();
-            final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
-            writeStoreRecordToJournal(treeHandle, key, value);
+            writeStoreRecordToJournal(treeHandle(exchange.getTree()), key, value);
         }
     }
 
@@ -1113,8 +1112,7 @@ public class Transaction {
     void remove(Exchange exchange, Key key1, Key key2) throws PersistitException {
         if (_nestedDepth > 0) {
             checkPendingRollback();
-            final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
-            writeDeleteRecordToJournal(treeHandle, key1, key2);
+            writeDeleteRecordToJournal(treeHandle(exchange.getTree()), key1, key2);
         }
     }
 
@@ -1127,8 +1125,7 @@ public class Transaction {
     void removeTree(Exchange exchange) throws PersistitException {
         if (_nestedDepth > 0) {
             checkPendingRollback();
-            final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
-            writeDeleteTreeToJournal(treeHandle);
+            writeDeleteTreeToJournal(treeHandle(exchange.getTree()));
         }
     }
 
@@ -1203,7 +1200,7 @@ public class Transaction {
     }
 
     synchronized void writeDeltaToJournal(final Delta delta) throws PersistitException {
-        final int treeHandle = _persistit.getJournalManager().handleForTree(delta.getAccumulator().getTree());
+        final int treeHandle = treeHandle(delta.getAccumulator().getTree());
         if (delta.getValue() == 1) {
             prepare(D0.OVERHEAD);
             JournalRecord.putLength(_buffer, D0.OVERHEAD);
@@ -1291,6 +1288,12 @@ public class Transaction {
             throw new IllegalStateException(this + " cannot have a step of " + newStep + ", greater than maximum "
                     + MAXIMUM_STEP);
         }
+    }
+    
+    private int treeHandle(final Tree tree) {
+        final int treeHandle = tree.getHandle();
+        assert treeHandle != 0 : "Undefined tree handle in " + tree;
+        return treeHandle;
     }
 
     /**
