@@ -363,6 +363,7 @@ class VolumeStorageV2 extends VolumeStorage {
         _headBuffer = _volume.getStructure().getPool().get(_volume, 0, true, false);
         boolean truncated = false;
         try {
+            _headBuffer.init(Buffer.PAGE_TYPE_HEAD);
             _headBuffer.setFixed();
 
             initMetaData(_headBuffer.getBytes());

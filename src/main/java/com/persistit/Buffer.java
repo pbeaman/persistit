@@ -28,7 +28,6 @@ import static com.persistit.VolumeHeader.getNextAvailablePage;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.List;
 import java.util.Set;
 
@@ -269,7 +268,7 @@ public class Buffer extends SharedResource {
     public final static int MAX_KEY_RATIO = 16;
 
     private final static int BINARY_SEARCH_THRESHOLD = 6;
-    
+
     abstract static class VerifyVisitor {
 
         protected void visitPage(long timestamp, Volume volume, long page, int type, int bufferSize, int keyBlockStart,
@@ -330,7 +329,7 @@ public class Buffer extends SharedResource {
      * _byteBuffer.
      */
     private byte[] _bytes;
-    
+
     /**
      * FastIndex structure used for rapid page searching
      */
@@ -2318,6 +2317,7 @@ public class Buffer extends SharedResource {
             assertVerify();
             rightSibling.assertVerify();
         }
+
         return whereInserted;
     }
 
@@ -2594,6 +2594,7 @@ public class Buffer extends SharedResource {
                 buffer.assertVerify();
             }
         }
+
         return result;
     }
 
@@ -2815,7 +2816,7 @@ public class Buffer extends SharedResource {
     }
 
     synchronized void invalidateFastIndex() {
-            _fastIndex.invalidate();
+        _fastIndex.invalidate();
     }
 
     synchronized FastIndex getFastIndex() {
@@ -3775,7 +3776,7 @@ public class Buffer extends SharedResource {
 
     public String toString() {
         if (_toStringDebug) {
-            return toStringDetail(-1);
+            return toStringDetail();
         }
         return String.format("Page %,d in volume %s at index %,d timestamp=%,d status=%s type=%s", _page, _vol,
                 _poolIndex, _timestamp, getStatusDisplayString(), getPageTypeName());
@@ -3785,7 +3786,7 @@ public class Buffer extends SharedResource {
      * @return a human-readable inventory of the contents of this buffer
      */
     public String toStringDetail() {
-        return toStringDetail(-1);
+        return toStringDetail(-1, 42, 42, 0, true);
     }
 
     /**
@@ -3795,7 +3796,8 @@ public class Buffer extends SharedResource {
      *         the one that points to findPointer. This provides a way to
      *         quickly find pointer paths in pages.
      */
-    String toStringDetail(final long findPointer) {
+    String toStringDetail(final long findPointer, final int maxKeyDisplayLength, final int maxValueDisplayLength,
+            final int contextLines, final boolean all) {
         final StringBuilder sb = new StringBuilder(String.format(
                 "Page %,d in volume %s at index @%,d status %s type %s", _page, _vol, _poolIndex,
                 getStatusDisplayString(), getPageTypeName()));
@@ -3805,52 +3807,52 @@ public class Buffer extends SharedResource {
             sb.append(String.format("\n  type=%,d  alloc=%,d  slack=%,d  " + "keyBlockStart=%,d  keyBlockEnd=%,d "
                     + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type, _alloc, _slack, KEY_BLOCK_START,
                     _keyBlockEnd, getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
-
             try {
                 final Key key = new Key(_persistit);
                 final Value value = new Value(_persistit);
                 final RecordInfo[] records = getRecords();
-                BitSet bits = new BitSet();
+                int foundPointerRecord = -1;
                 if (isIndexPage() && findPointer >= 0) {
                     for (int index = 0; index < records.length; index++) {
                         if (records[index].getPointerValue() == findPointer) {
-                            bits.set(index);
+                            foundPointerRecord = index;
                         }
                     }
                 }
-                boolean elisionMarked = false;
+                boolean elision = false;
                 for (int index = 0; index < records.length; index++) {
                     RecordInfo r = records[index];
                     r.getKeyState().copyTo(key);
-                    if (isDataPage()) {
-                        r.getValueState().copyTo(value);
-                        sb.append(String.format("\n   %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s", r.getKbOffset(), r
-                                .getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), key, r.getValueState()
-                                .getEncodedBytes().length, abridge(value)));
-                    } else {
-                        boolean selected = true;
-                        if (findPointer >= 0) {
-                            if (index > 2 && index < records.length - 2) {
-                                boolean bit = false;
-                                for (int p = index - 2; p < index + 3; p++) {
-                                    if (bits.get(p)) {
-                                        bit = true;
-                                    }
-                                }
-                                selected &= bit;
-                            }
-                        }
-                        if (selected) {
-                            sb.append(String.format("\n  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d", r.getKbOffset(), r
-                                    .getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), key, r.getPointerValue()));
-                            elisionMarked = false;
-                        } else {
-                            if (!elisionMarked) {
-                                sb.append(String.format("\n  ..."));
-                                elisionMarked = true;
-                            }
+                    String mark = " ";
+                    boolean selected = all | index < contextLines || index >= records.length - contextLines;
+                    if (foundPointerRecord >= 0) {
+                        selected |= (index >= foundPointerRecord - contextLines)
+                                && (index <= foundPointerRecord + contextLines);
+                        if (index == foundPointerRecord) {
+                            mark = "*";
                         }
                     }
+
+                    if (selected) {
+                        if (elision) {
+                            sb.append(String.format("\n     ..."));
+                            elision = false;
+                        }
+                        if (isDataPage()) {
+                            r.getValueState().copyTo(value);
+                            sb.append(String.format("\n%s   %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s", mark, r
+                                    .getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), abridge(key
+                                    .toString(), maxKeyDisplayLength), r.getValueState().getEncodedBytes().length,
+                                    abridge(value.toString(), maxValueDisplayLength)));
+                        } else {
+                            sb.append(String.format("\n%s  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d", mark, r
+                                    .getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), abridge(key
+                                    .toString(), maxKeyDisplayLength), r.getPointerValue()));
+                        }
+                    } else {
+                        elision = true;
+                    }
+
                 }
             } catch (Exception e) {
                 sb.append(" - " + e);
@@ -3875,10 +3877,9 @@ public class Buffer extends SharedResource {
         return sb.toString();
     }
 
-    private String abridge(final Value value) {
-        String s = value.toString();
-        if (s.length() > 120) {
-            return s.substring(0, 120) + "...";
+    private String abridge(final String s, final int maxLength) {
+        if (s.length() > maxLength) {
+            return s.substring(0, maxLength - 3) + "...";
         } else {
             return s;
         }
@@ -4316,4 +4317,6 @@ public class Buffer extends SharedResource {
             ++_mvvCount;
         }
     }
+    
+    
 }

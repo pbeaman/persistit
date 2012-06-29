@@ -20,15 +20,22 @@
 
 package com.persistit;
 
+import static com.persistit.util.SequencerConstants.REMOVE_KEY_1017857_B;
+import static com.persistit.util.SequencerConstants.REMOVE_KEY_1017857_C;
+import static com.persistit.util.SequencerConstants.REMOVE_KEY_1017857_SCHEDULED;
 import static com.persistit.util.ThreadSequencer.sequence;
-import static com.persistit.util.SequencerConstants.*;
 import static org.junit.Assert.assertEquals;
 
 import java.io.PrintWriter;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
+import com.persistit.mxbeans.ManagementMXBean;
 import com.persistit.unit.PersistitUnitTestCase;
+import com.persistit.unit.UnitTestProperties;
 import com.persistit.util.ThreadSequencer;
 
 /**
@@ -86,20 +93,27 @@ import com.persistit.util.ThreadSequencer;
  * inserts a key-pointer pair into an index page. It does so after removing all
  * claims on pages and the tree itself. After removing claims, before inserting
  * the key-pointer pair we believe the page itself gets put unto a garbage
- * chain. So after the re-inserion, the index page now has a pointer to a page
+ * chain. So after the re-insertion, the index page now has a pointer to a page
  * that will be reused and will contain unrelated data.
  * 
  * @author peter
  * 
  */
 public class Bug1017957Test extends PersistitUnitTestCase {
+    
+    @Override
+    protected Properties getProperties(boolean cleanup) {
+        return UnitTestProperties.getBiggerProperties(cleanup);
+    }
 
+    private final long THIRTY_SECONDS = 30L * 1000000000L;
+
+    @Ignore
     @Test
-    public void induceCorruption() throws Exception {
+    public void induceCorruptionBySequencer() throws Exception {
         ThreadSequencer.enableSequencer(false);
         ThreadSequencer.addSchedules(REMOVE_KEY_1017857_SCHEDULED);
         final Exchange ex = _persistit.getExchange("persistit", "Bug1017957Test", true);
-        ((ManagementImpl) _persistit.getManagement()).launch("cliserver port=9999");
         Key key = createUnsafeStructure(ex);
 
         Thread racer = new Thread(new Runnable() {
@@ -116,11 +130,86 @@ public class Bug1017957Test extends PersistitUnitTestCase {
         });
         racer.start();
         removeInterestingKey(ex, key);
+        insertOtherStuff(ex);
         IntegrityCheck icheck = new IntegrityCheck(_persistit);
         icheck.setMessageLogVerbosity(Task.LOG_VERBOSE);
         icheck.setMessageWriter(new PrintWriter(System.out));
         icheck.checkVolume(ex.getVolume());
+        ThreadSequencer.disableSequencer();
         assertEquals("Corrupt volume", 0, icheck.getFaults().length);
+    }
+
+    @Test
+    public void induceCorruptionByStress() throws Exception {
+        final long expiresAt = System.nanoTime() + THIRTY_SECONDS;
+        ((ManagementMXBean)_persistit.getManagement()).launch("cliserver port=9999");
+        final AtomicInteger totalErrors = new AtomicInteger();
+        Thread t1 = new Thread(new Runnable() {
+            public void run() {
+                int count = 0;
+                int errors = 0;
+                try {
+                    Exchange ex = _persistit.getExchange("persistit", "Bug1017957Test", true);
+                    while (System.nanoTime() < expiresAt) {
+                        try {
+                            Key key = createUnsafeStructure(ex);
+                            removeInterestingKey(ex, key);
+                            if (++count % 1000 == 0) {
+                                System.out.printf("T1 iteration %,d\n", count);
+                            }
+                        } catch (Exception e) {
+                            if (++errors < 10) {
+                                e.printStackTrace();
+                            }
+                            totalErrors.incrementAndGet();
+                        }
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        Thread t2 = new Thread(new Runnable() {
+            public void run() {
+                int count = 0;
+                int errors = 0;
+                try {
+                    Exchange ex = _persistit.getExchange("persistit", "Bug1017957Test", true);
+                    while (System.nanoTime() < expiresAt) {
+                        try {
+                            removeCoveringRange(ex);
+                            insertOtherStuff(ex);
+                            if (++count % 1000 == 0) {
+                                System.out.printf("T2 iteration %,d\n", count);
+                            }
+                        } catch (Exception e) {
+                            if (++errors < 10) {
+                                e.printStackTrace();
+                            }
+                            totalErrors.incrementAndGet();
+                        }
+                    }
+                } catch (Exception e) {
+                    if (++errors < 10) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        t1.start();
+        t2.start();
+        t1.join();
+        t2.join();
+
+        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        icheck.setMessageLogVerbosity(Task.LOG_VERBOSE);
+        icheck.setMessageWriter(new PrintWriter(System.out));
+        icheck.checkVolume(_persistit.getVolume("persistit"));
+        System.out.printf("\nTotal errors %d", totalErrors.get());
+        assertEquals("Corrupt volume", 0, icheck.getFaults().length);
+        assertEquals("Exception occurred", 0, totalErrors.get());
     }
 
     /**
@@ -158,5 +247,13 @@ public class Bug1017957Test extends PersistitUnitTestCase {
         final Key key1 = new Key(_persistit).append(1005);
         final Key key2 = new Key(_persistit).append(1015);
         ex.removeKeyRange(key1, key2);
+    }
+    
+    private void insertOtherStuff(final Exchange ex) throws Exception {
+        for (int k = 0; k < 100; k++) {
+            ex.clear().append(1009).append(k).append(RED_FOX);
+            ex.getValue().put(RED_FOX);
+            ex.store();
+        }
     }
 }
