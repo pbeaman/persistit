@@ -3841,13 +3841,14 @@ public class Buffer extends SharedResource {
                         if (isDataPage()) {
                             r.getValueState().copyTo(value);
                             sb.append(String.format("\n%s   %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s", mark, r
-                                    .getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), abridge(key
-                                    .toString(), maxKeyDisplayLength), r.getValueState().getEncodedBytes().length,
-                                    abridge(value.toString(), maxValueDisplayLength)));
+                                    .getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), Util
+                                    .abridge(key.toString(), maxKeyDisplayLength),
+                                    r.getValueState().getEncodedBytes().length, Util.abridge(value.toString(),
+                                            maxValueDisplayLength)));
                         } else {
                             sb.append(String.format("\n%s  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d", mark, r
-                                    .getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), abridge(key
-                                    .toString(), maxKeyDisplayLength), r.getPointerValue()));
+                                    .getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), Util
+                                    .abridge(key.toString(), maxKeyDisplayLength), r.getPointerValue()));
                         }
                     } else {
                         elision = true;
@@ -3875,14 +3876,6 @@ public class Buffer extends SharedResource {
                     getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
         }
         return sb.toString();
-    }
-
-    private String abridge(final String s, final int maxLength) {
-        if (s.length() > maxLength) {
-            return s.substring(0, maxLength - 3) + "...";
-        } else {
-            return s;
-        }
     }
 
     String foundAtString(int p) {
@@ -4317,6 +4310,5 @@ public class Buffer extends SharedResource {
             ++_mvvCount;
         }
     }
-    
-    
+
 }

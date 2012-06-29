@@ -302,11 +302,6 @@ class SharedResource {
     boolean isMine() {
         return (_sync.writerThread() == Thread.currentThread());
     }
-    
-    boolean isNotMine() {
-        Thread t = _sync.writerThread();
-        return t != null && t != Thread.currentThread();
-    }
 
     boolean claim(boolean writer) throws PersistitInterruptedException {
         return claim(writer, DEFAULT_MAX_WAIT_TIME);

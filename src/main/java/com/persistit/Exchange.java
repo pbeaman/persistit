@@ -526,8 +526,7 @@ public class Exchange {
         int _flags;
         long _deallocLeftPage;
         long _deallocRightPage;
-        long _deferredReindexPage;
-        long _deferredReindexChangeCount;
+
 
         private LevelCache(int level) {
             _level = level;
@@ -1799,8 +1798,6 @@ public class Exchange {
                 // (appropriately) invalid.
                 //
                 
-                
-                assert !_tree.isNotMine();
                 
                 int at = buffer.split(rightSibling, key, valueWriter, foundAt, _spareKey1, sequence, _splitPolicy);
                 if (at < 0) {
@@ -3153,7 +3150,6 @@ public class Exchange {
         boolean result = false;
 
         boolean deallocationRequired = true; // assume until proven false
-        boolean deferredReindexRequired = false;
         boolean tryQuickDelete = true;
 
         if (!_ignoreTransactions) {
@@ -3357,9 +3353,7 @@ public class Exchange {
                             _volume.getStructure().harvestLongRecords(buffer1, foundAt1, Integer.MAX_VALUE);
                             _volume.getStructure().harvestLongRecords(buffer2, 0, foundAt2);
 
-                            assert _tree.isMine();
-                            assert buffer1.isMine();
-                            assert buffer2.isMine();
+                            Debug.$assert0.t(_tree.isMine() && buffer1.isMine() && buffer2.isMine());
                             boolean rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1, _spareKey2,
                                     _joinPolicy);
                             if (buffer1.isDataPage()) {
@@ -3427,7 +3421,6 @@ public class Exchange {
                                     _value.setPointerPageType(buffer2.getPageType());
 
                                     storeInternal(_spareKey2, _value, level + 1, StoreOptions.NONE);
-                                    deferredReindexRequired = true; // TODO
                                     needsReindex = false;
                                 }
                             }
@@ -3455,7 +3448,7 @@ public class Exchange {
                     }
                     break;
                 } catch (RetryException re) {
-                    // handled below
+                    // handled below by releasing claims and retrying
                 } finally {
                     //
                     // Release all buffers.
@@ -3465,11 +3458,17 @@ public class Exchange {
                     }
 
                     if (treeClaimAcquired) {
-                        _tree.bumpGeneration();
+                        if (treeWriterClaimRequired) {
+                            _tree.bumpGeneration();
+                        }
                         _treeHolder.release();
                         treeClaimAcquired = false;
                     }
                 }
+                /*
+                 * Having released all prior claims, now acquire an exclusive
+                 * claim on the Tree.
+                 */
                 if (treeWriterClaimRequired) {
                     if (!_treeHolder.claim(true)) {
                         Debug.$assert0.t(false);
@@ -3497,15 +3496,11 @@ public class Exchange {
                 deallocationRequired = false;
                 break;
             }
-            // TODO - this is here to allow Bug1017957Test to complete
-            if (deferredReindexRequired) {
-                sequence(REMOVE_KEY_1017857_A);
-                deferredReindexRequired = false;
-            }
-
         } finally {
             if (treeClaimAcquired) {
-                _tree.bumpGeneration();
+                if (treeWriterClaimRequired) {
+                    _tree.bumpGeneration();
+                }
                 _treeHolder.release();
                 treeClaimAcquired = false;
             }

@@ -20,23 +20,17 @@
 
 package com.persistit;
 
-import static com.persistit.util.SequencerConstants.REMOVE_KEY_1017857_B;
-import static com.persistit.util.SequencerConstants.REMOVE_KEY_1017857_C;
-import static com.persistit.util.SequencerConstants.REMOVE_KEY_1017857_SCHEDULED;
-import static com.persistit.util.ThreadSequencer.sequence;
 import static org.junit.Assert.assertEquals;
 
 import java.io.PrintWriter;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.persistit.mxbeans.ManagementMXBean;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
-import com.persistit.util.ThreadSequencer;
 
 /**
  * https://bugs.launchpad.net/akiban-persistit/+bug/1017957
@@ -86,63 +80,45 @@ import com.persistit.util.ThreadSequencer;
  * com.persistit.stress.AbstractStressTest.run(AbstractStressTest.java:93) at
  * java.lang.Thread.run(Thread.java:662)
  * 
- * Bug mechanism:
+ * Bug mechanism #1:
  * 
- * An obscure path through
- * {@link Exchange#raw_removeKeyRangeInternal(Key, Key, boolean, boolean)}
- * inserts a key-pointer pair into an index page. It does so after removing all
- * claims on pages and the tree itself. After removing claims, before inserting
- * the key-pointer pair we believe the page itself gets put unto a garbage
- * chain. So after the re-insertion, the index page now has a pointer to a page
- * that will be reused and will contain unrelated data.
+ * An obscure path through Exchange#raw_removeKeyRangeInternal inserts a
+ * key-pointer pair into an index page. It does so after removing all claims on
+ * pages and the tree itself. After removing claims, before inserting the
+ * key-pointer pair we believe the page itself gets put unto a garbage chain. So
+ * after the re-insertion, the index page now has a pointer to a page that will
+ * be reused and will contain unrelated data.
+ * 
+ * 
+ * Bug mechanism #2: An obscure path through Exchange#raw_removeKeyRangeInternal
+ * performs a structure delete (i.e., joins one more pairs of pages) but fails
+ * to bump the Tree generation. The allows use of a stale LevelCache array.
+ * 
+ * This test procedure exhibited both bug mechanisms reliably within 10 seconds
+ * prior to fixing the code. We also implemented a test method based on the
+ * ThreadSequencer to precisely elaborate the sequence of interactions between
+ * two threads that cause the failure. However, the bug fix eliminates the code
+ * path that allows the sequencer to work, so the test was removed.
  * 
  * @author peter
  * 
  */
 public class Bug1017957Test extends PersistitUnitTestCase {
-    
+
     @Override
     protected Properties getProperties(boolean cleanup) {
         return UnitTestProperties.getBiggerProperties(cleanup);
     }
 
-    private final long THIRTY_SECONDS = 30L * 1000000000L;
+    private final long STRESS_NANOS = 20L * 1000000000L;
 
-    @Ignore
-    @Test
-    public void induceCorruptionBySequencer() throws Exception {
-        ThreadSequencer.enableSequencer(false);
-        ThreadSequencer.addSchedules(REMOVE_KEY_1017857_SCHEDULED);
-        final Exchange ex = _persistit.getExchange("persistit", "Bug1017957Test", true);
-        Key key = createUnsafeStructure(ex);
-
-        Thread racer = new Thread(new Runnable() {
-            public void run() {
-                try {
-                    sequence(REMOVE_KEY_1017857_B);
-                    Exchange ex = _persistit.getExchange("persistit", "Bug1017957Test", true);
-                    removeCoveringRange(ex);
-                    sequence(REMOVE_KEY_1017857_C);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        racer.start();
-        removeInterestingKey(ex, key);
-        insertOtherStuff(ex);
-        IntegrityCheck icheck = new IntegrityCheck(_persistit);
-        icheck.setMessageLogVerbosity(Task.LOG_VERBOSE);
-        icheck.setMessageWriter(new PrintWriter(System.out));
-        icheck.checkVolume(ex.getVolume());
-        ThreadSequencer.disableSequencer();
-        assertEquals("Corrupt volume", 0, icheck.getFaults().length);
-    }
-
+    /**
+     * 
+     * @throws Exception
+     */
     @Test
     public void induceCorruptionByStress() throws Exception {
-        final long expiresAt = System.nanoTime() + THIRTY_SECONDS;
-        ((ManagementMXBean)_persistit.getManagement()).launch("cliserver port=9999");
+        final long expiresAt = System.nanoTime() + STRESS_NANOS;
         final AtomicInteger totalErrors = new AtomicInteger();
         Thread t1 = new Thread(new Runnable() {
             public void run() {
@@ -154,7 +130,7 @@ public class Bug1017957Test extends PersistitUnitTestCase {
                         try {
                             Key key = createUnsafeStructure(ex);
                             removeInterestingKey(ex, key);
-                            if (++count % 1000 == 0) {
+                            if (++count % 5000 == 0) {
                                 System.out.printf("T1 iteration %,d\n", count);
                             }
                         } catch (Exception e) {
@@ -180,7 +156,7 @@ public class Bug1017957Test extends PersistitUnitTestCase {
                         try {
                             removeCoveringRange(ex);
                             insertOtherStuff(ex);
-                            if (++count % 1000 == 0) {
+                            if (++count % 5000 == 0) {
                                 System.out.printf("T2 iteration %,d\n", count);
                             }
                         } catch (Exception e) {
@@ -248,7 +224,7 @@ public class Bug1017957Test extends PersistitUnitTestCase {
         final Key key2 = new Key(_persistit).append(1015);
         ex.removeKeyRange(key1, key2);
     }
-    
+
     private void insertOtherStuff(final Exchange ex) throws Exception {
         for (int k = 0; k < 100; k++) {
             ex.clear().append(1009).append(k).append(RED_FOX);

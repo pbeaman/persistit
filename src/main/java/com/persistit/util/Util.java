@@ -234,6 +234,14 @@ public class Util {
         return format(Long.toString(i), width, true);
     }
 
+    public static String abridge(final String s, final int maxLength) {
+        if (s.length() > maxLength) {
+            return s.substring(0, maxLength - 3) + "...";
+        } else {
+            return s;
+        }
+    }
+
     public static boolean equalsByteSubarray(byte[] source, int next, byte[] target) {
         return equalsByteSubarray(source, next, target, 0, target.length);
     }
