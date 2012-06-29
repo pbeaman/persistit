@@ -1054,6 +1054,7 @@ public class BufferPool {
     }
 
     int selectDirtyBuffers(final int[] priorities, final BufferHolder[] holders) throws PersistitException {
+        Debug.suspend();
         int count = 0;
         final int clock = _clock.get();
 

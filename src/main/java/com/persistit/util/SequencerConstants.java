@@ -97,4 +97,5 @@ public interface SequencerConstants {
     int LONG_RECORD_ALLOCATE_A = allocate("LONG_RECORD_ALLOCATE_A");
     int LONG_RECORD_ALLOCATE_B = allocate("LONG_RECORD_ALLOCATE_B");
     int[][] LONG_RECORD_ALLOCATE_SCHEDULED = new int[][]{array(LONG_RECORD_ALLOCATE_B), array(LONG_RECORD_ALLOCATE_A, LONG_RECORD_ALLOCATE_B)};
+
 }

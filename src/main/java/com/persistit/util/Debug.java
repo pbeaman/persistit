@@ -106,6 +106,32 @@ public class Debug {
         }
         System.err.println("Debug " + sb.toString());
     }
+    
+    public static String trace(int from, int to) {
+        return " " + Thread.currentThread().getName() + " {" + Debug.callStack(from + 2, to + 2) + "}";
+    }
+    
+    public static String callStack(final int from, final int to) {
+        RuntimeException exception = new RuntimeException();
+        exception.fillInStackTrace();
+        StackTraceElement[] elements = exception.getStackTrace();
+        int a = Math.max(0, from);
+        int b = Math.min(to, elements.length);
+        StringBuilder sb = new StringBuilder();
+        for (int index = b; index >= a; index--) {
+            StackTraceElement t = exception.getStackTrace()[index];
+            if (index != b) {
+                sb.append("->");
+            }
+            sb.append(t.getClassName());
+            sb.append('#');
+            sb.append(t.getMethodName());
+            sb.append('[');
+            sb.append(t.getLineNumber());
+            sb.append("]");
+        }
+        return sb.toString();
+    }
 
     /**
      * Set the suspend flag so that callers to the suspend method either do or

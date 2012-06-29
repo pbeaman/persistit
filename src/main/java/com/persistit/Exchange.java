@@ -38,7 +38,7 @@ import static com.persistit.Key.LT;
 import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
-import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_A;
+import static com.persistit.util.SequencerConstants.*;
 import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.util.ArrayList;
@@ -526,8 +526,7 @@ public class Exchange {
         int _flags;
         long _deallocLeftPage;
         long _deallocRightPage;
-        long _deferredReindexPage;
-        long _deferredReindexChangeCount;
+
 
         private LevelCache(int level) {
             _level = level;
@@ -1330,7 +1329,8 @@ public class Exchange {
 
         final int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
         final Value spareValue = _persistit.getThreadLocalValue();
-        assert !(doMVCC & value == spareValue || doFetch && value == _spareValue): "storeInternal may be use the supplied Value: " + value;
+        assert !(doMVCC & value == spareValue || doFetch && value == _spareValue) : "storeInternal may be use the supplied Value: "
+                + value;
 
         //
         // First insert the record in the data page
@@ -1356,7 +1356,7 @@ public class Exchange {
             // This method may delay significantly for I/O and must
             // be called when there are no other claimed resources.
             //
-            newLongRecordPointer = getLongRecordHelper().storeLongRecord(value,  _transaction.isActive());
+            newLongRecordPointer = getLongRecordHelper().storeLongRecord(value, _transaction.isActive());
         }
 
         if (!_ignoreTransactions && ((options & StoreOptions.DONT_JOURNAL) == 0)) {
@@ -1408,7 +1408,7 @@ public class Exchange {
                         if (!treeClaimAcquired || !_treeHolder.upgradeClaim()) {
                             treeClaimRequired = true;
                             treeWriterClaimRequired = true;
-                            throw new RetryException();
+                            throw RetryException.SINGLE;
                         }
 
                         Debug.$assert0.t(valueToStore.getPointerValue() > 0);
@@ -1460,9 +1460,8 @@ public class Exchange {
                             }
                             /*
                              * If it was a long MVV we saved it into the
-                             * variable above. Otherwise it is a
-                             * primordial value that we can't get rid
-                             * of.
+                             * variable above. Otherwise it is a primordial
+                             * value that we can't get rid of.
                              */
                             oldLongRecordPointer = 0;
 
@@ -1521,7 +1520,8 @@ public class Exchange {
                             spareValue.setEncodedSize(storedLength);
 
                             if (spareValue.getEncodedSize() > maxSimpleValueSize) {
-                                newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(spareValue, _transaction.isActive());
+                                newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(spareValue,
+                                        _transaction.isActive());
                             }
                         }
                     }
@@ -1797,13 +1797,15 @@ public class Exchange {
                 // level cache for this level will become
                 // (appropriately) invalid.
                 //
+                
+                
                 int at = buffer.split(rightSibling, key, valueWriter, foundAt, _spareKey1, sequence, _splitPolicy);
                 if (at < 0) {
                     lc.updateInsert(rightSibling, key, -at);
                 } else {
                     lc.updateInsert(buffer, key, at);
                 }
-
+                
                 long oldRightSibling = buffer.getRightSibling();
                 long newRightSibling = rightSibling.getPageAddress();
 
@@ -2148,7 +2150,8 @@ public class Exchange {
                         if (matches) {
                             index = _key.nextElementIndex(parentIndex);
                             if (index > 0) {
-                                boolean isVisibleMatch = fetchFromBufferInternal(buffer, outValue, foundAt, minimumBytes);
+                                boolean isVisibleMatch = fetchFromBufferInternal(buffer, outValue, foundAt,
+                                        minimumBytes);
                                 //
                                 // In any case (matching sibling, child or
                                 // niece/nephew) we need to ignore this
@@ -2736,7 +2739,8 @@ public class Exchange {
      *             As thrown from any internal method.
      * @return <code>true</code> if the value was visible.
      */
-    private boolean fetchFromBufferInternal(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
+    private boolean fetchFromBufferInternal(Buffer buffer, Value value, int foundAt, int minimumBytes)
+            throws PersistitException {
         buffer.fetch(foundAt, value);
         return fetchFromValueInternal(value, minimumBytes, buffer);
     }
@@ -2744,20 +2748,21 @@ public class Exchange {
     /**
      * Helper for finalizing the value to return from a, potentially, MVV
      * contained in the given Value.
-     *
+     * 
      * @param value
      *            Value to finalize.
      * @param minimumBytes
      *            Minimum amount of LONG_RECORD to fetch. If &lt;0, the
      *            <code>value</code> will contain just the descriptor portion.
      * @param bufferForPruning
-     *            If not <code>null</code> and <code>Value</code> did contain
-     *            an MVV, call {@link Buffer#enqueuePruningAction(int)}.
+     *            If not <code>null</code> and <code>Value</code> did contain an
+     *            MVV, call {@link Buffer#enqueuePruningAction(int)}.
      * @throws PersistitException
      *             As thrown from any internal method.
      * @return <code>true</code> if the value was visible.
      */
-    private boolean fetchFromValueInternal(Value value, int minimumBytes, Buffer bufferForPruning) throws PersistitException {
+    private boolean fetchFromValueInternal(Value value, int minimumBytes, Buffer bufferForPruning)
+            throws PersistitException {
         boolean visible = true;
         /*
          * We must fetch the full LONG_RECORD, if needed, while buffer is
@@ -3042,7 +3047,7 @@ public class Exchange {
 
     /**
      * Removes all records with keys falling between <code>key1</code> and
-     * </code>key2</code>, lefty-inclusive. Validity checks and Key value
+     * </code>key2</code>, left-inclusive. Validity checks and Key value
      * adjustments have been done by caller - this method does the work.
      * 
      * @param key1
@@ -3145,7 +3150,6 @@ public class Exchange {
         boolean result = false;
 
         boolean deallocationRequired = true; // assume until proven false
-        boolean deferredReindexRequired = false;
         boolean tryQuickDelete = true;
 
         if (!_ignoreTransactions) {
@@ -3227,9 +3231,6 @@ public class Exchange {
                                     + " failed to get writer claim on " + _tree);
                         }
                         treeClaimAcquired = true;
-                        _tree.bumpGeneration();
-                        // Because we actually haven't changed anything yet.
-                        _cachedTreeGeneration++;
                     }
                     //
                     // Need to redo this check now that we have a
@@ -3265,12 +3266,6 @@ public class Exchange {
                                 lc._rightBuffer = buffer;
                                 lc._rightFoundAt = foundAt2;
                             } else {
-                                //
-                                // Since we are spanning pages we need an
-                                // exclusive claim on the tree to prevent
-                                // an insertion from propagating upward through
-                                // the deletion range.
-                                //
                                 pageAddr2 = buffer.getRightSibling();
                                 samePage = false;
                             }
@@ -3358,11 +3353,13 @@ public class Exchange {
                             _volume.getStructure().harvestLongRecords(buffer1, foundAt1, Integer.MAX_VALUE);
                             _volume.getStructure().harvestLongRecords(buffer2, 0, foundAt2);
 
+                            Debug.$assert0.t(_tree.isMine() && buffer1.isMine() && buffer2.isMine());
                             boolean rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1, _spareKey2,
                                     _joinPolicy);
                             if (buffer1.isDataPage()) {
                                 _tree.bumpChangeCount();
                             }
+                            
                             buffer1.setDirtyAtTimestamp(timestamp);
                             buffer2.setDirtyAtTimestamp(timestamp);
 
@@ -3419,9 +3416,11 @@ public class Exchange {
                                     }
                                 }
                                 if (needsReindex) {
-                                    lc._deferredReindexPage = buffer2.getPageAddress();
-                                    lc._deferredReindexChangeCount = buffer2.getGeneration();
-                                    deferredReindexRequired = true;
+                                    _spareKey1.copyTo(_spareKey2);
+                                    _value.setPointerValue(buffer2.getPageAddress());
+                                    _value.setPointerPageType(buffer2.getPageType());
+
+                                    storeInternal(_spareKey2, _value, level + 1, StoreOptions.NONE);
                                     needsReindex = false;
                                 }
                             }
@@ -3449,7 +3448,7 @@ public class Exchange {
                     }
                     break;
                 } catch (RetryException re) {
-                    // handled below
+                    // handled below by releasing claims and retrying
                 } finally {
                     //
                     // Release all buffers.
@@ -3459,10 +3458,17 @@ public class Exchange {
                     }
 
                     if (treeClaimAcquired) {
+                        if (treeWriterClaimRequired) {
+                            _tree.bumpGeneration();
+                        }
                         _treeHolder.release();
                         treeClaimAcquired = false;
                     }
                 }
+                /*
+                 * Having released all prior claims, now acquire an exclusive
+                 * claim on the Tree.
+                 */
                 if (treeWriterClaimRequired) {
                     if (!_treeHolder.claim(true)) {
                         Debug.$assert0.t(false);
@@ -3490,51 +3496,11 @@ public class Exchange {
                 deallocationRequired = false;
                 break;
             }
-            while (deferredReindexRequired) {
-                Buffer buffer = null;
-                try {
-                    for (int level = _cacheDepth; --level >= 0;) {
-                        LevelCache lc = _levelCache[level];
-                        if (lc._deferredReindexPage != 0) {
-                            if (!treeClaimAcquired) {
-                                if (!_treeHolder.claim(treeWriterClaimRequired)) {
-                                    Debug.$assert0.t(false);
-                                    throw new InUseException("Thread " + Thread.currentThread().getName()
-                                            + " failed to get writer claim on " + _tree);
-                                }
-                                treeClaimAcquired = true;
-                            }
-
-                            long deferredPage = lc._deferredReindexPage;
-                            buffer = _pool.get(_volume, deferredPage, false, true);
-                            if (buffer.getGeneration() == lc._deferredReindexChangeCount) {
-                                checkPageType(buffer, level + PAGE_TYPE_DATA, false);
-                                buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
-                                _value.setPointerValue(buffer.getPageAddress());
-                                _value.setPointerPageType(buffer.getPageType());
-                                storeInternal(_spareKey2, _value, level + 1, StoreOptions.NONE);
-                            } else {
-                                _persistit.getLogBase().unindexedPage.log(deferredPage, _volume, _tree.getName());
-                            }
-                            lc._deferredReindexPage = 0;
-                            buffer.releaseTouched();
-                            buffer = null;
-                        }
-                    }
-                    deferredReindexRequired = false;
-                } catch (RetryException re) {
-                    // can this even be thrown here?
-                } finally {
-                    if (buffer != null) {
-                        buffer.releaseTouched();
-                        buffer = null;
-                    }
-                }
-            }
-
         } finally {
             if (treeClaimAcquired) {
-                _tree.bumpGeneration();
+                if (treeWriterClaimRequired) {
+                    _tree.bumpGeneration();
+                }
                 _treeHolder.release();
                 treeClaimAcquired = false;
             }

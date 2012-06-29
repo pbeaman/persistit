@@ -30,7 +30,4 @@ public class RetryException extends PersistitException {
 
     public final static RetryException SINGLE = new RetryException();
 
-    public RetryException() {
-
-    }
 }

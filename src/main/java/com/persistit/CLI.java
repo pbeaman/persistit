@@ -1021,6 +1021,9 @@ public class CLI {
             final @Arg("pageSize|int:16384:1024:16384|Buffer pool index") int pageSize,
             final @Arg("level|int:0:0:30|Tree level") int level, final @Arg("key|string|Key") String keyString,
             final @Arg("find|long:-1:0:99999999999999999|Optional page pointer to find") long findPointer,
+            final @Arg("maxkey|int:42:4:10000|Maximum displayed key length") int maxkey,
+            final @Arg("maxvalue|int:42:4:100000|Maximum displayed value length") int maxvalue,
+            final @Arg("context|int:3:0:100000|Context lines") int context,
             final @Arg("_flag|a|All lines") boolean allLines, final @Arg("_flag|s|Summary only") boolean summary)
             throws Exception {
 
@@ -1084,21 +1087,8 @@ public class CLI {
                 if (summary) {
                     postMessage(buffer.toString(), LOG_NORMAL);
                     return;
-                }
-                String detail = buffer.toStringDetail(findPointer);
-                if (allLines) {
-                    postMessage(detail, LOG_NORMAL);
-                    return;
                 } else {
-                    int p = -1;
-                    for (int i = 0; i < 20; i++) {
-                        p = detail.indexOf('\n', p + 1);
-                        if (p == -1) {
-                            p = detail.length();
-                            break;
-                        }
-                    }
-                    postMessage(detail.substring(0, p), LOG_NORMAL);
+                    postMessage(buffer.toStringDetail(findPointer, maxkey, maxvalue, context, allLines), LOG_NORMAL);
                     return;
                 }
             }
@@ -1107,6 +1097,44 @@ public class CLI {
                 return "";
             }
         };
+    }
+    
+    @Cmd("pviewchain")
+    Task pviewchain(final @Arg("page|long:0:0:99999999999999999|Starting page address") long pageAddress,
+            final @Arg("find|long:-1:0:99999999999999999|Optional page pointer to find") long findPointer,
+            final @Arg("count|int:32:1:1000000|Maximum number of pages to display") long maxcount,
+            final @Arg("maxkey|int:42:4:10000|Maximum displayed key length") int maxkey,
+            final @Arg("maxvalue|int:42:4:100000|Maximum displayed value length") int maxvalue,
+            final @Arg("context|int:3:0:100000|Context lines") int context,
+            final @Arg("_flag|a|All lines") boolean allLines, final @Arg("_flag|s|Summary only") boolean summary) {
+        
+        return new Task() {
+
+            @Override
+            protected void runTask() throws Exception {
+                long currentPage = pageAddress;
+                int count = 0;
+                while (currentPage > 0 && count++ < maxcount) {
+                    if (_currentVolume == null) {
+                        postMessage("Select a volume", LOG_NORMAL);
+                        return;
+                    }
+                    final Buffer buffer = _currentVolume.getPool().getBufferCopy(_currentVolume, currentPage);
+                    if (summary) {
+                        postMessage(buffer.toString(), LOG_NORMAL);
+                    } else {
+                        postMessage(buffer.toStringDetail(findPointer, maxkey, maxvalue, context, allLines), LOG_NORMAL);
+                    }
+                    currentPage = buffer.getRightSibling();
+                }    
+            }
+
+            @Override
+            public String getStatus() {
+                return "";
+            }
+            
+        };   
     }
 
     @Cmd("jquery")
