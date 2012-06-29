@@ -1100,7 +1100,7 @@ public class CLI {
     }
     
     @Cmd("pviewchain")
-    Task pchain(final @Arg("page|long:0:0:99999999999999999|Starting page address") long pageAddress,
+    Task pviewchain(final @Arg("page|long:0:0:99999999999999999|Starting page address") long pageAddress,
             final @Arg("find|long:-1:0:99999999999999999|Optional page pointer to find") long findPointer,
             final @Arg("count|int:32:1:1000000|Maximum number of pages to display") long maxcount,
             final @Arg("maxkey|int:42:4:10000|Maximum displayed key length") int maxkey,
