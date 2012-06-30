@@ -1121,9 +1121,7 @@ public class Persistit {
         if (!Volume.isValidPageSize(pageSize)) {
             throw new IllegalArgumentException("Invalid page size " + pageSize);
         }
-        Volume volume = new Volume(Thread.currentThread().getName() + "_temporary_volume", 12345);
-        volume.openTemporary(this, pageSize);
-        return volume;
+        return Volume.createTemporaryVolume(this, pageSize);
     }
 
     /**

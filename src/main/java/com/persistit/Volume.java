@@ -81,6 +81,13 @@ public class Volume {
         return false;
     }
 
+    static Volume createTemporaryVolume(final Persistit persistit, final int pageSize) throws PersistitException {
+        Volume volume = new Volume(Thread.currentThread().getName() + TEMP_VOLUME_NAME_SUFFIX_FOR_FIXUP_DETECTION,
+                TEMP_VOLUME_ID_FOR_FIXUP_DETECTION);
+        volume.openTemporary(persistit, pageSize);
+        return volume;
+    }
+
     /**
      * Construct a hollow Volume - used by JournalManager
      * 
