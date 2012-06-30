@@ -2777,7 +2777,9 @@ public class Exchange {
             fetchFixupForLongRecords(value, Integer.MAX_VALUE);
             if (MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
                 if (bufferForPruning != null) {
-                    bufferForPruning.enqueuePruningAction(_tree.getHandle());
+                    final int treeHandle = _tree.getHandle();
+                    assert treeHandle != 0 : "MVV found in a temporary tree " + _tree;
+                    bufferForPruning.enqueuePruningAction(treeHandle);
                 }
                 visible = mvccFetch(value, minimumBytes);
                 fetchFixupForLongRecords(value, minimumBytes);

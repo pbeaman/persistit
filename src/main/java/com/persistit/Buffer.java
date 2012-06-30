@@ -3712,8 +3712,10 @@ public class Buffer extends SharedResource {
             if (p == KEY_BLOCK_START) {
                 if (tree != null) {
                     if (!_enqueuedForAntiValuePruning) {
+                        final int treeHandle = tree.getHandle();
+                        assert treeHandle != 0 : "MVV found in a temporary tree " + tree;
                         if (_persistit.getCleanupManager().offer(
-                                new CleanupAntiValue(tree.getHandle(), getPageAddress()))) {
+                                new CleanupAntiValue(treeHandle, getPageAddress()))) {
                             _enqueuedForAntiValuePruning = true;
                         }
                     }

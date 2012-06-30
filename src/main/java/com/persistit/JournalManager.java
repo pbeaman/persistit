@@ -213,6 +213,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private volatile long _earliestAbortedTimestamp = Long.MAX_VALUE;
 
+    private boolean _allowHandlesForTempVolumesAndTrees;
+
     /**
      * <p>
      * Initialize the new journal. This method takes its information from the
@@ -540,7 +542,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         return Math.min(urgency, URGENT);
     }
 
-    public int handleForVolume(final Volume volume) throws PersistitException {
+    int handleForVolume(final Volume volume) throws PersistitException {
+        if (!_allowHandlesForTempVolumesAndTrees && volume.isTemporary()) {
+            throw new IllegalStateException("Creating handle for temporary volume " + volume);
+        }
         if (volume.getHandle() != 0) {
             return volume.getHandle();
         }
@@ -580,6 +585,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     int handleForTree(final Tree tree) throws PersistitException {
+        if (!_allowHandlesForTempVolumesAndTrees && tree.getVolume().isTemporary()) {
+            throw new IllegalStateException("Creating handle for temporary tree " + tree);
+        }
         if (tree.getHandle() != 0) {
             return tree.getHandle();
         }
@@ -2833,6 +2841,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             files.add(addressToFile(address));
         }
         return files;
+    }
+
+    void unitTestAllowHandlesForTemporaryVolumesAndTrees() {
+        _allowHandlesForTempVolumesAndTrees = true;
     }
 
     public PageNode queryPageNode(final int volumeHandle, final long pageAddress) {

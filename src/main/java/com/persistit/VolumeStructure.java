@@ -79,6 +79,9 @@ class VolumeStructure {
             _directoryTree.setRootPageAddress(rootPageAddr);
             updateDirectoryTree(_directoryTree);
         }
+        if (!_volume.isTemporary()) {
+            _directoryTree.loadHandle();
+        }
         _directoryTree.setValid();
     }
 
@@ -188,7 +191,9 @@ class VolumeStructure {
         } else {
             return null;
         }
-        _persistit.getJournalManager().handleForTree(tree);
+        if (!_volume.isTemporary()) {
+            tree.loadHandle();
+        }
         _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
         return tree;
     }

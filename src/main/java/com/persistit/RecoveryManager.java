@@ -595,8 +595,13 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     void collectRecoveredVolumeMaps(final Map<Integer, Volume> handleToVolumeMap,
             final Map<Volume, Integer> volumeToHandleMap) {
-        volumeToHandleMap.putAll(_volumeToHandleMap);
-        handleToVolumeMap.putAll(_handleToVolumeMap);
+        for (final Map.Entry<Integer, Volume> entry : _handleToVolumeMap.entrySet()) {
+            final Volume volume = entry.getValue();
+            if (!volume.isTemporary()) {
+                volumeToHandleMap.put(volume, entry.getKey());
+                handleToVolumeMap.put(entry.getKey(), volume);
+            }
+        }
     }
 
     void collectRecoveredTreeMaps(final Map<Integer, TreeDescriptor> handleToTreeMap,
@@ -994,10 +999,17 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final Integer handle = Integer.valueOf(IT.getHandle(_readBuffer));
         final String treeName = IT.getTreeName(_readBuffer);
         final Integer volumeHandle = Integer.valueOf(IT.getVolumeHandle(_readBuffer));
-        final TreeDescriptor td = new TreeDescriptor(volumeHandle, treeName);
-        _handleToTreeMap.put(handle, td);
-        _treeToHandleMap.put(td, handle);
-        _persistit.getLogBase().recoveryRecord.log("IT", addressToString(address, timestamp), treeName, timestamp);
+        final Volume volume = _handleToVolumeMap.get(volumeHandle);
+        if (volume == null) {
+            throw new CorruptJournalException("IT JournalRecord refers to unidentified volume handle " + volumeHandle
+                    + " at position " + addressToString(address, timestamp));
+        }
+        if (!volume.isTemporary()) {
+            final TreeDescriptor td = new TreeDescriptor(volumeHandle, treeName);
+            _handleToTreeMap.put(handle, td);
+            _treeToHandleMap.put(td, handle);
+            _persistit.getLogBase().recoveryRecord.log("IT", addressToString(address, timestamp), treeName, timestamp);
+        }
     }
 
     /**
