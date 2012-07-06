@@ -23,6 +23,7 @@ package com.persistit.stress;
 import com.persistit.util.Debug;
 
 public class TestResult {
+    String _threadName = Thread.currentThread().getName();
     boolean _passed;
     String _message;
     Throwable _throwable;
@@ -49,6 +50,7 @@ public class TestResult {
     public String toString() {
         StringBuilder sb = new StringBuilder(_passed ? "PASSED" : "FAILED");
         if (_throwable != null) {
+            sb.append(" [" + _threadName + "]");
             sb.append(": ");
             sb.append(Debug.asString(_throwable));
         } else if (_message != null) {

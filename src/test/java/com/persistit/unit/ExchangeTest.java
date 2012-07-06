@@ -24,7 +24,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.Random;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Test;
 
@@ -100,7 +102,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
     @Test
     public void testStringAppend() throws PersistitException {
         int initialLength = 256;
-        String randomString = generateASCIIString(initialLength);
+        String randomString = createString(initialLength);
         Exchange ex = _persistit.getExchange("persistit", randomString, true);
 
         ex.clear().append(randomString);
@@ -112,7 +114,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
 
         /* lets double key length but keep value the same */
         initialLength *= 2;
-        String randomKey = generateASCIIString(initialLength);
+        String randomKey = createString(initialLength);
         ex.clear().append(randomKey);
         ex.getValue().put(randomString);
         ex.store();
@@ -123,7 +125,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         /* now lets keep doubling value length for kicks */
         for (int i = 0; i < 12; i++) {
             initialLength *= 2;
-            String randomValue = generateASCIIString(initialLength);
+            String randomValue = createString(initialLength);
             ex.clear().append(randomKey);
             ex.getValue().put(randomValue);
             ex.store();
@@ -136,7 +138,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         initialLength = 256;
         for (int i = 0; i < 2; i++) {
             initialLength *= 2;
-            randomKey = generateASCIIString(initialLength);
+            randomKey = createString(initialLength);
             ex.clear().append(randomKey);
             ex.getValue().put(randomString);
             ex.store();
@@ -150,7 +152,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
          * thrown
          */
         initialLength = 2048; // 2047 is max key length
-        randomKey = generateASCIIString(initialLength);
+        randomKey = createString(initialLength);
         try {
             ex.clear().append(randomKey);
             fail("ConversionException should have been thrown");
@@ -176,10 +178,10 @@ public class ExchangeTest extends PersistitUnitTestCase {
     @Test
     public void testTraversal() throws PersistitException {
         Exchange ex = _persistit.getExchange("persistit", "gogo", true);
-        String mockValue = generateASCIIString(256);
+        String mockValue = createString(256);
         /* insert 1000 records */
         for (int i = 0; i < 1000; i++) {
-            String key = generateASCIIString(32);
+            String key = createString(32);
             ex.clear().append(key);
             ex.getValue().put(mockValue);
             ex.store();
@@ -288,7 +290,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         testRemoveAndFetch(false);
         testRemoveAndFetch(true);
     }
-
+    
     private void testRemoveAndFetch(boolean inTransaction) throws Exception {
         Exchange ex = _persistit.getExchange("persistit", "gogo", true);
         Transaction txn = ex.getTransaction();
@@ -316,28 +318,57 @@ public class ExchangeTest extends PersistitUnitTestCase {
             }
         }
     }
-
-    /*
-     * This function is "borrowed" from the YCSB benchmark framework developed
-     * by Yahoo Research.
-     */
-    private String generateASCIIString(int length) {
-        int interval = '~' - ' ' + 1;
-        byte[] buf = new byte[length];
-        Random random = new Random();
-        random.nextBytes(buf);
-        for (int i = 0; i < length; i++) {
-            if (buf[i] < 0) {
-                buf[i] = (byte) ((-buf[i] % interval) + ' ');
-            } else {
-                buf[i] = (byte) ((buf[i] % interval) + ' ');
+    
+    @Test
+    public void testWrongThreadAssertion() throws Exception {
+        boolean assertsEnabled = false;
+        try {
+            assert false;
+        } catch (AssertionError e) {
+            assertsEnabled = true;
+        }
+        if (!assertsEnabled) {
+            // Does not count as a failure
+            System.out.println("Test requires asserts enabled");
+            return;
+        }
+        final AtomicReference<Exchange> ref = new AtomicReference<Exchange>();
+        Thread thread = new Thread(new Runnable() {
+            public void run() {
+                try {
+                    final Exchange exchange = _persistit.getExchange("persistit", "gogo", true);
+                    ref.set(exchange);
+                } catch (Exception e) {
+                    // leave null ref
+                }
+            }
+        });
+        thread.start();
+        thread.join();
+        final Exchange exchange = ref.get();
+        assertTrue("Failed to get an Exchange in background thread", exchange != null);
+        // Verifies that all the parameter-less methods assert.
+        int tested = 0;
+        for (final Method m : Exchange.class.getMethods()) {
+            if (m.getParameterTypes().length == 0 && m.getDeclaringClass().equals(Exchange.class)) {
+                if ("toString".equals(m.getName())) {
+                    continue;
+                }
+                try {
+                    System.out.println("Testing " + m.getName());
+                    m.invoke(exchange);
+                    fail("Method " + m + " failed to throw an AssertionError");
+                } catch (InvocationTargetException e) {
+                    if (e.getCause() instanceof AssertionError) {
+                        tested++;
+                        // expected
+                    } else {
+                        throw e;
+                    }
+                }
             }
         }
-        return new String(buf);
-    }
-
-    @Override
-    public void runAllTests() {
+        assertTrue("Not enough methods were tested: " + tested, tested > 10);
     }
 
 }
