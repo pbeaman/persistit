@@ -1283,11 +1283,12 @@ public class Exchange {
      *             Upon error
      */
     Exchange store(Key key, Value value) throws PersistitException {
+        assertCorrectThread(true);
+        _persistit.checkClosed();
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
         key.testValidForStoreAndFetch(_volume.getPageSize());
-        _persistit.checkClosed();
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
@@ -2565,10 +2566,10 @@ public class Exchange {
      */
     public Exchange fetchAndStore() throws PersistitException {
         assertCorrectThread(true);
+        _persistit.checkClosed();
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
-        _persistit.checkClosed();
         _persistit.checkSuspended();
         _key.testValidForStoreAndFetch(_volume.getPageSize());
         int options = StoreOptions.WAIT | StoreOptions.FETCH;
@@ -2988,6 +2989,7 @@ public class Exchange {
     }
 
     private boolean removeInternal(Direction selection, boolean fetchFirst) throws PersistitException {
+        assertCorrectThread(true);
         _persistit.checkClosed();
 
         if (selection != EQ && selection != GTEQ && selection != GT) {
@@ -3160,12 +3162,12 @@ public class Exchange {
      */
     boolean raw_removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst, boolean removeOnlyAntiValue)
             throws PersistitException {
-        if (_volume.isReadOnly()) {
-            throw new ReadOnlyVolumeException(_volume.toString());
-        }
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
+        if (_volume.isReadOnly()) {
+            throw new ReadOnlyVolumeException(_volume.toString());
+        }
         if (Debug.ENABLED) {
             Debug.suspend();
         }
@@ -3732,7 +3734,9 @@ public class Exchange {
     private boolean checkThread(final boolean set) {
         Thread t = Thread.currentThread();
         boolean okay = _thread == null || _thread == t;
-        _thread = set ? t : null;
+        if (okay) {
+            _thread = set ? t : null;
+        }
         return okay;
     }
 
@@ -3771,25 +3775,6 @@ public class Exchange {
 
     void ignoreTransactions() {
         _ignoreTransactions = true;
-    }
-
-    /**
-     * Called by Transaction to set up a context for committing updates.
-     * 
-     * @param tree
-     */
-    void setTree(Tree tree) throws PersistitException {
-        _persistit.checkClosed();
-        if (tree.getVolume() != _volume) {
-            _volume = tree.getVolume();
-            _pool = _persistit.getBufferPool(_volume.getPageSize());
-        }
-        if (_tree != tree) {
-            _tree = tree;
-            _treeHolder = new ReentrantResourceHolder(_tree);
-            _cachedTreeGeneration = -1;
-            checkLevelCache();
-        }
     }
 
     /**
