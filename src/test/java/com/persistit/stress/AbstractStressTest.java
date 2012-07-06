@@ -47,7 +47,7 @@ public abstract class AbstractStressTest implements Runnable {
     protected String[] _args;
     protected int _threadIndex;
     protected boolean _verbose;
-    protected String _threadName;
+    protected String _threadName = "<not started>";
 
     private volatile long _totalWorkDone;
 
@@ -69,7 +69,6 @@ public abstract class AbstractStressTest implements Runnable {
         } else {
             _args = argsString.split(" ");
         }
-        _threadName = Thread.currentThread().getName();
     }
 
     void initialize(final int index) {
@@ -81,6 +80,7 @@ public abstract class AbstractStressTest implements Runnable {
     }
 
     public void run() {
+        _threadName = Thread.currentThread().getName();
         try {
             Thread.sleep(1000);
         } catch (final InterruptedException ie) {

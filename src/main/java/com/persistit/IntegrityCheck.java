@@ -202,7 +202,7 @@ public class IntegrityCheck extends Task {
     };
 
     @Cmd("icheck")
-    static Task icheck(@Arg("trees|string|Tree selector: Volumes/Trees to check") String treeSelectorString,
+    public static IntegrityCheck icheck(@Arg("trees|string|Tree selector: Volumes/Trees to check") String treeSelectorString,
             @Arg("_flag|r|Use regex expression") boolean regex,
             @Arg("_flag|u|Don't freeze updates (Default is to freeze updates)") boolean dontSuspendUpdates,
             @Arg("_flag|h|Fix index holes") boolean fixHoles, @Arg("_flag|p|Prune MVV values") boolean prune,

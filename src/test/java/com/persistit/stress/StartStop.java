@@ -20,6 +20,7 @@
 
 package com.persistit.stress;
 
+import com.persistit.IntegrityCheck;
 import com.persistit.Persistit;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.stress.unit.Stress3;
@@ -49,7 +50,6 @@ public class StartStop extends AbstractSuite {
             deleteFiles(substitute("$datapath$/persistit*"));
             Persistit persistit = null;
 
-            System.out.printf("\nStarting cycle %,d\n", cycle);
             for (int stage = 0; stage <= 6; stage++) {
                 persistit = makePersistit(16384, "12000", CommitPolicy.SOFT);
                 try {
@@ -62,24 +62,24 @@ public class StartStop extends AbstractSuite {
                         add(new Stress3("repeat=1 count=250 seed=331"));
                         execute(persistit);
                         clear();
-                        persistit.checkAllVolumes();
+                        confirmIntegrity(persistit);
                         break;
                     case 3:
                         add(new Stress3txn("repeat=1 count=250 seed=331"));
                         execute(persistit);
                         clear();
-                        persistit.checkAllVolumes();
+                        confirmIntegrity(persistit);
                         break;
                     case 4:
-                        persistit.checkAllVolumes();
+                        confirmIntegrity(persistit);
                         persistit.close();
                         break;
                     case 5:
-                        persistit.checkAllVolumes();
+                        confirmIntegrity(persistit);
                         persistit.close();
                         break;
                     case 6:
-                        persistit.checkAllVolumes();
+                        confirmIntegrity(persistit);
                         persistit.close();
                         break;
                     default:
@@ -92,5 +92,15 @@ public class StartStop extends AbstractSuite {
             }
         }
 
+    }
+    
+    static void confirmIntegrity(final Persistit persistit) throws Exception {
+        IntegrityCheck icheck = IntegrityCheck.icheck("persistit:*", false, false, false, false, false, false, false);
+        icheck.setPersistit(persistit);
+        icheck.setMessageWriter(null);
+        icheck.run();
+        if (icheck.getFaults().length > 0) {
+            throw new RuntimeException(icheck.getFaults().length + " faults");
+        }
     }
 }
