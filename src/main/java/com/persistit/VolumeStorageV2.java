@@ -410,7 +410,7 @@ class VolumeStorageV2 extends VolumeStorage {
 
     void claimHeadBuffer() throws PersistitException {
         if (!_headBuffer.claim(true)) {
-            throw new InUseException("Unable to acquire claim on " + this);
+            throw new InUseException("Unable to acquire claim on " + _headBuffer);
         }
     }
 

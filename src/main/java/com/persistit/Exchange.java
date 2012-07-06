@@ -226,7 +226,7 @@ public class Exchange {
                         // version is from concurrent txn that already committed
                         // or timed out waiting to see. Either
                         // way, must abort.
-                        _exchange.getTransaction().rollback();
+                        _exchange._transaction.rollback();
                         throw new RollbackException();
                     }
                     if (version > _foundVersion) {
@@ -296,6 +296,8 @@ public class Exchange {
     private final RawValueWriter _rawValueWriter = new RawValueWriter();
     private final MVVValueWriter _mvvValueWriter = new MVVValueWriter();
     private LongRecordHelper _longRecordHelper;
+
+    private volatile Thread _thread;
 
     private Exchange(final Persistit persistit) {
         _persistit = persistit;
@@ -404,6 +406,7 @@ public class Exchange {
     }
 
     void init(Volume volume, String treeName, boolean create) throws PersistitException {
+        assertCorrectThread(true);
         if (volume == null) {
             throw new NullPointerException();
         }
@@ -416,6 +419,7 @@ public class Exchange {
     }
 
     void init(final Tree tree) {
+        assertCorrectThread(true);
         final Volume volume = tree.getVolume();
         _ignoreTransactions = volume.isTemporary();
         _ignoreMVCCFetch = false;
@@ -433,10 +437,10 @@ public class Exchange {
         }
         _splitPolicy = _persistit.getDefaultSplitPolicy();
         _joinPolicy = _persistit.getDefaultJoinPolicy();
-
     }
 
     void init(Exchange exchange) {
+        assertCorrectThread(true);
         _persistit = exchange._persistit;
         _volume = exchange._volume;
         _ignoreTransactions = _volume.isTemporary();
@@ -462,6 +466,7 @@ public class Exchange {
     }
 
     void removeState(boolean secure) {
+        assertCorrectThread(false);
         _key.clear(secure);
         _value.clear(secure);
         _spareKey1.clear(secure);
@@ -479,6 +484,7 @@ public class Exchange {
      * Drop all cached optimization information
      */
     public void initCache() {
+        assertCorrectThread(true);
         for (int level = 0; level < MAX_TREE_DEPTH; level++) {
             if (_levelCache[level] != null)
                 _levelCache[level].invalidate();
@@ -488,6 +494,7 @@ public class Exchange {
     }
 
     private void checkLevelCache() throws PersistitException {
+
         if (!_tree.isValid()) {
             if (_tree.getVolume().isTemporary()) {
                 _tree = _tree.getVolume().getTree(_tree.getName(), true);
@@ -526,7 +533,6 @@ public class Exchange {
         int _flags;
         long _deallocLeftPage;
         long _deallocRightPage;
-
 
         private LevelCache(int level) {
             _level = level;
@@ -893,6 +899,7 @@ public class Exchange {
      * @return This <code>Key</code>.
      */
     public Key getKey() {
+        assertCorrectThread(true);
         return _key;
     }
 
@@ -902,6 +909,7 @@ public class Exchange {
      * @return The <code>Value</code>.
      */
     public Value getValue() {
+        assertCorrectThread(true);
         return _value;
     }
 
@@ -916,6 +924,7 @@ public class Exchange {
      * @return The <code>Volume</code>.
      */
     public Volume getVolume() {
+        assertCorrectThread(true);
         return _volume;
     }
 
@@ -925,6 +934,7 @@ public class Exchange {
      * @return The <code>Tree</code>
      */
     public Tree getTree() {
+        assertCorrectThread(true);
         return _tree;
     }
 
@@ -934,6 +944,7 @@ public class Exchange {
      * @return The <code>Persistit</code> instance.
      */
     public Persistit getPersistitInstance() {
+        assertCorrectThread(true);
         return _persistit;
     }
 
@@ -947,6 +958,7 @@ public class Exchange {
      * @return The change count
      */
     public long getChangeCount() {
+        assertCorrectThread(true);
         return _tree.getChangeCount();
     }
 
@@ -1279,7 +1291,6 @@ public class Exchange {
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
-
         // TODO: directoryExchange, and lots of tests, don't use transactions.
         // Skip MVCC for now.
         int options = StoreOptions.WAIT;
@@ -1797,15 +1808,14 @@ public class Exchange {
                 // level cache for this level will become
                 // (appropriately) invalid.
                 //
-                
-                
+
                 int at = buffer.split(rightSibling, key, valueWriter, foundAt, _spareKey1, sequence, _splitPolicy);
                 if (at < 0) {
                     lc.updateInsert(rightSibling, key, -at);
                 } else {
                     lc.updateInsert(buffer, key, at);
                 }
-                
+
                 long oldRightSibling = buffer.getRightSibling();
                 long newRightSibling = rightSibling.getPageAddress();
 
@@ -1971,6 +1981,7 @@ public class Exchange {
      */
     private boolean traverse(final Direction direction, final boolean deep, final int minimumBytes,
             final int minKeyDepth, final int matchUpToIndex) throws PersistitException {
+        assertCorrectThread(true);
         _persistit.checkClosed();
 
         final Key spareKey = _spareKey1;
@@ -2281,6 +2292,7 @@ public class Exchange {
             return keyFilter.selected(_key) && traverse(direction, true, minBytes);
         }
 
+        assertCorrectThread(true);
         if (_key.getEncodedSize() == 0) {
             if (direction == GT || direction == GTEQ) {
                 _key.appendBefore();
@@ -2552,6 +2564,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public Exchange fetchAndStore() throws PersistitException {
+        assertCorrectThread(true);
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
@@ -2713,7 +2726,9 @@ public class Exchange {
      * @throws PersistitException
      */
     public Exchange fetch(Value value, int minimumBytes) throws PersistitException {
+        assertCorrectThread(true);
         _persistit.checkClosed();
+
         _key.testValidForStoreAndFetch(_volume.getPageSize());
         if (minimumBytes < 0) {
             minimumBytes = 0;
@@ -2855,6 +2870,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
+        assertCorrectThread(true);
         _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
         boolean result = traverse(GT, true, 0, _key.getDepth() + 1, size);
@@ -2874,6 +2890,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean fetchAndRemove() throws PersistitException {
+        assertCorrectThread(true);
         _persistit.checkClosed();
         _persistit.checkSuspended();
         _spareValue.clear();
@@ -2892,6 +2909,9 @@ public class Exchange {
      * @throws PersistitException
      */
     public void removeTree() throws PersistitException {
+        assertCorrectThread(true);
+        _persistit.checkClosed();
+
         final long timestamp = _persistit.getCurrentTimestamp();
         for (int i = 0; i < 100; i++) {
             _persistit.checkClosed();
@@ -3067,12 +3087,14 @@ public class Exchange {
         Debug.$assert0.t(key2.getEncodedSize() > 0);
         Debug.$assert0.t(key1.compareTo(key2) < 0);
 
+        assertCorrectThread(true);
+        _persistit.checkClosed();
+
         if (_ignoreTransactions || !_transaction.isActive()) {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
         }
 
         // Record the delete operation on the journal
-        _persistit.checkClosed();
 
         _transaction.remove(this, key1, key2);
 
@@ -3361,7 +3383,7 @@ public class Exchange {
                             if (buffer1.isDataPage()) {
                                 _tree.bumpChangeCount();
                             }
-                            
+
                             buffer1.setDirtyAtTimestamp(timestamp);
                             buffer2.setDirtyAtTimestamp(timestamp);
 
@@ -3695,6 +3717,26 @@ public class Exchange {
     }
 
     /**
+     * Assert that the current thread matches the "owner" of the Exchange. The
+     * owner is set when the Exchange is created or first used. To enable
+     * pooling, the {@link #removeState(boolean)} method clears it.
+     * 
+     * @param set
+     *            Whether to set or clear the thread field for subsequent
+     *            checks.
+     */
+    private void assertCorrectThread(final boolean set) {
+        assert checkThread(set) : "Thread " + Thread.currentThread() + " must not use " + this + " owned by " + _thread;
+    }
+
+    private boolean checkThread(final boolean set) {
+        Thread t = Thread.currentThread();
+        boolean okay = _thread == null || _thread == t;
+        _thread = set ? t : null;
+        return okay;
+    }
+
+    /**
      * The transaction context for this Exchange. By default, this is the
      * transaction context of the current thread, and by default, all
      * <code>Exchange</code>s created by a thread share the same transaction
@@ -3703,6 +3745,7 @@ public class Exchange {
      * @return The <code>Transaction</code> context for this thread.
      */
     public Transaction getTransaction() {
+        assertCorrectThread(true);
         return _transaction;
     }
 
@@ -3757,21 +3800,25 @@ public class Exchange {
      *         <code>false</code>.
      */
     boolean isDirectoryExchange() {
+        assertCorrectThread(true);
         return _isDirectoryExchange;
     }
 
     public void setSplitPolicy(SplitPolicy policy) {
+        assertCorrectThread(true);
         _splitPolicy = policy;
     }
 
     public void setJoinPolicy(JoinPolicy policy) {
+        assertCorrectThread(true);
         _joinPolicy = policy;
     }
 
     public KeyHistogram computeHistogram(final Key start, final Key end, final int sampleSize, final int keyDepth,
             final KeyFilter keyFilter, final int requestedTreeDepth) throws PersistitException {
-
+        assertCorrectThread(true);
         _persistit.checkClosed();
+
         checkLevelCache();
         final int treeDepth = requestedTreeDepth > _tree.getDepth() ? _tree.getDepth() : requestedTreeDepth;
         if (treeDepth < 0) {
@@ -3853,6 +3900,7 @@ public class Exchange {
      *            the object to be cached for application convenience.
      */
     public void setAppCache(Object appCache) {
+        assertCorrectThread(true);
         _appCache = appCache;
     }
 
@@ -3860,6 +3908,7 @@ public class Exchange {
      * @return the object cached for application convenience
      */
     public Object getAppCache() {
+        assertCorrectThread(true);
         return _appCache;
     }
 
@@ -3875,6 +3924,7 @@ public class Exchange {
      * @return copy of page on the key's index tree at that level.
      */
     public Buffer fetchBufferCopy(final int level) throws PersistitException {
+        assertCorrectThread(true);
         if (level >= _tree.getDepth() || level <= -_tree.getDepth()) {
             throw new IllegalArgumentException("Tree depth is " + _tree.getDepth());
         }

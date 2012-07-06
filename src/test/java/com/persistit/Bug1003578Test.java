@@ -101,11 +101,11 @@ public class Bug1003578Test extends PersistitUnitTestCase {
         /*
          * Create a tree with a few data pages
          */
-        final Exchange ex = _persistit.getExchange("persistit", "Bug1003578Test", true);
-        final Transaction txn = ex.getTransaction();
-        ex.getValue().put(RED_FOX);
+        final Exchange ex1 = _persistit.getExchange("persistit", "Bug1003578Test", true);
+        final Transaction txn = ex1.getTransaction();
+        ex1.getValue().put(RED_FOX);
         for (int i = 0; i < 10000; i++) {
-            ex.to(i).store();
+            ex1.to(i).store();
         }
         /*
          * Temporarily suspect the cleanup manager
@@ -117,27 +117,25 @@ public class Bug1003578Test extends PersistitUnitTestCase {
          * Now transactionally delete the pages; this will create AntiValues
          */
         txn.begin();
-        ex.clear().removeAll();
+        ex1.clear().removeAll();
         txn.commit();
         txn.end();
         
         /*
          * Traverse the AntiValues. This will enqueue the pages for pruning.
          */
-        assertFalse("Should have no visible keys", ex.to(Key.BEFORE).next());
+        assertFalse("Should have no visible keys", ex1.to(Key.BEFORE).next());
 
-        /*
-         * Reenable the CleanupManager
-         */
         final String longString = createString(1000000);
         Thread t = new Thread(new Runnable() {
             public void run() {
+                final Exchange ex2 = new Exchange(ex1);
                 try {
                     /*
                      * Now create long records
                      */
-                    ex.getValue().put(longString);
-                    ex.to("longrec").store();
+                    ex2.getValue().put(longString);
+                    ex2.to("longrec").store();
                 } catch (PersistitException e) {
                     e.printStackTrace();
                 }
@@ -157,7 +155,7 @@ public class Bug1003578Test extends PersistitUnitTestCase {
         sequence(LONG_RECORD_ALLOCATE_B);
         disableSequencer();
         t.join();
-        ex.to("longrec").fetch();
-        assertEquals("Should have stored the long record string", longString, ex.getValue().getString());
+        ex1.to("longrec").fetch();
+        assertEquals("Should have stored the long record string", longString, ex1.getValue().getString());
     }
 }

@@ -50,7 +50,7 @@ public class StartStop extends AbstractSuite {
             deleteFiles(substitute("$datapath$/persistit*"));
             Persistit persistit = null;
 
-            for (int stage = 0; stage <= 6; stage++) {
+            for (int stage = 0; stage < 6; stage++) {
                 persistit = makePersistit(16384, "12000", CommitPolicy.SOFT);
                 try {
                     switch (stage) {
@@ -75,12 +75,10 @@ public class StartStop extends AbstractSuite {
                         persistit.close();
                         break;
                     case 5:
+                        add(new Stress3txn("repeat=1 count=250 seed=331"));
+                        execute(persistit);
+                        clear();
                         confirmIntegrity(persistit);
-                        persistit.close();
-                        break;
-                    case 6:
-                        confirmIntegrity(persistit);
-                        persistit.close();
                         break;
                     default:
                         throw new RuntimeException("Missing case: " + stage);
