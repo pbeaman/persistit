@@ -60,13 +60,13 @@ public class LogBase {
         String value();
     }
 
-    @Message("INFO|%s")
+    @Message("INFO|Akiban Persistit %s")
     public final LogItem copyright = PersistitLogMessage.empty();
 
-    @Message("INFO|Log started %tc")
+    @Message("DEBUG|Log started %tc")
     public final LogItem start = PersistitLogMessage.empty();
 
-    @Message("INFO|Log ended %tc")
+    @Message("DEBUG|Log ended %tc")
     public final LogItem end = PersistitLogMessage.empty();
 
     @Message("ERROR|%s")
@@ -84,7 +84,7 @@ public class LogBase {
     @Message("ERROR|Journal write failure %s in %s at offset %,d")
     public final LogItem journalWriteError = PersistitLogMessage.empty();
 
-    @Message("INFO|Recovery done: %,d recovered pages, %,d committed transactions, %,d errors")
+    @Message("INFO|Recovery done: %,d retained pages, %,d committed transactions, %,d errors")
     public final LogItem recoveryDone = PersistitLogMessage.empty();
 
     @Message("ERROR|Recovery failed due to %s - the journal needs to be repaired or discarded")
@@ -96,7 +96,7 @@ public class LogBase {
     @Message("DEBUG|Valid recovery member file %s")
     public final LogItem recoveryValidFile = PersistitLogMessage.empty();
 
-    @Message("DEBUG|Processing Recovery Record type %s at %s %s with timestamp %,d")
+    @Message("TRACE|Processing Recovery Record type %s at %s %s with timestamp %,d")
     public final LogItem recoveryRecord = PersistitLogMessage.empty();
 
     @Message("INFO|Recovery plan: will recover %,d pages and %,d committed transactions; will discard %,d uncommitted transactions")
@@ -108,13 +108,13 @@ public class LogBase {
     @Message("WARNING|Recovery exception %s at transaction %s")
     public final LogItem recoveryException = PersistitLogMessage.empty();
 
-    @Message("INFO|%s proposed")
+    @Message("DEBUG|%s proposed")
     public final LogItem checkpointProposed = PersistitLogMessage.empty();
 
-    @Message("INFO|%s written at %,d")
+    @Message("DEBUG|%s written at %,d")
     public final LogItem checkpointWritten = PersistitLogMessage.empty();
 
-    @Message("INFO|%s recovered at %s")
+    @Message("DEBUG|%s recovered at %s")
     public final LogItem checkpointRecovered = PersistitLogMessage.empty();
 
     @Message("ERROR|%s while beginning transaction %s")
@@ -129,19 +129,19 @@ public class LogBase {
     @Message("ERROR|%s while rolling back transaction %s")
     public final LogItem txnRollbackException = PersistitLogMessage.empty();
 
-    @Message("INFO|Transaction neither committed nor rolled back %s")
+    @Message("WARNING|Transaction neither committed nor rolled back %s")
     public final LogItem txnNotCommitted = PersistitLogMessage.empty();
 
     @Message("WARNING|Transaction abandoned %s")
     public final LogItem txnAbandoned = PersistitLogMessage.empty();
 
-    @Message("INFO|Starting AdminUI")
+    @Message("DEBUG|Starting AdminUI")
     public final LogItem startAdminUI = PersistitLogMessage.empty();
 
-    @Message("INFO|MXBean %s is registered")
+    @Message("DEBUG|MXBean %s is registered")
     public final LogItem mbeanRegistered = PersistitLogMessage.empty();
 
-    @Message("INFO|MXBean %s is unregistered")
+    @Message("DEBUG|MXBean %s is unregistered")
     public final LogItem mbeanUnregistered = PersistitLogMessage.empty();
 
     @Message("WARNING|Failure while registering MXBean: %s")
@@ -189,10 +189,10 @@ public class LogBase {
     @Message("ERROR|IOException %s while extending %s: old length=%,d, new length=%,d")
     public final LogItem extendException = PersistitLogMessage.empty();
 
-    @Message("INFO|Management RMI Server registered on %s")
+    @Message("DEBUG|Management RMI Server registered on %s")
     public final LogItem rmiServerRegistered = PersistitLogMessage.empty();
 
-    @Message("INFO|Management RMI Server unregistered on %s")
+    @Message("DEBUG|Management RMI Server unregistered on %s")
     public final LogItem rmiServerUnregister = PersistitLogMessage.empty();
 
     @Message("WARNING|Exception while registering management RMI Server %s %s")
