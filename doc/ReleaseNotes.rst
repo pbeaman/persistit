@@ -50,7 +50,7 @@ For optimal performance, proper configuration of the Persistit buffer pool is re
 
 Release Date
 ============
-June 15, 2012
+July 13, 2012
 
 Overview
 ========
@@ -81,7 +81,31 @@ Slow Accumulator Operations
 
 https://bugs.launchpad.net/bugs/1012859
 
-This bug preexisted, but was unknown to, the 3.1.1 release. If a thread starting a new transaction was interrupted during the call to ``begin()``, there was a chance for an internal object to wind up in an invalid state. This invalid state caused no visible consequences other than slower than expected ``Accumulator`` actions if this had occurred many times.
+This bug preexisted but was unknown to the 3.1.1 release. If a thread starting a new transaction was interrupted during the call to ``begin()``, there was a chance for an internal object to wind up in an invalid state. This invalid state caused no visible consequences other than slower than expected ``Accumulator`` actions if this had occurred many times.
+
+B+Tree Corruption in Stress Test
+--------------------------------
+
+https://bugs.launchpad.net/akiban-persistit/+bug/1017957
+
+This bug preexisted but was unknown to the 3.1.1 release. An extremely rare combination of events caused memory structures caused an incorrect key-pointer pair to be inserted while deleting records in a key range. The bug was detected in an 8-hour stress test run.
+
+
+Slow Recovery Due to Temporary Tree IT Records
+----------------------------------------------
+
+https://bugs.launchpad.net/akiban-persistit/+bug/1018526
+
+This bug preexisted but was unknown to the 3.1.1 release. 
+
+Every Tree created in a temporary volume was being assigned a tree handle recorded permanently in the journal. In one case the result was a journal containing millions of IT (Identify Tree) records, and these caused normal recovery to take a very long time.  The fix keeps temporary trees out of the journal and removes IT records which may have been added previously. 
+
+
+Asserts Added to Check for Correct Exchange Thread Behavior
+-----------------------------------------------------------
+
+A bug in the Akiban Server code caused a an Exchange to be used concurrently by two Threads, causing serious and seemingly unrelated failures in Persistit including instances of IllegalMonitorException and IllegalStateException. To guard against future occurrences, asserts were added to catch such concurrent use by multiple threads.  Applications should be tested with asserts enabled to verify correct thread usage.
+ 
 
 Known Issues
 ============
