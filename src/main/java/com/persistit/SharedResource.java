@@ -48,7 +48,7 @@ class SharedResource {
      * Default maximum time to wait for access to this resource. Methods throw
      * an InUseException when this time is exceeded.
      */
-    final static long DEFAULT_MAX_WAIT_TIME = 60000L;
+    public final static long DEFAULT_MAX_WAIT_TIME = 60000L;
 
     /**
      * Mask for count of Threads holding a reader or writer claim (0-32767)
