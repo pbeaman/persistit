@@ -537,8 +537,6 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * @param category
      *            A String describing the nature of the event. A separate
      *            event-history is maintained for each unique category.
-     * @param level
-     *            Indicates whether this event is a warning or an error.
      */
     public synchronized final void post(Event event, final String category) {
         History history = _historyMap.get(category);
