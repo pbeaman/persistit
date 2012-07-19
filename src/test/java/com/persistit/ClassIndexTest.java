@@ -24,12 +24,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.Test;
 
+import com.persistit.Transaction.CommitPolicy;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class ClassIndexTest extends PersistitUnitTestCase {
@@ -38,6 +40,16 @@ public class ClassIndexTest extends PersistitUnitTestCase {
 
     final Map<Integer, ClassInfo> map = new HashMap<Integer, ClassInfo>();
 
+    @SuppressWarnings("serial")
+    public static class A implements Serializable {
+
+    }
+
+    @SuppressWarnings("serial")
+    public static class B implements Serializable {
+
+    }
+
     @Override
     public void tearDown() throws Exception {
         map.clear();
@@ -45,7 +57,7 @@ public class ClassIndexTest extends PersistitUnitTestCase {
     }
 
     @Test
-    public void testOneClassInfo() throws Exception {
+    public void oneClassInfo() throws Exception {
         final ClassIndex cx = _persistit.getClassIndex();
         cx.registerClass(this.getClass());
         ClassInfo ci = cx.lookupByClass(this.getClass());
@@ -54,11 +66,15 @@ public class ClassIndexTest extends PersistitUnitTestCase {
     }
 
     @Test
-    public void test2() throws Exception {
+    public void manyClassInfo() throws Exception {
         _maxHandle = 0;
         final ClassIndex cx = _persistit.getClassIndex();
         Class<?> clazz = Persistit.class;
         test2a(cx, clazz);
+
+        assertEquals("Cache misses should match map size", map.size(), cx.getCacheMisses()
+                - cx.getDiscardedDuplicates());
+
         for (int handle = 0; handle < _maxHandle + 10; handle++) {
             assertEquals(map.get(handle), cx.lookupByHandle(handle));
         }
@@ -84,6 +100,100 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         System.out.println(cx.size() + " classes");
     }
 
+    @Test
+    public void multiThreaded() throws Exception {
+        final int threadCount = 50;
+
+        final Thread[] threads = new Thread[threadCount];
+        for (int i = 0; i < threadCount; i++) {
+            final int index = i;
+            threads[i] = new Thread(new Runnable() {
+                public void run() {
+                    final Transaction transaction = _persistit.getTransaction();
+                    for (int k = 0; k < 10; k++) {
+                        try {
+                            transaction.begin();
+                            try {
+                                test2a(_persistit.getClassIndex(), Persistit.class);
+                                if ((index % 3) == 0) {
+                                    transaction.rollback();
+                                } else {
+                                    transaction.commit();
+                                }
+                            } finally {
+                                transaction.end();
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            });
+        }
+        for (int i = 0; i < threadCount; i++) {
+            threads[i].start();
+        }
+        for (int i = 0; i < threadCount; i++) {
+            threads[i].join();
+        }
+
+        final ClassIndex cx = _persistit.getClassIndex();
+
+        /*
+         * Verify that almost all lookups were satisfied from cache.
+         * There should be one "cache miss" for every class in the map.
+         * There may be more: these are caused by concurrent execution and
+         * are explicitly permitted - they will happen only rarely and only
+         * when multiple threads are contending to register a new class.
+         * Such instances are safely discarded and the following adjusts the
+         * cache miss count by the number so discarded.
+         */
+        assertEquals("Cache misses should match map size", map.size(), cx.getCacheMisses()
+                - cx.getDiscardedDuplicates());
+
+        for (int handle = 0; handle < _maxHandle + 10; handle++) {
+            assertEquals(map.get(handle), cx.lookupByHandle(handle));
+        }
+
+    }
+
+    @Test
+    public void rollback() throws Exception {
+        Exchange ex = _persistit.getExchange("persistit", "ClassIndexTest", true);
+        Transaction txn = ex.getTransaction();
+        txn.begin();
+        try {
+            ex.getValue().put(new A());
+            ex.to("A").store();
+            ex.getValue().put(new B());
+            ex.to("B").store();
+            txn.rollback();
+        } finally {
+            txn.end();
+        }
+
+        txn.begin();
+        try {
+            ex.getValue().put(new B());
+            ex.to("B").store();
+            ex.getValue().put(new A());
+            ex.to("A").store();
+            txn.commit(CommitPolicy.HARD);
+        } finally {
+            txn.end();
+        }
+
+        final Configuration config = _persistit.getConfiguration();
+        _persistit.crash();
+        _persistit = new Persistit();
+        _persistit.initialize(config);
+        ex = _persistit.getExchange("persistit", "ClassIndexTest", false);
+        Object b = ex.to("B").fetch().getValue().get();
+        Object a = ex.to("A").fetch().getValue().get();
+        assertTrue("Incorrect class", a instanceof A);
+        assertTrue("Incorrect class", b instanceof B);
+    }
+
     private void test2a(final ClassIndex cx, final Class<?> clazz) throws Exception {
         if (clazz.isPrimitive()) {
             return;
@@ -103,12 +213,6 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         } else {
             assert (copy.equals(ci));
         }
-
-    }
-
-    @Override
-    public void runAllTests() throws Exception {
-        // TODO Auto-generated method stub
 
     }
 
