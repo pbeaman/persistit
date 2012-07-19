@@ -76,12 +76,12 @@ public class ClassIndexTest extends PersistitUnitTestCase {
                 - cx.getDiscardedDuplicates());
 
         for (int handle = 0; handle < _maxHandle + 10; handle++) {
-            assertEquals(map.get(handle), cx.lookupByHandle(handle));
+            assertTrue(equals(map.get(handle), cx.lookupByHandle(handle)));
         }
 
         final ClassIndex cy = new ClassIndex(_persistit);
         for (int handle = 0; handle < _maxHandle + 10; handle++) {
-            assertEquals(map.get(handle), cy.lookupByHandle(handle));
+            assertTrue(equals(map.get(handle), cy.lookupByHandle(handle)));
         }
         for (int handle = 0; handle < _maxHandle + 10; handle++) {
             ClassInfo ci = map.get(handle);
@@ -152,7 +152,7 @@ public class ClassIndexTest extends PersistitUnitTestCase {
                 - cx.getDiscardedDuplicates());
 
         for (int handle = 0; handle < _maxHandle + 10; handle++) {
-            assertEquals(map.get(handle), cx.lookupByHandle(handle));
+            assertTrue(equals(map.get(handle), cx.lookupByHandle(handle)));
         }
 
     }
@@ -163,6 +163,7 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         Transaction txn = ex.getTransaction();
         txn.begin();
         try {
+            
             ex.getValue().put(new A());
             ex.to("A").store();
             ex.getValue().put(new B());
@@ -192,6 +193,23 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         Object a = ex.to("A").fetch().getValue().get();
         assertTrue("Incorrect class", a instanceof A);
         assertTrue("Incorrect class", b instanceof B);
+    }
+    
+    @Test
+    public void knownNull() throws Exception {
+        ClassIndex cx = _persistit.getClassIndex();
+        final ClassInfo ci = cx.lookupByHandle(12345);
+        assertEquals("Shoul return cached known null", ci, cx.lookupByHandle(12345));
+    }
+
+    private boolean equals(final ClassInfo a, final ClassInfo b) {
+        if (a == b) {
+            return true;
+        }
+        if (a == null) {
+            return b.getDescribedClass() == null;
+        }
+        return a.equals(b);
     }
 
     private void test2a(final ClassIndex cx, final Class<?> clazz) throws Exception {

@@ -173,6 +173,7 @@ class ClassIndex {
                 } else {
                     ClassInfo ci = new ClassInfo(null, 0, handle, null);
                     hashClassInfo(ci);
+                    return ci;
                 }
             } catch (ClassNotFoundException cnfe) {
                 throw new ConversionException(cnfe);
@@ -182,7 +183,6 @@ class ClassIndex {
                 if (ex != null)
                     releaseExchange(ex);
             }
-            return null;
         }
     }
 
