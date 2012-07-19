@@ -21,18 +21,32 @@
 package com.persistit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+
+import javax.tools.JavaCompiler;
+import javax.tools.JavaCompiler.CompilationTask;
+import javax.tools.SimpleJavaFileObject;
+import javax.tools.ToolProvider;
 
 import org.junit.Test;
 
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.unit.PersistitUnitTestCase;
+import com.persistit.unit.UnitTestProperties;
 
 public class ClassIndexTest extends PersistitUnitTestCase {
 
@@ -48,6 +62,10 @@ public class ClassIndexTest extends PersistitUnitTestCase {
     @SuppressWarnings("serial")
     public static class B implements Serializable {
 
+    }
+    
+    public static class C {
+        
     }
 
     @Override
@@ -140,13 +158,13 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         final ClassIndex cx = _persistit.getClassIndex();
 
         /*
-         * Verify that almost all lookups were satisfied from cache.
-         * There should be one "cache miss" for every class in the map.
-         * There may be more: these are caused by concurrent execution and
-         * are explicitly permitted - they will happen only rarely and only
-         * when multiple threads are contending to register a new class.
-         * Such instances are safely discarded and the following adjusts the
-         * cache miss count by the number so discarded.
+         * Verify that almost all lookups were satisfied from cache. There
+         * should be one "cache miss" for every class in the map. There may be
+         * more: these are caused by concurrent execution and are explicitly
+         * permitted - they will happen only rarely and only when multiple
+         * threads are contending to register a new class. Such instances are
+         * safely discarded and the following adjusts the cache miss count by
+         * the number so discarded.
          */
         assertEquals("Cache misses should match map size", map.size(), cx.getCacheMisses()
                 - cx.getDiscardedDuplicates());
@@ -163,7 +181,7 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         Transaction txn = ex.getTransaction();
         txn.begin();
         try {
-            
+
             ex.getValue().put(new A());
             ex.to("A").store();
             ex.getValue().put(new B());
@@ -194,12 +212,37 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         assertTrue("Incorrect class", a instanceof A);
         assertTrue("Incorrect class", b instanceof B);
     }
-    
+
     @Test
     public void knownNull() throws Exception {
         ClassIndex cx = _persistit.getClassIndex();
         final ClassInfo ci = cx.lookupByHandle(12345);
-        assertEquals("Shoul return cached known null", ci, cx.lookupByHandle(12345));
+        assertEquals("Should return cached known null", ci, cx.lookupByHandle(12345));
+    }
+
+    @Test
+    public void multipleClassVersions() throws Exception {
+        ClassIndex cx = _persistit.getClassIndex();
+        cx.clearAllEntries();
+        int count = 10;
+        final Class<?>[] classes = new Class<?>[count];
+        for (int i = 0; i < count; i++) {
+            classes[i] = makeAClass("SomeClass", i);
+            assertNotNull("this test requires tools.jar on the classpath", classes[i]);
+            cx.lookupByClass(classes[i]);
+        }
+        assertEquals("Each version should be unique", count, cx.getCacheMisses());
+        Set<Integer> handles = new HashSet<Integer>();
+        for (int i = 0; i < count; i++) {
+            ClassInfo ci = cx.lookupByClass(classes[i]);
+            int handle = ci.getHandle();
+            assertTrue("Handles must be unique", handles.add(handle));
+        }
+        assertEquals("Each version should be in cache", count, cx.getCacheMisses());
+        for (final Integer handle : handles) {
+            ClassInfo ci = cx.lookupByHandle(handle);
+            assertEquals("Lookup by handle and class must match", ci, cx.lookupByClass(ci.getDescribedClass()));
+        }
     }
 
     private boolean equals(final ClassInfo a, final ClassInfo b) {
@@ -231,7 +274,47 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         } else {
             assert (copy.equals(ci));
         }
+    }
 
+    private static Class<?> makeAClass(final String name, final int index) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        sb.append("public class " + name + " implements java.io.Serializable {\n");
+        for (int i = 0; i < index; i++) {
+            sb.append("    int v" + i + ";\n");
+        }
+        sb.append("}\n");
+        if (!compile(name + ".java", sb)) {
+            return null;
+        }
+        ClassLoader loader = new URLClassLoader(new URL[] { new File(UnitTestProperties.DATA_PATH).toURI().toURL() },
+                ClassIndexTest.class.getClassLoader());
+        Class<?> clazz = loader.loadClass(name);
+        return clazz;
+    }
+
+    private static boolean compile(final String name, final CharSequence source) throws Exception {
+        final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        if (compiler == null) {
+            return false;
+        }
+        final SourceString sourceObject = new SourceString(name, source);
+        CompilationTask task = compiler.getTask(null, null, null, Arrays.asList("-d", UnitTestProperties.DATA_PATH),
+                null, Arrays.asList(sourceObject));
+        return task.call().booleanValue();
+    }
+
+    static class SourceString extends SimpleJavaFileObject {
+        final CharSequence _source;
+
+        SourceString(final String name, final CharSequence source) throws Exception {
+            super(new URI(name), Kind.SOURCE);
+            _source = source;
+        }
+
+        @Override
+        public CharSequence getCharContent(boolean ignoreCodingErrors) {
+            return _source;
+        }
     }
 
 }

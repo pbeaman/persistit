@@ -209,7 +209,7 @@ class ClassIndex {
             }
             if (cie._classInfo.getDescribedClass() != null && cie._classInfo.getName().equals(clazz.getName())) {
                 if (osc == null) {
-                    osc = ObjectStreamClass.lookup(clazz);
+                    osc = ObjectStreamClass.lookupAny(clazz);
                     if (osc != null) {
                         suid = osc.getSerialVersionUID();
                     }
@@ -222,7 +222,7 @@ class ClassIndex {
         }
 
         if (osc == null) {
-            osc = ObjectStreamClass.lookup(clazz);
+            osc = ObjectStreamClass.lookupAny(clazz);
         }
         if (osc != null) {
             suid = osc.getSerialVersionUID();
