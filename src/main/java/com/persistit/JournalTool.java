@@ -778,6 +778,7 @@ class JournalTool {
                 processOneRecord(address + position - start, timestamp, innerSize, type);
                 _readBuffer.position(position + innerSize);
             }
+            flush();
         }
 
         @Override
@@ -859,6 +860,7 @@ class JournalTool {
             if (_verbose) {
                 dumpPageMap(count, address, timestamp, recordSize);
             }
+            flush();
         }
 
         @Override
@@ -871,6 +873,7 @@ class JournalTool {
             if (_verbose) {
                 dumpTransactionMap(count, address, timestamp, recordSize);
             }
+            flush();
         }
 
         @Override
