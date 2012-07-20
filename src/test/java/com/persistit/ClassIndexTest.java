@@ -25,34 +25,32 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.net.URI;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
-import javax.tools.JavaCompiler;
-import javax.tools.JavaCompiler.CompilationTask;
-import javax.tools.SimpleJavaFileObject;
-import javax.tools.ToolProvider;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.Test;
 
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.unit.PersistitUnitTestCase;
-import com.persistit.unit.UnitTestProperties;
+import com.persistit.util.Util;
 
 public class ClassIndexTest extends PersistitUnitTestCase {
 
+    /**
+     * Arbitrary constant chosen to be found exactly once in the MockSerailizableObject
+     * class file. 
+     */
+    final static long SUID_CONSTANT = 0xF3E1D4C1B5A99286L;
+    private final static String MOCK_SERIALIZABLE_CLASS_NAME = "MockSerializableObject";
+
     private int _maxHandle = 0;
 
-    final Map<Integer, ClassInfo> map = new HashMap<Integer, ClassInfo>();
+    final Map<Integer, ClassInfo> map = new ConcurrentHashMap<Integer, ClassInfo>();
 
     @SuppressWarnings("serial")
     public static class A implements Serializable {
@@ -63,9 +61,9 @@ public class ClassIndexTest extends PersistitUnitTestCase {
     public static class B implements Serializable {
 
     }
-    
+
     public static class C {
-        
+
     }
 
     @Override
@@ -221,13 +219,13 @@ public class ClassIndexTest extends PersistitUnitTestCase {
     }
 
     @Test
-    public void multipleClassVersions() throws Exception {
+    public void multipleVersions() throws Exception {
         ClassIndex cx = _persistit.getClassIndex();
         cx.clearAllEntries();
         int count = 10;
         final Class<?>[] classes = new Class<?>[count];
         for (int i = 0; i < count; i++) {
-            classes[i] = makeAClass("SomeClass", i);
+            classes[i] = makeAClass(i);
             assertNotNull("this test requires tools.jar on the classpath", classes[i]);
             cx.lookupByClass(classes[i]);
         }
@@ -276,45 +274,42 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         }
     }
 
-    private static Class<?> makeAClass(final String name, final int index) throws Exception {
-        StringBuilder sb = new StringBuilder();
-        sb.append("public class " + name + " implements java.io.Serializable {\n");
-        for (int i = 0; i < index; i++) {
-            sb.append("    int v" + i + ";\n");
-        }
-        sb.append("}\n");
-        if (!compile(name + ".java", sb)) {
-            return null;
-        }
-        ClassLoader loader = new URLClassLoader(new URL[] { new File(UnitTestProperties.DATA_PATH).toURI().toURL() },
-                ClassIndexTest.class.getClassLoader());
-        Class<?> clazz = loader.loadClass(name);
-        return clazz;
+    private static Class<?> makeAClass(final long suid) throws Exception {
+        InputStream is = ClassIndexTest.class.getClassLoader().getResourceAsStream(
+                "com/persistit/" + MOCK_SERIALIZABLE_CLASS_NAME + "_classBytes");
+        final byte[] bytes = new byte[10000];
+        final int length = is.read(bytes);
+        replaceSuid(bytes, suid);
+        ClassLoader cl = new ClassLoader(ClassIndexTest.class.getClassLoader()) {
+            public Class<?> loadClass(final String name) {
+                if (name.contains(MOCK_SERIALIZABLE_CLASS_NAME)) {
+                    return defineClass(name, bytes, 0, length);
+                } else {
+                    try {
+                        return ClassIndexTest.class.getClassLoader().loadClass(name);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        };
+        return cl.loadClass("com.persistit." + MOCK_SERIALIZABLE_CLASS_NAME);
     }
 
-    private static boolean compile(final String name, final CharSequence source) throws Exception {
-        final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        if (compiler == null) {
-            return false;
+    private final static void replaceSuid(final byte[] bytes, final long suid) {
+        boolean replaced = false;
+        for (int i = 0; i < bytes.length; i++) {
+            boolean found = true;
+            for (int j = 0; found && j < 8; j++) {
+                found &= ((bytes[i + j] & 0xFF) == ((SUID_CONSTANT >>> (56 - j * 8)) & 0xFF));
+            }
+            if (found) {
+                assertTrue("Found multiple instances of SUID_CONSTANT", !replaced);
+                Util.putLong(bytes, i, suid);
+                replaced = true;
+            }
         }
-        final SourceString sourceObject = new SourceString(name, source);
-        CompilationTask task = compiler.getTask(null, null, null, Arrays.asList("-d", UnitTestProperties.DATA_PATH),
-                null, Arrays.asList(sourceObject));
-        return task.call().booleanValue();
-    }
-
-    static class SourceString extends SimpleJavaFileObject {
-        final CharSequence _source;
-
-        SourceString(final String name, final CharSequence source) throws Exception {
-            super(new URI(name), Kind.SOURCE);
-            _source = source;
-        }
-
-        @Override
-        public CharSequence getCharContent(boolean ignoreCodingErrors) {
-            return _source;
-        }
+        assertTrue("Did not find SUID_CONSTANT", replaced);
     }
 
 }

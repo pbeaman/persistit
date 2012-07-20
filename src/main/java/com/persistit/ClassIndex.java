@@ -57,13 +57,13 @@ import com.persistit.exception.PersistitException;
  * 
  * @version 1.1
  */
-class ClassIndex {
+final class ClassIndex {
     private final static int INITIAL_CAPACITY = 123;
 
     private final static String BY_HANDLE = "byHandle";
     private final static String BY_NAME = "byName";
     private final static String NEXT_ID = "nextId";
-    private final static int EXTRA_FACTOR = 4;
+    private final static int EXTRA_FACTOR = 2;
 
     final static String CLASS_INDEX_TREE_NAME = "_classIndex";
 
@@ -83,11 +83,12 @@ class ClassIndex {
      * <code>ClassInfoEntry</code>s.
      */
     private static class ClassInfoEntry {
-        ClassInfoEntry _next;
-        ClassInfo _classInfo;
+        final ClassInfoEntry _next;
+        final ClassInfo _classInfo;
 
-        ClassInfoEntry(ClassInfo ci) {
+        ClassInfoEntry(ClassInfo ci, ClassInfoEntry next) {
             _classInfo = ci;
+            _next = next;
         }
     }
 
@@ -330,11 +331,11 @@ class ClassIndex {
     }
 
     private void hashClassInfo(ClassInfo ci) {
-        int size = _size.incrementAndGet();
+        int size = _size.get();
         if (size * EXTRA_FACTOR > _hashTable.length()) {
             int discarded = _discardedDuplicates.get();
-            AtomicReferenceArray<ClassInfoEntry> newHashTable = new AtomicReferenceArray<ClassInfoEntry>(size * 2
-                    * EXTRA_FACTOR);
+            AtomicReferenceArray<ClassInfoEntry> newHashTable = new AtomicReferenceArray<ClassInfoEntry>(EXTRA_FACTOR
+                    * 2 * size);
             for (int i = 0; i < _hashTable.length(); i++) {
                 ClassInfoEntry cie = _hashTable.get(i);
                 while (cie != null) {
@@ -370,9 +371,9 @@ class ClassIndex {
             cie = cie._next;
         }
         cie = hashTable.get(hash);
-        ClassInfoEntry newCie = new ClassInfoEntry(ci);
-        newCie._next = cie;
+        ClassInfoEntry newCie = new ClassInfoEntry(ci, cie);
         hashTable.set(hash, newCie);
+        _size.incrementAndGet();
         return true;
     }
 
