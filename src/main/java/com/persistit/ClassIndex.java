@@ -46,39 +46,49 @@ import com.persistit.exception.PersistitException;
  * Note that certain handles for common classes are pre-assigned, and therefore
  * are not translated through this class. See {@link Value} for details.
  * </p>
+ * <p>
+ * Implementation note: this class implements a specialized hash table in which
+ * entries are never removed. Almost always this class returns a value by
+ * finding it in the hash table; the lookup is carefully designed to be
+ * threadsafe without requiring synchronization. Only in the event of a cache
+ * miss is there execution of a synchronized block which may read and/or update
+ * the _classIndex tree.
+ * </p>
  * 
  * @version 1.1
  */
-class ClassIndex {
+final class ClassIndex {
     private final static int INITIAL_CAPACITY = 123;
 
     private final static String BY_HANDLE = "byHandle";
     private final static String BY_NAME = "byName";
     private final static String NEXT_ID = "nextId";
+    private final static int EXTRA_FACTOR = 2;
+
     final static String CLASS_INDEX_TREE_NAME = "_classIndex";
 
-    private AtomicInteger _size = new AtomicInteger();
-    private Persistit _persistit;
+    private final AtomicInteger _size = new AtomicInteger();
+    private final Persistit _persistit;
+    private final SessionId _sessionId = new SessionId();
 
-    private AtomicReferenceArray<ClassInfoEntry> _hashById = new AtomicReferenceArray<ClassInfoEntry>(INITIAL_CAPACITY);
-    private AtomicReferenceArray<ClassInfoEntry> _hashByName = new AtomicReferenceArray<ClassInfoEntry>(
+    private volatile AtomicReferenceArray<ClassInfoEntry> _hashTable = new AtomicReferenceArray<ClassInfoEntry>(
             INITIAL_CAPACITY);
-    private ClassInfoEntry _knownNull = null;
 
     private int _testIdFloor = Integer.MIN_VALUE;
-    
+    private AtomicInteger _cacheMisses = new AtomicInteger();
+    private AtomicInteger _discardedDuplicates = new AtomicInteger();
+
     /**
      * A structure holding a ClassInfo, plus links to other related
      * <code>ClassInfoEntry</code>s.
      */
     private static class ClassInfoEntry {
-        ClassInfoEntry _nextByIdHash;
-        ClassInfoEntry _nextByNameHash;
+        final ClassInfoEntry _next;
+        final ClassInfo _classInfo;
 
-        ClassInfo _classInfo;
-
-        ClassInfoEntry(ClassInfo ci) {
+        ClassInfoEntry(ClassInfo ci, ClassInfoEntry next) {
             _classInfo = ci;
+            _next = next;
         }
     }
 
@@ -102,33 +112,32 @@ class ClassIndex {
     }
 
     /**
-     * Looks up and returns the ClassInfo for an integer handle. This is used
-     * when decoding an <code>Object</code> from a
-     * <code>com.persistit.Value</code> to associate the encoded integer handle
-     * value with the corresponding class.
+     * Look up and return the ClassInfo for an integer handle. This is used when
+     * decoding an <code>Object</code> from a <code>com.persistit.Value</code>
+     * to associate the encoded integer handle value with the corresponding
+     * class.
      * 
      * @param handle
      *            The handle
      * @return The associated ClassInfo, or <i>null</i> if there is none.
      */
     public ClassInfo lookupByHandle(int handle) {
-        ClassInfoEntry cie = _hashById.get(handle % _hashById.length());
+        AtomicReferenceArray<ClassInfoEntry> hashTable = _hashTable;
+        ClassInfoEntry cie = hashTable.get(handle % hashTable.length());
         while (cie != null) {
             if (cie._classInfo.getHandle() == handle)
                 return cie._classInfo;
-            cie = cie._nextByIdHash;
+            cie = cie._next;
         }
-        cie = _knownNull;
-        while (cie != null) {
-            if (cie._classInfo.getHandle() == handle)
-                return null;
-            cie = cie._nextByIdHash;
-        }
+
+        _cacheMisses.incrementAndGet();
+
         synchronized (this) {
+            _sessionId.assign();
             Exchange ex = null;
             try {
                 ex = getExchange();
-                Transaction txn = ex.getTransaction();
+                final Transaction txn = ex.getTransaction();
                 txn.begin();
                 try {
                     ex.clear().append(BY_HANDLE).append(handle).fetch();
@@ -152,7 +161,7 @@ class ClassIndex {
                     Class<?> cl = Class.forName(storedName, false, Thread.currentThread().getContextClassLoader());
 
                     long suid = 0;
-                    ObjectStreamClass osc = ObjectStreamClass.lookup(cl);
+                    ObjectStreamClass osc = ObjectStreamClass.lookupAny(cl);
                     if (osc != null)
                         suid = osc.getSerialVersionUID();
                     if (storedSuid != suid) {
@@ -164,9 +173,8 @@ class ClassIndex {
                     return ci;
                 } else {
                     ClassInfo ci = new ClassInfo(null, 0, handle, null);
-                    cie = _knownNull;
-                    _knownNull = new ClassInfoEntry(ci);
-                    _knownNull._nextByIdHash = cie;
+                    hashClassInfo(ci);
+                    return ci;
                 }
             } catch (ClassNotFoundException cnfe) {
                 throw new ConversionException(cnfe);
@@ -176,13 +184,11 @@ class ClassIndex {
                 if (ex != null)
                     releaseExchange(ex);
             }
-            // TODO - lookup in ClassIndex Exchange
-            return null;
         }
     }
 
     /**
-     * Looks up and returns a ClassInfo for a class. This is used when encoding
+     * Look up and return the ClassInfo for a class. This is used when encoding
      * an <code>Object</code> into a <code>com.persistit.Value</code>.
      * 
      * @param clazz
@@ -190,20 +196,21 @@ class ClassIndex {
      * @return The ClassInfo for the specified Class.
      */
     public ClassInfo lookupByClass(Class<?> clazz) {
+        AtomicReferenceArray<ClassInfoEntry> hashTable = _hashTable;
 
         ObjectStreamClass osc = null;
         long suid = 0;
 
         int nh = clazz.getName().hashCode() & 0x7FFFFFFF;
-        ClassInfoEntry cie = _hashByName.get(nh % _hashById.length());
+        ClassInfoEntry cie = hashTable.get(nh % hashTable.length());
 
         while (cie != null) {
-            if (cie._classInfo.getDescribedClass().equals(clazz)) {
+            if (clazz.equals(cie._classInfo.getDescribedClass())) {
                 return cie._classInfo;
             }
-            if (cie._classInfo.getName().equals(clazz.getName())) {
+            if (cie._classInfo.getDescribedClass() != null && cie._classInfo.getName().equals(clazz.getName())) {
                 if (osc == null) {
-                    osc = ObjectStreamClass.lookup(clazz);
+                    osc = ObjectStreamClass.lookupAny(clazz);
                     if (osc != null) {
                         suid = osc.getSerialVersionUID();
                     }
@@ -212,22 +219,49 @@ class ClassIndex {
                     return cie._classInfo;
                 }
             }
-            cie = cie._nextByNameHash;
+            cie = cie._next;
         }
 
+        if (osc == null) {
+            osc = ObjectStreamClass.lookupAny(clazz);
+        }
+        if (osc != null) {
+            suid = osc.getSerialVersionUID();
+        }
+
+        _cacheMisses.incrementAndGet();
+
+        /**
+         * To update the tree, this class uses a unique SessionId and results in
+         * using a unique Transaction context unrelated to the application
+         * context. Therefore if an application does this:
+         * 
+         * <pre>
+         * <code> 
+         * txn.begin(); 
+         * value.put(new SomeClass()); 
+         * txn.rollback();
+         * txn.end(); 
+         * </code>
+         * </pre>
+         * 
+         * the class SomeClass will be registered even though the enclosing
+         * transaction rolled back. This is important because other concurrent
+         * threads may have started using the handle for SomeClass. Therefore
+         * this class ensures that a non-nested transaction to insert the new
+         * ClassInfo into the system volume has committed before adding the
+         * handle to the hash table. </p>
+         */
+
         synchronized (this) {
-            if (osc == null) {
-                osc = ObjectStreamClass.lookup(clazz);
-            }
-            if (osc != null) {
-                suid = osc.getSerialVersionUID();
-            }
+            final SessionId saveSessionId = _persistit.getSessionId();
             Exchange ex = null;
             try {
+                _persistit.setSessionId(_sessionId);
                 ex = getExchange();
+                final Transaction txn = ex.getTransaction();
                 final ClassInfo ci;
                 final int handle;
-                Transaction txn = ex.getTransaction();
                 txn.begin();
                 ex.clear().append(BY_NAME).append(clazz.getName()).append(suid).fetch();
                 Value value = ex.getValue();
@@ -274,8 +308,10 @@ class ClassIndex {
             } catch (PersistitException pe) {
                 throw new ConversionException(pe);
             } finally {
-                if (ex != null)
+                if (ex != null) {
                     releaseExchange(ex);
+                }
+                _persistit.setSessionId(saveSessionId);
             }
         }
     }
@@ -295,45 +331,50 @@ class ClassIndex {
     }
 
     private void hashClassInfo(ClassInfo ci) {
-        int size = _size.incrementAndGet();
-        if (size * 2 > _hashById.length()) {
-            AtomicReferenceArray<ClassInfoEntry> hashById = new AtomicReferenceArray<ClassInfoEntry>(size * 2);
-            AtomicReferenceArray<ClassInfoEntry> hashByName = new AtomicReferenceArray<ClassInfoEntry>(size * 2);
-            for (int i = 0; i < _hashById.length(); i++) {
-                ClassInfoEntry cie = _hashById.get(i);
+        int size = _size.get();
+        if (size * EXTRA_FACTOR > _hashTable.length()) {
+            int discarded = _discardedDuplicates.get();
+            AtomicReferenceArray<ClassInfoEntry> newHashTable = new AtomicReferenceArray<ClassInfoEntry>(EXTRA_FACTOR
+                    * 2 * size);
+            for (int i = 0; i < _hashTable.length(); i++) {
+                ClassInfoEntry cie = _hashTable.get(i);
                 while (cie != null) {
-                    addHashEntry(cie._classInfo, hashById, hashByName);
-                    cie = cie._nextByIdHash;
+                    addHashEntry(newHashTable, cie._classInfo);
+                    cie = cie._next;
                 }
             }
-            _hashById = hashById;
-            _hashByName = hashByName;
+            _hashTable = newHashTable;
+            _discardedDuplicates.set(discarded);
         }
-        addHashEntry(ci, _hashById, _hashByName);
+        addHashEntry(_hashTable, ci);
     }
 
-    private void addHashEntry(final ClassInfo ci, final AtomicReferenceArray<ClassInfoEntry> hashById,
-            final AtomicReferenceArray<ClassInfoEntry> hashByName) {
-        ClassInfoEntry cie = new ClassInfoEntry(ci);
-        int handle = ci.getHandle();
-        int nh = ci.getName().hashCode() & 0x7FFFFFFF;
-
-        ClassInfoEntry cie1 = hashById.get(handle % hashById.length());
-        ClassInfoEntry cie2 = hashByName.get(nh % hashByName.length());
-
-        cie._nextByIdHash = cie1;
-        cie._nextByNameHash = cie2;
-
-        hashById.set(handle % hashById.length(), cie);
-        hashByName.set(nh % hashByName.length(), cie);
-
-        ClassInfoEntry cie3 = _knownNull;
-        while (cie3 != null) {
-            if (cie3._classInfo.getHandle() != handle) {
-                _knownNull = cie3._nextByIdHash;
-            }
-            cie3 = cie3._nextByIdHash;
+    private void addHashEntry(final AtomicReferenceArray<ClassInfoEntry> hashTable, ClassInfo ci) {
+        final int hh = ci.getHandle() % hashTable.length();
+        final int nh = ci.getDescribedClass() == null ? -1
+                : ((ci.getDescribedClass().getName().hashCode() & 0x7FFFFFFF) % hashTable.length());
+        boolean added = addHashEntry(hashTable, ci, hh);
+        if (nh != -1 && nh != hh) {
+            added |= addHashEntry(hashTable, ci, nh);
         }
+        if (!added) {
+            _discardedDuplicates.incrementAndGet();
+        }
+    }
+
+    private boolean addHashEntry(final AtomicReferenceArray<ClassInfoEntry> hashTable, ClassInfo ci, final int hash) {
+        ClassInfoEntry cie = hashTable.get(hash);
+        while (cie != null) {
+            if (ci.equals(cie._classInfo)) {
+                return false;
+            }
+            cie = cie._next;
+        }
+        cie = hashTable.get(hash);
+        ClassInfoEntry newCie = new ClassInfoEntry(ci, cie);
+        hashTable.set(hash, newCie);
+        _size.incrementAndGet();
+        return true;
     }
 
     private Exchange getExchange() throws PersistitException {
@@ -348,22 +389,45 @@ class ClassIndex {
     private void releaseExchange(Exchange ex) {
         _persistit.releaseExchange(ex);
     }
-    
+
     /**
-     * For unit tests only. Next class ID handle will be at least
-     * as large as this.
+     * For unit tests only. Next class ID handle will be at least as large as
+     * this.
+     * 
      * @param id
      */
     void setTestIdFloor(final int id) {
         _testIdFloor = id;
     }
-    
+
     /**
-     * For unit tests only.  Clears all entries.
+     * For unit tests only. Clears all entries.
+     * 
      * @throws PersistitException
      */
     void clearAllEntries() throws PersistitException {
         getExchange().removeAll();
+        _cacheMisses.set(0);
+        _discardedDuplicates.set(0);
     }
 
+    /**
+     * For unit tests only.
+     * 
+     * @return count (since beginning or last call to {@link #clearAllEntries()}
+     *         ) of cache misses.
+     */
+    int getCacheMisses() {
+        return _cacheMisses.get();
+    }
+
+    /**
+     * For unit tests only.
+     * 
+     * @return count (since beginning or last call to {@link #clearAllEntries()}
+     *         ) of discarded duplicates.
+     */
+    int getDiscardedDuplicates() {
+        return _discardedDuplicates.get();
+    }
 }
