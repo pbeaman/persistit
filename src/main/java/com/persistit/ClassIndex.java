@@ -58,6 +58,7 @@ import com.persistit.exception.PersistitException;
  * @version 1.1
  */
 final class ClassIndex {
+    final static int HANDLE_BASE = 64;
     private final static int INITIAL_CAPACITY = 123;
 
     private final static String BY_HANDLE = "byHandle";
@@ -283,7 +284,7 @@ final class ClassIndex {
                         // Store a new ClassInfo record
                         //
                         ex.clear().append(NEXT_ID).fetch();
-                        handle = Math.max(_testIdFloor, value.isDefined() ? value.getInt() + 1 : 65);
+                        handle = Math.max(_testIdFloor, value.isDefined() ? value.getInt() : HANDLE_BASE) + 1;
                         value.clear().put(handle);
                         ex.store();
 

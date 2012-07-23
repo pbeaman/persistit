@@ -36,7 +36,6 @@ import com.persistit.TestShim;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.KeyDisplayer;
-import com.persistit.encoding.KeyHasher;
 import com.persistit.encoding.KeyRenderer;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.PersistitException;
@@ -137,7 +136,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
 
     @Test
     public void keyHandleEncodeDecode() throws Exception {
-        final int[] handles = { 0, 0x1FE, 0x1FF, 0x200, 0x201, 0x7FFE, 0x7FFF, 0x8000, 0x8001, Integer.MAX_VALUE };
+        final int[] handles = { 64, 0x1FE, 0x1FF, 0x200, 0x201, 0x7FFE, 0x7FFF, 0x8000, 0x8001, Integer.MAX_VALUE };
         final KeyCoder coder = new TestKeyRenderer1();
         final Key key1 = new Key(_persistit);
         final URL url1 = new URL("http://w/z");
@@ -165,18 +164,6 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
         }
     }
     
-    @Test
-    public void keyHasher() throws Exception {
-        final KeyCoder coder = new TestKeyRenderer2();
-        _persistit.getCoderManager().registerKeyCoder(WrappedString.class, coder);
-        Key key = new Key(_persistit);
-        key.append(new WrappedString(RED_FOX));
-        key.reset();
-        int hashCodeFromString = computeBogusHash(RED_FOX.getBytes(), 0, RED_FOX.getBytes().length);
-        int hashCodeFromKey = key.decodeHashCode();
-        assertEquals(hashCodeFromString, hashCodeFromKey);
-    }
-
     private void registerCoderDefinedKeyHandle(final KeyCoder coder, final int handle) throws PersistitException {
         TestShim.clearAllClassIndexEntries(_persistit);
         TestShim.setClassIndexTestIdFloor(_persistit, handle);
@@ -252,7 +239,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
     }
     
     
-    public static class TestKeyRenderer2 implements KeyRenderer, KeyHasher {
+    public static class TestKeyRenderer2 implements KeyRenderer {
 
         @Override
         public void appendKeySegment(final Key key, final Object object, final CoderContext context) {
@@ -283,14 +270,6 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
         @Override
         public boolean isZeroByteFree() {
             return true;
-        }
-
-        @Override
-        public int decodeHashCode(Key key, Class<?> clazz, CoderContext context) {
-            int size = key.getEncodedSize();
-            int index = key.getIndex();
-            int result = computeBogusHash(key.getEncodedBytes(), index, size - index);
-            return result;
         }
     }
 

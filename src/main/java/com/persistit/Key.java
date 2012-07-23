@@ -29,7 +29,6 @@ import java.util.Date;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.KeyDisplayer;
-import com.persistit.encoding.KeyHasher;
 import com.persistit.encoding.KeyRenderer;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.InvalidKeyException;
@@ -890,6 +889,7 @@ public final class Key implements Comparable<Object> {
     private int _depth;
     private int _maxSize;
     private long _generation;
+    private boolean _inKeyCoder;
     private Persistit _persistit;
 
     /**
@@ -2848,54 +2848,6 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * <p>
-     * Compute the hash code of the next key segment. In most codes, this method
-     * simply decodes the object and returns its hashCode. However, if the
-     * encoded object implements {@link KeyHasher} then the
-     * {@link KeyHasher#decodeHashCode(Key, Class, CoderContext)} method is
-     * invoked to compute the hash code.
-     * </p>
-     * 
-     * @return hashCode computed on the next key segment.
-     */
-    public int decodeHashCode() {
-        return decodeHashCode(null, null);
-    }
-
-    /**
-     * <p>
-     * Compute the hash code of the next key segment. In most codes, this method
-     * simply decodes the object and returns its hashCode. However, if the
-     * encoded object implements {@link KeyHasher} then the
-     * {@link KeyHasher#decodeHashCode(Key, Class, CoderContext)} method is
-     * invoked to compute the hash code.
-     * </p>
-     * 
-     * @param target
-     *            A mutable object into which this method may attempt to decode
-     *            the value
-     * 
-     * @param context
-     *            An application-specified value that may assist a
-     *            {@link KeyCoder}. The context is passed to the
-     *            {@link KeyCoder#decodeKeySegment} method.
-     * 
-     * 
-     * @return hashCode computed on the next key segment.
-     */
-    public int decodeHashCode(Object target, CoderContext context) {
-        int type = getTypeCode();
-
-        if (type == TYPE_NULL) {
-            return 0;
-        }
-        if (type >= TYPE_CODER_MIN && type <= TYPE_CODER_MAX) {
-            return decodeHashCodeByKeyCoder(target, context);
-        }
-        return decode(target, context).hashCode();
-    }
-
-    /**
      * Decodes the next key segment as a displayable String, advances the index
      * to the next key segment and returns the result. This method is intended
      * to generate a reasonably legible String representation for any type of
@@ -3168,7 +3120,7 @@ public final class Key implements Comparable<Object> {
     }
 
     void testValidForAppend() {
-        if (_size == 0 || _size > 1 && _bytes[_size - 1] == 0)
+        if (_size == 0 || _size > 1 && _bytes[_size - 1] == 0 || _inKeyCoder)
             return;
 
         int b = _bytes[_size - 1] & 0xFF;
@@ -3336,21 +3288,20 @@ public final class Key implements Comparable<Object> {
 
     private Key appendByKeyCoder(Object object, Class<?> cl, KeyCoder coder, CoderContext context) {
         int size = _size;
+        boolean saveInKeyCoder = _inKeyCoder;
         try {
             int handle = _persistit.getClassIndex().lookupByClass(cl).getHandle();
-
             _size += encodeHandle(handle);
             int begin = _size;
-            byte saveByte = _bytes[begin - 1];
-            _bytes[begin - 1] = 0;
+            _inKeyCoder = true;
             coder.appendKeySegment(this, object, context);
-            _bytes[begin - 1] = saveByte;
             quoteNulls(begin, _size - begin, coder.isZeroByteFree());
             endSegment(_size);
             size = _size;
             return this;
         } finally {
             _size = size;
+            _inKeyCoder = saveInKeyCoder;
         }
     }
 
@@ -3382,51 +3333,6 @@ public final class Key implements Comparable<Object> {
                 if (coder instanceof KeyRenderer) {
                     ((KeyRenderer) coder).renderKeySegment(this, target, clazz, context);
                     return target;
-                } else {
-                    throw new ConversionException("No KeyRenderer for class " + clazz.getName());
-                }
-            }
-        } finally {
-            _size = size;
-            if (unquoted) {
-                index += quoteNulls(index, segmentSize, zeroByteFree);
-                index = decodeEnd(index);
-            }
-            _index = index;
-        }
-    }
-
-    private int decodeHashCodeByKeyCoder(Object target, CoderContext context) {
-        int index = _index;
-        int size = _size;
-        Class<?> clazz = Object.class;
-        int segmentSize = 0;
-        boolean unquoted = false;
-        boolean zeroByteFree = false;
-        try {
-            int handle = decodeHandle();
-            clazz = _persistit.classForHandle(handle);
-            if (clazz == null) {
-                throw new ConversionException("No class information for handle " + handle);
-            }
-            KeyCoder coder = _persistit.lookupKeyCoder(clazz);
-            if (coder == null) {
-                throw new ConversionException("No KeyCoder for class " + clazz.getName());
-            }
-            zeroByteFree = coder.isZeroByteFree();
-            segmentSize = unquoteNulls(index, zeroByteFree);
-            size = _size;
-            _size = index + segmentSize;
-            unquoted = true;
-            if (coder instanceof KeyHasher) {
-                return ((KeyHasher) coder).decodeHashCode(this, clazz, context);
-            }
-            if (target == null) {
-                return coder.decodeKeySegment(this, clazz, context).hashCode();
-            } else {
-                if (coder instanceof KeyRenderer) {
-                    ((KeyRenderer) coder).renderKeySegment(this, target, clazz, context);
-                    return target.hashCode();
                 } else {
                     throw new ConversionException("No KeyRenderer for class " + clazz.getName());
                 }
@@ -3649,31 +3555,33 @@ public final class Key implements Comparable<Object> {
     }
 
     private int encodeHandle(int handle) {
+        
+        int v = handle - ClassIndex.HANDLE_BASE;
         int size = _size;
 
-        if (handle < 0x00000007) {
-            _bytes[size++] = (byte) (TYPE_CODER1 | ((handle) & 0x7));
+        if (v < 0x00000007) {
+            _bytes[size++] = (byte) (TYPE_CODER1 | ((v) & 0x7));
             return 1;
         }
 
-        if (handle < 0x000001FF) {
-            _bytes[size++] = (byte) (TYPE_CODER2 | ((handle >>> 6) & 0x7));
-            _bytes[size++] = (byte) (0x80 | ((handle) & 0x3F));
+        if (v < 0x000001FF) {
+            _bytes[size++] = (byte) (TYPE_CODER2 | ((v >>> 6) & 0x7));
+            _bytes[size++] = (byte) (0x80 | ((v) & 0x3F));
             return 2;
         }
 
-        if (handle < 0x00007FFF) {
-            _bytes[size++] = (byte) (TYPE_CODER3 | ((handle >>> 12) & 0x7));
-            _bytes[size++] = (byte) (0xC0 | ((handle >>> 6) & 0x3F));
-            _bytes[size++] = (byte) (0x80 | ((handle) & 0x3F));
+        if (v < 0x00007FFF) {
+            _bytes[size++] = (byte) (TYPE_CODER3 | ((v >>> 12) & 0x7));
+            _bytes[size++] = (byte) (0xC0 | ((v >>> 6) & 0x3F));
+            _bytes[size++] = (byte) (0x80 | ((v) & 0x3F));
             return 3;
         } else {
-            _bytes[size++] = (byte) (TYPE_CODER6 | ((handle >>> 30) & 0x7));
-            _bytes[size++] = (byte) (0xC0 | ((handle >>> 24) & 0x3F));
-            _bytes[size++] = (byte) (0xC0 | ((handle >>> 18) & 0x3F));
-            _bytes[size++] = (byte) (0xC0 | ((handle >>> 12) & 0x3F));
-            _bytes[size++] = (byte) (0xC0 | ((handle >>> 6) & 0x3F));
-            _bytes[size++] = (byte) (0x80 | ((handle) & 0x3F));
+            _bytes[size++] = (byte) (TYPE_CODER6 | ((v >>> 30) & 0x7));
+            _bytes[size++] = (byte) (0xC0 | ((v >>> 24) & 0x3F));
+            _bytes[size++] = (byte) (0xC0 | ((v >>> 18) & 0x3F));
+            _bytes[size++] = (byte) (0xC0 | ((v >>> 12) & 0x3F));
+            _bytes[size++] = (byte) (0xC0 | ((v >>> 6) & 0x3F));
+            _bytes[size++] = (byte) (0x80 | ((v) & 0x3F));
             return 6;
         }
     }
@@ -3714,22 +3622,15 @@ public final class Key implements Comparable<Object> {
 
         case TYPE_CODER2:
             v = _bytes[index++] & 0xFF;
-            if ((v & 0xC0) != 0xC0)
+            if ((v & 0x80) != 0x80)
                 break;
             result = result << 6 | (v & 0x3F);
 
             // Intentionally falls through
 
         case TYPE_CODER1:
-            v = _bytes[index++] & 0xFF;
-            if ((v & 0xC0) != 0x80)
-                break;
-            result = result << 6 | (v & 0x3F);
-
-            // Intentionally falls through
-
             _index = index;
-            return result;
+            return result + ClassIndex.HANDLE_BASE;
 
         default:
         }
