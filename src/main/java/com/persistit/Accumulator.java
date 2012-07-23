@@ -332,8 +332,12 @@ public abstract class Accumulator {
             _next = delta;
         }
 
-        void merge(final Delta delta) {
-            _value = _accumulator.applyValue(_value, delta.getValue());
+        void merge(final long value) {
+            _value = _accumulator.applyValue(_value, value);
+        }
+
+        boolean canMerge(final Accumulator accumulator, final int step) {
+            return (_accumulator == accumulator) && (_step == step);
         }
 
         @Override
@@ -530,7 +534,7 @@ public abstract class Accumulator {
      *         transactions having commit timestamps less than or equal to
      *         <code>transaction</code>'s start timestamp, and (b) all
      *         operations performed by the current transaction having step
-     *         numbers equal to zero or less than the <code>transaction</code>'s
+     *         numbers equal to or less than the <code>transaction</code>'s
      *         current step.
      * @throws InterruptedException
      */
@@ -589,9 +593,7 @@ public abstract class Accumulator {
     /**
      * Update the Accumulator by contributing a value. The contribution is
      * immediately accumulated into the live value, and it is also posted with a
-     * 
-     * @{link {@link Delta} instance to the supplied {@link Transaction}. This
-     *        package-private method is provided primarily for unit tests.
+     * @{link {@link Delta} instance to the supplied {@link Transaction}.
      * 
      * @param value
      *            The delta value
@@ -619,10 +621,8 @@ public abstract class Accumulator {
         /*
          * Add a Delta to the TransactionStatus
          */
-        Delta delta = _transactionIndex.addDelta(status);
-        delta.setValue(selectValue(value, updated));
-        delta.setStep(step);
-        delta.setAccumulator(this);
+        final long selectedValue = selectValue(value, updated);
+        _transactionIndex.addOrCombineDelta(status, this, step, selectedValue);
         checkpointNeeded();
         return updated;
     }
