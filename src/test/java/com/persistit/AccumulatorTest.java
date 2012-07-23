@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.persistit.unit.ConcurrentUtil;
 import org.junit.Test;
 
 import com.persistit.Accumulator.Type;
@@ -443,7 +444,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     }
 
     @Test
-    public void testDeltasCombineMuleAccumSingleStep() throws Exception {
+    public void testDeltasCombineMultiAccumSingleStep() throws Exception {
         final int UPDATE_COUNT = 5;
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
         Accumulator acc1 = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
@@ -456,6 +457,77 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals("Snapshot value accum1", UPDATE_COUNT*10, acc1.getSnapshotValue(1, 0));
         assertEquals("Snapshot value accum2", UPDATE_COUNT, acc2.getSnapshotValue(1, 0));
         assertEquals("Delta count", 2, countDeltas(status));
+    }
+
+    @Test
+    public void testDeltasCombineMultiAccumMultiStep() throws Exception {
+        final int UPDATE_COUNT = 5;
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+        Accumulator acc1 = Accumulator.accumulator(Accumulator.Type.MIN, null, 0, 0, ti);
+        Accumulator acc2 = Accumulator.accumulator(Accumulator.Type.MAX, null, 1, 0, ti);
+        TransactionStatus status = ti.registerTransaction();
+        for (int i = 0; i < UPDATE_COUNT; ++i) {
+            acc1.update(i, status, 0);
+            acc2.update(i, status, 0);
+        }
+        for (int i = 0; i < UPDATE_COUNT; ++i) {
+            acc1.update(i*2, status, 1);
+            acc2.update(i*2, status, 1);
+        }
+        assertEquals("Snapshot value accum1 step 0", 0, acc1.getSnapshotValue(1, 0));
+        assertEquals("Snapshot value accum2 step 0", UPDATE_COUNT-1, acc2.getSnapshotValue(1, 0));
+        assertEquals("Snapshot value accum1 step 1", 0, acc1.getSnapshotValue(1, 1));
+        assertEquals("Snapshot value accum2 step 1", UPDATE_COUNT-1, acc2.getSnapshotValue(1, 1));
+        assertEquals("Delta count", 4, countDeltas(status));
+    }
+
+    @Test
+    public void testDeltasCombineMultiAccumMultiThread() throws Exception {
+        final long RUN_TIME_MAX = 10000;
+        final int THREAD_COUNT = 20;
+        final int ACCUM_COUNT = 10;
+        final int STEP_COUNT = 5;
+        final int UPDATE_COUNT = 10000;
+        final int DELTAS_PER_THREAD = ACCUM_COUNT * STEP_COUNT;
+        final int FINAL_SNAPSHOT = STEP_COUNT * UPDATE_COUNT * THREAD_COUNT;
+
+        final TransactionIndex ti = new TransactionIndex(_tsa, 256);
+        final Accumulator[] accums = new Accumulator[ACCUM_COUNT];
+        for (int i = 0; i < ACCUM_COUNT; ++i) {
+            accums[i] = Accumulator.accumulator(Accumulator.Type.SUM, null, i, 0, ti);
+        }
+
+        Thread[] threads = new Thread[THREAD_COUNT];
+        for (int thread = 0; thread < THREAD_COUNT; ++thread) {
+            threads[thread] = ConcurrentUtil.createThread(
+                    "Thread_"+thread,
+                    new ConcurrentUtil.ThrowingRunnable() {
+                        @Override
+                        public void run() throws Throwable {
+                            TransactionStatus status = ti.registerTransaction();
+                            for (int acc = 0; acc < ACCUM_COUNT; ++acc) {
+                                for (int step = 0; step < STEP_COUNT; ++step) {
+                                    for (int up = 0; up < UPDATE_COUNT; ++up) {
+                                        accums[acc].update(1, status, step);
+                                    }
+                                }
+                            }
+                            assertEquals("Delta count", DELTAS_PER_THREAD, countDeltas(status));
+                            status.commit(_tsa.updateTimestamp());
+                            ti.notifyCompleted(status, _tsa.getCurrentTimestamp());
+                        }
+                    }
+            );
+        }
+
+        ConcurrentUtil.startAndJoinAssertSuccess(RUN_TIME_MAX, threads);
+
+        for (int acc = 0; acc < ACCUM_COUNT; ++acc) {
+            for (int step = 0; step < STEP_COUNT; ++step) {
+                assertEquals("Accum "+acc+" step "+step+" snapshot after commit",
+                             FINAL_SNAPSHOT, accums[acc].getSnapshotValue(_tsa.updateTimestamp(), step));
+            }
+        }
     }
 
     private static int countDeltas(TransactionStatus status) {
