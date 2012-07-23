@@ -411,4 +411,60 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             assertNotNull("Checkpoint after removeTree successful, pass" + pass, _persistit.checkpoint());
         }
     }
+
+    @Test
+    public void testDeltasCombineSingleAccumSingleStep() throws Exception {
+        final int UPDATE_COUNT = 5;
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+        Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        TransactionStatus status = ti.registerTransaction();
+        for (int i = 0; i < UPDATE_COUNT; ++i) {
+            acc.update(1, status, 0);
+        }
+        assertEquals("Snapshot value", UPDATE_COUNT, acc.getSnapshotValue(1, 0));
+        assertEquals("Delta count", 1, countDeltas(status));
+    }
+
+    @Test
+    public void testDeltasCombineSingleAccumMultiStep() throws Exception {
+        final int UPDATE_COUNT = 5;
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+        Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        TransactionStatus status = ti.registerTransaction();
+        for (int i = 0; i < UPDATE_COUNT; ++i) {
+            acc.update(1, status, 0);
+        }
+        for (int i = 0; i < UPDATE_COUNT; ++i) {
+            acc.update(1, status, 1);
+        }
+        assertEquals("Snapshot value step 0", UPDATE_COUNT, acc.getSnapshotValue(1, 0));
+        assertEquals("Snapshot value step 1", UPDATE_COUNT, acc.getSnapshotValue(1, 1));
+        assertEquals("Delta count", 2, countDeltas(status));
+    }
+
+    @Test
+    public void testDeltasCombineMuleAccumSingleStep() throws Exception {
+        final int UPDATE_COUNT = 5;
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+        Accumulator acc1 = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        Accumulator acc2 = Accumulator.accumulator(Accumulator.Type.SEQ, null, 1, 0, ti);
+        TransactionStatus status = ti.registerTransaction();
+        for (int i = 0; i < UPDATE_COUNT; ++i) {
+            acc1.update(10, status, 0);
+            acc2.update(1, status, 0);
+        }
+        assertEquals("Snapshot value accum1", UPDATE_COUNT*10, acc1.getSnapshotValue(1, 0));
+        assertEquals("Snapshot value accum2", UPDATE_COUNT, acc2.getSnapshotValue(1, 0));
+        assertEquals("Delta count", 2, countDeltas(status));
+    }
+
+    private static int countDeltas(TransactionStatus status) {
+        int count = 0;
+        Accumulator.Delta d = status.getDelta();
+        while (d != null) {
+            ++count;
+            d = d.getNext();
+        }
+        return count;
+    }
 }
