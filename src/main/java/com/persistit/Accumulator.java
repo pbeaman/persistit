@@ -534,7 +534,7 @@ public abstract class Accumulator {
      *         transactions having commit timestamps less than or equal to
      *         <code>transaction</code>'s start timestamp, and (b) all
      *         operations performed by the current transaction having step
-     *         numbers equal to zero or less than the <code>transaction</code>'s
+     *         numbers equal to or less than the <code>transaction</code>'s
      *         current step.
      * @throws InterruptedException
      */

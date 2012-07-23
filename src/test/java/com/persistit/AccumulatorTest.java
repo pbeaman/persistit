@@ -56,7 +56,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(1, acc.getSnapshotValue(1, 1));
         acc.update(1, status, 1);
         assertEquals(1, acc.getSnapshotValue(1, 0));
-        assertEquals(1, acc.getSnapshotValue(1, 1));
+        assertEquals(2, acc.getSnapshotValue(1, 1));
         assertEquals(2, acc.getSnapshotValue(1, 2));
         status.commit(_tsa.updateTimestamp());
         assertEquals(0, acc.getSnapshotValue(_tsa.getCurrentTimestamp(), 0));
@@ -439,7 +439,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             acc.update(1, status, 1);
         }
         assertEquals("Snapshot value step 0", UPDATE_COUNT, acc.getSnapshotValue(1, 0));
-        assertEquals("Snapshot value step 1", UPDATE_COUNT, acc.getSnapshotValue(1, 1));
+        assertEquals("Snapshot value step 1", UPDATE_COUNT*2, acc.getSnapshotValue(1, 1));
         assertEquals("Delta count", 2, countDeltas(status));
     }
 
@@ -477,7 +477,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals("Snapshot value accum1 step 0", 0, acc1.getSnapshotValue(1, 0));
         assertEquals("Snapshot value accum2 step 0", UPDATE_COUNT-1, acc2.getSnapshotValue(1, 0));
         assertEquals("Snapshot value accum1 step 1", 0, acc1.getSnapshotValue(1, 1));
-        assertEquals("Snapshot value accum2 step 1", UPDATE_COUNT-1, acc2.getSnapshotValue(1, 1));
+        assertEquals("Snapshot value accum2 step 1", (UPDATE_COUNT-1)*2, acc2.getSnapshotValue(1, 1));
         assertEquals("Delta count", 4, countDeltas(status));
     }
 
