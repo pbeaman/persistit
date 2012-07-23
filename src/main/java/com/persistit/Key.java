@@ -29,6 +29,7 @@ import java.util.Date;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.KeyDisplayer;
+import com.persistit.encoding.KeyHasher;
 import com.persistit.encoding.KeyRenderer;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.InvalidKeyException;
@@ -2847,6 +2848,54 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
+     * <p>
+     * Compute the hash code of the next key segment. In most codes, this method
+     * simply decodes the object and returns its hashCode. However, if the
+     * encoded object implements {@link KeyHasher} then the
+     * {@link KeyHasher#decodeHashCode(Key, Class, CoderContext)} method is
+     * invoked to compute the hash code.
+     * </p>
+     * 
+     * @return hashCode computed on the next key segment.
+     */
+    public int decodeHashCode() {
+        return decodeHashCode(null, null);
+    }
+
+    /**
+     * <p>
+     * Compute the hash code of the next key segment. In most codes, this method
+     * simply decodes the object and returns its hashCode. However, if the
+     * encoded object implements {@link KeyHasher} then the
+     * {@link KeyHasher#decodeHashCode(Key, Class, CoderContext)} method is
+     * invoked to compute the hash code.
+     * </p>
+     * 
+     * @param target
+     *            A mutable object into which this method may attempt to decode
+     *            the value
+     * 
+     * @param context
+     *            An application-specified value that may assist a
+     *            {@link KeyCoder}. The context is passed to the
+     *            {@link KeyCoder#decodeKeySegment} method.
+     * 
+     * 
+     * @return hashCode computed on the next key segment.
+     */
+    public int decodeHashCode(Object target, CoderContext context) {
+        int type = getTypeCode();
+
+        if (type == TYPE_NULL) {
+            return 0;
+        }
+        if (type >= TYPE_CODER_MIN && type <= TYPE_CODER_MAX) {
+            return decodeHashCodeByKeyCoder(target, context);
+        }
+        return decode(target, context).hashCode();
+    }
+
+    /**
      * Decodes the next key segment as a displayable String, advances the index
      * to the next key segment and returns the result. This method is intended
      * to generate a reasonably legible String representation for any type of
@@ -3333,6 +3382,51 @@ public final class Key implements Comparable<Object> {
                 if (coder instanceof KeyRenderer) {
                     ((KeyRenderer) coder).renderKeySegment(this, target, clazz, context);
                     return target;
+                } else {
+                    throw new ConversionException("No KeyRenderer for class " + clazz.getName());
+                }
+            }
+        } finally {
+            _size = size;
+            if (unquoted) {
+                index += quoteNulls(index, segmentSize, zeroByteFree);
+                index = decodeEnd(index);
+            }
+            _index = index;
+        }
+    }
+
+    private int decodeHashCodeByKeyCoder(Object target, CoderContext context) {
+        int index = _index;
+        int size = _size;
+        Class<?> clazz = Object.class;
+        int segmentSize = 0;
+        boolean unquoted = false;
+        boolean zeroByteFree = false;
+        try {
+            int handle = decodeHandle();
+            clazz = _persistit.classForHandle(handle);
+            if (clazz == null) {
+                throw new ConversionException("No class information for handle " + handle);
+            }
+            KeyCoder coder = _persistit.lookupKeyCoder(clazz);
+            if (coder == null) {
+                throw new ConversionException("No KeyCoder for class " + clazz.getName());
+            }
+            zeroByteFree = coder.isZeroByteFree();
+            segmentSize = unquoteNulls(index, zeroByteFree);
+            size = _size;
+            _size = index + segmentSize;
+            unquoted = true;
+            if (coder instanceof KeyHasher) {
+                return ((KeyHasher) coder).decodeHashCode(this, clazz, context);
+            }
+            if (target == null) {
+                return coder.decodeKeySegment(this, clazz, context).hashCode();
+            } else {
+                if (coder instanceof KeyRenderer) {
+                    ((KeyRenderer) coder).renderKeySegment(this, target, clazz, context);
+                    return target.hashCode();
                 } else {
                     throw new ConversionException("No KeyRenderer for class " + clazz.getName());
                 }

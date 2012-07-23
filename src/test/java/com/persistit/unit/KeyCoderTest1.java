@@ -35,6 +35,7 @@ import com.persistit.TestShim;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.KeyDisplayer;
+import com.persistit.encoding.KeyHasher;
 import com.persistit.encoding.KeyRenderer;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.PersistitException;
@@ -162,6 +163,18 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
 
         }
     }
+    
+    @Test
+    public void keyHasher() throws Exception {
+        final KeyCoder coder = new TestKeyRenderer2();
+        _persistit.getCoderManager().registerKeyCoder(WrappedString.class, coder);
+        Key key = new Key(_persistit);
+        key.append(new WrappedString(RED_FOX));
+        key.reset();
+        int hashCodeFromString = computeBogusHash(RED_FOX.getBytes(), 0, RED_FOX.getBytes().length);
+        int hashCodeFromKey = key.decodeHashCode();
+        assertEquals(hashCodeFromString, hashCodeFromKey);
+    }
 
     private void registerCoderDefinedKeyHandle(final KeyCoder coder, final int handle) throws PersistitException {
         TestShim.clearAllClassIndexEntries(_persistit);
@@ -238,7 +251,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
     }
     
     
-    public static class TestKeyRenderer2 implements KeyRenderer {
+    public static class TestKeyRenderer2 implements KeyRenderer, KeyHasher {
 
         @Override
         public void appendKeySegment(final Key key, final Object object, final CoderContext context) {
@@ -270,6 +283,14 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
         public boolean isZeroByteFree() {
             return true;
         }
+
+        @Override
+        public int decodeHashCode(Key key, Class<?> clazz, CoderContext context) {
+            int size = key.getEncodedSize();
+            int index = key.getIndex();
+            int result = computeBogusHash(key.getEncodedBytes(), index, size - index);
+            return result;
+        }
     }
 
     public static class TestKeyRenderer3 implements KeyRenderer, KeyDisplayer {
@@ -294,6 +315,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
             WrappedLong wl = (WrappedLong)target;
             int size = key.getEncodedSize();
             int index = key.getIndex();
+            assertEquals(8, size - index);
             wl._value = Util.getLong(key.getEncodedBytes(), index);
             key.setIndex(index + 8);
         }
@@ -310,6 +332,14 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
             renderKeySegment(key, wl, clazz, context);
             Util.append(target, Long.toString(wl._value));
         }
+    }
+    
+    private static int computeBogusHash(final byte[] bytes, final int offset, final int length) {
+        int result = 23451;
+        for (int index = offset; index < offset + length; index++) {
+            result = result * 123 + bytes[index];
+        }
+        return result;
     }
 
 }

@@ -72,5 +72,5 @@ public interface KeyHasher extends KeyCoder {
      * @throws ConversionException
      */
 
-    public int hashCode(final Key key, final Class<?> clazz, final CoderContext context);
+    public int decodeHashCode(final Key key, final Class<?> clazz, final CoderContext context);
 }
