@@ -1,4 +1,5 @@
 /**
+ * Copyright © 2005-2012 Akiban Technologies, Inc.  All rights reserved.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
