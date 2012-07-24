@@ -313,13 +313,5 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
             Util.append(target, Long.toString(wl._value));
         }
     }
-    
-    private static int computeBogusHash(final byte[] bytes, final int offset, final int length) {
-        int result = 23451;
-        for (int index = offset; index < offset + length; index++) {
-            result = result * 123 + bytes[index];
-        }
-        return result;
-    }
 
 }
