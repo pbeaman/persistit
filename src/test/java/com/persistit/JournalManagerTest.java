@@ -21,19 +21,19 @@
 package com.persistit;
 
 import static com.persistit.unit.ConcurrentUtil.createThread;
-import static com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
 import static com.persistit.unit.ConcurrentUtil.startAndJoinAssertSuccess;
 import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_B;
 import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_C;
+import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_SCHEDULE;
 import static com.persistit.util.ThreadSequencer.addSchedules;
 import static com.persistit.util.ThreadSequencer.disableSequencer;
 import static com.persistit.util.ThreadSequencer.enableSequencer;
-import static com.persistit.util.ThreadSequencer.PAGE_MAP_READ_INVALIDATE_SCHEDULE;
 import static com.persistit.util.ThreadSequencer.sequence;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,6 +50,7 @@ import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.PersistitException;
+import com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 import com.persistit.util.Util;
@@ -405,7 +406,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
          * Remove from the left end
          */
         {
-            final List<PageNode> source =testCleanupPageListSource(10);
+            final List<PageNode> source = testCleanupPageListSource(10);
             for (int i = 0; i < 4; i++) {
                 source.get(i).invalidate();
             }
@@ -416,7 +417,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
          * Remove from the right end
          */
         {
-            final List<PageNode> source =testCleanupPageListSource(10);
+            final List<PageNode> source = testCleanupPageListSource(10);
             for (int i = 10; --i >= 7;) {
                 source.get(i).invalidate();
             }
@@ -427,7 +428,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
          * Remove from the middle
          */
         {
-            final List<PageNode> source =testCleanupPageListSource(10);
+            final List<PageNode> source = testCleanupPageListSource(10);
             for (int i = 2; i < 8; i++) {
                 source.get(i).invalidate();
             }
@@ -454,6 +455,37 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
     }
 
+    @Test
+    public void testMissingVolumeHandling() throws Exception {
+        final Configuration config = _persistit.getConfiguration();
+        Volume volume1 = new Volume(config.volumeSpecification("${datapath}/missing1,create,"
+                + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
+        volume1.open(_persistit);
+        Volume volume2 = new Volume(config.volumeSpecification("${datapath}/missing2,create,"
+                + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
+        volume2.open(_persistit);
+        _persistit.getExchange(volume1, "test1", true);
+        _persistit.getExchange(volume1, "test2", true);
+        _persistit.close();
+        new File(volume1.getPath()).delete();
+        new File(volume2.getPath()).delete();
+        volume1 = null;
+        volume2 = null;
+        _persistit = new Persistit();
+        _persistit.initialize(config);
+        AlertMonitor am = _persistit.getAlertMonitor();
+        assertTrue("Startup with missing volumes should have generated alerts", am
+                .getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);
+        
+        _persistit.getJournalManager().setIgnoreMissingPages(true);
+        // Should add more alerts
+        _persistit.copyBackPages();
+        int alertCount1 = am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY).getCount();
+        _persistit.copyBackPages();
+        int alertCount2 = am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY).getCount();
+        assertEquals("No more alerts after setting ignoreMissingVolumes", alertCount1, alertCount2);
+    }
+
     private List<PageNode> testCleanupPageListSource(final int size) {
         final List<PageNode> source = new ArrayList<PageNode>(size);
         for (int index = 0; index < 1000000; index++) {
@@ -461,8 +493,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
         return source;
     }
-    
-    
+
     private void testCleanupPageListHelper(final List<PageNode> source) throws Exception {
         final List<PageNode> cleaned = new ArrayList<PageNode>(source);
         for (Iterator<PageNode> iterator = cleaned.iterator(); iterator.hasNext();) {
@@ -512,8 +543,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final int COUNT = 5000;
         final String TREE_NAME = "JournalManagerTest1";
         /*
-         * Test sequence points in the JOURNAL_COPIER path, don't
-         * want to hit unintentionally hit them.
+         * Test sequence points in the JOURNAL_COPIER path, don't want to hit
+         * unintentionally hit them.
          */
         _persistit.getJournalManager().setCopierInterval(50000);
         /*
@@ -522,7 +553,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         Transaction txn = _persistit.getTransaction();
         txn.begin();
         Exchange ex = _persistit.getExchange(_volumeName, TREE_NAME, true);
-        for(int i = 0; i < COUNT; ++i) {
+        for (int i = 0; i < COUNT; ++i) {
             ex.to(i);
             ex.getValue().put(RED_FOX);
             ex.store();
@@ -530,8 +561,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         txn.commit();
         txn.end();
         /*
-         * Thread will read over everything that is inserted, hopefully going
-         * to the journal for each required page.
+         * Thread will read over everything that is inserted, hopefully going to
+         * the journal for each required page.
          */
         Thread thread1 = createThread("READ_THREAD", new ThrowingRunnable() {
             @Override
@@ -541,7 +572,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 Exchange ex = _persistit.getExchange(_volumeName, TREE_NAME, false);
                 ex.to(Key.BEFORE);
                 int count = 0;
-                while(ex.next(true)) {
+                while (ex.next(true)) {
                     ++count;
                 }
                 assertEquals("Traversed count", COUNT, count);
@@ -549,8 +580,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             }
         });
         /*
-         * Thread will copy pages out of the journal and into the volume, hopefully
-         * invalidating pageMap entries during the cleanupForCopy.
+         * Thread will copy pages out of the journal and into the volume,
+         * hopefully invalidating pageMap entries during the cleanupForCopy.
          */
         Thread thread2 = createThread("COPY_BACK_THREAD", new ThrowingRunnable() {
             @Override

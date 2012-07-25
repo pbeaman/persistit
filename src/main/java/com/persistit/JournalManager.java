@@ -380,7 +380,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     public boolean isIgnoreMissingPages() {
         return _ignoreMissingVolume.get();
     }
-    
+
     @Override
     public boolean isCopyingFast() {
         return _copyFast.get();
@@ -390,7 +390,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     public void setAppendOnly(boolean appendOnly) {
         _appendOnly.set(appendOnly);
     }
-    
+
     @Override
     public void setIgnoreMissingPages(boolean ignore) {
         _ignoreMissingVolume.set(ignore);
@@ -2374,43 +2374,32 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         int handle = -1;
 
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
+            Volume volumeRef = null;
+
             if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
                 list.clear();
                 break;
             }
             final PageNode pageNode = iterator.next();
             if (pageNode.isInvalid()) {
-                iterator.remove();
+                // Deal with this in cleanupForCopy
                 continue;
             }
+
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
-                volume = _handleToVolumeMap.get(pageNode.getVolumeHandle());
-                if (volume != null) {
-                    volume = _persistit.getVolume(volume.getName());
+                // Possibly hollow volume
+                volumeRef = _handleToVolumeMap.get(pageNode.getVolumeHandle());
+                if (volumeRef != null) {
+                    // Opened volume, if present
+                    volume = _persistit.getVolume(volumeRef.getName());
                     handle = pageNode.getVolumeHandle();
                 }
             }
             if (volume == null) {
-                _persistit.getAlertMonitor().post(
-                        new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volume, pageNode
-                                .getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
-                if (_ignoreMissingVolume.get()) {
-                    _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), _handleToVolumeMap
-                            .get(pageNode.getVolumeHandle()), pageNode.getJournalAddress());
-                    // Not removing the page from the List here will cause cleanupForCopy to remove it from
-                    // the page map.
-                    continue;
-                }
-            }
-            if (volume == null || volume.isClosed()) {
-                // Remove from the List so that below we won't remove it from
-                // from the pageMap.
-                iterator.remove();
+                // Deal with this in writeForCopy
                 continue;
             }
-
-            volume.verifyId(volume.getId());
 
             final int at = bb.position();
             final long pageAddress;
@@ -2443,11 +2432,15 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     void writeForCopy(final List<PageNode> list, final ByteBuffer bb) throws PersistitException {
         Collections.sort(list, PageNode.WRITE_COMPARATOR);
+
+        final HashSet<Volume> volumes = new HashSet<Volume>();
+
+        Volume volumeRef = null;
         Volume volume = null;
         int handle = -1;
 
-        final HashSet<Volume> volumes = new HashSet<Volume>();
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
+
             if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
                 list.clear();
                 break;
@@ -2455,23 +2448,42 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             final PageNode pageNode = iterator.next();
 
+            if (pageNode.isInvalid()) {
+                // Deal with this in cleanupForCopy
+                continue;
+            }
+
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
-                volume = _handleToVolumeMap.get(pageNode.getVolumeHandle());
-                if (volume == null) {
-                    // TODO
-                } else {
-                    volume = _persistit.getVolume(volume.getName());
+                // Possibly hollow volume
+                volumeRef = _handleToVolumeMap.get(pageNode.getVolumeHandle());
+                if (volumeRef != null) {
+                    // Opened volume, if present
+                    volume = _persistit.getVolume(volumeRef.getName());
                     handle = pageNode.getVolumeHandle();
                 }
             }
-
+            if (volume == null) {
+                _persistit.getAlertMonitor().post(
+                        new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volumeRef, pageNode
+                                .getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
+                if (_ignoreMissingVolume.get()) {
+                    _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), volumeRef,
+                            pageNode.getJournalAddress());
+                    // Not removing the page from the List here will cause
+                    // cleanupForCopy to remove it from
+                    // the page map.
+                    continue;
+                }
+            }
             if (volume == null || volume.isClosed()) {
                 // Remove from the List so that below we won't remove it from
                 // from the pageMap.
                 iterator.remove();
                 continue;
             }
+
+            volumeRef.verifyId(volume.getId());
 
             final long pageAddress = pageNode.getPageAddress();
             volume.getStorage().extend(pageAddress);
@@ -2510,23 +2522,25 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
         synchronized (this) {
             for (final PageNode copiedPageNode : list) {
-                PageNode pageNode = _pageMap.get(copiedPageNode);
-                if (pageNode.getJournalAddress() == copiedPageNode.getJournalAddress()) {
-                    pageNode.removeHistory();
-                    pageNode.invalidate();
-                    PageNode pn = _pageMap.remove(pageNode);
-                    assert pn == copiedPageNode;
-                } else {
-                    PageNode previous = pageNode.getPrevious();
-                    while (previous != null) {
-                        if (previous.getJournalAddress() == copiedPageNode.getJournalAddress()) {
-                            // No need to keep the previous entry, or any of
-                            // its predecessors
-                            pageNode.removeHistory();
-                            break;
-                        } else {
-                            pageNode = previous;
-                            previous = pageNode.getPrevious();
+                if (!copiedPageNode.isInvalid()) {
+                    PageNode pageNode = _pageMap.get(copiedPageNode);
+                    if (pageNode.getJournalAddress() == copiedPageNode.getJournalAddress()) {
+                        pageNode.removeHistory();
+                        pageNode.invalidate();
+                        PageNode pn = _pageMap.remove(pageNode);
+                        assert pn == copiedPageNode;
+                    } else {
+                        PageNode previous = pageNode.getPrevious();
+                        while (previous != null) {
+                            if (previous.getJournalAddress() == copiedPageNode.getJournalAddress()) {
+                                // No need to keep the previous entry, or any of
+                                // its predecessors
+                                pageNode.removeHistory();
+                                break;
+                            } else {
+                                pageNode = previous;
+                                previous = pageNode.getPrevious();
+                            }
                         }
                     }
                 }
