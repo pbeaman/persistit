@@ -20,6 +20,7 @@
 
 package com.persistit;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Random;
@@ -64,6 +65,15 @@ abstract class VolumeStorage extends SharedResource {
      */
     String getPath() {
         return _volume.getSpecification().getPath();
+    }
+
+    /**
+     * Returns the path name by which this volume was opened.
+     * 
+     * @return The path name
+     */
+    File getAbsoluteFile() {
+        return _volume.getSpecification().getAbsoluteFile();
     }
 
     /**

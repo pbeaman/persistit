@@ -666,7 +666,7 @@ public class Persistit {
 
     void initializeVolumes() throws PersistitException {
         for (final VolumeSpecification volumeSpecification : _configuration.getVolumeList()) {
-            _logBase.openVolume.log(volumeSpecification.getName());
+            _logBase.openVolume.log(volumeSpecification.getName(), volumeSpecification.getAbsoluteFile());
             final Volume volume = new Volume(volumeSpecification);
             volume.open(this);
         }
@@ -1262,7 +1262,7 @@ public class Persistit {
         final File file = new File(name).getAbsoluteFile();
         for (int i = 0; i < _volumes.size(); i++) {
             Volume vol = _volumes.get(i);
-            if (file.equals(new File(vol.getPath()).getAbsoluteFile())) {
+            if (file.equals(vol.getAbsoluteFile())) {
                 if (result == null)
                     result = vol;
                 else {
