@@ -22,8 +22,8 @@ package com.persistit.exception;
 
 /**
  * Thrown by encoding and decoding methods of the {@link com.persistit.Value}
- * class when conversion to or from an value's serialized form cannot be
- * completed.
+ * and {@link com.persistit.Key} classes when conversion to or from an value's
+ * serialized form cannot be completed.
  * 
  * @version 1.0
  */
