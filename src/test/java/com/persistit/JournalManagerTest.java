@@ -456,7 +456,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     }
 
     @Test
-    public void testMissingVolumeHandling() throws Exception {
+    public void missingVolumePageHandling() throws Exception {
         final Configuration config = _persistit.getConfiguration();
         Volume volume1 = new Volume(config.volumeSpecification("${datapath}/missing1,create,"
                 + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
@@ -465,7 +465,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
         volume2.open(_persistit);
         _persistit.getExchange(volume1, "test1", true);
-        _persistit.getExchange(volume1, "test2", true);
+        _persistit.getExchange(volume2, "test2", true);
         _persistit.close();
         new File(volume1.getPath()).delete();
         new File(volume2.getPath()).delete();
@@ -476,7 +476,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         AlertMonitor am = _persistit.getAlertMonitor();
         assertTrue("Startup with missing volumes should have generated alerts", am
                 .getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);
-        
+
         _persistit.getJournalManager().setIgnoreMissingVolumes(true);
         // Should add more alerts
         _persistit.copyBackPages();
@@ -484,6 +484,57 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         _persistit.copyBackPages();
         int alertCount2 = am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY).getCount();
         assertEquals("No more alerts after setting ignoreMissingVolumes", alertCount1, alertCount2);
+    }
+
+    @Test
+    public void missingVolumeTransactionHandlingNotIgnored() throws Exception {
+        final Configuration config = _persistit.getConfiguration();
+        Volume volume = new Volume(config.volumeSpecification("${datapath}/missing1,create,"
+                + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
+        volume.open(_persistit);
+        Exchange ex = _persistit.getExchange(volume, "test1", true);
+        final Transaction txn = ex.getTransaction();
+        txn.begin();
+        ex.getValue().put(RED_FOX);
+        ex.to(0).store();
+        txn.commit();
+        txn.end();
+        _persistit.getJournalManager().flush();
+        _persistit.crash();
+        new File(volume.getPath()).delete();
+        volume = null;
+        _persistit = new Persistit();
+        _persistit.initialize(config);
+        assertTrue("Should have failed updates during recovery", _persistit.getRecoveryManager().getPlayer()
+                .getFailedUpdates() > 0);
+    }
+    
+    @Test
+    public void missingVolumeTransactionHandlingIgnored() throws Exception {
+        final Configuration config = _persistit.getConfiguration();
+        Volume volume = new Volume(config.volumeSpecification("${datapath}/missing1,create,"
+                + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
+        volume.open(_persistit);
+        Exchange ex = _persistit.getExchange(volume, "test1", true);
+        final Transaction txn = ex.getTransaction();
+        txn.begin();
+        ex.getValue().put(RED_FOX);
+        ex.to(0).store();
+        txn.commit();
+        txn.end();
+        _persistit.getJournalManager().flush();
+        _persistit.crash();
+        new File(volume.getPath()).delete();
+        volume = null;
+        config.setIgnoreMissingVolumes(true);
+        _persistit = new Persistit();
+        _persistit.getJournalManager().setIgnoreMissingVolumes(true);
+        _persistit.initialize(config);
+        AlertMonitor am = _persistit.getAlertMonitor();
+        assertTrue("Startup with missing volumes should have generated alerts", am
+                .getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);
+        assertTrue("Should have failed updates during recovery", _persistit.getRecoveryManager().getPlayer()
+                .getIgnoredUpdates() > 0);
     }
 
     private List<PageNode> testCleanupPageListSource(final int size) {
