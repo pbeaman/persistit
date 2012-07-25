@@ -33,6 +33,7 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.Transaction;
 import com.persistit.Volume;
 import com.persistit.exception.ConversionException;

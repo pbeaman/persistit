@@ -397,23 +397,22 @@ public class Persistit {
     private final HashMap<Integer, BufferPool> _bufferPoolTable = new HashMap<Integer, BufferPool>();
     private final ArrayList<Volume> _volumes = new ArrayList<Volume>();
 
-    private AtomicBoolean _initialized = new AtomicBoolean();
-    private AtomicBoolean _closed = new AtomicBoolean();
-    private AtomicBoolean _fatal = new AtomicBoolean();
+    private final AtomicBoolean _initialized = new AtomicBoolean();
+    private final AtomicBoolean _closed = new AtomicBoolean();
+    private final AtomicBoolean _fatal = new AtomicBoolean();
 
     private long _beginCloseTime;
     private long _nextCloseTime;
 
     private final LogBase _logBase = new LogBase();
 
-    private AtomicBoolean _suspendShutdown = new AtomicBoolean(false);
-    private AtomicBoolean _suspendUpdates = new AtomicBoolean(false);
+    private final AtomicBoolean _suspendShutdown = new AtomicBoolean(false);
+    private final AtomicBoolean _suspendUpdates = new AtomicBoolean(false);
 
     private UtilControl _localGUI;
 
-    private AtomicReference<CoderManager> _coderManager = new AtomicReference<CoderManager>();
-
-    private ClassIndex _classIndex = new ClassIndex(this);
+    private final AtomicReference<CoderManager> _coderManager = new AtomicReference<CoderManager>();
+    private final ClassIndex _classIndex = new ClassIndex(this);
 
     private final ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
         @Override

@@ -28,6 +28,7 @@ import org.junit.Test;
 import com.persistit.Key;
 import com.persistit.KeyParser;
 import com.persistit.Persistit;
+import com.persistit.PersistitUnitTestCase;
 
 /**
  * @version 1.0

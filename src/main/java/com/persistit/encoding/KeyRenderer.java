@@ -50,6 +50,11 @@ public interface KeyRenderer extends KeyCoder {
      * call this method to decode a value that was <code>null</code> when
      * written because null values are handled by built-in encoding logic.
      * </p>
+     * <p>
+     * When this method is called the value {@link Key#getIndex()} will be the
+     * offset within the key of the first encoded byte. The key segment is
+     * zero-byte terminated.
+     * </p>
      * 
      * @param key
      *            The <code>Key</code> from which interior fields of the object

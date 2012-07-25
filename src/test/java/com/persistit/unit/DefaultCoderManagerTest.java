@@ -30,6 +30,7 @@ import java.util.HashMap;
 import org.junit.Test;
 
 import com.persistit.DefaultCoderManager;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.exception.PersistitException;
 
 public class DefaultCoderManagerTest extends PersistitUnitTestCase implements Serializable {

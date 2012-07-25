@@ -27,6 +27,7 @@ import java.io.Serializable;
 import org.junit.Test;
 
 import com.persistit.Exchange;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.encoding.CoderManager;
 import com.persistit.exception.PersistitException;
 

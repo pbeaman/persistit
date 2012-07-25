@@ -29,7 +29,6 @@ import java.util.TreeSet;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.util.Util;
 
 public abstract class MVCCTestBase extends PersistitUnitTestCase {

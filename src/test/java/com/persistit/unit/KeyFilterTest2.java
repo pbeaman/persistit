@@ -28,6 +28,7 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.exception.PersistitException;
 
 /**

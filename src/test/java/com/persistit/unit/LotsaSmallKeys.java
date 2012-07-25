@@ -25,6 +25,7 @@ import java.util.Properties;
 import org.junit.Test;
 
 import com.persistit.Exchange;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.exception.PersistitException;
 import com.persistit.policy.SplitPolicy;
 

@@ -18,7 +18,7 @@
  * information, see www.akiban.com or contact licensing@akiban.com.
  */
 
-package com.persistit.unit;
+package com.persistit;
 
 import java.lang.ref.WeakReference;
 import java.util.Map;
@@ -29,6 +29,7 @@ import org.junit.Before;
 
 import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
+import com.persistit.unit.UnitTestProperties;
 
 public abstract class PersistitUnitTestCase {
 
@@ -132,5 +133,10 @@ public abstract class PersistitUnitTestCase {
             Thread.sleep(10);
         }
         return ref.get() == null;
+    }
+    
+    protected void disableBackgroundCleanup() {
+        _persistit.getCleanupManager().setPollInterval(-1);
+        _persistit.getJournalManager().setWritePagePruningEnabled(false);
     }
 }

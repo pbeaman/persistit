@@ -40,6 +40,7 @@ import com.persistit.DefaultCoderManager;
 import com.persistit.DefaultValueCoder;
 import com.persistit.Exchange;
 import com.persistit.Persistit;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.Value;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.CoderManager;

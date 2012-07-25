@@ -33,6 +33,7 @@ import java.util.TreeSet;
 import org.junit.Test;
 
 import com.persistit.Exchange;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.Value;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.ValueCoder;

@@ -54,7 +54,7 @@ class TransactionIndex implements TransactionIndexMXBean {
     /**
      * Interval in milliseconds for updating the active transaction cache
      */
-    final static long POLLING_TASK_INTERVAL = 50;
+    final static long POLLING_TASK_INTERVAL = 10;
 
     /**
      * Default threshold value for moving long-running transactions to the
@@ -1090,6 +1090,14 @@ class TransactionIndex implements TransactionIndexMXBean {
         }
     }
 
+    /**
+     * Create and return a brand new delta associated with the given
+     * status. Note that it is completely uninitialized and always
+     * allocated from the bucket.
+     *
+     * @param status Status to add the delta to.
+     * @return The new Delta.
+     */
     Delta addDelta(final TransactionStatus status) {
         final int hashIndex = hashIndex(status.getTs());
         final TransactionIndexBucket bucket = _hashTable[hashIndex];
@@ -1101,6 +1109,39 @@ class TransactionIndex implements TransactionIndexMXBean {
         } finally {
             bucket.unlock();
         }
+    }
+
+    /**
+     * Create, or combine, new delta information for the given status.
+     * This method attempts to find a compatible delta
+     * (see {@link Delta#canMerge(Accumulator, int)}) to combine with
+     * before allocating a new one. If one is not found,
+     * {@link #addDelta(TransactionStatus)} is called and initialized
+     * before returning.
+     *
+     * @param status Status to add, or combine, delta to.
+     * @param accumulator Accumulator being modified.
+     * @param step Step value of modification.
+     * @param value The value to add or combine.
+     *
+     * @return Delta that was created or modified.
+     */
+    Delta addOrCombineDelta(TransactionStatus status, Accumulator accumulator, int step, long value) {
+        // Check current deltas, no lock as status is single txn/thread
+        Delta delta = status.getDelta();
+        while (delta != null) {
+            if (delta.canMerge(accumulator, step)) {
+                delta.merge(value);
+                return null;
+            }
+            delta = delta.getNext();
+        }
+        // No compatible existing delta, create a new one
+        delta = addDelta(status);
+        delta.setAccumulator(accumulator);
+        delta.setStep(step);
+        delta.setValue(value);
+        return delta;
     }
 
     /*

@@ -26,7 +26,6 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class Bug870352Test extends PersistitUnitTestCase {
 

@@ -29,7 +29,6 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Persistit;
 import com.persistit.Transaction;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * I did an update that failed due to constraint violation and the transaction

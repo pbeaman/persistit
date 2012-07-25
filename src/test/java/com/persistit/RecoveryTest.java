@@ -42,7 +42,6 @@ import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 public class RecoveryTest extends PersistitUnitTestCase {
@@ -58,6 +57,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
     public void setUp() throws Exception {
         super.setUp();
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
+        _persistit.getJournalManager().setWritePagePruningEnabled(false);
+
     }
 
     @Override

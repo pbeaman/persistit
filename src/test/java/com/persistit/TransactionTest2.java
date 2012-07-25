@@ -38,7 +38,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * Demonstrates the use of Persistit Transactions. This demo runs multiple

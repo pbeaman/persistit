@@ -27,7 +27,6 @@ import java.util.Properties;
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 public class Bug974589Test extends PersistitUnitTestCase {

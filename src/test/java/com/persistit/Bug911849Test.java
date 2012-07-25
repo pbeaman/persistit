@@ -34,7 +34,6 @@ import com.persistit.Exchange;
 import com.persistit.Persistit;
 import com.persistit.Transaction;
 import com.persistit.exception.RollbackException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * TableStatusRecoveryIT and RenameTableIT fail intermittently

@@ -889,6 +889,7 @@ public final class Key implements Comparable<Object> {
     private int _depth;
     private int _maxSize;
     private long _generation;
+    private boolean _inKeyCoder;
     private Persistit _persistit;
 
     /**
@@ -2673,10 +2674,10 @@ public final class Key implements Comparable<Object> {
                 throw new ConversionException("Invalid String lead-in byte (" + type + ") at position " + _index
                         + " in key");
             }
-            int size = unquoteNulls(index + 1);
+            int size = unquoteNulls(index + 1, false);
             byte[] result = new byte[size];
             System.arraycopy(_bytes, index + 1, result, 0, size);
-            index += quoteNulls(index + 1, size) + 2;
+            index += quoteNulls(index + 1, size, false) + 2;
             return result;
         } finally {
             _index = index;
@@ -3119,7 +3120,7 @@ public final class Key implements Comparable<Object> {
     }
 
     void testValidForAppend() {
-        if (_size == 0 || _size > 1 && _bytes[_size - 1] == 0)
+        if (_size == 0 || _size > 1 && _bytes[_size - 1] == 0 || _inKeyCoder)
             return;
 
         int b = _bytes[_size - 1] & 0xFF;
@@ -3282,27 +3283,25 @@ public final class Key implements Comparable<Object> {
     private Key appendNull() {
         int size = _size;
         _bytes[size++] = TYPE_NULL;
-
         return endSegment(size);
     }
 
     private Key appendByKeyCoder(Object object, Class<?> cl, KeyCoder coder, CoderContext context) {
         int size = _size;
+        boolean saveInKeyCoder = _inKeyCoder;
         try {
             int handle = _persistit.getClassIndex().lookupByClass(cl).getHandle();
-
             _size += encodeHandle(handle);
             int begin = _size;
-            byte saveByte = _bytes[begin - 1];
-            _bytes[begin - 1] = 0;
+            _inKeyCoder = true;
             coder.appendKeySegment(this, object, context);
-            _bytes[begin - 1] = saveByte;
-            quoteNulls(begin, _size - begin);
+            quoteNulls(begin, _size - begin, coder.isZeroByteFree());
             endSegment(_size);
             size = _size;
             return this;
         } finally {
             _size = size;
+            _inKeyCoder = saveInKeyCoder;
         }
     }
 
@@ -3312,6 +3311,7 @@ public final class Key implements Comparable<Object> {
         Class<?> clazz = Object.class;
         int segmentSize = 0;
         boolean unquoted = false;
+        boolean zeroByteFree = false;
         try {
             int handle = decodeHandle();
             clazz = _persistit.classForHandle(handle);
@@ -3322,10 +3322,11 @@ public final class Key implements Comparable<Object> {
             if (coder == null) {
                 throw new ConversionException("No KeyCoder for class " + clazz.getName());
             }
-            segmentSize = unquoteNulls(index);
-            unquoted = true;
+            zeroByteFree = coder.isZeroByteFree();
+            segmentSize = unquoteNulls(index, zeroByteFree);
             size = _size;
             _size = index + segmentSize;
+            unquoted = true;
             if (target == null) {
                 return coder.decodeKeySegment(this, clazz, context);
             } else {
@@ -3339,7 +3340,7 @@ public final class Key implements Comparable<Object> {
         } finally {
             _size = size;
             if (unquoted) {
-                index += quoteNulls(index, segmentSize);
+                index += quoteNulls(index, segmentSize, zeroByteFree);
                 index = decodeEnd(index);
             }
             _index = index;
@@ -3352,6 +3353,7 @@ public final class Key implements Comparable<Object> {
         Class<?> clazz;
         int segmentSize = 0;
         boolean unquoted = false;
+        boolean zeroByteFree = false;
         try {
             int handle = decodeHandle();
             clazz = _persistit.classForHandle(handle);
@@ -3365,8 +3367,9 @@ public final class Key implements Comparable<Object> {
                 Util.append(sb, clazz.getName());
                 Util.append(sb, ")");
                 coder = _persistit.lookupKeyCoder(clazz);
+                zeroByteFree = coder.isZeroByteFree();
             }
-            segmentSize = unquoteNulls(index);
+            segmentSize = unquoteNulls(index, zeroByteFree);
             size = _size;
             unquoted = true;
 
@@ -3385,7 +3388,7 @@ public final class Key implements Comparable<Object> {
         } finally {
             _size = size;
             if (unquoted) {
-                index += quoteNulls(index, segmentSize);
+                index += quoteNulls(index, segmentSize, zeroByteFree);
                 index = decodeEnd(index);
             }
             _index = index;
@@ -3462,7 +3465,7 @@ public final class Key implements Comparable<Object> {
         int keySize = _size;
         System.arraycopy(bytes, offset, _bytes, keySize, size);
         _size += size;
-        keySize += quoteNulls(keySize, size);
+        keySize += quoteNulls(keySize, size, false);
         return endSegment(keySize);
     }
 
@@ -3552,31 +3555,33 @@ public final class Key implements Comparable<Object> {
     }
 
     private int encodeHandle(int handle) {
+        
+        int v = handle - ClassIndex.HANDLE_BASE;
         int size = _size;
 
-        if (handle < 0x00000007) {
-            _bytes[size++] = (byte) (TYPE_CODER1 | ((handle) & 0x7));
+        if (v < 0x00000007) {
+            _bytes[size++] = (byte) (TYPE_CODER1 | ((v) & 0x7));
             return 1;
         }
 
-        if (handle < 0x000001FF) {
-            _bytes[size++] = (byte) (TYPE_CODER2 | ((handle >>> 6) & 0x7));
-            _bytes[size++] = (byte) (0x80 | ((handle) & 0x3F));
+        if (v < 0x000001FF) {
+            _bytes[size++] = (byte) (TYPE_CODER2 | ((v >>> 6) & 0x7));
+            _bytes[size++] = (byte) (0x80 | ((v) & 0x3F));
             return 2;
         }
 
-        if (handle < 0x00007FFF) {
-            _bytes[size++] = (byte) (TYPE_CODER3 | ((handle >>> 12) & 0x7));
-            _bytes[size++] = (byte) (0xC0 | ((handle >>> 6) & 0x3F));
-            _bytes[size++] = (byte) (0x80 | ((handle) & 0x3F));
+        if (v < 0x00007FFF) {
+            _bytes[size++] = (byte) (TYPE_CODER3 | ((v >>> 12) & 0x7));
+            _bytes[size++] = (byte) (0xC0 | ((v >>> 6) & 0x3F));
+            _bytes[size++] = (byte) (0x80 | ((v) & 0x3F));
             return 3;
         } else {
-            _bytes[size++] = (byte) (TYPE_CODER6 | ((handle >>> 30) & 0x7));
-            _bytes[size++] = (byte) (0xC0 | ((handle >>> 24) & 0x3F));
-            _bytes[size++] = (byte) (0xC0 | ((handle >>> 18) & 0x3F));
-            _bytes[size++] = (byte) (0xC0 | ((handle >>> 12) & 0x3F));
-            _bytes[size++] = (byte) (0xC0 | ((handle >>> 6) & 0x3F));
-            _bytes[size++] = (byte) (0x80 | ((handle) & 0x3F));
+            _bytes[size++] = (byte) (TYPE_CODER6 | ((v >>> 30) & 0x7));
+            _bytes[size++] = (byte) (0xC0 | ((v >>> 24) & 0x3F));
+            _bytes[size++] = (byte) (0xC0 | ((v >>> 18) & 0x3F));
+            _bytes[size++] = (byte) (0xC0 | ((v >>> 12) & 0x3F));
+            _bytes[size++] = (byte) (0xC0 | ((v >>> 6) & 0x3F));
+            _bytes[size++] = (byte) (0x80 | ((v) & 0x3F));
             return 6;
         }
     }
@@ -3617,22 +3622,15 @@ public final class Key implements Comparable<Object> {
 
         case TYPE_CODER2:
             v = _bytes[index++] & 0xFF;
-            if ((v & 0xC0) != 0xC0)
+            if ((v & 0x80) != 0x80)
                 break;
             result = result << 6 | (v & 0x3F);
 
             // Intentionally falls through
 
         case TYPE_CODER1:
-            v = _bytes[index++] & 0xFF;
-            if ((v & 0xC0) != 0x80)
-                break;
-            result = result << 6 | (v & 0x3F);
-
-            // Intentionally falls through
-
             _index = index;
-            return result;
+            return result + ClassIndex.HANDLE_BASE;
 
         default:
         }
@@ -3674,21 +3672,27 @@ public final class Key implements Comparable<Object> {
      * (1, C) where C is 32 for NUL and 33 for SOH.
      * 
      * @param index
-     *            Offet to first byte to convert
+     *            Offset to first byte to convert
      * @param size
      *            Length of raw segment, in bytes.
      * @return Length of the quoted segment
      */
-    private int quoteNulls(int index, int size) {
+    private int quoteNulls(int index, int size, boolean zeroByteFree) {
         for (int i = index; i < index + size; i++) {
             int c = _bytes[i] & 0xFF;
-            if (c == 0 || c == 1) {
-                System.arraycopy(_bytes, i + 1, _bytes, i + 2, _size - i - 1);
-                _bytes[i] = 1;
-                _bytes[i + 1] = (byte) (c + 32);
-                _size++;
-                size++;
-                i++;
+            if (zeroByteFree) {
+                if (c == 0) {
+                    throw new ConversionException("NUL found in encoded Key");
+                }
+            } else {
+                if (c == 0 || c == 1) {
+                    System.arraycopy(_bytes, i + 1, _bytes, i + 2, _size - i - 1);
+                    _bytes[i] = 1;
+                    _bytes[i + 1] = (byte) (c + 32);
+                    _size++;
+                    size++;
+                    i++;
+                }
             }
         }
         return size;
@@ -3702,12 +3706,13 @@ public final class Key implements Comparable<Object> {
      * @param index
      * @return The unquoted length of the array.
      */
-    private int unquoteNulls(int index) {
+    private int unquoteNulls(int index, boolean zeroByteFree) {
         for (int i = index; i < _size; i++) {
             int c = _bytes[i] & 0xFF;
-            if (c == 0)
+            if (c == 0) {
                 return i - index;
-            if (c == 1 && i + 1 < _size) {
+            }
+            if (!zeroByteFree && c == 1 && i + 1 < _size) {
                 c = _bytes[i + 1];
                 if (c == 32 || c == 33) {
                     _bytes[i] = (byte) (c - 32);
@@ -3997,4 +4002,3 @@ public final class Key implements Comparable<Object> {
         bis._scale = -exp;
     }
 }
-

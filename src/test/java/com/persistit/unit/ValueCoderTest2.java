@@ -30,6 +30,7 @@ import org.junit.Test;
 
 import com.persistit.DefaultObjectCoder;
 import com.persistit.Exchange;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.exception.PersistitException;
 
 public class ValueCoderTest2 extends PersistitUnitTestCase {

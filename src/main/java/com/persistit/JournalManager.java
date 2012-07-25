@@ -194,6 +194,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private TransactionPlayerListener _listener = new ProactiveRollbackListener();
 
+    private AtomicBoolean _writePagePruning = new AtomicBoolean(true);
+    
     private AtomicBoolean _rollbackPruning = new AtomicBoolean(true);
 
     /*
@@ -414,6 +416,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         _rollbackPruning.set(rollbackPruning);
     }
 
+    @Override
+    public void setWritePagePruningEnabled(boolean writePruning) {
+        _writePagePruning.set(writePruning);
+    }
+
     public JournalManager(final Persistit persistit) {
         _persistit = persistit;
     }
@@ -431,6 +438,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     @Override
     public boolean isRollbackPruningEnabled() {
         return _rollbackPruning.get();
+    }
+
+    @Override
+    public boolean isWritePagePruningEnabled() {
+        return _writePagePruning.get();
     }
 
     @Override

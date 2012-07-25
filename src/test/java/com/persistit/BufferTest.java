@@ -32,7 +32,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.RebalanceException;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class BufferTest extends PersistitUnitTestCase {
     int leftn;

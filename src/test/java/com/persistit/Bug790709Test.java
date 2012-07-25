@@ -27,7 +27,6 @@ import org.junit.Test;
 
 import com.persistit.Buffer;
 import com.persistit.Exchange;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * Bug 790709 This happened on-site at XXX with the halo release. The server

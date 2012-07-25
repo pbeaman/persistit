@@ -33,6 +33,7 @@ import com.persistit.Key;
 import com.persistit.KeyFilter;
 import com.persistit.KeyState;
 import com.persistit.Persistit;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.exception.PersistitException;
 
 /**

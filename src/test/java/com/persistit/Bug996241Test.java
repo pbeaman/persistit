@@ -22,7 +22,6 @@ package com.persistit;
 
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 import org.junit.Test;
 

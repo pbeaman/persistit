@@ -28,7 +28,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class Bug992801Test extends PersistitUnitTestCase {
     /*

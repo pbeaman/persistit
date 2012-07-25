@@ -506,15 +506,23 @@ public class Buffer extends SharedResource {
         Debug.$assert0.t(isMine());
         final long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
         if (isDirty() && !isTemporary() && getTimestamp() < checkpointTimestamp && timestamp > checkpointTimestamp) {
-            writePage();
+            writePage(false);
             _pool.bumpForcedCheckpointWrites();
         }
     }
 
     void writePage() throws PersistitException {
+        writePage(_persistit.getJournalManager().isWritePagePruningEnabled());
+    }
+
+    private void writePage(final boolean prune) throws PersistitException {
+        assert isMine();
         _persistit.checkFatal();
         final Volume volume = getVolume();
         if (volume != null) {
+            if (prune) {
+                pruneMvvValues(null, false);
+            }
             clearSlack();
             save();
             _vol.getStorage().writePage(this);
@@ -3466,7 +3474,12 @@ public class Buffer extends SharedResource {
                     if (visitor != null) {
                         visitor.visitDataRecord(key, p, tail, klength, offset, length, getBytes());
                     }
-                    Debug.$assert1.t(MVV.verify(_bytes, offset, length));
+                    
+                    if (!MVV.verify(_bytes, offset, length)) {
+                        throw new InvalidPageStructureException("invalid MVV record at offset/length=" + offset + "/"
+                                + length);
+                    }
+
                 }
 
                 if (_pool != null && getKeyCount() > _pool.getMaxKeys()) {

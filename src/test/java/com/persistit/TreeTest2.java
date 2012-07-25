@@ -28,7 +28,6 @@ import java.util.Properties;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class TreeTest2 extends PersistitUnitTestCase {
 

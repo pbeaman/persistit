@@ -28,7 +28,6 @@ import com.persistit.Accumulator;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class Bug920754Test extends PersistitUnitTestCase {
     /*

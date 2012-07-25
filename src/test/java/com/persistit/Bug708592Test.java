@@ -28,7 +28,6 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.KeyParser;
 import com.persistit.policy.SplitPolicy;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /*
  * Got this while loading sample data. Apparently the new PACK split policy 
