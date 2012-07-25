@@ -2382,12 +2382,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             }
             final PageNode pageNode = iterator.next();
             if (pageNode.isInvalid()) {
-                // Deal with this in cleanupForCopy
+                iterator.remove();
                 continue;
             }
-
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
+                volume = null;
                 // Possibly hollow volume
                 volumeRef = _handleToVolumeMap.get(pageNode.getVolumeHandle());
                 if (volumeRef != null) {
@@ -2432,15 +2432,13 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     void writeForCopy(final List<PageNode> list, final ByteBuffer bb) throws PersistitException {
         Collections.sort(list, PageNode.WRITE_COMPARATOR);
-
-        final HashSet<Volume> volumes = new HashSet<Volume>();
-
         Volume volumeRef = null;
         Volume volume = null;
         int handle = -1;
 
-        for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
+        final HashSet<Volume> volumes = new HashSet<Volume>();
 
+        for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
             if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
                 list.clear();
                 break;
@@ -2448,13 +2446,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             final PageNode pageNode = iterator.next();
 
-            if (pageNode.isInvalid()) {
-                // Deal with this in cleanupForCopy
-                continue;
-            }
-
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
+                volume = null;
                 // Possibly hollow volume
                 volumeRef = _handleToVolumeMap.get(pageNode.getVolumeHandle());
                 if (volumeRef != null) {
@@ -2522,25 +2516,23 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
         synchronized (this) {
             for (final PageNode copiedPageNode : list) {
-                if (!copiedPageNode.isInvalid()) {
-                    PageNode pageNode = _pageMap.get(copiedPageNode);
-                    if (pageNode.getJournalAddress() == copiedPageNode.getJournalAddress()) {
-                        pageNode.removeHistory();
-                        pageNode.invalidate();
-                        PageNode pn = _pageMap.remove(pageNode);
-                        assert pn == copiedPageNode;
-                    } else {
-                        PageNode previous = pageNode.getPrevious();
-                        while (previous != null) {
-                            if (previous.getJournalAddress() == copiedPageNode.getJournalAddress()) {
-                                // No need to keep the previous entry, or any of
-                                // its predecessors
-                                pageNode.removeHistory();
-                                break;
-                            } else {
-                                pageNode = previous;
-                                previous = pageNode.getPrevious();
-                            }
+                PageNode pageNode = _pageMap.get(copiedPageNode);
+                if (pageNode.getJournalAddress() == copiedPageNode.getJournalAddress()) {
+                    pageNode.removeHistory();
+                    pageNode.invalidate();
+                    PageNode pn = _pageMap.remove(pageNode);
+                    assert pn == copiedPageNode;
+                } else {
+                    PageNode previous = pageNode.getPrevious();
+                    while (previous != null) {
+                        if (previous.getJournalAddress() == copiedPageNode.getJournalAddress()) {
+                            // No need to keep the previous entry, or any of
+                            // its predecessors
+                            pageNode.removeHistory();
+                            break;
+                        } else {
+                            pageNode = previous;
+                            previous = pageNode.getPrevious();
                         }
                     }
                 }
