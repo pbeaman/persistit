@@ -477,7 +477,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertTrue("Startup with missing volumes should have generated alerts", am
                 .getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);
         
-        _persistit.getJournalManager().setIgnoreMissingPages(true);
+        _persistit.getJournalManager().setIgnoreMissingVolumes(true);
         // Should add more alerts
         _persistit.copyBackPages();
         int alertCount1 = am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY).getCount();

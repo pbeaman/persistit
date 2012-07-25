@@ -647,6 +647,7 @@ public class Persistit {
 
         _journalManager.init(_recoveryManager, journalPath, journalSize);
         _journalManager.setAppendOnly(_configuration.isAppendOnly());
+        _journalManager.setIgnoreMissingVolumes(_configuration.isIgnoreMissingVolumes());
     }
 
     void initializeBufferPools() {

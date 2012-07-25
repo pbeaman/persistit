@@ -377,7 +377,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     @Override
-    public boolean isIgnoreMissingPages() {
+    public boolean isIgnoreMissingVolumes() {
         return _ignoreMissingVolume.get();
     }
 
@@ -392,7 +392,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     @Override
-    public void setIgnoreMissingPages(boolean ignore) {
+    public void setIgnoreMissingVolumes(boolean ignore) {
         _ignoreMissingVolume.set(ignore);
     }
 
