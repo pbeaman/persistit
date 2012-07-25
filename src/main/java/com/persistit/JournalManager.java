@@ -135,6 +135,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
 
+    private AtomicBoolean _ignoreMissingVolume = new AtomicBoolean();
+
     private String _journalFilePath;
 
     /**
@@ -375,6 +377,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     @Override
+    public boolean isIgnoreMissingPages() {
+        return _ignoreMissingVolume.get();
+    }
+    
+    @Override
     public boolean isCopyingFast() {
         return _copyFast.get();
     }
@@ -382,6 +389,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     @Override
     public void setAppendOnly(boolean appendOnly) {
         _appendOnly.set(appendOnly);
+    }
+    
+    @Override
+    public void setIgnoreMissingPages(boolean ignore) {
+        _ignoreMissingVolume.set(ignore);
     }
 
     @Override
@@ -2374,11 +2386,21 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
                 volume = _handleToVolumeMap.get(pageNode.getVolumeHandle());
-                if (volume == null) {
-                    // TODO
-                } else {
+                if (volume != null) {
                     volume = _persistit.getVolume(volume.getName());
                     handle = pageNode.getVolumeHandle();
+                }
+            }
+            if (volume == null) {
+                _persistit.getAlertMonitor().post(
+                        new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volume, pageNode
+                                .getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
+                if (_ignoreMissingVolume.get()) {
+                    _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), _handleToVolumeMap
+                            .get(pageNode.getVolumeHandle()), pageNode.getJournalAddress());
+                    // Not removing the page from the List here will cause cleanupForCopy to remove it from
+                    // the page map.
+                    continue;
                 }
             }
             if (volume == null || volume.isClosed()) {
@@ -2400,8 +2422,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 }
                 pageAddress = readPageBufferFromJournal(stablePageNode, bb);
             } catch (PersistitException ioe) {
-                _persistit.getLogBase().copyException.log(ioe, volume, pageNode.getPageAddress(), pageNode
-                        .getJournalAddress());
+                _persistit.getAlertMonitor().post(
+                        new Event(AlertLevel.ERROR, _persistit.getLogBase().copyException, ioe, volume, pageNode
+                                .getPageAddress(), pageNode.getJournalAddress()), AlertMonitor.JOURNAL_CATEGORY);
                 throw ioe;
             }
 
