@@ -62,7 +62,7 @@ public class BufferPool {
     /**
      * Default PageCacher polling interval
      */
-    private final static long DEFAULT_CACHER_POLL_INTERVAL = 60000;
+    private final static long DEFAULT_CACHER_POLL_INTERVAL = 3000000;
     
     /**
      * Sleep time when buffers are exhausted
@@ -412,9 +412,8 @@ public class BufferPool {
     }
            
     private void populateHashTable() throws IOException, PersistitException {
-        if (_hashTable.length > 0) return;
         File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
-        
+
         if (!file.exists()) file.createNewFile();
         
         BufferedReader reader = new BufferedReader(new FileReader(file));
@@ -423,8 +422,11 @@ public class BufferPool {
             Volume vol = _persistit.getSystemVolume();
             long page = Long.parseLong(currLine);
             int hash = hashIndex(vol, page);
-            _hashTable[hash] = get(vol, page, true, false);
-            System.out.println(hash);
+            try {
+                _hashTable[hash] = get(vol, page, true, false);
+            } catch (PersistitException e) {
+                System.err.println(e.getMessage());
+            }
         }
         reader.close();
     }
@@ -433,7 +435,7 @@ public class BufferPool {
         File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
 
         if (!file.exists()) file.createNewFile();
-        
+
         BufferedWriter writer = new BufferedWriter(new FileWriter(file));
         for (int i = 0; i < _hashTable.length; ++i) {
             if (_hashTable[i] != null) {
@@ -1383,7 +1385,7 @@ public class BufferPool {
 
         @Override
         public void runTask() throws Exception {
-           populateExchange();
+            populateExchange();
         }
         
         @Override
