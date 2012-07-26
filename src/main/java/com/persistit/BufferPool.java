@@ -105,7 +105,7 @@ public class BufferPool {
     /**
      * Hash table - fast access to buffer by hash of address.
      */
-    public final Buffer[] _hashTable;
+    private final Buffer[] _hashTable;
 
     /**
      * Locks used to lock hashtable entries.
@@ -221,7 +221,7 @@ public class BufferPool {
      * The PAGE_CACHER IOTaskRunnable
      */
     private PageCacher _cacher;
-    public Exchange _exchange;
+    private Exchange _exchange;
     
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -232,7 +232,7 @@ public class BufferPool {
      * @param size
      *            The size (in bytes) of each buffer
      */
-    BufferPool(int count, int size, Persistit persistit) throws PersistitException {
+    BufferPool(int count, int size, Persistit persistit) {
         _persistit = persistit;
         if (count < MINIMUM_POOL_COUNT) {
             throw new IllegalArgumentException("Buffer pool count too small: " + count);
@@ -259,13 +259,6 @@ public class BufferPool {
         _hashTable = new Buffer[_bufferCount * HASH_MULTIPLE];
         _hashLocks = new ReentrantLock[HASH_LOCKS];
         _maxKeys = (_bufferSize - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO;
-
-        try {
-            _exchange = _persistit.getExchange(_persistit.getSystemVolume(), "_bufferPool", true);
-        } catch (PersistitException e) {
-            System.err.print(e.getMessage());
-        }
-        //populateHashTable();
         
         for (int index = 0; index < HASH_LOCKS; index++) {
             _hashLocks[index] = new ReentrantLock();
@@ -303,7 +296,8 @@ public class BufferPool {
         _cacher = new PageCacher();
     }
 
-    void startThreads() {
+    void startThreads() throws PersistitException {
+        populateHashTable();
         _writer.start();
         _cacher.start();
     }
@@ -418,10 +412,28 @@ public class BufferPool {
     }
            
     private void populateHashTable() throws PersistitException {
+        _exchange = _persistit.getExchange(_persistit.getSystemVolume(), "_bufferPool", true);
+        _exchange.getValue().put(_hashTable[0]);
+        _exchange.getKey().append(0);
+        _exchange.store();
+        _exchange.getKey().to(Key.BEFORE);
         while (_exchange.next()) {
             Buffer value = (Buffer) _exchange.getValue().get();
-            int key = hashIndex(value.getVolume(), _exchange.getKey().decodeInt());
+            int key = hashIndex(value.getVolume(), _exchange.getKey().decodeLong());
             _hashTable[key] = value;
+            System.out.println("HASH KEY: "+ key);
+        }
+        System.out.println("populating..");
+    }
+    
+    private void populateExchange() throws PersistitException {
+        _exchange = _persistit.getExchange(_persistit.getSystemVolume(), "_bufferPool", true);
+        for (int i = 0; i < _hashTable.length; ++i) {
+            if (_hashTable[i] != null) {
+                _exchange.getValue().put(_hashTable[i].getVolume());
+                _exchange.getKey().append(_hashTable[i].getPageAddress());
+                _exchange.store();
+            }
         }
     }
 
@@ -1071,7 +1083,7 @@ public class BufferPool {
         }
         return false;
     }
-
+    
     void writeDirtyBuffers(final int[] priorities, final BufferHolder[] selectedBuffers) throws PersistitException {
         int count = selectDirtyBuffers(priorities, selectedBuffers);
         if (count > 0) {
@@ -1363,12 +1375,8 @@ public class BufferPool {
         }
 
         @Override
-        protected void runTask() throws Exception {
-            for (int i = 0; i < _hashTable.length; ++i) {
-                //_exchange.getValue().put(_hashTable[i]);
-                //_exchange.getKey().append(_hashTable[i].getPageAddress());
-                //_exchange.store();
-            }
+        public void runTask() throws Exception {
+           // BufferPool.this.populateExchange();
         }
         
         @Override

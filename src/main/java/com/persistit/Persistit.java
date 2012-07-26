@@ -650,7 +650,7 @@ public class Persistit {
         _journalManager.setAppendOnly(_configuration.isAppendOnly());
     }
 
-    void initializeBufferPools() throws PersistitException {
+    void initializeBufferPools() {
         for (final BufferPoolConfiguration config : _configuration.getBufferPoolMap().values()) {
             final int poolSize = config.computeBufferCount(getAvailableHeap());
             if (poolSize > 0) {

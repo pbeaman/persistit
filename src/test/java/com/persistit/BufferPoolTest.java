@@ -79,7 +79,7 @@ public class BufferPoolTest extends PersistitUnitTestCase {
 
             int count = pool.selectDirtyBuffers(priorities, holders);
             assertEquals("Buffer pool should be clean", 0, count);
-
+            
             for (int i = 1; i < buffers; i++) {
                 final long page = volume.getStorage().allocNewPage();
                 final Buffer buffer = pool.get(volume, page, true, false);
@@ -163,8 +163,8 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         for (long timestamp = m; timestamp < m * 20; timestamp += m) {
             buffer.setDirtyAtTimestamp(timestamp);
             int priority = pool.writePriority(buffer, 123456, checkpointTimestamp, currentTimestamp);
-            System.out.printf("Timestamp %,15d Checkpoint %,15d Current %,15d Priority %,15d\n", timestamp,
-                    checkpointTimestamp, currentTimestamp, priority);
+            //System.out.printf("Timestamp %,15d Checkpoint %,15d Current %,15d Priority %,15d\n", timestamp,
+             //       checkpointTimestamp, currentTimestamp, priority);
             currentTimestamp += 10000000;
         }
     }
