@@ -59,6 +59,11 @@ public class BufferPool {
     private final static int PAGE_WRITER_TRANCHE_SIZE = 5000;
 
     /**
+     * Default PageCacher polling interval
+     */
+    private final static long DEFAULT_CACHER_POLL_INTERVAL = 60000;
+    
+    /**
      * Sleep time when buffers are exhausted
      */
     private final static long RETRY_SLEEP_TIME = 50;
@@ -201,11 +206,23 @@ public class BufferPool {
     private volatile long _writerPollInterval = DEFAULT_WRITER_POLL_INTERVAL;
 
     private volatile int _pageWriterTrancheSize = PAGE_WRITER_TRANCHE_SIZE;
+    
+    /**
+     * Polling interval for PageCacher
+     */
+    private volatile long _cacherPollInterval = DEFAULT_CACHER_POLL_INTERVAL;
+    
     /**
      * The PAGE_WRITER IOTaskRunnable
      */
     private PageWriter _writer;
-
+    
+    /**
+     * The PAGE_CACHER IOTaskRunnable
+     */
+    private PageCacher _cacher;
+    private Exchange _exchange;
+    
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
      * of the specified size.
@@ -215,7 +232,7 @@ public class BufferPool {
      * @param size
      *            The size (in bytes) of each buffer
      */
-    BufferPool(int count, int size, Persistit persistit) {
+    BufferPool(int count, int size, Persistit persistit) throws PersistitException {
         _persistit = persistit;
         if (count < MINIMUM_POOL_COUNT) {
             throw new IllegalArgumentException("Buffer pool count too small: " + count);
@@ -242,7 +259,10 @@ public class BufferPool {
         _hashTable = new Buffer[_bufferCount * HASH_MULTIPLE];
         _hashLocks = new ReentrantLock[HASH_LOCKS];
         _maxKeys = (_bufferSize - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO;
-
+        _exchange = _persistit.getExchange("sample-data", "persistit-cache", true);
+        
+        populateHashTable();
+        
         for (int index = 0; index < HASH_LOCKS; index++) {
             _hashLocks[index] = new ReentrantLock();
         }
@@ -276,30 +296,35 @@ public class BufferPool {
             throw e;
         }
         _writer = new PageWriter();
-
+        _cacher = new PageCacher();
     }
 
     void startThreads() {
         _writer.start();
+        _cacher.start();
     }
 
     void close() {
         _closed.set(true);
         _persistit.waitForIOTaskStop(_writer);
+        _persistit.waitForIOTaskStop(_cacher);
         _writer = null;
+        _cacher = null;
     }
 
     /**
-     * Abruptly stop (using {@link Thread#stop()}) the writer and collector
+     * Abruptly stop (using {@link Thread#stop()}) the writer, cacher, and collector
      * threads. This method should be used only by tests.
      */
     void crash() {
         IOTaskRunnable.crash(_writer);
+        IOTaskRunnable.crash(_cacher);
     }
 
     void flush(final long timestamp) throws PersistitInterruptedException {
         setFlushTimestamp(timestamp);
         _writer.kick();
+        _cacher.kick();
         while (isFlushing()) {
             Util.sleep(RETRY_SLEEP_TIME);
         }
@@ -384,6 +409,15 @@ public class BufferPool {
                 array[index] = new ManagementImpl.BufferInfo();
             buffer.populateInfo(array[index]);
         }
+    }
+           
+    private void populateHashTable() throws PersistitException {
+        while (_exchange.next()) {
+            Buffer value = (Buffer) _exchange.getValue().get();
+            int key = hashIndex(value.getVolume(), _exchange.getKey().decodeInt());
+            _hashTable[key] = value;
+        }
+        _persistit.releaseExchange(_exchange);
     }
 
     private boolean selected(Buffer buffer, int includeMask, int excludeMask) {
@@ -1307,6 +1341,39 @@ public class BufferPool {
         @Override
         protected long pollInterval() {
             return isFlushing() ? 0 : _writerPollInterval;
+        }
+    }
+    
+    /**
+     * Implementation of PAGE_CACHER thread
+     */
+    class PageCacher extends IOTaskRunnable {
+        
+        PageCacher() {
+            super(BufferPool.this._persistit);
+        }
+        
+        void start() {
+            start("PAGE_CACHER:" + _bufferSize, _cacherPollInterval);
+        }
+
+        @Override
+        protected void runTask() throws Exception {
+            for (int i = 0; i < _hashTable.length; ++i) {
+                _exchange.getValue().put(_hashTable[i]);
+                _exchange.getKey().append(_hashTable[i].getPageAddress());
+                _exchange.store();
+            }
+        }
+        
+        @Override
+        protected boolean shouldStop() {
+            return _closed.get() && !isFlushing();
+        }
+        
+        @Override
+        protected long pollInterval() {
+            return isFlushing() ? 0 : _cacherPollInterval;
         }
     }
 
