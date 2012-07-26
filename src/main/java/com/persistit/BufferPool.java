@@ -105,7 +105,7 @@ public class BufferPool {
     /**
      * Hash table - fast access to buffer by hash of address.
      */
-    private final Buffer[] _hashTable;
+    public final Buffer[] _hashTable;
 
     /**
      * Locks used to lock hashtable entries.
@@ -221,7 +221,7 @@ public class BufferPool {
      * The PAGE_CACHER IOTaskRunnable
      */
     private PageCacher _cacher;
-    private Exchange _exchange;
+    public Exchange _exchange;
     
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -259,9 +259,13 @@ public class BufferPool {
         _hashTable = new Buffer[_bufferCount * HASH_MULTIPLE];
         _hashLocks = new ReentrantLock[HASH_LOCKS];
         _maxKeys = (_bufferSize - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO;
-        _exchange = _persistit.getExchange("sample-data", "persistit-cache", true);
-        
-        populateHashTable();
+
+        try {
+            _exchange = _persistit.getExchange(_persistit.getSystemVolume(), "_bufferPool", true);
+        } catch (PersistitException e) {
+            System.err.print(e.getMessage());
+        }
+        //populateHashTable();
         
         for (int index = 0; index < HASH_LOCKS; index++) {
             _hashLocks[index] = new ReentrantLock();
@@ -308,8 +312,10 @@ public class BufferPool {
         _closed.set(true);
         _persistit.waitForIOTaskStop(_writer);
         _persistit.waitForIOTaskStop(_cacher);
+        _persistit.releaseExchange(_exchange);
         _writer = null;
         _cacher = null;
+        _exchange = null;
     }
 
     /**
@@ -417,7 +423,6 @@ public class BufferPool {
             int key = hashIndex(value.getVolume(), _exchange.getKey().decodeInt());
             _hashTable[key] = value;
         }
-        _persistit.releaseExchange(_exchange);
     }
 
     private boolean selected(Buffer buffer, int includeMask, int excludeMask) {
@@ -1360,9 +1365,9 @@ public class BufferPool {
         @Override
         protected void runTask() throws Exception {
             for (int i = 0; i < _hashTable.length; ++i) {
-                _exchange.getValue().put(_hashTable[i]);
-                _exchange.getKey().append(_hashTable[i].getPageAddress());
-                _exchange.store();
+                //_exchange.getValue().put(_hashTable[i]);
+                //_exchange.getKey().append(_hashTable[i].getPageAddress());
+                //_exchange.store();
             }
         }
         
