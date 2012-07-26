@@ -78,7 +78,7 @@ public class LogBase {
     @Message("INFO| Allocating %,d buffers of size %,d bytes")
     public final LogItem allocateBuffers = PersistitLogMessage.empty();
 
-    @Message("INFO|Opening volume %s")
+    @Message("INFO|Opening volume %s (%s)")
     public final LogItem openVolume = PersistitLogMessage.empty();
 
     @Message("ERROR|Journal write failure %s in %s at offset %,d")
