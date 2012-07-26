@@ -288,7 +288,7 @@ public class Volume {
      * @return The file
      */
     public File getAbsoluteFile() {
-        return getStorage().getAbsoluteFile();
+        return getSpecification().getAbsoluteFile();
     }
 
     /**

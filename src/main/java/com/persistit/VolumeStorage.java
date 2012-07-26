@@ -68,15 +68,6 @@ abstract class VolumeStorage extends SharedResource {
     }
 
     /**
-     * Returns the path name by which this volume was opened.
-     * 
-     * @return The file
-     */
-    File getAbsoluteFile() {
-        return _volume.getSpecification().getAbsoluteFile();
-    }
-
-    /**
      * Indicate whether this <code>Volume</code> prohibits updates.
      * 
      * @return <code>true</code> if this Volume prohibits updates.
