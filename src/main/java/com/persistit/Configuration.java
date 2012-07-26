@@ -1800,7 +1800,7 @@ public class Configuration {
      * </p>
      * 
      * @param appendOnly
-     *            the appendOnly to set
+     *            <code>true</code> to start Persistit in append-only only
      */
     public void setAppendOnly(boolean appendOnly) {
         this.appendOnly = appendOnly;
@@ -1829,8 +1829,8 @@ public class Configuration {
      * Property name is {@value #IGNORE_MISSING_VOLUMES_PROPERTY}
      * </p>
      * 
-     * @param appendOnly
-     *            the appendOnly to set
+     * @param ignoreMissingVolumes
+     *            <code>true</code> to ignore missing volumes
      */
     public void setIgnoreMissingVolumes(boolean ignoreMissingVolumes) {
         this.ignoreMissingVolumes = ignoreMissingVolumes;
