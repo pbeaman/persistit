@@ -203,7 +203,7 @@ public class TransactionIndexConcurrencyTest {
                         txn.status.incrementMvvCount();
                     }
                 }
-                if ((count & 10000) == 0) {
+                if ((count % 10000) == 0) {
                 	Thread.sleep(100);
                 }
                 if (retry) {
