@@ -496,7 +496,7 @@ public class Persistit {
      * @throws IOException
      * @throws Exception
      */
-    public void initialize() throws PersistitException {
+    public void initialize() throws PersistitException, IOException {
         if (!isInitialized()) {
             Configuration configuration = new Configuration();
             configuration.readPropertiesFile();
@@ -523,7 +523,7 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
-    public void initialize(String propertiesFileName) throws PersistitException {
+    public void initialize(String propertiesFileName) throws PersistitException, IOException {
         if (!isInitialized()) {
             Configuration configuration = new Configuration();
             configuration.readPropertiesFile(propertiesFileName);
@@ -553,7 +553,7 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
-    public void initialize(Properties properties) throws PersistitException {
+    public void initialize(Properties properties) throws PersistitException, IOException {
         if (!isInitialized()) {
             Configuration configuration = new Configuration(properties);
             initialize(configuration);
@@ -580,7 +580,7 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
-    public synchronized void initialize(Configuration configuration) throws PersistitException {
+    public synchronized void initialize(Configuration configuration) throws PersistitException, IOException {
         if (!isInitialized()) {
             _configuration = configuration;
             try {
@@ -716,7 +716,7 @@ public class Persistit {
         _transactionIndex.start(this);
     }
 
-    void startBufferPools() throws PersistitException {
+    void startBufferPools() throws PersistitException, IOException {
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.startThreads();
         }

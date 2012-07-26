@@ -42,6 +42,7 @@ import com.persistit.exception.RetryException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
+import java.io.*;
 
 /**
  * A pool of {@link Buffer} objects, maintained on various lists that permit
@@ -221,7 +222,8 @@ public class BufferPool {
      * The PAGE_CACHER IOTaskRunnable
      */
     private PageCacher _cacher;
-    private Exchange _exchange;
+    
+    private final String DEFAULT_LOG_PATH = "buffer_pool.log";
     
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -296,7 +298,7 @@ public class BufferPool {
         _cacher = new PageCacher();
     }
 
-    void startThreads() throws PersistitException {
+    void startThreads() throws PersistitException, IOException {
         populateHashTable();
         _writer.start();
         _cacher.start();
@@ -306,10 +308,8 @@ public class BufferPool {
         _closed.set(true);
         _persistit.waitForIOTaskStop(_writer);
         _persistit.waitForIOTaskStop(_cacher);
-        _persistit.releaseExchange(_exchange);
         _writer = null;
         _cacher = null;
-        _exchange = null;
     }
 
     /**
@@ -411,30 +411,37 @@ public class BufferPool {
         }
     }
            
-    private void populateHashTable() throws PersistitException {
-        _exchange = _persistit.getExchange(_persistit.getSystemVolume(), "_bufferPool", true);
-        _exchange.getValue().put(_hashTable[0]);
-        _exchange.getKey().append(0);
-        _exchange.store();
-        _exchange.getKey().to(Key.BEFORE);
-        while (_exchange.next()) {
-            Buffer value = (Buffer) _exchange.getValue().get();
-            int key = hashIndex(value.getVolume(), _exchange.getKey().decodeLong());
-            _hashTable[key] = value;
-            System.out.println("HASH KEY: "+ key);
+    private void populateHashTable() throws IOException, PersistitException {
+        if (_hashTable.length > 0) return;
+        File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
+        
+        if (!file.exists()) file.createNewFile();
+        
+        BufferedReader reader = new BufferedReader(new FileReader(file));
+        String currLine;
+        while ((currLine = reader.readLine()) != null) {
+            Volume vol = _persistit.getSystemVolume();
+            long page = Long.parseLong(currLine);
+            int hash = hashIndex(vol, page);
+            _hashTable[hash] = get(vol, page, true, false);
+            System.out.println(hash);
         }
-        System.out.println("populating..");
+        reader.close();
     }
     
-    private void populateExchange() throws PersistitException {
-        _exchange = _persistit.getExchange(_persistit.getSystemVolume(), "_bufferPool", true);
+    private void populateExchange() throws PersistitException, IOException {
+        File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
+
+        if (!file.exists()) file.createNewFile();
+        
+        BufferedWriter writer = new BufferedWriter(new FileWriter(file));
         for (int i = 0; i < _hashTable.length; ++i) {
             if (_hashTable[i] != null) {
-                _exchange.getValue().put(_hashTable[i].getVolume());
-                _exchange.getKey().append(_hashTable[i].getPageAddress());
-                _exchange.store();
+                writer.append(Long.toString(_hashTable[i].getPageAddress()));
+                writer.newLine();
             }
         }
+        writer.close();
     }
 
     private boolean selected(Buffer buffer, int includeMask, int excludeMask) {
@@ -1376,7 +1383,7 @@ public class BufferPool {
 
         @Override
         public void runTask() throws Exception {
-           // BufferPool.this.populateExchange();
+           populateExchange();
         }
         
         @Override
