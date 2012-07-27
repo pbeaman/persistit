@@ -222,7 +222,7 @@ public class BufferPool {
      * The PAGE_CACHER IOTaskRunnable
      */
     private PageCacher _cacher;
-    
+        
     private final String DEFAULT_LOG_PATH = "buffer_pool.log";
     
     /**
@@ -297,9 +297,28 @@ public class BufferPool {
         _writer = new PageWriter();
         _cacher = new PageCacher();
     }
+    
+    void warmupBufferPool() throws IOException, PersistitException {
+        File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
+
+        if (!file.exists()) file.createNewFile();
+
+        BufferedReader reader = new BufferedReader(new FileReader(file));
+        String currLine;
+        while ((currLine = reader.readLine()) != null) {
+            Volume vol = _persistit.getSystemVolume();
+            long page = Long.parseLong(currLine);
+            int hash = hashIndex(vol, page);
+            try {
+                _hashTable[hash] = get(vol, page, false, false);
+            } catch (PersistitException e) {
+                System.err.println(e.getMessage());
+            }
+        }
+        reader.close();
+    }
 
     void startThreads() throws PersistitException, IOException {
-        populateHashTable();
         _writer.start();
         _cacher.start();
     }
@@ -410,28 +429,8 @@ public class BufferPool {
             buffer.populateInfo(array[index]);
         }
     }
-           
-    private void populateHashTable() throws IOException, PersistitException {
-        File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
-
-        if (!file.exists()) file.createNewFile();
-        
-        BufferedReader reader = new BufferedReader(new FileReader(file));
-        String currLine;
-        while ((currLine = reader.readLine()) != null) {
-            Volume vol = _persistit.getSystemVolume();
-            long page = Long.parseLong(currLine);
-            int hash = hashIndex(vol, page);
-            try {
-                _hashTable[hash] = get(vol, page, true, false);
-            } catch (PersistitException e) {
-                System.err.println(e.getMessage());
-            }
-        }
-        reader.close();
-    }
     
-    private void populateExchange() throws PersistitException, IOException {
+    private void populateWarmupFile() throws PersistitException, IOException {
         File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
 
         if (!file.exists()) file.createNewFile();
@@ -1385,7 +1384,7 @@ public class BufferPool {
 
         @Override
         public void runTask() throws Exception {
-            populateExchange();
+            populateWarmupFile();
         }
         
         @Override

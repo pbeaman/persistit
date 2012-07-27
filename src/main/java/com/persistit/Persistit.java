@@ -718,6 +718,7 @@ public class Persistit {
 
     void startBufferPools() throws PersistitException, IOException {
         for (final BufferPool pool : _bufferPoolTable.values()) {
+            pool.warmupBufferPool();
             pool.startThreads();
         }
     }

@@ -29,6 +29,7 @@ import org.junit.Before;
 
 import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
+import java.io.IOException;
 
 public abstract class PersistitUnitTestCase {
 
@@ -110,7 +111,7 @@ public abstract class PersistitUnitTestCase {
         return alive;
     }
 
-    protected void safeCrashAndRestoreProperties() throws PersistitException {
+    protected void safeCrashAndRestoreProperties() throws PersistitException, IOException {
         Properties properties = _persistit.getProperties();
         _persistit.flush();
         _persistit.crash();
@@ -118,7 +119,7 @@ public abstract class PersistitUnitTestCase {
         _persistit.initialize(properties);
     }
 
-    protected void crashWithoutFlushAndRestoreProperties() throws PersistitException {
+    protected void crashWithoutFlushAndRestoreProperties() throws PersistitException, IOException {
         Properties properties = _persistit.getProperties();
         _persistit.crash();
         _persistit = new Persistit();
