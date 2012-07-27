@@ -62,7 +62,7 @@ public abstract class PersistitUnitTestCase {
     public void setUp() throws Exception {
         start = System.currentTimeMillis();
         checkNoPersistitThreads();
-        _persistit.initialize(getProperties(true));
+        _persistit.initialize(getProperties(true), false);
     }
 
     @After
