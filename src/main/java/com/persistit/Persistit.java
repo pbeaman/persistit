@@ -406,6 +406,8 @@ public class Persistit {
 
     private final LogBase _logBase = new LogBase();
 
+    private boolean _warmupBufferPool = false; 
+    
     private AtomicBoolean _suspendShutdown = new AtomicBoolean(false);
     private AtomicBoolean _suspendUpdates = new AtomicBoolean(false);
 
@@ -553,13 +555,21 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
-    public void initialize(Properties properties) throws PersistitException, IOException {
+    public void initialize(Properties properties) throws PersistitException, IOException, PersistitException, PersistitException, PersistitException {
         if (!isInitialized()) {
             Configuration configuration = new Configuration(properties);
             initialize(configuration);
         }
     }
-
+    
+    public void initialize(Properties properties, boolean warmupBufferPool) throws PersistitException, IOException {
+        if (!isInitialized()) {
+            _warmupBufferPool = warmupBufferPool;
+            Configuration configuration = new Configuration(properties);
+            initialize(configuration);
+        }
+    }
+           
     /**
      * <p>
      * Initialize Persistit using the supplied {@link Configuration}. If
@@ -718,7 +728,7 @@ public class Persistit {
 
     void startBufferPools() throws PersistitException, IOException {
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.warmupBufferPool();
+            if (_warmupBufferPool) pool.warmupBufferPool();
             pool.startThreads();
         }
     }

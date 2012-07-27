@@ -313,6 +313,7 @@ public class BufferPool {
                 Buffer buff = get(vol, page, false, false);
                 buff.release();
                 _hashTable[hash] = buff;
+                System.out.println("Hash: " + hash + " page: " + page);
             } catch (PersistitException e) {
                 System.err.println(e.getMessage());
             }
