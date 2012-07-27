@@ -310,7 +310,9 @@ public class BufferPool {
             long page = Long.parseLong(currLine);
             int hash = hashIndex(vol, page);
             try {
-                _hashTable[hash] = get(vol, page, false, false);
+                Buffer buff = get(vol, page, false, false);
+                buff.release();
+                _hashTable[hash] = buff;
             } catch (PersistitException e) {
                 System.err.println(e.getMessage());
             }
