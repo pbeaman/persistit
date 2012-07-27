@@ -194,7 +194,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private TransactionPlayerListener _listener = new ProactiveRollbackListener();
 
-    private AtomicBoolean _writePagePruning = new AtomicBoolean(false);
+    private AtomicBoolean _writePagePruning = new AtomicBoolean(true);
     
     private AtomicBoolean _rollbackPruning = new AtomicBoolean(true);
 

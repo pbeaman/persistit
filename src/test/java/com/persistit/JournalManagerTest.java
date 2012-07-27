@@ -91,6 +91,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final Checkpoint checkpoint1 = _persistit.getCheckpointManager().createCheckpoint();
         jman.writeCheckpointToJournal(checkpoint1);
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
+        exchange.getTree().resetHandle();
         assertTrue(exchange.next(true));
         final long[] timestamps = new long[100];
 
