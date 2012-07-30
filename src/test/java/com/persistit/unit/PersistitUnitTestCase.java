@@ -111,7 +111,7 @@ public abstract class PersistitUnitTestCase {
         return alive;
     }
 
-    protected void safeCrashAndRestoreProperties() throws PersistitException, IOException {
+    protected void safeCrashAndRestoreProperties() throws PersistitException {
         Properties properties = _persistit.getProperties();
         _persistit.flush();
         _persistit.crash();
@@ -119,7 +119,7 @@ public abstract class PersistitUnitTestCase {
         _persistit.initialize(properties);
     }
 
-    protected void crashWithoutFlushAndRestoreProperties() throws PersistitException, IOException {
+    protected void crashWithoutFlushAndRestoreProperties() throws PersistitException {
         Properties properties = _persistit.getProperties();
         _persistit.crash();
         _persistit = new Persistit();
