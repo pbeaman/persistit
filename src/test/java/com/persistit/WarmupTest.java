@@ -35,32 +35,33 @@ import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.util.*;
 import org.junit.After;
 import org.junit.Before;
 
 public class WarmupTest extends PersistitUnitTestCase {
     
-    public void setUp(boolean warmup) throws Exception {
+    public void setUp(String warmup) throws Exception {
         start = System.currentTimeMillis();
         checkNoPersistitThreads();
-        Configuration conf = new Configuration();
-        conf.setBufferWarmupEnabled(warmup);
-        _persistit.initialize(conf);
+        Properties p = getProperties(true);
+        p.setProperty("bufferwarmupenabled", warmup);
+        _persistit.initialize(p);
     }
 
     @Test
     public void testWarmup() throws PersistitException, Exception {
         System.out.println("Test warmup");
-        warmup(true);
+        warmup("true");
     }
     
     @Test
     public void testNoWarmup() throws PersistitException, Exception {
         System.out.println("Test no warmup");
-        warmup(false);
+        warmup("false");
     }
     
-    private void warmup(boolean warmup) throws PersistitException, Exception {
+    private void warmup(String warmup) throws PersistitException, Exception {
         int count = 3;
 
         addBuffers();
