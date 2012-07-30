@@ -43,7 +43,9 @@ public class WarmupTest extends PersistitUnitTestCase {
     public void setUp(boolean warmup) throws Exception {
         start = System.currentTimeMillis();
         checkNoPersistitThreads();
-        _persistit.initialize(getProperties(true), warmup);
+        Configuration conf = new Configuration();
+        conf.setBufferWarmupEnabled(warmup);
+        _persistit.initialize(conf);
     }
 
     @Test

@@ -778,6 +778,7 @@ class JournalTool {
                 processOneRecord(address + position - start, timestamp, innerSize, type);
                 _readBuffer.position(position + innerSize);
             }
+            flush();
         }
 
         @Override
@@ -858,6 +859,7 @@ class JournalTool {
             flush();
             if (_verbose) {
                 dumpPageMap(count, address, timestamp, recordSize);
+                flush();
             }
         }
 
@@ -870,6 +872,7 @@ class JournalTool {
             flush();
             if (_verbose) {
                 dumpTransactionMap(count, address, timestamp, recordSize);
+                flush();
             }
         }
 
@@ -912,6 +915,7 @@ class JournalTool {
             int loaded = 0;
             sb.setLength(0);
             long lastPage = Long.MAX_VALUE;
+            int lastVolumeHandle = Integer.MAX_VALUE;
             for (int remaining = count; remaining > 0; remaining--) {
                 if (index == loaded) {
                     final int loadedSize = Math.min((_readBuffer.capacity() / PM.ENTRY_SIZE) * PM.ENTRY_SIZE, remaining
@@ -930,12 +934,13 @@ class JournalTool {
                 final long pageTimestamp = PM.getEntryTimestamp(_readBuffer, index);
                 final long journalAddress = PM.getEntryJournalAddress(_readBuffer, index);
                 if (_selectedPages.isSelected(pageAddress) && _selectedTimestamps.isSelected(pageTimestamp)) {
-                    if (pageAddress != lastPage) {
+                    if (pageAddress != lastPage || volumeHandle != lastVolumeHandle) {
                         if (sb.length() > 0) {
                             flush();
                             sb.setLength(0);
                         }
                         lastPage = pageAddress;
+                        lastVolumeHandle = volumeHandle;
                         appendf("-- %5d:%,12d: ", volumeHandle, pageAddress);
                     }
                     appendf(" @%,d(%,d)", journalAddress, pageTimestamp);

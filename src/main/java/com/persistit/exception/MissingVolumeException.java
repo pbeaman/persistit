@@ -1,5 +1,5 @@
 /**
- * Copyright © 2005-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -21,29 +21,25 @@
 package com.persistit.exception;
 
 /**
- * Thrown by encoding and decoding methods of the {@link com.persistit.Value}
- * and {@link com.persistit.Key} classes when conversion to or from an value's
- * serialized form cannot be completed.
+ * Thrown if the journal files refer to a volume that is no longer present in
+ * the system. Generally this condition is irrecoverable because without the
+ * missing volume a consistent database state cannot be restored. However, in
+ * the event the removal of the volume is intentional, it is possible to specify
+ * a mode in which pages and transactions destined for missing volumes are
+ * ignored.
  * 
  * @version 1.0
  */
-public class ConversionException extends RuntimeException {
-    private static final long serialVersionUID = -5255687227174752145L;
+public class MissingVolumeException extends CorruptJournalException {
+    private static final long serialVersionUID = -9014051945087375523L;
+    private final String _volumeName;
 
-    public ConversionException() {
-        super();
-    }
-
-    public ConversionException(String msg) {
+    public MissingVolumeException(final String msg, final String volumeName) {
         super(msg);
+        _volumeName = volumeName;
     }
-
-    public ConversionException(Throwable t) {
-        super(t);
+    
+    public String getVolumeName() {
+        return _volumeName;
     }
-
-    public ConversionException(String msg, Throwable t) {
-        super(msg, t);
-    }
-
 }

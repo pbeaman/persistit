@@ -135,6 +135,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
 
+    private AtomicBoolean _ignoreMissingVolume = new AtomicBoolean();
+
     private String _journalFilePath;
 
     /**
@@ -375,6 +377,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     @Override
+    public boolean isIgnoreMissingVolumes() {
+        return _ignoreMissingVolume.get();
+    }
+
+    @Override
     public boolean isCopyingFast() {
         return _copyFast.get();
     }
@@ -382,6 +389,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     @Override
     public void setAppendOnly(boolean appendOnly) {
         _appendOnly.set(appendOnly);
+    }
+
+    @Override
+    public void setIgnoreMissingVolumes(boolean ignore) {
+        _ignoreMissingVolume.set(ignore);
     }
 
     @Override
@@ -2362,6 +2374,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         int handle = -1;
 
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
+            Volume volumeRef = null;
+
             if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
                 list.clear();
                 break;
@@ -2373,22 +2387,19 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             }
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
-                volume = _handleToVolumeMap.get(pageNode.getVolumeHandle());
-                if (volume == null) {
-                    // TODO
-                } else {
-                    volume = _persistit.getVolume(volume.getName());
+                volume = null;
+                // Possibly hollow volume
+                volumeRef = _handleToVolumeMap.get(pageNode.getVolumeHandle());
+                if (volumeRef != null) {
+                    // Opened volume, if present
+                    volume = _persistit.getVolume(volumeRef.getName());
                     handle = pageNode.getVolumeHandle();
                 }
             }
-            if (volume == null || volume.isClosed()) {
-                // Remove from the List so that below we won't remove it from
-                // from the pageMap.
-                iterator.remove();
+            if (volume == null) {
+                // Deal with this in writeForCopy
                 continue;
             }
-
-            volume.verifyId(volume.getId());
 
             final int at = bb.position();
             final long pageAddress;
@@ -2400,8 +2411,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 }
                 pageAddress = readPageBufferFromJournal(stablePageNode, bb);
             } catch (PersistitException ioe) {
-                _persistit.getLogBase().copyException.log(ioe, volume, pageNode.getPageAddress(), pageNode
-                        .getJournalAddress());
+                _persistit.getAlertMonitor().post(
+                        new Event(AlertLevel.ERROR, _persistit.getLogBase().copyException, ioe, volume, pageNode
+                                .getPageAddress(), pageNode.getJournalAddress()), AlertMonitor.JOURNAL_CATEGORY);
                 throw ioe;
             }
 
@@ -2420,10 +2432,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     void writeForCopy(final List<PageNode> list, final ByteBuffer bb) throws PersistitException {
         Collections.sort(list, PageNode.WRITE_COMPARATOR);
+        Volume volumeRef = null;
         Volume volume = null;
         int handle = -1;
 
         final HashSet<Volume> volumes = new HashSet<Volume>();
+
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
             if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
                 list.clear();
@@ -2434,21 +2448,36 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
-                volume = _handleToVolumeMap.get(pageNode.getVolumeHandle());
-                if (volume == null) {
-                    // TODO
-                } else {
-                    volume = _persistit.getVolume(volume.getName());
+                volume = null;
+                // Possibly hollow volume
+                volumeRef = _handleToVolumeMap.get(pageNode.getVolumeHandle());
+                if (volumeRef != null) {
+                    // Opened volume, if present
+                    volume = _persistit.getVolume(volumeRef.getName());
                     handle = pageNode.getVolumeHandle();
                 }
             }
-
+            if (volume == null) {
+                _persistit.getAlertMonitor().post(
+                        new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volumeRef, pageNode
+                                .getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
+                if (_ignoreMissingVolume.get()) {
+                    _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), volumeRef,
+                            pageNode.getJournalAddress());
+                    // Not removing the page from the List here will cause
+                    // cleanupForCopy to remove it from
+                    // the page map.
+                    continue;
+                }
+            }
             if (volume == null || volume.isClosed()) {
                 // Remove from the List so that below we won't remove it from
                 // from the pageMap.
                 iterator.remove();
                 continue;
             }
+
+            volumeRef.verifyId(volume.getId());
 
             final long pageAddress = pageNode.getPageAddress();
             volume.getStorage().extend(pageAddress);

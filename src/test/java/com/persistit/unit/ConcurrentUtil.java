@@ -21,8 +21,8 @@
 package com.persistit.unit;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
 
 import static org.junit.Assert.assertEquals;
 
@@ -32,7 +32,7 @@ public class ConcurrentUtil {
     }
 
     public static Thread createThread(final String name, final ThrowingRunnable runnable) {
-        Thread t = new Thread(new Runnable() {
+        return new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -42,7 +42,6 @@ public class ConcurrentUtil {
                 }
             }
         }, name);
-        return t;
     }
 
     /**
@@ -58,7 +57,7 @@ public class ConcurrentUtil {
      * empty if all threads completed successfully.
      */
     public static Map<Thread,Throwable> startAndJoin(long timeout, Thread... threads) {
-        final Map<Thread,Throwable> throwableMap = Collections.synchronizedMap(new TreeMap<Thread,Throwable>());
+        final Map<Thread,Throwable> throwableMap = Collections.synchronizedMap(new HashMap<Thread,Throwable>());
 
         Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
             @Override
@@ -101,6 +100,10 @@ public class ConcurrentUtil {
      */
     public static void startAndJoinAssertSuccess(long timeout, Thread... threads) {
         Map<Thread,Throwable> errors = startAndJoin(timeout, threads);
-        assertEquals("All threads completed successfully", "{}", errors.toString());
+        String description = "";
+        for(Map.Entry<Thread, Throwable> entry : errors.entrySet()) {
+           description += " " + entry.getKey().getName() + "=" + entry.getValue().toString();
+        }
+        assertEquals("All threads completed successfully", "{}", "{"+description+"}");
     }
 }

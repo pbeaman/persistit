@@ -78,7 +78,7 @@ public class LogBase {
     @Message("INFO| Allocating %,d buffers of size %,d bytes")
     public final LogItem allocateBuffers = PersistitLogMessage.empty();
 
-    @Message("INFO|Opening volume %s")
+    @Message("INFO|Opening volume %s (%s)")
     public final LogItem openVolume = PersistitLogMessage.empty();
 
     @Message("ERROR|Journal write failure %s in %s at offset %,d")
@@ -173,6 +173,12 @@ public class LogBase {
 
     @Message("ERROR|Exception %s while writing volume %s page %,d")
     public final LogItem writeException = PersistitLogMessage.empty();
+
+    @Message("WARNING|Missing volume %s referenced at journal address %,d")
+    public final LogItem missingVolume = PersistitLogMessage.empty();
+    
+    @Message("WARNING|Lost page %,d from missing volume %s referenced at journal address %,d")
+    public final LogItem lostPageFromMissingVolume = PersistitLogMessage.empty();
 
     @Message("WARNING|Exception %s while copying volume %s page %,d from journal address %,d")
     public final LogItem copyException = PersistitLogMessage.empty();

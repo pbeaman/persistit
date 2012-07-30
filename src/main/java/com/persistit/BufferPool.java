@@ -21,7 +21,6 @@
 package com.persistit;
 
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -298,32 +297,33 @@ public class BufferPool {
         _cacher = new PageCacher();
     }
     
-    void warmupBufferPool() throws IOException, PersistitException {
+    void warmupBufferPool() throws PersistitException {
         File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
 
-        if (!file.exists()) file.createNewFile();
+        try {
+            if (!file.exists()) {
+                file.createNewFile();
+            }
 
-        BufferedReader reader = new BufferedReader(new FileReader(file));
-        String currLine;
-        while ((currLine = reader.readLine()) != null) {
-            Volume vol = _persistit.getSystemVolume();
-            long page = Long.parseLong(currLine);
-            int hash = hashIndex(vol, page);
-            try {
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+            String currLine;
+            while ((currLine = reader.readLine()) != null) {
+                String[] info = currLine.split(" ");
+                long page = Long.parseLong(info[0]);
+                Volume vol = _persistit.getVolume(info[1]);
                 Buffer buff = get(vol, page, false, false);
                 buff.release();
-                _hashTable[hash] = buff;
-                System.out.println("Hash: " + hash + " page: " + page);
-            } catch (PersistitException e) {
-                System.err.println(e.getMessage());
             }
+            reader.close();
+            _cacher.start();
         }
-        reader.close();
+        catch (IOException e) {
+            throw new PersistitException(e);
+        }
     }
 
-    void startThreads() throws PersistitException, IOException {
+    void startThreads() throws PersistitException {
         _writer.start();
-        _cacher.start();
     }
 
     void close() {
@@ -346,7 +346,6 @@ public class BufferPool {
     void flush(final long timestamp) throws PersistitInterruptedException {
         setFlushTimestamp(timestamp);
         _writer.kick();
-        _cacher.kick();
         while (isFlushing()) {
             Util.sleep(RETRY_SLEEP_TIME);
         }
@@ -433,19 +432,35 @@ public class BufferPool {
         }
     }
     
-    private void populateWarmupFile() throws PersistitException, IOException {
+    private void populateWarmupFile() throws PersistitException {
         File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
-
-        if (!file.exists()) file.createNewFile();
-
-        BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-        for (int i = 0; i < _hashTable.length; ++i) {
-            if (_hashTable[i] != null) {
-                writer.append(Long.toString(_hashTable[i].getPageAddress()));
-                writer.newLine();
+        try {
+            if (!file.exists()) {
+                file.createNewFile();
             }
+
+            BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+            for (int i = 0; i < _buffers.length; ++i) {
+                Buffer b = _buffers[i];
+                if (b != null) {
+                    long page = b.getPageAddress();
+                    Volume volume = b.getVolume();
+                    long page2 = b.getPageAddress();
+                    Volume volume2 = b.getVolume();
+                    
+                    // Check if buffer has changed while reading
+                    if (page == page2 && volume == volume2) {
+                        String addr = Long.toString(page);
+                        String vol = volume.getName(); 
+                        writer.append(addr + " " + vol);
+                        writer.newLine();
+                    }
+                }
+            }
+            writer.close();
+        } catch (IOException e) {
+            throw new PersistitException(e);
         }
-        writer.close();
     }
 
     private boolean selected(Buffer buffer, int includeMask, int excludeMask) {
@@ -739,7 +754,7 @@ public class BufferPool {
     Buffer get(Volume vol, long page, boolean writer, boolean wantRead) throws PersistitException {
         int hash = hashIndex(vol, page);
         Buffer buffer = null;
-
+        
         for (;;) {
             boolean mustClaim = false;
             _hashLocks[hash % HASH_LOCKS].lock();
