@@ -563,7 +563,7 @@ class TransactionIndexBucket {
             final long tc = status.getTc();
             if (status.getTs() == timestamp) {
                 for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
-                    if (delta.getAccumulator() == accumulator && (delta.getStep() < step || delta.getStep() == 0)) {
+                    if (delta.getAccumulator() == accumulator && (delta.getStep() <= step)) {
                         value = accumulator.applyValue(value, delta.getValue());
                     }
                 }

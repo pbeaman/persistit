@@ -95,6 +95,11 @@ public interface KeyCoder {
      * supplied class. The implementation should construct and return an Object
      * having the same class as the supplied class.
      * </p>
+     * <p>
+     * When this method is called the value {@link Key#getIndex()} will be the
+     * offset within the key of the first encoded byte. The key segment is
+     * zero-byte terminated.
+     * </p>
      * 
      * @param key
      *            The {@link Key} from which data should be decoded
@@ -109,4 +114,27 @@ public interface KeyCoder {
      */
 
     public Object decodeKeySegment(Key key, Class<?> clazz, CoderContext context) throws ConversionException;
+
+    /**
+     * <p>
+     * Since a key segment is terminated by a zero byte value the encoded
+     * portion of the segment must not contain zeroes. This method should
+     * indicate whether the encoding implemented by this KeyCoder produces zero
+     * bytes.
+     * </p>
+     * <p>
+     * If this method returns <code>false</code> then Persistit will insert
+     * escape sequences into the encoding produced by
+     * {@link #appendKeySegment(Key, Object, CoderContext)} to a form with no
+     * zeroes.
+     * </p>
+     * <p>
+     * If this method returns <code>true</code> then Persistit will verify that
+     * there are no zero bytes and throw an ConversionException otherwise.
+     * 
+     * @return whether this KeyCoder produces encodings guaranteed not to
+     *         contain zero bytes
+     * @throws ConversionException
+     */
+    public boolean isZeroByteFree() throws ConversionException;
 }

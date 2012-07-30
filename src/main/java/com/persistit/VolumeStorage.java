@@ -20,6 +20,7 @@
 
 package com.persistit;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Random;

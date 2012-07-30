@@ -28,7 +28,10 @@ package com.persistit;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
+import com.persistit.AlertMonitor.AlertLevel;
+import com.persistit.AlertMonitor.Event;
 import com.persistit.JournalManager.TransactionMapItem;
 import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.JournalRecord.D0;
@@ -38,9 +41,14 @@ import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.SR;
 import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
+import com.persistit.exception.MissingVolumeException;
 import com.persistit.exception.PersistitException;
 
 class TransactionPlayer {
+    
+    private final AtomicLong appliedUpdates = new AtomicLong();
+    private final AtomicLong ignoredUpdates = new AtomicLong();
+    private final AtomicLong failedUpdates = new AtomicLong();
 
     interface TransactionPlayerListener {
 
@@ -61,7 +69,7 @@ class TransactionPlayer {
         void endTransaction(long address, long timestamp) throws PersistitException;
 
         void endRecovery(long address, long timestamp) throws PersistitException;
-        
+
         boolean requiresLongRecordConversion();
 
     }
@@ -72,7 +80,7 @@ class TransactionPlayer {
         _support = support;
     }
 
-    public void applyTransaction(final TransactionMapItem item, final TransactionPlayerListener listener)
+    void applyTransaction(final TransactionMapItem item, final TransactionPlayerListener listener)
             throws PersistitException {
 
         final List<Long> chainedAddress = new ArrayList<Long>();
@@ -83,7 +91,6 @@ class TransactionPlayer {
         long startTimestamp;
         long commitTimestamp;
         long backchainAddress;
-        int appliedUpdates = 0;
 
         for (;;) {
             _support.read(address, TX.OVERHEAD);
@@ -114,8 +121,8 @@ class TransactionPlayer {
         }
 
         listener.startTransaction(address, startTimestamp, commitTimestamp);
-        appliedUpdates += applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp, commitTimestamp,
-                listener);
+        applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp,
+                commitTimestamp, listener);
 
         for (Long continuation : chainedAddress) {
             address = continuation.longValue();
@@ -127,124 +134,140 @@ class TransactionPlayer {
                         + " has invalid length " + recordSize + " or type " + type);
             }
             _support.read(address, recordSize);
-            appliedUpdates += applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp, commitTimestamp,
-                    listener);
+            applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp,
+                    commitTimestamp, listener);
         }
         listener.endTransaction(address, startTimestamp);
 
     }
 
-    int applyTransactionUpdates(final ByteBuffer byteBuffer, final long address, final int recordSize,
+    void applyTransactionUpdates(final ByteBuffer byteBuffer, final long address, final int recordSize,
             final long startTimestamp, final long commitTimestamp, final TransactionPlayerListener listener)
             throws PersistitException {
         ByteBuffer bb = byteBuffer;
         final int start = bb.position();
         int end = start + recordSize;
         int position = start + TX.OVERHEAD;
-        int appliedUpdates = 0;
 
         while (position < end) {
             bb.position(position);
             final int innerSize = JournalRecord.getLength(bb);
             final int type = JournalRecord.getType(bb);
-            switch (type) {
-            case SR.TYPE: {
-                final int keySize = SR.getKeySize(bb);
-                final int treeHandle = SR.getTreeHandle(bb);
-                final Exchange exchange = getExchange(treeHandle, address, startTimestamp);
-                exchange.ignoreTransactions();
-                final Key key = exchange.getKey();
-                final Value value = exchange.getValue();
-                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD, key.getEncodedBytes(), 0, keySize);
-                key.setEncodedSize(keySize);
-                final int valueSize = innerSize - SR.OVERHEAD - keySize;
-                value.ensureFit(valueSize);
-                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD + keySize, value.getEncodedBytes(), 0,
-                        valueSize);
-                value.setEncodedSize(valueSize);
+            try {
+                switch (type) {
+                case SR.TYPE: {
+                    final int keySize = SR.getKeySize(bb);
+                    final int treeHandle = SR.getTreeHandle(bb);
+                    final Exchange exchange = getExchange(treeHandle, address, startTimestamp);
+                    exchange.ignoreTransactions();
+                    final Key key = exchange.getKey();
+                    final Value value = exchange.getValue();
+                    System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD, key.getEncodedBytes(), 0, keySize);
+                    key.setEncodedSize(keySize);
+                    final int valueSize = innerSize - SR.OVERHEAD - keySize;
+                    value.ensureFit(valueSize);
+                    System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD + keySize, value.getEncodedBytes(), 0,
+                            valueSize);
+                    value.setEncodedSize(valueSize);
 
-                if (value.getEncodedSize() >= Buffer.LONGREC_SIZE
-                        && (value.getEncodedBytes()[0] & 0xFF) == Buffer.LONGREC_TYPE) {
-                    /*
-                     * convertToLongRecord will pollute the getReadBuffer().
-                     * Therefore before calling it we need to copy the TX record
-                     * to a fresh ByteBuffer.
-                     */
-                    if (bb == _support.getReadBuffer()) {
-                        end = recordSize - (position - start);
-                        bb = ByteBuffer.allocate(end);
-                        bb.put(_support.getReadBuffer().array(), position, end);
-                        bb.flip();
-                        position = 0;
+                    if (value.getEncodedSize() >= Buffer.LONGREC_SIZE
+                            && (value.getEncodedBytes()[0] & 0xFF) == Buffer.LONGREC_TYPE) {
+                        /*
+                         * convertToLongRecord will pollute the getReadBuffer().
+                         * Therefore before calling it we need to copy the TX
+                         * record to a fresh ByteBuffer.
+                         */
+                        if (bb == _support.getReadBuffer()) {
+                            end = recordSize - (position - start);
+                            bb = ByteBuffer.allocate(end);
+                            bb.put(_support.getReadBuffer().array(), position, end);
+                            bb.flip();
+                            position = 0;
+                        }
+                        if (listener.requiresLongRecordConversion()) {
+                            _support.convertToLongRecord(value, treeHandle, address, commitTimestamp);
+                        }
                     }
-                    if (listener.requiresLongRecordConversion()) {
-                        _support.convertToLongRecord(value, treeHandle, address, commitTimestamp);
+
+                    listener.store(address, startTimestamp, exchange);
+                    appliedUpdates.incrementAndGet();
+                    // Don't keep exchanges with enlarged value - let them be
+                    // GC'd
+                    if (exchange.getValue().getMaximumSize() < Value.DEFAULT_MAXIMUM_SIZE) {
+                        releaseExchange(exchange);
                     }
+                    break;
                 }
 
-                listener.store(address, startTimestamp, exchange);
-                appliedUpdates++;
-                // Don't keep exchanges with enlarged value - let them be GC'd
-                if (exchange.getValue().getMaximumSize() < Value.DEFAULT_MAXIMUM_SIZE) {
+                case DR.TYPE: {
+                    final int key1Size = DR.getKey1Size(bb);
+                    final int elisionCount = DR.getKey2Elision(bb);
+                    final Exchange exchange = getExchange(DR.getTreeHandle(bb), address, startTimestamp);
+                    exchange.ignoreTransactions();
+                    final Key key1 = exchange.getAuxiliaryKey1();
+                    final Key key2 = exchange.getAuxiliaryKey2();
+                    System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0, key1Size);
+                    key1.setEncodedSize(key1Size);
+                    final int key2Size = innerSize - DR.OVERHEAD - key1Size;
+                    System.arraycopy(key1.getEncodedBytes(), 0, key2.getEncodedBytes(), 0, elisionCount);
+                    System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD + key1Size, key2.getEncodedBytes(),
+                            elisionCount, key2Size);
+                    key2.setEncodedSize(key2Size + elisionCount);
+                    listener.removeKeyRange(address, startTimestamp, exchange, exchange.getAuxiliaryKey1(), exchange
+                            .getAuxiliaryKey2());
+                    appliedUpdates.incrementAndGet();
                     releaseExchange(exchange);
+                    break;
                 }
-                break;
-            }
 
-            case DR.TYPE: {
-                final int key1Size = DR.getKey1Size(bb);
-                final int elisionCount = DR.getKey2Elision(bb);
-                final Exchange exchange = getExchange(DR.getTreeHandle(bb), address, startTimestamp);
-                exchange.ignoreTransactions();
-                final Key key1 = exchange.getAuxiliaryKey1();
-                final Key key2 = exchange.getAuxiliaryKey2();
-                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0, key1Size);
-                key1.setEncodedSize(key1Size);
-                final int key2Size = innerSize - DR.OVERHEAD - key1Size;
-                System.arraycopy(key1.getEncodedBytes(), 0, key2.getEncodedBytes(), 0, elisionCount);
-                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD + key1Size, key2.getEncodedBytes(),
-                        elisionCount, key2Size);
-                key2.setEncodedSize(key2Size + elisionCount);
-                listener.removeKeyRange(address, startTimestamp, exchange, exchange.getAuxiliaryKey1(), exchange
-                        .getAuxiliaryKey2());
-                appliedUpdates++;
-                releaseExchange(exchange);
-                break;
-            }
+                case DT.TYPE: {
+                    final Exchange exchange = getExchange(DT.getTreeHandle(bb), address, startTimestamp);
+                    listener.removeTree(address, startTimestamp, exchange);
+                    appliedUpdates.incrementAndGet();
+                    releaseExchange(exchange);
+                    break;
+                }
 
-            case DT.TYPE: {
-                final Exchange exchange = getExchange(DT.getTreeHandle(bb), address, startTimestamp);
-                listener.removeTree(address, startTimestamp, exchange);
-                appliedUpdates++;
-                releaseExchange(exchange);
-                break;
-            }
+                case D0.TYPE: {
+                    final Exchange exchange = getExchange(D0.getTreeHandle(bb), address, startTimestamp);
+                    listener.delta(address, startTimestamp, exchange.getTree(), D0.getIndex(bb), D0
+                            .getAccumulatorTypeOrdinal(bb), 1);
+                    appliedUpdates.incrementAndGet();
+                    break;
+                }
 
-            case D0.TYPE: {
-                final Exchange exchange = getExchange(D0.getTreeHandle(bb), address, startTimestamp);
-                listener.delta(address, startTimestamp, exchange.getTree(), D0.getIndex(bb), D0
-                        .getAccumulatorTypeOrdinal(bb), 1);
-                appliedUpdates++;
-                break;
-            }
+                case D1.TYPE: {
+                    final Exchange exchange = getExchange(D1.getTreeHandle(bb), address, startTimestamp);
+                    listener.delta(address, startTimestamp, exchange.getTree(), D1.getIndex(bb), D1
+                            .getAccumulatorTypeOrdinal(bb), D1.getValue(bb));
+                    appliedUpdates.incrementAndGet();
+                    break;
+                }
 
-            case D1.TYPE: {
-                final Exchange exchange = getExchange(D1.getTreeHandle(bb), address, startTimestamp);
-                listener.delta(address, startTimestamp, exchange.getTree(), D1.getIndex(bb), D1
-                        .getAccumulatorTypeOrdinal(bb), D1.getValue(bb));
-                appliedUpdates++;
-                break;
-            }
-
-            default: {
-                throw new CorruptJournalException("Invalid record type " + type + " at journal address "
-                        + addressToString(address + position - start) + " index of transaction record at "
-                        + addressToString(address));
-            }
+                default: {
+                    throw new CorruptJournalException("Invalid record type " + type + " at journal address "
+                            + addressToString(address + position - start) + " index of transaction record at "
+                            + addressToString(address));
+                }
+                }
+            } catch (MissingVolumeException mve) {
+                final Persistit db = _support.getPersistit();
+                if (db.getJournalManager().isIgnoreMissingVolumes()) {
+                    /*
+                     * If ignoreMissingVolumes is enabled, then issue a warning
+                     * Alert, but allow recovery or rollback to continue.
+                     */
+                    db.getAlertMonitor().post(
+                            new Event(AlertLevel.WARN, db.getLogBase().missingVolume, mve.getVolumeName(), address
+                                    + position - start), AlertMonitor.MISSING_VOLUME_CATEGORY);
+                    ignoredUpdates.incrementAndGet();
+                } else {
+                    failedUpdates.incrementAndGet();
+                    throw mve;
+                }
             }
             position += innerSize;
         }
-        return appliedUpdates;
     }
 
     public static String addressToString(final long address) {
@@ -261,17 +284,20 @@ class TransactionPlayer {
             throw new CorruptJournalException("Tree handle " + treeHandle + " is undefined at "
                     + addressToString(from, timestamp));
         }
-        Volume volume = _support.handleToVolume(td.getVolumeHandle());
-        if (volume == null) {
+        Volume volumeRef = _support.handleToVolume(td.getVolumeHandle());
+        Volume volume;
+        if (volumeRef == null) {
             throw new CorruptJournalException("Volume handle " + td.getVolumeHandle() + " is undefined at "
                     + addressToString(from, timestamp));
         }
 
-        if (!volume.isOpened()) {
-            volume = _support.getPersistit().getVolume(volume.getName());
+        if (volumeRef.isOpened()) {
+            volume = volumeRef;
+        } else {
+            volume = _support.getPersistit().getVolume(volumeRef.getName());
             if (volume == null) {
-                throw new CorruptJournalException("No matching Volume found for journal reference " + volume + " at "
-                        + addressToString(from, timestamp));
+                throw new MissingVolumeException("No matching Volume found for journal reference " + volumeRef + " at "
+                        + addressToString(from, timestamp), volumeRef.getName());
             }
         }
         volume.verifyId(volume.getId());
@@ -285,5 +311,17 @@ class TransactionPlayer {
 
     private void releaseExchange(final Exchange exchange) {
         _support.getPersistit().releaseExchange(exchange);
+    }
+    
+    long getAppliedUpdates() {
+        return appliedUpdates.get();
+    }
+    
+    long getIgnoredUpdates() {
+        return ignoredUpdates.get();
+    }
+    
+    long getFailedUpdates() {
+        return failedUpdates.get();
     }
 }

@@ -44,7 +44,7 @@ class ClassInfo {
     public boolean equals(final Object object) {
         if (object instanceof ClassInfo) {
             ClassInfo ci = (ClassInfo) object;
-            if (_class.equals(ci._class) && _handle == ci._handle && _suid == ci._suid) {
+            if (equals(_class, ci._class) && _handle == ci._handle && _suid == ci._suid) {
                 return true;
             }
         }
@@ -90,6 +90,10 @@ class ClassInfo {
      */
     public ObjectStreamClass getClassDescriptor() {
         return _osc;
+    }
+    
+    private boolean equals(Class<?> a, Class<?> b) {
+        return a == null ? b == null : a.equals(b);
     }
 }
 

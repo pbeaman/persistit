@@ -397,23 +397,22 @@ public class Persistit {
     private final HashMap<Integer, BufferPool> _bufferPoolTable = new HashMap<Integer, BufferPool>();
     private final ArrayList<Volume> _volumes = new ArrayList<Volume>();
 
-    private AtomicBoolean _initialized = new AtomicBoolean();
-    private AtomicBoolean _closed = new AtomicBoolean();
-    private AtomicBoolean _fatal = new AtomicBoolean();
+    private final AtomicBoolean _initialized = new AtomicBoolean();
+    private final AtomicBoolean _closed = new AtomicBoolean();
+    private final AtomicBoolean _fatal = new AtomicBoolean();
 
     private long _beginCloseTime;
     private long _nextCloseTime;
 
     private final LogBase _logBase = new LogBase();
 
-    private AtomicBoolean _suspendShutdown = new AtomicBoolean(false);
-    private AtomicBoolean _suspendUpdates = new AtomicBoolean(false);
+    private final AtomicBoolean _suspendShutdown = new AtomicBoolean(false);
+    private final AtomicBoolean _suspendUpdates = new AtomicBoolean(false);
 
     private UtilControl _localGUI;
 
-    private AtomicReference<CoderManager> _coderManager = new AtomicReference<CoderManager>();
-
-    private ClassIndex _classIndex = new ClassIndex(this);
+    private final AtomicReference<CoderManager> _coderManager = new AtomicReference<CoderManager>();
+    private final ClassIndex _classIndex = new ClassIndex(this);
 
     private final ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
         @Override
@@ -651,6 +650,7 @@ public class Persistit {
 
         _journalManager.init(_recoveryManager, journalPath, journalSize);
         _journalManager.setAppendOnly(_configuration.isAppendOnly());
+        _journalManager.setIgnoreMissingVolumes(_configuration.isIgnoreMissingVolumes());
     }
 
     void initializeBufferPools() {
@@ -670,7 +670,7 @@ public class Persistit {
 
     void initializeVolumes() throws PersistitException {
         for (final VolumeSpecification volumeSpecification : _configuration.getVolumeList()) {
-            _logBase.openVolume.log(volumeSpecification.getName());
+            _logBase.openVolume.log(volumeSpecification.getName(), volumeSpecification.getAbsoluteFile());
             final Volume volume = new Volume(volumeSpecification);
             volume.open(this);
         }
@@ -1272,7 +1272,7 @@ public class Persistit {
         final File file = new File(name).getAbsoluteFile();
         for (int i = 0; i < _volumes.size(); i++) {
             Volume vol = _volumes.get(i);
-            if (file.equals(new File(vol.getPath()).getAbsoluteFile())) {
+            if (file.equals(vol.getAbsoluteFile())) {
                 if (result == null)
                     result = vol;
                 else {
