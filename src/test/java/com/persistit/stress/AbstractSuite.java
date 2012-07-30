@@ -288,7 +288,7 @@ public abstract class AbstractSuite {
     }
 
     protected Persistit makePersistit(final int pageSize, final String mem, final CommitPolicy policy)
-            throws PersistitException {
+            throws PersistitException, IOException {
         final Persistit persistit = new Persistit();
         persistit.initialize(makeConfiguration(pageSize, mem, policy));
         return persistit;
