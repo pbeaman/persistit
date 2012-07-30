@@ -31,10 +31,24 @@ import java.util.TreeSet;
 import org.junit.Test;
 
 import com.persistit.BufferPool.BufferHolder;
+import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
+import java.util.*;
+import org.junit.Before;
 
 public class BufferPoolTest extends PersistitUnitTestCase {
-
+    
+    private long start = 0;
+    private long end = 0;
+    
+    @Before
+    @Override
+    public void setUp() throws Exception {
+        checkNoPersistitThreads();
+        Properties p = getProperties(true);
+        p.setProperty("bufferwarmupenabled", "true");
+        _persistit.initialize(p);
+    }
     /**
      * Covers allocPage condition in which page in the avaialbleBitMap is
      * unavailable.
@@ -43,6 +57,7 @@ public class BufferPoolTest extends PersistitUnitTestCase {
      */
     @Test
     public void testInvalidatedBuffers() throws Exception {
+        calculateStartTime();
         final Volume vol = _persistit.createTemporaryVolume();
         final Exchange ex = _persistit.getExchange(vol, "BufferPoolTest", true);
         ex.append("k").store();
@@ -60,10 +75,12 @@ public class BufferPoolTest extends PersistitUnitTestCase {
             ex2.to(i).store();
         }
         buffer1.release();
+        calculateEndTime();
     }
 
     @Test
     public void testSelectDirtyBuffers() throws Exception {
+        calculateStartTime();
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
         pool.setFlushTimestamp(-1);
@@ -98,10 +115,12 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         } finally {
             pool.setFlushTimestamp(1000);
         }
+        calculateEndTime();
     }
 
     @Test
     public void testAddSelectedBuffer() throws Exception {
+        calculateStartTime();
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
 
@@ -149,10 +168,12 @@ public class BufferPoolTest extends PersistitUnitTestCase {
                 assertTrue("Scrambled holders", holder != holders[j]);
             }
         }
+        calculateEndTime();
     }
 
     @Test
     public void testWritePriority() throws Exception {
+        calculateStartTime();
         final long m = 100 * 1000 * 1000;
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
@@ -167,6 +188,17 @@ public class BufferPoolTest extends PersistitUnitTestCase {
              //       checkpointTimestamp, currentTimestamp, priority);
             currentTimestamp += 10000000;
         }
+        calculateEndTime();
+    }
+    
+    private void calculateStartTime() {
+        start = System.currentTimeMillis();
+    }
+    
+    private void calculateEndTime() {
+        end = System.currentTimeMillis();
+        long tot = end - start;
+        System.out.println("Started: " + start + " Ended: " + end + " Total time taken: " + tot);
     }
 
 }

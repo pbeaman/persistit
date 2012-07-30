@@ -33,8 +33,6 @@ import java.io.IOException;
 
 public abstract class PersistitUnitTestCase {
 
-    protected long start = 0;
-    protected long end = 0;
     private final static long TEN_SECONDS = 10L * 1000L * 1000L * 1000L;
 
     protected final static String RED_FOX = "The quick red fox jumped over the lazy brown dog.";
@@ -60,7 +58,6 @@ public abstract class PersistitUnitTestCase {
 
     @Before
     public void setUp() throws Exception {
-        start = System.currentTimeMillis();
         checkNoPersistitThreads();
         _persistit.initialize(getProperties(true));
     }
@@ -75,9 +72,6 @@ public abstract class PersistitUnitTestCase {
             System.out.println("Persistit has a leftover strong reference");
         }
         checkNoPersistitThreads();
-        end = System.currentTimeMillis();
-        long tot = end - start;
-        System.out.println("Started: " + start + " Ended: " + end + " Total time taken: " + tot);
     }
 
     public void runAllTests() throws Exception {

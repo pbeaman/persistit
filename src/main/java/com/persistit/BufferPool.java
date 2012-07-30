@@ -222,7 +222,7 @@ public class BufferPool {
      */
     private PageCacher _cacher;
         
-    private final String DEFAULT_LOG_PATH = "buffer_pool.log";
+    private final String DEFAULT_LOG_PATH = "/tmp/persistit_test_data/buffer_pool.log";
     
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -298,13 +298,13 @@ public class BufferPool {
     }
     
     void warmupBufferPool() throws PersistitException {
-        File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
-
+        File file = new File(DEFAULT_LOG_PATH);
+        
         try {
             if (!file.exists()) {
-                file.createNewFile();
+               file.createNewFile();
             }
-
+            
             BufferedReader reader = new BufferedReader(new FileReader(file));
             String currLine;
             while ((currLine = reader.readLine()) != null) {
@@ -433,7 +433,8 @@ public class BufferPool {
     }
     
     private void populateWarmupFile() throws PersistitException {
-        File file = new File(DEFAULT_LOG_PATH).getAbsoluteFile();
+        File file = new File(DEFAULT_LOG_PATH);
+        
         try {
             if (!file.exists()) {
                 file.createNewFile();
@@ -442,14 +443,14 @@ public class BufferPool {
             BufferedWriter writer = new BufferedWriter(new FileWriter(file));
             for (int i = 0; i < _buffers.length; ++i) {
                 Buffer b = _buffers[i];
-                if (b != null) {
+                if (b != null && b.isValid() && !b.isDirty()) {
                     long page = b.getPageAddress();
                     Volume volume = b.getVolume();
                     long page2 = b.getPageAddress();
                     Volume volume2 = b.getVolume();
                     
                     // Check if buffer has changed while reading
-                    if (page == page2 && volume == volume2) {
+                    if (page == page2 && volume == volume2 && volume != null) {
                         String addr = Long.toString(page);
                         String vol = volume.getName(); 
                         writer.append(addr + " " + vol);

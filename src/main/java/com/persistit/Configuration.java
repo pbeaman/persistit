@@ -713,7 +713,7 @@ public class Configuration {
     }
 
     void loadProperties() throws InvalidVolumeSpecificationException {
-        setBufferWarmupEnabled(getBooleanProperty(BUFFER_WARMUP_ENABLED_PROPERTY, false));
+        setBufferWarmupEnabled(getBooleanProperty(BUFFER_WARMUP_ENABLED_PROPERTY, true));
         setAppendOnly(getBooleanProperty(APPEND_ONLY_PROPERTY, false));
         setCommitPolicy(getProperty(COMMIT_POLICY_PROPERTY_NAME));
         setConstructorOverride(getBooleanProperty(CONSTRUCTOR_OVERRIDE_PROPERTY_NAME, false));
