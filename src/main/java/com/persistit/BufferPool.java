@@ -308,16 +308,14 @@ public class BufferPool {
             BufferedReader reader = new BufferedReader(new FileReader(file));
             String currLine;
             while ((currLine = reader.readLine()) != null) {
-                Volume vol = _persistit.getSystemVolume();
-                long page = Long.parseLong(currLine);
-                try {
-                    Buffer buff = get(vol, page, false, false);
-                    buff.release();
-                } catch (PersistitException e) {
-                    System.err.println(e.getMessage());
-                }
+                String[] info = currLine.split(" ");
+                long page = Long.parseLong(info[0]);
+                Volume vol = _persistit.getVolume(info[1]);
+                Buffer buff = get(vol, page, false, false);
+                buff.release();
             }
             reader.close();
+            _cacher.start();
         }
         catch (IOException e) {
             throw new PersistitException(e);
@@ -326,7 +324,6 @@ public class BufferPool {
 
     void startThreads() throws PersistitException {
         _writer.start();
-        _cacher.start();
     }
 
     void close() {
@@ -349,7 +346,6 @@ public class BufferPool {
     void flush(final long timestamp) throws PersistitInterruptedException {
         setFlushTimestamp(timestamp);
         _writer.kick();
-        _cacher.kick();
         while (isFlushing()) {
             Util.sleep(RETRY_SLEEP_TIME);
         }
@@ -444,10 +440,21 @@ public class BufferPool {
             }
 
             BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-            for (int i = 0; i < _hashTable.length; ++i) {
-                if (_hashTable[i] != null) {
-                    writer.append(Long.toString(_hashTable[i].getPageAddress()));
-                    writer.newLine();
+            for (int i = 0; i < _buffers.length; ++i) {
+                Buffer b = _buffers[i];
+                if (b != null) {
+                    long page = b.getPageAddress();
+                    Volume volume = b.getVolume();
+                    long page2 = b.getPageAddress();
+                    Volume volume2 = b.getVolume();
+                    
+                    // Check if buffer has changed while reading
+                    if (page == page2 && volume == volume2) {
+                        String addr = Long.toString(page);
+                        String vol = volume.getName(); 
+                        writer.append(addr + " " + vol);
+                        writer.newLine();
+                    }
                 }
             }
             writer.close();
