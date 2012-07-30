@@ -595,6 +595,9 @@ public class Persistit {
                 initializeVolumes();
                 startJournal();
                 startBufferPools();
+                if (_configuration.isBufferWarmupEnabled()) {
+                    warmupBufferPools();
+                }
                 finishRecovery();
                 startCheckpointManager();
                 startTransactionIndexPollTask();
@@ -718,8 +721,13 @@ public class Persistit {
 
     void startBufferPools() throws PersistitException {
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.warmupBufferPool();
             pool.startThreads();
+        }
+    }
+    
+    void warmupBufferPools() throws PersistitException {
+        for (final BufferPool pool : _bufferPoolTable.values()) {
+            pool.warmupBufferPool();
         }
     }
 

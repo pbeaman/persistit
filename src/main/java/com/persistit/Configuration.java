@@ -269,6 +269,11 @@ public class Configuration {
      * Property name for the "append only" property.
      */
     public final static String APPEND_ONLY_PROPERTY = "appendonly";
+    
+    /**
+     * Property name for the "buffer warmup enabled" property.
+     */
+    public final static String BUFFER_WARMUP_ENABLED_PROPERTY = "bufferwarmupenabled";
 
     /**
      * Property name to specify the default {@link SplitPolicy}.
@@ -624,6 +629,7 @@ public class Configuration {
     private int rmiServerPort;
     private boolean jmx = true;
     private boolean appendOnly;
+    private boolean bufferWarmupEnabled;
     private String tmpVolDir;
     private int tmpVolPageSize;
     private long tmpVolMaxSize;
@@ -701,6 +707,7 @@ public class Configuration {
     }
 
     void loadProperties() throws InvalidVolumeSpecificationException {
+        setBufferWarmupEnabled(getBooleanProperty(BUFFER_WARMUP_ENABLED_PROPERTY, false));
         setAppendOnly(getBooleanProperty(APPEND_ONLY_PROPERTY, false));
         setCommitPolicy(getProperty(COMMIT_POLICY_PROPERTY_NAME));
         setConstructorOverride(getBooleanProperty(CONSTRUCTOR_OVERRIDE_PROPERTY_NAME, false));
@@ -1797,5 +1804,31 @@ public class Configuration {
     public void setAppendOnly(boolean appendOnly) {
         this.appendOnly = appendOnly;
     }
-
+    
+    /**
+     * Return the value defined by {@link #isBufferWarmupEnabled}
+     * @return  whether to warm-up Persistit with sample buffer data
+     */
+    public boolean isBufferWarmupEnabled() {
+        return bufferWarmupEnabled;
+    }
+    
+    /**
+     * <p>
+     * Control whether Persistit starts with <i>buffer warmup enabled</i>. In this mode
+     * Persistit restarts with information from the last run. This method changes only 
+     * the initial state; use {@link Management#setBufferWarmupEnabled(boolean)} method to change
+     * this behavior dynamically while the system is running.
+     * </p>
+     * <p>
+     * Default value is <code>false</code><br />
+     * Property name is {@value #BUFFER_WARMUP_ENABLED_PROPERTY}
+     * </p>
+     * 
+     * @param warmupEnabled
+     *            the buffer warm-up to set
+     */
+    public void setBufferWarmupEnabled(boolean warmupEnabled) {
+        this.bufferWarmupEnabled = warmupEnabled;
+    }
 }
