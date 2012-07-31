@@ -309,10 +309,12 @@ public class BufferPool {
             String currLine;
             while ((currLine = reader.readLine()) != null) {
                 String[] info = currLine.split(" ");
-                long page = Long.parseLong(info[0]);
-                Volume vol = _persistit.getVolume(info[1]);
-                Buffer buff = get(vol, page, false, false);
-                buff.release();
+                if (info.length == 2) {
+                    long page = Long.parseLong(info[0]);
+                    Volume vol = _persistit.getVolume(info[1]);
+                    Buffer buff = get(vol, page, false, false);
+                    buff.release();
+                }
             }
             reader.close();
             _cacher.start();
@@ -442,7 +444,7 @@ public class BufferPool {
             BufferedWriter writer = new BufferedWriter(new FileWriter(file));
             for (int i = 0; i < _buffers.length; ++i) {
                 Buffer b = _buffers[i];
-                if (b != null) {
+                if (b != null && b.isValid() && !b.isDirty()) {
                     long page = b.getPageAddress();
                     Volume volume = b.getVolume();
                     long page2 = b.getPageAddress();
