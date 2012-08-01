@@ -457,6 +457,7 @@ public class BufferPool {
                         String vol = volume.getName(); 
                         writer.append(addr + " " + vol);
                         writer.newLine();
+                        writer.flush();
                     }
                 }
             }
