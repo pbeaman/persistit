@@ -309,10 +309,12 @@ public class BufferPool {
             String currLine;
             while ((currLine = reader.readLine()) != null) {
                 String[] info = currLine.split(" ");
-                long page = Long.parseLong(info[0]);
-                Volume vol = _persistit.getVolume(info[1]);
-                Buffer buff = get(vol, page, false, false);
-                buff.release();
+                if (info.length == 2) {
+                    long page = Long.parseLong(info[0]);
+                    Volume vol = _persistit.getVolume(info[1]);
+                    Buffer buff = get(vol, page, false, false);
+                    buff.release();
+                }
             }
             reader.close();
             _cacher.start();
