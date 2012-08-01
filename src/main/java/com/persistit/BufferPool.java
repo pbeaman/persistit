@@ -312,7 +312,7 @@ public class BufferPool {
                 if (info.length == 2) {
                     long page = Long.parseLong(info[0]);
                     Volume vol = _persistit.getVolume(info[1]);
-                    Buffer buff = get(vol, page, false, false);
+                    Buffer buff = get(vol, page, false, true);
                     buff.release();
                 }
             }
