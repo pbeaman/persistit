@@ -222,7 +222,7 @@ public class BufferPool {
      */
     private PageCacher _cacher;
         
-    private final String DEFAULT_LOG_PATH = "/tmp/persistit_test_data/buffer_pool.log";
+    private String DEFAULT_LOG_PATH;
     
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -297,7 +297,8 @@ public class BufferPool {
         _cacher = new PageCacher();
     }
     
-    void warmupBufferPool() throws PersistitException {
+    void warmupBufferPool(String fname) throws PersistitException {
+    	DEFAULT_LOG_PATH = "/tmp/persistit_test_data/" + fname + ".log";
         File file = new File(DEFAULT_LOG_PATH);
         
         try {
@@ -310,9 +311,9 @@ public class BufferPool {
             while ((currLine = reader.readLine()) != null) {
                 String[] info = currLine.split(" ");
                 if (info.length == 2) {
-                    long page = Long.parseLong(info[0]);
                     Volume vol = _persistit.getVolume(info[1]);
                     if (vol != null) {
+                        long page = Long.parseLong(info[0]);
                     	Buffer buff = get(vol, page, false, true);
                     	buff.release();
                     }
@@ -440,14 +441,10 @@ public class BufferPool {
         File file = new File(DEFAULT_LOG_PATH);
         
         try {
-            if (!file.exists()) {
-                file.createNewFile();
-            }
-
             BufferedWriter writer = new BufferedWriter(new FileWriter(file));
             for (int i = 0; i < _buffers.length; ++i) {
                 Buffer b = _buffers[i];
-                if (b != null && b.isValid() && !b.isDirty() && !b.isUnallocatedPage()) {
+                if (b != null && b.isValid() && !b.isDirty()) {
                     long page = b.getPageAddress();
                     Volume volume = b.getVolume();
                     long page2 = b.getPageAddress();

@@ -727,7 +727,7 @@ public class Persistit {
     
     void warmupBufferPools() throws PersistitException {
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.warmupBufferPool();
+            pool.warmupBufferPool(pool.toString());
         }
     }
 
