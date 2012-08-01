@@ -443,7 +443,7 @@ public class BufferPool {
             BufferedWriter writer = new BufferedWriter(new FileWriter(file));
             for (int i = 0; i < _buffers.length; ++i) {
                 Buffer b = _buffers[i];
-                if (b != null && b.isValid() && !b.isDirty()) {
+                if (b != null && b.isValid() && !b.isDirty() && !b.isUnallocatedPage()) {
                     long page = b.getPageAddress();
                     Volume volume = b.getVolume();
                     long page2 = b.getPageAddress();
