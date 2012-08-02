@@ -40,7 +40,7 @@ The resulting Javadoc HTML files are in ``target/site/apidocs``.
 Building and Running the Examples
 ---------------------------------
 
-Small examples are located in the ``examples`` directory. Each has a short README file describing the example, and an Ant build script (http://ant.apache.org). After building the main akiban-persisit jar file using Maven, you may run::
+Small examples are located in the ``examples`` directory. Each has a short README file describing the example, and an Ant build script (http://ant.apache.org). After building the main akiban-persistit jar file using Maven, you may run::
 
   ant run
 
@@ -50,7 +50,7 @@ in each of the examples subdirectories to build and run the examples.
 Download and Install Akiban Persistit From Binaries
 ---------------------------------------------------
 
-Pre-built jars can be downloaded directlry from http://akiban.com/akiban-persistit.
+Pre-built jars can be downloaded directly from http://akiban.com/akiban-persistit.
 
 Unpack the distribution kit into a convenient directory using the appropriate utility (e.g. unzip or tar).
 
@@ -59,6 +59,6 @@ Review the ``LICENSE.txt`` file located in the root of the installation director
 Working With Persistit
 ----------------------
 
-Add the ``akiban-persistit-3.1.4.jar`` file, found in the root directory of the distribution kit, to your project's classpath. For example, copy it to ``jre/lib/ext`` in your Java Runtime Environment, or add it to your classpath environment variable. 
+Add the jar file (e.g. ``akiban-persistit-3.1.4.jar``), found in the root directory of the distribution kit, to your project's classpath. For example, copy it to ``jre/lib/ext`` in your Java Runtime Environment, or add it to your classpath environment variable. 
 
 That's it. You are ready to work with Persistit.
