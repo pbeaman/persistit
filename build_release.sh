@@ -46,6 +46,36 @@ function maven_build {
     mvn $2 -DBZR_REVISION="$1" -DskipTests=true clean compile test-compile package >/dev/null
 }
 
+MD5_TYPE=""
+function md5_type {
+    if [ "$(which md5sum)" != "" ]; then
+        MD5_TYPE="md5sum"
+    else
+        if [ "$(which md5)" != "" ]; then
+            MD5_TYPE="md5"
+        else
+            echo "    No supported md5 program found in PATH" 1>&2
+            exit 1
+        fi
+    fi
+}
+
+function do_md5 {
+    OUTFILE="${1}.md5"
+    case "${MD5_TYPE}" in
+        md5)
+            $(md5 -r "$1" |sed 's/ /  /' > "${OUTFILE}")
+        ;;
+        md5sum)
+            $(md5sum "$1" > "${OUTFILE}")
+        ;;
+        *)
+            echo "Unknown md5 type: ${MD5_TYPE}"
+            exit 1
+        ;;
+    esac
+}
+
 
 REQUIRED_PROGS="bzr mvn javac sphinx-build curl awk sed tr basename zip tar gpg"
 BRANCH_DEFAULT="lp:~akiban-technologies/akiban-persistit"
@@ -58,7 +88,7 @@ WORKSPACE="/tmp/persistit_release"
 while getopts "hb:v:w:" FLAG; do
     case "${FLAG}" in
         h) ;;
-        b) BRANCH="${OPTARG}" ;;
+        b) BRANCH_URL="${OPTARG}" ;;
         v) VERSION="${OPTARG}" ;;
         w) WORKSPACE="${OPTARG}" ;;
         *) echo "Unhandled option" 1>&2 ; exit 1 ;;
@@ -70,7 +100,7 @@ if [ "${VERSION}" = "" ]; then
     exit 1
 fi
 
-if [ "${BRANCH}" = "" ]; then
+if [ "${BRANCH_URL}" = "" ]; then
     BRANCH_URL="${BRANCH_DEFAULT}/${VERSION}"
 fi
 
@@ -87,6 +117,9 @@ for PROG in ${REQUIRED_PROGS}; do
         exit 1
     fi
 done
+
+echo "Checking for md5 program"
+md5_type
 
 
 NAME="akiban-persistit"
@@ -191,6 +224,7 @@ if [ "$SKIP_SIGNING" = "" ]; then
     echo "Signing files for Launchpad upload"
     for FILE in `ls *.zip *.tar.gz`; do
         gpg --armor --sign --detach-sig "${FILE}" 1>/dev/null
+        do_md5 "${FILE}"
     done
 fi
 
