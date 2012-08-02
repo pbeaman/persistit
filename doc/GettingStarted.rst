@@ -24,7 +24,7 @@ Download |zip_file_name| from the `Launchpad project <https://launchpad.net/akib
 
 Unpack the distribution kit into a convenient directory using any unzip utility. For example, use |unpack_zip_cmd| to unpack the distribution kit into the current working directory.
 
-Review the ``LICENSE.txt`` file located in the root of the installation directory. Persistit is licensed under the GNU Affero General Public License or a free-use community license, see our `licensing options <http://www.akiban.com/akiban-licensing-options>`_ for more details. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.
+Review the ``LICENSE.txt`` file located in the root of the installation directory. Persistit is licensed under the Eclipse Public License or a free-use community license, see our `licensing options <http://www.akiban.com/akiban-licensing-options>`_ for more details. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.
 
 Working with Persistit
 ----------------------
