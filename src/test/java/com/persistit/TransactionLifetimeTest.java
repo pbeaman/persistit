@@ -30,7 +30,6 @@ import org.junit.Test;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TreeNotFoundException;
 import com.persistit.unit.PersistitUnitTestCase;
-import java.io.IOException;
 
 /**
  * Attempt to cover all cases from the pseudo graph below and ensure that the
@@ -71,167 +70,167 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
     }
 
     @Test
-    public void testBeginAbort() throws PersistitException, IOException {
+    public void testBeginAbort() throws PersistitException {
         doTest(false, false, ABORT);
     }
 
     @Test
-    public void testBeginCommit() throws PersistitException, InterruptedException, IOException {
+    public void testBeginCommit() throws PersistitException, InterruptedException {
         doTest(false, false, COMMIT);
     }
 
     @Test
-    public void testBeginCheckpointAbort() throws PersistitException, IOException {
+    public void testBeginCheckpointAbort() throws PersistitException {
         doTest(false, false, CHECKPOINT, ABORT);
     }
 
     @Test
-    public void testBeginCheckpointCommit() throws PersistitException, IOException {
+    public void testBeginCheckpointCommit() throws PersistitException {
         doTest(false, false, CHECKPOINT, COMMIT);
     }
 
     @Test
-    public void testBeginWriteAbort() throws PersistitException, IOException {
+    public void testBeginWriteAbort() throws PersistitException {
         doTest(true, true, WRITE, ABORT);
     }
 
     @Test
-    public void testBeginWriteCommit() throws PersistitException, IOException {
+    public void testBeginWriteCommit() throws PersistitException {
         doTest(false, true, WRITE, COMMIT);
     }
 
     @Test
-    public void testBeginCheckpointWriteAbort() throws PersistitException, IOException {
+    public void testBeginCheckpointWriteAbort() throws PersistitException {
         doTest(true, true, CHECKPOINT, WRITE, ABORT);
     }
 
     @Test
-    public void testBeginCheckpointWriteCommit() throws PersistitException, IOException {
+    public void testBeginCheckpointWriteCommit() throws PersistitException {
         doTest(false, true, CHECKPOINT, WRITE, COMMIT);
     }
 
     @Test
-    public void testBeginWriteCheckpointAbort() throws PersistitException, IOException {
+    public void testBeginWriteCheckpointAbort() throws PersistitException {
         doTest(true, true, WRITE, CHECKPOINT, ABORT);
     }
 
     @Test
-    public void testBeginWriteCheckpointCommit() throws PersistitException, IOException {
+    public void testBeginWriteCheckpointCommit() throws PersistitException {
         doTest(false, true, WRITE, CHECKPOINT, COMMIT);
     }
 
     @Test
-    public void testBeginWriteCheckpointWriteAbort() throws PersistitException, IOException {
+    public void testBeginWriteCheckpointWriteAbort() throws PersistitException {
         doTest(true, true, WRITE, CHECKPOINT, WRITE, ABORT);
     }
 
     @Test
-    public void testBeginWriteCheckpointWriteCommit() throws PersistitException, IOException {
+    public void testBeginWriteCheckpointWriteCommit() throws PersistitException {
         doTest(false, true, WRITE, CHECKPOINT, WRITE, COMMIT);
     }
 
     @Test
-    public void testBeginWriteManyAbort() throws PersistitException, IOException {
+    public void testBeginWriteManyAbort() throws PersistitException {
         doTest(true, true, WRITE_MANY, ABORT);
     }
 
     @Test
-    public void testBeginWriteManyCommit() throws PersistitException, IOException {
+    public void testBeginWriteManyCommit() throws PersistitException {
         doTest(false, true, WRITE_MANY, COMMIT);
     }
 
     @Test
-    public void testBeginWriteManyCheckpointAbort() throws PersistitException, IOException {
+    public void testBeginWriteManyCheckpointAbort() throws PersistitException {
         doTest(true, true, WRITE_MANY, CHECKPOINT, ABORT);
     }
 
     @Test
-    public void testBeginWriteManyCheckpointCommit() throws PersistitException, IOException {
+    public void testBeginWriteManyCheckpointCommit() throws PersistitException {
         doTest(false, true, WRITE_MANY, CHECKPOINT, COMMIT);
     }
 
     @Test
-    public void testBeginWriteManyCheckpointWriteAbort() throws PersistitException, IOException {
+    public void testBeginWriteManyCheckpointWriteAbort() throws PersistitException {
         doTest(true, true, WRITE_MANY, CHECKPOINT, WRITE, ABORT);
     }
 
     @Test
-    public void testBeginWriteManyCheckpointWriteCommit() throws PersistitException, IOException {
+    public void testBeginWriteManyCheckpointWriteCommit() throws PersistitException {
         doTest(false, true, WRITE_MANY, CHECKPOINT, WRITE, COMMIT);
     }
 
     @Test
-    public void testBeginWriteManyCheckpointWriteManyAbort() throws PersistitException, IOException {
+    public void testBeginWriteManyCheckpointWriteManyAbort() throws PersistitException {
         doTest(true, true, WRITE_MANY, CHECKPOINT, WRITE_MANY, ABORT);
     }
 
     @Test
-    public void testBeginWriteManyCheckpointWriteManyCommit() throws PersistitException, IOException {
+    public void testBeginWriteManyCheckpointWriteManyCommit() throws PersistitException {
         doTest(false, true, WRITE_MANY, CHECKPOINT, WRITE_MANY, COMMIT);
     }
 
     @Test
-    public void testBeginRestart() throws PersistitException, IOException {
+    public void testBeginRestart() throws PersistitException {
         doTest(false, false, RESTART);
     }
 
     @Test
-    public void testBeginAbortRestart() throws PersistitException, IOException {
+    public void testBeginAbortRestart() throws PersistitException {
         doTest(false, false, ABORT, RESTART);
     }
 
     @Test
-    public void testBeginCommitRestart() throws PersistitException, IOException {
+    public void testBeginCommitRestart() throws PersistitException {
         doTest(false, false, COMMIT, RESTART);
     }
 
     @Test
-    public void testBeginWriteAbortRestart() throws PersistitException, IOException {
+    public void testBeginWriteAbortRestart() throws PersistitException {
         doTest(false, false, WRITE, ABORT, RESTART);
     }
 
     @Test
-    public void testBeginWriteCommitRestart() throws PersistitException, IOException {
+    public void testBeginWriteCommitRestart() throws PersistitException {
         doTest(false, false, WRITE, COMMIT, RESTART);
     }
 
     @Test
-    public void testBeginWriteManyAbortRestart() throws PersistitException, IOException {
+    public void testBeginWriteManyAbortRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, ABORT, RESTART);
     }
 
     @Test
-    public void testBeginWriteManyCommitRestart() throws PersistitException, IOException {
+    public void testBeginWriteManyCommitRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, COMMIT, RESTART);
     }
 
     @Test
-    public void testBeginWriteCheckpointAbortRestart() throws PersistitException, IOException {
+    public void testBeginWriteCheckpointAbortRestart() throws PersistitException {
         doTest(false, false, WRITE, CHECKPOINT, ABORT, RESTART);
     }
 
     @Test
-    public void testBeginWriteCheckpointCommitRestart() throws PersistitException, IOException {
+    public void testBeginWriteCheckpointCommitRestart() throws PersistitException {
         doTest(false, false, WRITE, CHECKPOINT, COMMIT, RESTART);
     }
 
     @Test
-    public void testBeginWriteManyAbortCheckpointRestart() throws PersistitException, IOException {
+    public void testBeginWriteManyAbortCheckpointRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, ABORT, CHECKPOINT, RESTART);
     }
 
     @Test
-    public void testBeginWriteManyCommitCheckpointRestart() throws PersistitException, IOException {
+    public void testBeginWriteManyCommitCheckpointRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, COMMIT, CHECKPOINT, RESTART);
     }
 
     @Test
-    public void testBeginWriteManyCheckpointAbortRestart() throws PersistitException, IOException {
+    public void testBeginWriteManyCheckpointAbortRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, CHECKPOINT, ABORT, RESTART);
     }
 
     @Test
-    public void testBeginWriteManyCheckpointCommitRestart() throws PersistitException, IOException {
+    public void testBeginWriteManyCheckpointCommitRestart() throws PersistitException {
         doTest(false, false, WRITE_MANY, CHECKPOINT, COMMIT, RESTART);
     }
 
@@ -306,7 +305,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         }
     }
 
-    private void doTest(boolean expectedInIndex, boolean expectedInLiveMap, Node... nodes) throws PersistitException, IOException {
+    private void doTest(boolean expectedInIndex, boolean expectedInLiveMap, Node... nodes) throws PersistitException {
         Exchange ex = _persistit.getExchange(VOLUME_NAME, TREE_NAME, true);
         Transaction txn = ex.getTransaction();
 

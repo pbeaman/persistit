@@ -29,7 +29,6 @@ import org.junit.Before;
 
 import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
-import java.io.IOException;
 
 public abstract class PersistitUnitTestCase {
 
@@ -89,8 +88,8 @@ public abstract class PersistitUnitTestCase {
         } catch (final Throwable t) {
             t.printStackTrace();
         } finally {
-            tearDown();   
-        }  
+        	tearDown();
+        }
     }
 
     private final static String[] PERSISTIT_THREAD_NAMES = { "CHECKPOINT_WRITER", "JOURNAL_COPIER", "JOURNAL_FLUSHER",
