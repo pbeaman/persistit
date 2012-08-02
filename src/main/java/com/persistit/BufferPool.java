@@ -757,7 +757,7 @@ public class BufferPool {
     Buffer get(Volume vol, long page, boolean writer, boolean wantRead) throws PersistitException {
         int hash = hashIndex(vol, page);
         Buffer buffer = null;
-        
+
         for (;;) {
             boolean mustClaim = false;
             _hashLocks[hash % HASH_LOCKS].lock();
@@ -1112,7 +1112,7 @@ public class BufferPool {
         }
         return false;
     }
-    
+
     void writeDirtyBuffers(final int[] priorities, final BufferHolder[] selectedBuffers) throws PersistitException {
         int count = selectDirtyBuffers(priorities, selectedBuffers);
         if (count > 0) {

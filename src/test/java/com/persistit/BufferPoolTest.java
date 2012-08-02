@@ -31,24 +31,10 @@ import java.util.TreeSet;
 import org.junit.Test;
 
 import com.persistit.BufferPool.BufferHolder;
-import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
-import java.util.*;
-import org.junit.Before;
 
 public class BufferPoolTest extends PersistitUnitTestCase {
-    
-    private long start = 0;
-    private long end = 0;
-    
-    @Before
-    @Override
-    public void setUp() throws Exception {
-        checkNoPersistitThreads();
-        Properties p = getProperties(true);
-        p.setProperty("bufferwarmupenabled", "true");
-        _persistit.initialize(p);
-    }
+
     /**
      * Covers allocPage condition in which page in the avaialbleBitMap is
      * unavailable.
@@ -57,7 +43,6 @@ public class BufferPoolTest extends PersistitUnitTestCase {
      */
     @Test
     public void testInvalidatedBuffers() throws Exception {
-        calculateStartTime();
         final Volume vol = _persistit.createTemporaryVolume();
         final Exchange ex = _persistit.getExchange(vol, "BufferPoolTest", true);
         ex.append("k").store();
@@ -75,12 +60,10 @@ public class BufferPoolTest extends PersistitUnitTestCase {
             ex2.to(i).store();
         }
         buffer1.release();
-        calculateEndTime();
     }
 
     @Test
     public void testSelectDirtyBuffers() throws Exception {
-        calculateStartTime();
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
         pool.setFlushTimestamp(-1);
@@ -96,7 +79,7 @@ public class BufferPoolTest extends PersistitUnitTestCase {
 
             int count = pool.selectDirtyBuffers(priorities, holders);
             assertEquals("Buffer pool should be clean", 0, count);
-            
+
             for (int i = 1; i < buffers; i++) {
                 final long page = volume.getStorage().allocNewPage();
                 final Buffer buffer = pool.get(volume, page, true, false);
@@ -115,12 +98,10 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         } finally {
             pool.setFlushTimestamp(1000);
         }
-        calculateEndTime();
     }
 
     @Test
     public void testAddSelectedBuffer() throws Exception {
-        calculateStartTime();
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
 
@@ -168,12 +149,10 @@ public class BufferPoolTest extends PersistitUnitTestCase {
                 assertTrue("Scrambled holders", holder != holders[j]);
             }
         }
-        calculateEndTime();
     }
 
     @Test
     public void testWritePriority() throws Exception {
-        calculateStartTime();
         final long m = 100 * 1000 * 1000;
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
@@ -184,21 +163,10 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         for (long timestamp = m; timestamp < m * 20; timestamp += m) {
             buffer.setDirtyAtTimestamp(timestamp);
             int priority = pool.writePriority(buffer, 123456, checkpointTimestamp, currentTimestamp);
-            //System.out.printf("Timestamp %,15d Checkpoint %,15d Current %,15d Priority %,15d\n", timestamp,
-             //       checkpointTimestamp, currentTimestamp, priority);
+            System.out.printf("Timestamp %,15d Checkpoint %,15d Current %,15d Priority %,15d\n", timestamp,
+                    checkpointTimestamp, currentTimestamp, priority);
             currentTimestamp += 10000000;
         }
-        calculateEndTime();
-    }
-    
-    private void calculateStartTime() {
-        start = System.currentTimeMillis();
-    }
-    
-    private void calculateEndTime() {
-        end = System.currentTimeMillis();
-        long tot = end - start;
-        System.out.println("Started: " + start + " Ended: " + end + " Total time taken: " + tot);
     }
 
 }

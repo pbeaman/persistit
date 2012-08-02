@@ -1849,7 +1849,7 @@ public class Configuration {
     public boolean isIgnoreMissingVolumes() {
         return ignoreMissingVolumes;
     }
-    
+
     /**
      * <p>
      * Control whether Persistit starts in <i>ignore-missing-volumes</i> mode.
@@ -1864,7 +1864,6 @@ public class Configuration {
      * Property name is {@value #IGNORE_MISSING_VOLUMES_PROPERTY}
      * </p>
      * 
-
      * @param ignoreMissingVolumes
      *            <code>true</code> to ignore missing volumes
      */

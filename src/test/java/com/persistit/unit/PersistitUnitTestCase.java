@@ -88,7 +88,7 @@ public abstract class PersistitUnitTestCase {
         } catch (final Throwable t) {
             t.printStackTrace();
         } finally {
-        	tearDown();
+           tearDown();
         }
     }
 
