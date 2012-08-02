@@ -429,7 +429,7 @@ public class ThreadSequencer implements SequencerConstants {
             _enabled = 0;
             _history = null;
             for (int index = 0; index < _semaphores.length; index++) {
-                _semaphores[index].release(Integer.MAX_VALUE);
+                _semaphores[index].release(1000);
                 _semaphores[index] = new Semaphore(0);
             }
         }
