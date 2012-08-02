@@ -302,6 +302,10 @@ public class VolumeSpecification {
         return path;
     }
 
+    public File getAbsoluteFile() {
+        return new File(path).getAbsoluteFile();
+    }
+
     public String getName() {
         return name;
     }

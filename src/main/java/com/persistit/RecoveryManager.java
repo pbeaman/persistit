@@ -694,12 +694,16 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         return sb.toString();
     }
 
-    public String addressToString(final long address) {
-        return _player.addressToString(address);
+    String addressToString(final long address) {
+        return TransactionPlayer.addressToString(address);
     }
 
     private String addressToString(final long address, final long timestamp) {
-        return _player.addressToString(address, timestamp);
+        return TransactionPlayer.addressToString(address, timestamp);
+    }
+    
+    TransactionPlayer getPlayer() {
+        return _player;
     }
 
     // ----------------------------Phase 1----------------------------

@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import java.io.File;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -274,6 +275,15 @@ public class Volume {
      */
     public String getPath() {
         return getStorage().getPath();
+    }
+
+    /**
+     * Returns the absolute file by which this volume was opened.
+     * 
+     * @return The file
+     */
+    public File getAbsoluteFile() {
+        return getSpecification().getAbsoluteFile();
     }
 
     /**

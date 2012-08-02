@@ -33,12 +33,12 @@ import java.util.ResourceBundle;
 import java.util.TreeMap;
 
 import com.persistit.Transaction.CommitPolicy;
+import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
-import com.persistit.logging.PersistitLevel;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.util.Util;
@@ -266,6 +266,10 @@ public class Configuration {
     public final static String APPEND_ONLY_PROPERTY = "appendonly";
 
     /**
+     * Property name for the "ignore missing volumes" property.
+     */
+    public final static String IGNORE_MISSING_VOLUMES_PROPERTY = "ignoremissingvolumes";
+    /**
      * Property name to specify the default {@link SplitPolicy}.
      */
     public final static String SPLIT_POLICY_PROPERTY_NAME = "splitpolicy";
@@ -398,9 +402,10 @@ public class Configuration {
         public void setMaximumCount(int maximumCount) {
             this.maximumCount = maximumCount;
         }
-        
+
         /**
          * Set the minimum and maximum buffer count.
+         * 
          * @param count
          */
         public void setCount(int count) {
@@ -488,8 +493,8 @@ public class Configuration {
             int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
             int buffers = Math.max(minimumCount, Math.min(maximumCount, (int) (allocation / bufferSizeWithOverhead)));
             if (buffers < BufferPool.MINIMUM_POOL_COUNT || buffers > BufferPool.MAXIMUM_POOL_COUNT
-                    || (long)buffers * (long)bufferSizeWithOverhead > maximumAvailable
-                    || (long)(buffers + 1) * (long)bufferSizeWithOverhead < minimumMemory) {
+                    || (long) buffers * (long) bufferSizeWithOverhead > maximumAvailable
+                    || (long) (buffers + 1) * (long) bufferSizeWithOverhead < minimumMemory) {
                 throw new IllegalArgumentException(String.format(
                         "Invalid buffer pool configuration: %,d buffers in %sb of maximum available memory", buffers,
                         displayableLongValue(maximumAvailable)));
@@ -619,6 +624,7 @@ public class Configuration {
     private int rmiServerPort;
     private boolean jmx = true;
     private boolean appendOnly;
+    private boolean ignoreMissingVolumes;
     private String tmpVolDir;
     private int tmpVolPageSize;
     private long tmpVolMaxSize;
@@ -699,6 +705,7 @@ public class Configuration {
         setAppendOnly(getBooleanProperty(APPEND_ONLY_PROPERTY, false));
         setCommitPolicy(getProperty(COMMIT_POLICY_PROPERTY_NAME));
         setConstructorOverride(getBooleanProperty(CONSTRUCTOR_OVERRIDE_PROPERTY_NAME, false));
+        setIgnoreMissingVolumes(getBooleanProperty(IGNORE_MISSING_VOLUMES_PROPERTY, false));
         setJmxEnabled(getBooleanProperty(ENABLE_JMX_PROPERTY_NAME, true));
         setJoinPolicy(getProperty(JOIN_POLICY_PROPERTY_NAME));
         setJournalPath(getProperty(JOURNAL_PATH_PROPERTY_NAME, DEFAULT_JOURNAL_PATH));
@@ -1767,6 +1774,7 @@ public class Configuration {
 
     /**
      * Return the value defined by {@link #setAppendOnly}
+     * 
      * @return the whether to start Persistit in append-only mode
      */
     public boolean isAppendOnly() {
@@ -1775,7 +1783,7 @@ public class Configuration {
 
     /**
      * <p>
-     * Control whether Persistit starts in <i>append-only</i>. In this mode
+     * Control whether Persistit starts in <i>append-only</i> mode. In this mode
      * Persistit accumulates database updates in the journal without copying
      * changes back into the volume files. This method changes only the initial
      * state; use {@link Management#setAppendOnly(boolean)} method to change
@@ -1787,10 +1795,39 @@ public class Configuration {
      * </p>
      * 
      * @param appendOnly
-     *            the appendOnly to set
+     *            <code>true</code> to start Persistit in append-only only
      */
     public void setAppendOnly(boolean appendOnly) {
         this.appendOnly = appendOnly;
     }
 
+    /**
+     * Return the value defined by {@link #setIgnoreMissingVolumes(boolean)}
+     * 
+     * @return the whether to start Persistit in ignore-missing-volumes mode
+     */
+    public boolean isIgnoreMissingVolumes() {
+        return ignoreMissingVolumes;
+    }
+
+    /**
+     * <p>
+     * Control whether Persistit starts in <i>ignore-missing-volumes</i> mode.
+     * In this mode references in the journal to unknown volumes are ignored
+     * rather than noted as {@link CorruptJournalException}s. Almost always this
+     * mode should be disabled; the setting is available to enable recovery of a
+     * journal into a subset of formerly existing volumes and should be used
+     * only with care.
+     * </p>
+     * <p>
+     * Default value is <code>false</code><br />
+     * Property name is {@value #IGNORE_MISSING_VOLUMES_PROPERTY}
+     * </p>
+     * 
+     * @param ignoreMissingVolumes
+     *            <code>true</code> to ignore missing volumes
+     */
+    public void setIgnoreMissingVolumes(boolean ignoreMissingVolumes) {
+        this.ignoreMissingVolumes = ignoreMissingVolumes;
+    }
 }

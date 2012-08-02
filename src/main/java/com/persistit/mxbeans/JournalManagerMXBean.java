@@ -143,12 +143,18 @@ public interface JournalManagerMXBean {
 
     @Description("True if copying of pages from the journal to their destination volumes is disabled")
     boolean isAppendOnly();
+    
+    @Description("True to allow journal to lose pages from missing volumes")
+    boolean isIgnoreMissingVolumes();
 
     @Description("True if copy-fast mode has been enabled")
     boolean isCopyingFast();
 
     @Description("True if copying of pages from the journal to their destination volumes is disabled")
     void setAppendOnly(boolean appendOnly);
+    
+    @Description("True to allow journal to lose pages from missing volumes")
+    void setIgnoreMissingVolumes(boolean ignore);
 
     @Description("True if copy-fast mode has been enabled")
     void setCopyingFast(boolean fast);

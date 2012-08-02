@@ -77,7 +77,7 @@ public class TransactionIndexConcurrencyTest {
     public void testSingleThreaded() throws Exception {
         final Txn txn = new Txn();
         for (int i = 0; i < iterations; i++) {
-            runTransaction(txn);
+            runTransaction(txn, i);
             if ((i % 100) == 99) {
                 ti.updateActiveTransactionCache();
             }
@@ -115,7 +115,7 @@ public class TransactionIndexConcurrencyTest {
                     final Txn txn = new Txn();
                     try {
                         for (int i = 0; i < iterations; i++) {
-                            runTransaction(txn);
+                            runTransaction(txn, i);
                         }
                     } catch (Exception e) {
                         errCount.incrementAndGet();
@@ -161,7 +161,7 @@ public class TransactionIndexConcurrencyTest {
 
     }
 
-    private void runTransaction(final Txn txn) throws Exception {
+    private void runTransaction(final Txn txn, final int count) throws Exception {
         txn.status = ti.registerTransaction();
         final long ts = txn.status.getTs();
         sometimesSleep(5);
@@ -197,6 +197,9 @@ public class TransactionIndexConcurrencyTest {
                         mvv.versionHandles.add(TransactionIndex.ts2vh(ts));
                         txn.status.incrementMvvCount();
                     }
+                }
+                if ((count % 10000) == 0) {
+                	Thread.sleep(100);
                 }
                 if (retry) {
                     long tc = ti.wwDependency(versionHandle, txn.status, 300000);

@@ -36,6 +36,7 @@ public interface AlertMonitorMXBean {
     final static String EXTEND_VOLUME_CATEGORY = "ExtendVolume";
     final static String FLUSH_STATISTICS_CATEGORY = "FlushStatistics";
     final static String CLEANUP_CATEGORY = "Cleanup";
+    final static String MISSING_VOLUME_CATEGORY = "MissingVolume";
 
     /**
      * Current maximum AlertLevel in this monitor as a String: one of NORMAL,
