@@ -8,3 +8,4 @@ bin
 ./akiban-persistit.iws
 ./bench/akiban-persistit-bench.iml
 ./core/akiban-persistit-core.iml
+.DS_Store
