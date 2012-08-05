@@ -586,11 +586,15 @@ public class Transaction {
         if (_commitCompleted) {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
+        if (_rollbackPending) {
+            throw new IllegalStateException("Attempt to begin a transaction with pending rollback" + this);
+        }
         if (_nestedDepth == 0) {
             flushTransactionBuffer(false);
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
             } catch (InterruptedException e) {
+            	_rollbackCompleted = true;
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
@@ -609,11 +613,15 @@ public class Transaction {
         if (_commitCompleted) {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
+        if (_rollbackPending) {
+            throw new IllegalStateException("Attmpet to begin a transaction with pending rollback" + this);
+        }
         if (_nestedDepth == 0) {
             flushTransactionBuffer(false);
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
             } catch (InterruptedException e) {
+            	_rollbackCompleted = true;
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
@@ -854,10 +862,11 @@ public class Transaction {
                         policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
                 committed = true;
             } finally {
+            	
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
                         committed ? _commitTimestamp : TransactionStatus.ABORTED);
                 _commitCompleted = committed;
-                _rollbackCompleted = !committed;
+                _rollbackPending = _rollbackCompleted = !committed;
             }
         }
     }
