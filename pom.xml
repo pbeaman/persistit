@@ -349,7 +349,6 @@
     <scm>
         <connection>scm:bazaar:https://code.launchpad.net/akiban-persistit</connection>
         <url>https://code.launchpad.net/akiban-persistit</url>
-        <tag>HEAD</tag>
     </scm>
     <developers>
         <developer>
