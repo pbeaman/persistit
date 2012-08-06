@@ -45,6 +45,28 @@ For optimal performance, proper configuration of the Persistit buffer pool is re
 |
 
 ************************************
+3.1.5
+************************************
+
+Release Date
+============
+August 6, 2012
+
+Overview
+========
+This version of Persistit changes the pom.xml to a form compatible with the Maven central repository and includes one bug fix.
+
+Fixed Issue
+===========
+
+https://launchpad.net/akiban-persistit/+bug/1032701
+
+If a thread was interrupted at an inopportune time (for example, by query cancellation in Akiban Server), a page in the buffer pool could be left in a locked state blocking all further progress. The only remedy was to stop and restart the JVM.
+
+|
+|
+
+************************************
 3.1.4
 ************************************
 
