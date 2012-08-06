@@ -48,7 +48,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
 
     final static CommitPolicy policy = CommitPolicy.SOFT;
 
-    final static long TIMEOUT = 20000; // seconds
+    final static long TIMEOUT = 20000; // 20 seconds
 
     static int _threadCount = 8;
     static int _iterationsPerThread = 25000;
@@ -221,6 +221,20 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         assertEquals("Starting and ending balance don't agree", startingBalance, endingBalance);
         assertTrue("ATC has very old transaction",
                 ti.getActiveTransactionCeiling() - ti.getActiveTransactionFloor() < 10000);
+    }
+    
+    @Test(expected = IllegalStateException.class)
+    public void illegalStateExceptionOnRollback() throws Exception {
+        Transaction txn = _persistit.getTransaction();
+        txn.rollback();
+        txn.begin();
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void illegalStateExceptionOnCommit() throws Exception {
+        Transaction txn = _persistit.getTransaction();
+        txn.commit();
+        txn.begin();
     }
 
     public void runIt() {

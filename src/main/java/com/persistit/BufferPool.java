@@ -613,11 +613,22 @@ public class BufferPool {
         return result;
     }
 
-    private void invalidate(Buffer buffer) throws PersistitInterruptedException {
+    private void invalidate(Buffer buffer) {
         Debug.$assert0.t(buffer.isValid() && buffer.isMine());
 
         while (!detach(buffer)) {
-            Util.spinSleep();
+            //
+            // Spin until detach succeeds. Note: this method must not throw an Exception
+            // because it is called in at at critical time when cleanup must be done.
+            // It is not possible to lock the hash bucket here due to possible deadlock.
+            // However, the likelihood of a lengthy live-lock is infinitesimal so polling
+            // is acceptable.
+            //
+        	try {
+        		Thread.sleep(1);
+        	} catch (InterruptedException ie) {
+        		// ignore
+        	}
         }
         buffer.clearValid();
         buffer.clearDirty();
