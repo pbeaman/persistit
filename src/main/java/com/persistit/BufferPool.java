@@ -222,7 +222,7 @@ public class BufferPool {
      */
     private PageCacher _cacher;
         
-    private String DEFAULT_LOG_PATH;
+    private String _defaultLogPath;
     
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -297,9 +297,9 @@ public class BufferPool {
         _cacher = new PageCacher();
     }
     
-    void warmupBufferPool(String fname) throws PersistitException {
-    	DEFAULT_LOG_PATH = "/tmp/persistit_test_data/" + fname + ".log";
-        File file = new File(DEFAULT_LOG_PATH);
+    void warmupBufferPool(String pathName, String fname) throws PersistitException {
+        File file = new File(pathName, fname + ".log");
+        _defaultLogPath = file.getAbsolutePath();
         
         try {
             if (!file.exists()) {
@@ -438,7 +438,7 @@ public class BufferPool {
     }
     
     private void populateWarmupFile() throws PersistitException {
-        File file = new File(DEFAULT_LOG_PATH);
+        File file = new File(_defaultLogPath);
         
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter(file));

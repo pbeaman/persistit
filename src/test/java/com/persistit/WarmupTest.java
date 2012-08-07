@@ -39,9 +39,7 @@ class BuffInfo {
 
 public class WarmupTest extends PersistitUnitTestCase {
 	
-	private final String DEFAULT_LOG_PATH = "/tmp/persistit_test_data/buffer_pool.log";
-
-	@Test
+    @Test
     public void testWarmup() throws Exception {
         Exchange ex = _persistit.getExchange("persistit", "WarmupTest", true);
         for (int i = 1; i <= 1000; i++) {
@@ -51,31 +49,18 @@ public class WarmupTest extends PersistitUnitTestCase {
         
         // Assumption: only one buffer pool is created
         int poolCount = 0;
+        String pathName = "";
         Buffer[] buff = new Buffer[100];
         for (BufferPool p: _persistit.getBufferPoolHashMap().values()) {
         	poolCount = p.getBufferCount();
+                pathName = p.toString();
         	for (int i = 0; i < poolCount; ++i) {
         		buff[i] = p.getBufferCopy(i);
         	}
         }
         
-        BuffInfo[] buffInfo = new BuffInfo[100];
-        File file = new File(DEFAULT_LOG_PATH);
-        if (file.exists()) {
-            BufferedReader reader = new BufferedReader(new FileReader(file));
-            String currLine;
-            int count = 0;
-            while ((currLine = reader.readLine()) != null) {
-                String[] info = currLine.split(" ");
-                buffInfo[count].page = Long.parseLong(info[0]);
-                buffInfo[count].vol = _persistit.getVolume(info[1]); 
-                count++;
-            }
-            reader.close();
-        }
-        
         Properties properties = _persistit.getProperties();
-        properties.setProperty("bufferwarmupenabled", "true");
+        properties.setProperty("bufferinventory", "/tmp/persistit_test_data/");
         ex = null;
         _persistit.close();
 
@@ -87,18 +72,11 @@ public class WarmupTest extends PersistitUnitTestCase {
         	poolCount1 = p.getBufferCount();
         	for (int i = 0; i < poolCount1; ++i) {
         		Buffer bufferCopy = p.getBufferCopy(i);
-        		Buffer bufferFileCopy;
-        		if (buffInfo[i] != null) {
-        			bufferFileCopy = p.getBufferCopy(buffInfo[i].vol, buffInfo[i].page);
-        			assertEquals(bufferFileCopy.getPageAddress(), bufferCopy.getPageAddress());
-        			assertEquals(bufferFileCopy.getPageType(), bufferCopy.getPageType());
-        		}
         		assertEquals(bufferCopy.getPageAddress(), buff[i].getPageAddress());
         		assertEquals(bufferCopy.getPageType(), buff[i].getPageType());
         		assertEquals(bufferCopy.getBufferSize(), buff[i].getBufferSize());
         	}
         }
-        assertEquals(poolCount, poolCount1);
-           
+        assertEquals(poolCount, poolCount1);         
     }
 }

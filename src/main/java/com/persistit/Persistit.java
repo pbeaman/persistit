@@ -594,7 +594,7 @@ public class Persistit {
                 initializeVolumes();
                 startJournal();
                 startBufferPools();
-                if (_configuration.isBufferWarmupEnabled()) {
+                if (_configuration.getBufferInventoryPathName() != null) {
                     warmupBufferPools();
                 }
                 finishRecovery();
@@ -726,8 +726,9 @@ public class Persistit {
     }
     
     void warmupBufferPools() throws PersistitException {
+        String pathName = _configuration.getBufferInventoryPathName();
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.warmupBufferPool(pool.toString());
+            pool.warmupBufferPool(pathName, pool.toString());
         }
     }
 
