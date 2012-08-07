@@ -1,11 +1,17 @@
 <?xml version="1.0"?>
-<project>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.akiban</groupId>
     <artifactId>akiban-persistit</artifactId>
-    <version>3.1.4-SNAPSHOT</version>
+    <version>3.1.6-SNAPSHOT</version>
     <packaging>jar</packaging>
+
+    <parent>
+        <groupId>org.sonatype.oss</groupId>
+        <artifactId>oss-parent</artifactId>
+        <version>7</version>
+    </parent>
 
     <name>akiban-persistit</name>
     <inceptionYear>2005</inceptionYear>
@@ -17,8 +23,8 @@
 
     <licenses>
         <license>
-            <name>GNU Affero General Public License, version 3</name>
-            <url>http://www.gnu.org/licenses/agpl-3.0.txt</url>
+            <name>Eclipse Public License - v 1.0</name>
+            <url>http://www.eclipse.org/legal/epl-v10.html</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -231,6 +237,7 @@
                             <defaultValue>2012</defaultValue>
                             <!-- [2005-2011]-2012 | 2012 -->
                             <ensureMatch>20(05|06|07|08|09|10|11)\-2012|2012</ensureMatch>
+                            -->
                         </headerSection>
                     </headerSections>
                     <aggregate>true</aggregate>
@@ -339,4 +346,35 @@
             </plugin>
         </plugins>
     </reporting>
+    <scm>
+        <connection>scm:bazaar:https://code.launchpad.net/akiban-persistit</connection>
+        <url>https://code.launchpad.net/akiban-persistit</url>
+    </scm>
+    <developers>
+        <developer>
+            <id>peter</id>
+            <name>Peter Beaman</name>
+            <email>pbeaman@akiban.com</email>
+            <organization>Akiban Technologies, Inc.</organization>
+            <organizationUrl>http://akiban.com</organizationUrl>
+            <roles>
+                <role>architect</role>
+                <role>developer</role>
+            </roles>
+            <timezone>-5</timezone>
+        </developer>
+        <developer>
+            <id>nathan</id>
+            <name>Nathan Williams</name>
+            <email>nwilliams@akiban.com</email>
+            <organization>Akiban Technologies, Inc.</organization>
+            <organizationUrl>http://akiban.com</organizationUrl>
+            <roles>
+                <role>architect</role>
+                <role>developer</role>
+            </roles>
+            <timezone>-5</timezone>
+        </developer>
+    </developers>
+    <description>Java B+Tree Key-Value Store Library</description>
 </project>

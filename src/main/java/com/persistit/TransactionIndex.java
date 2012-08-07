@@ -1,21 +1,16 @@
 /**
  * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, version 3 (only) of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * This program may also be available under different license terms. For more
- * information, see www.akiban.com or contact licensing@akiban.com.
+ * This program and the accompanying materials are made available
+ * under the terms of the Eclipse Public License v1.0 which
+ * accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ * 
+ * This program may also be available under different license terms.
+ * For more information, see www.akiban.com or contact licensing@akiban.com.
+ * 
+ * Contributors:
+ * Akiban Technologies, Inc.
  */
 
 package com.persistit;
@@ -1078,8 +1073,9 @@ class TransactionIndex implements TransactionIndexMXBean {
                     }
                     bucket.checkpointAccumulatorSnapshots(timestamp);
                     for (final Accumulator accumulator : accumulators) {
-                        accumulator.setCheckpointValueAndTimestamp(accumulator.applyValue(accumulator
-                                .getCheckpointValue(), accumulator.getCheckpointTemp()), timestamp);
+                        accumulator.setCheckpointValueAndTimestamp(
+                                accumulator.applyValue(accumulator.getCheckpointValue(),
+                                        accumulator.getCheckpointTemp()), timestamp);
                     }
                 } catch (RetryException e) {
                     again = true;
@@ -1091,11 +1087,12 @@ class TransactionIndex implements TransactionIndexMXBean {
     }
 
     /**
-     * Create and return a brand new delta associated with the given
-     * status. Note that it is completely uninitialized and always
-     * allocated from the bucket.
-     *
-     * @param status Status to add the delta to.
+     * Create and return a brand new delta associated with the given status.
+     * Note that it is completely uninitialized and always allocated from the
+     * bucket.
+     * 
+     * @param status
+     *            Status to add the delta to.
      * @return The new Delta.
      */
     Delta addDelta(final TransactionStatus status) {
@@ -1112,18 +1109,22 @@ class TransactionIndex implements TransactionIndexMXBean {
     }
 
     /**
-     * Create, or combine, new delta information for the given status.
-     * This method attempts to find a compatible delta
-     * (see {@link Delta#canMerge(Accumulator, int)}) to combine with
-     * before allocating a new one. If one is not found,
-     * {@link #addDelta(TransactionStatus)} is called and initialized
-     * before returning.
-     *
-     * @param status Status to add, or combine, delta to.
-     * @param accumulator Accumulator being modified.
-     * @param step Step value of modification.
-     * @param value The value to add or combine.
-     *
+     * Create, or combine, new delta information for the given status. This
+     * method attempts to find a compatible delta (see
+     * {@link Delta#canMerge(Accumulator, int)}) to combine with before
+     * allocating a new one. If one is not found,
+     * {@link #addDelta(TransactionStatus)} is called and initialized before
+     * returning.
+     * 
+     * @param status
+     *            Status to add, or combine, delta to.
+     * @param accumulator
+     *            Accumulator being modified.
+     * @param step
+     *            Step value of modification.
+     * @param value
+     *            The value to add or combine.
+     * 
      * @return Delta that was created or modified.
      */
     Delta addOrCombineDelta(TransactionStatus status, Accumulator accumulator, int step, long value) {

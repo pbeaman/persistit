@@ -1,21 +1,16 @@
 /**
  * Copyright © 2005-2012 Akiban Technologies, Inc.  All rights reserved.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, version 3 (only) of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * This program may also be available under different license terms. For more
- * information, see www.akiban.com or contact licensing@akiban.com.
+ * This program and the accompanying materials are made available
+ * under the terms of the Eclipse Public License v1.0 which
+ * accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ * 
+ * This program may also be available under different license terms.
+ * For more information, see www.akiban.com or contact licensing@akiban.com.
+ * 
+ * Contributors:
+ * Akiban Technologies, Inc.
  */
 
 package com.persistit;
@@ -694,11 +689,22 @@ public class BufferPool {
         return result;
     }
 
-    private void invalidate(Buffer buffer) throws PersistitInterruptedException {
+    private void invalidate(Buffer buffer) {
         Debug.$assert0.t(buffer.isValid() && buffer.isMine());
 
         while (!detach(buffer)) {
-            Util.spinSleep();
+            //
+            // Spin until detach succeeds. Note: this method must not throw an Exception
+            // because it is called in at at critical time when cleanup must be done.
+            // It is not possible to lock the hash bucket here due to possible deadlock.
+            // However, the likelihood of a lengthy live-lock is infinitesimal so polling
+            // is acceptable.
+            //
+        	try {
+        		Thread.sleep(1);
+        	} catch (InterruptedException ie) {
+        		// ignore
+        	}
         }
         buffer.clearValid();
         buffer.clearDirty();

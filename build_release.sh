@@ -1,22 +1,17 @@
 #!/bin/bash
 #
 # Copyright © 2012 Akiban Technologies, Inc.  All rights reserved.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, version 3 (only) of the
-# License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-# This program may also be available under different license terms. For more
-# information, see www.akiban.com or contact licensing@akiban.com.
+# 
+# This program and the accompanying materials are made available
+# under the terms of the Eclipse Public License v1.0 which
+# accompanies this distribution, and is available at
+# http://www.eclipse.org/legal/epl-v10.html
+# 
+# This program may also be available under different license terms.
+# For more information, see www.akiban.com or contact licensing@akiban.com.
+# 
+# Contributors:
+# Akiban Technologies, Inc.
 #
 
 #
@@ -24,10 +19,10 @@
 #   - Documentation (apidocs and sphinx html, for website)
 #       - akiban-persistit-X.X.X-website-docs.tar.gz
 #   - Bundles/packages
-#       - akiban-persistit-X.X.X.zip                (binary, AGPL)
-#       - akiban-persistit-X.X.X.tar.gz             (binary, AGPL)
-#       - akiban-persistit-X.X.X-source.zip         (source, AGPL)
-#       - akiban-persistit-X.X.X-source.tar.gz      (source, AGPL)
+#       - akiban-persistit-X.X.X.zip                (binary, EPL)
+#       - akiban-persistit-X.X.X.tar.gz             (binary, EPL)
+#       - akiban-persistit-X.X.X-source.zip         (source, EPL)
+#       - akiban-persistit-X.X.X-source.tar.gz      (source, EPL)
 #       - akiban-persistit-community-X.X.X.zip      (binary, EULA)
 #       - akiban-persistit-community-X.X.X.tar.gz   (binary, EULA)
 #
@@ -51,6 +46,36 @@ function maven_build {
     mvn $2 -DBZR_REVISION="$1" -DskipTests=true clean compile test-compile package >/dev/null
 }
 
+MD5_TYPE=""
+function md5_type {
+    if [ "$(which md5sum)" != "" ]; then
+        MD5_TYPE="md5sum"
+    else
+        if [ "$(which md5)" != "" ]; then
+            MD5_TYPE="md5"
+        else
+            echo "    No supported md5 program found in PATH" 1>&2
+            exit 1
+        fi
+    fi
+}
+
+function do_md5 {
+    OUTFILE="${1}.md5"
+    case "${MD5_TYPE}" in
+        md5)
+            $(md5 -r "$1" |sed 's/ /  /' > "${OUTFILE}")
+        ;;
+        md5sum)
+            $(md5sum "$1" > "${OUTFILE}")
+        ;;
+        *)
+            echo "Unknown md5 type: ${MD5_TYPE}"
+            exit 1
+        ;;
+    esac
+}
+
 
 REQUIRED_PROGS="bzr mvn javac sphinx-build curl awk sed tr basename zip tar gpg"
 BRANCH_DEFAULT="lp:~akiban-technologies/akiban-persistit"
@@ -63,7 +88,7 @@ WORKSPACE="/tmp/persistit_release"
 while getopts "hb:v:w:" FLAG; do
     case "${FLAG}" in
         h) ;;
-        b) BRANCH="${OPTARG}" ;;
+        b) BRANCH_URL="${OPTARG}" ;;
         v) VERSION="${OPTARG}" ;;
         w) WORKSPACE="${OPTARG}" ;;
         *) echo "Unhandled option" 1>&2 ; exit 1 ;;
@@ -75,7 +100,7 @@ if [ "${VERSION}" = "" ]; then
     exit 1
 fi
 
-if [ "${BRANCH}" = "" ]; then
+if [ "${BRANCH_URL}" = "" ]; then
     BRANCH_URL="${BRANCH_DEFAULT}/${VERSION}"
 fi
 
@@ -92,6 +117,9 @@ for PROG in ${REQUIRED_PROGS}; do
         exit 1
     fi
 done
+
+echo "Checking for md5 program"
+md5_type
 
 
 NAME="akiban-persistit"
@@ -196,6 +224,7 @@ if [ "$SKIP_SIGNING" = "" ]; then
     echo "Signing files for Launchpad upload"
     for FILE in `ls *.zip *.tar.gz`; do
         gpg --armor --sign --detach-sig "${FILE}" 1>/dev/null
+        do_md5 "${FILE}"
     done
 fi
 

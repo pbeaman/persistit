@@ -1,21 +1,16 @@
 /**
  * Copyright © 2005-2012 Akiban Technologies, Inc.  All rights reserved.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, version 3 (only) of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * This program may also be available under different license terms. For more
- * information, see www.akiban.com or contact licensing@akiban.com.
+ * This program and the accompanying materials are made available
+ * under the terms of the Eclipse Public License v1.0 which
+ * accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ * 
+ * This program may also be available under different license terms.
+ * For more information, see www.akiban.com or contact licensing@akiban.com.
+ * 
+ * Contributors:
+ * Akiban Technologies, Inc.
  */
 
 package com.persistit;
@@ -591,11 +586,15 @@ public class Transaction {
         if (_commitCompleted) {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
+        if (_rollbackPending) {
+            throw new IllegalStateException("Attempt to begin a transaction with pending rollback" + this);
+        }
         if (_nestedDepth == 0) {
             flushTransactionBuffer(false);
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
             } catch (InterruptedException e) {
+            	_rollbackCompleted = true;
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
@@ -614,11 +613,15 @@ public class Transaction {
         if (_commitCompleted) {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
+        if (_rollbackPending) {
+            throw new IllegalStateException("Attmpet to begin a transaction with pending rollback" + this);
+        }
         if (_nestedDepth == 0) {
             flushTransactionBuffer(false);
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
             } catch (InterruptedException e) {
+            	_rollbackCompleted = true;
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
@@ -859,10 +862,11 @@ public class Transaction {
                         policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
                 committed = true;
             } finally {
+            	
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
                         committed ? _commitTimestamp : TransactionStatus.ABORTED);
                 _commitCompleted = committed;
-                _rollbackCompleted = !committed;
+                _rollbackPending = _rollbackCompleted = !committed;
             }
         }
     }

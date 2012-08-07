@@ -45,6 +45,108 @@ For optimal performance, proper configuration of the Persistit buffer pool is re
 |
 
 ************************************
+3.1.5
+************************************
+
+Release Date
+============
+August 6, 2012
+
+Overview
+========
+This version of Persistit changes the pom.xml to a form compatible with the Maven central repository and includes one bug fix.
+
+Fixed Issue
+===========
+
+https://launchpad.net/akiban-persistit/+bug/1032701
+
+If a thread was interrupted at an inopportune time (for example, by query cancellation in Akiban Server), a page in the buffer pool could be left in a locked state blocking all further progress. The only remedy was to stop and restart the JVM.
+
+|
+|
+
+************************************
+3.1.4
+************************************
+
+Release Date
+============
+August 3, 2012
+
+Overview
+========
+This version of Persistit changes the licensing to Eclipse Public License (EPL) and includes minor enhancements and bug fixes.
+
+New Features
+============
+
+Detection and Ignoring of Missing Volumes
+-----------------------------------------
+
+Warnings are now issues when a previously existing volume is missing, and an option to allow a system to continue by ignoring pages and transactions in the journal from missing volumes.
+
+Every time Persistit writes a modified page to disk, it does so first to the journal.  During recovery processing, the page images from the journal are analyzed and reinserted into volumes in such a way that all B+Trees are restored to a consistent state. The issue addressed in this change is how Persistit behaves during recovery if it discovers that a volume referred to by a page in the journal no longer exists.
+
+Recognizing that under some circumstances an administrator may indeed wish to remove a volume from an existing Database, this change provides a configurable switch to optionally allow pages from missing volumes to be skipped (with logged warning messages) during recovery processing.  The switch can be enabled by setting the configuration parameter ignoreMissingVolumes to true, see com.persistit.Configuration#setIgnoreMissingViolumes.
+
+
+Reduce KeyCoder Serialized Object Size
+--------------------------------------
+
+.. note::
+   Any Database containing objects serialized by a custom KeyCoder from a previous version of Persistit is incompatible with this change
+
+Minimize the per-instance overhead for application objects written into Persistit Keys by reducing the size of the internal identifier.
+
+Persistit has rich support for serializing standard Java primitive and object types into a Key. Additionally, the KeyCoder class allows for any application level object to also be appended to a Key right next to any other type. This is tagged internally with per-class handles. This change lowers the initial offset to, in many cases, halve the serialized size. 
+
+Maven POM Changes For Eclipse Juno
+----------------------------------
+
+The latest version of Eclipse, code named Juno, features a wide array of changes, including a new release of the m2eclipse plugin. In an effort to make getting started with Persistit as easy as possible, we have included the required m2e configuration sections in our pom.
+
+Please contact Akiban if you have encounter any issues getting up and running with Persistit.   
+
+Fixed Issues
+============
+
+Old Journal Files Not Being Deleted
+-----------------------------------
+
+https://launchpad.net/akiban-persistit/+bug/1028016
+
+If a volume was removed from the configuration and Persistit was restarted the associated journal files would not be removed due to internal safety checks. In the event that the missing volume is intended behavior, a new configuration option was added. See the ``Detection and Ignoring of Missing Volumes`` feature description for more details.
+
+Class Index Updates Causing Write-Write Dependencies
+----------------------------------------------------
+
+https://launchpad.net/akiban-persistit/+bug/1024857
+
+https://launchpad.net/akiban-persistit/+bug/1026207
+
+Custom classes that are serialized into keys or values, through a custom KeyCoder or ValueCoder, are given a unique identifier. The identifier is determined transactionally the first time a class is written and stored in an internal tree. This would cause seemingly spurious aborts if more than one application threads simultaneously attempt to store the first instance of a given class.
+
+Accumulator Memory Usage and Transaction Step Policy
+----------------------------------------------------
+
+https://launchpad.net/akiban-persistit/+bug/1028050
+
+https://launchpad.net/akiban-persistit/+bug/1028134
+
+Changes to Accumulators are stored were previously stored as individual Delta objects. For long running transactions that heavily utilized Accumulators, this would cause excessive memory usage. These unique instances are no eliminated in most scenarios, resulting in no memory growth in all but pathological cases.
+
+Additionally, the Accumulator handling of the Transaction step value was inconsistent with how it was treated through an Exchange. Now, both classes allow a given step x to see any change that occurred at a step less than or equal to itself.
+
+
+Known Issues
+============
+As described in the *3.1.1 Known Issues*.
+
+|
+|
+
+************************************
 3.1.2
 ************************************
 
