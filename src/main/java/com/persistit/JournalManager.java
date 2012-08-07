@@ -653,8 +653,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         synchronized (this) {
             if (address >= _writeBufferAddress && address + length <= _currentAddress) {
                 assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
-                        "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
-                                .position(), _currentAddress);
+                        "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress,
+                        _writeBuffer.position(), _currentAddress);
                 final int wbPosition = _writeBuffer.position();
                 final int wbLimit = _writeBuffer.limit();
                 _writeBuffer.position((int) (address - _writeBufferAddress));
@@ -693,33 +693,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         final ByteBuffer bb = buffer.getByteBuffer();
 
         final Volume volume = buffer.getVolume();
-        PageNode pnLookup = null;
-        synchronized (this) {
-            final Integer volumeHandle = _volumeToHandleMap.get(volume);
-            if (volumeHandle != null) {
-                pnLookup = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
-            }
-        }
-
-        if (pnLookup == null) {
+        PageNode pn = lookupUpPageNode(pageAddress, volume);
+        if (pn == null) {
             return false;
         }
-
-        PageNode pn = new PageNode(pnLookup.getVolumeHandle(), pnLookup.getPageAddress(), pnLookup.getJournalAddress(),
-                pnLookup.getTimestamp());
-        sequence(PAGE_MAP_READ_INVALIDATE_A);
-
-        /*
-         * If the page is still valid, use the values saved in pn so we don't
-         * lose them mid-processing. We can use it because it was in the map
-         * when we first looked and that means it is is still in the journal.
-         * The journal won't go away because of the claim on buffer preventing
-         * new checkpoints and that keeps the copier from deleting it.
-         */
-        if (pnLookup.isInvalid()) {
-            return false;
-        }
-
         bb.position(0);
         long recordPageAddress = readPageBufferFromJournal(pn, bb);
         _persistit.getIOMeter().chargeReadPageFromJournal(volume, pageAddress, bufferSize, pn.getJournalAddress(),
@@ -736,6 +713,36 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         _readPageCount++;
         buffer.getVolume().getStatistics().bumpReadCounter();
         return true;
+    }
+
+    PageNode lookupUpPageNode(final long pageAddress, final Volume volume) {
+        PageNode pnLookup = null;
+        synchronized (this) {
+            final Integer volumeHandle = _volumeToHandleMap.get(volume);
+            if (volumeHandle != null) {
+                pnLookup = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
+            }
+        }
+
+        if (pnLookup == null) {
+            return null;
+        }
+
+        PageNode pn = new PageNode(pnLookup.getVolumeHandle(), pnLookup.getPageAddress(), pnLookup.getJournalAddress(),
+                pnLookup.getTimestamp());
+        sequence(PAGE_MAP_READ_INVALIDATE_A);
+
+        /*
+         * If the page is still valid, use the values saved in pn so we don't
+         * lose them mid-processing. We can use it because it was in the map
+         * when we first looked and that means it is is still in the journal.
+         * The journal won't go away because of the claim on buffer preventing
+         * new checkpoints and that keeps the copier from deleting it.
+         */
+        if (pnLookup.isInvalid()) {
+            return null;
+        }
+        return pn;
     }
 
     private long readPageBufferFromJournal(final PageNode pn, final ByteBuffer bb) throws PersistitIOException,
@@ -953,8 +960,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         advance(TM.OVERHEAD);
         int offset = 0;
         for (final TransactionMapItem ts : _liveTransactionMap.values()) {
-            TM.putEntry(_writeBuffer, offset / TM.ENTRY_SIZE, ts.getStartTimestamp(), ts.getCommitTimestamp(), ts
-                    .getStartAddress(), ts.getLastRecordAddress());
+            TM.putEntry(_writeBuffer, offset / TM.ENTRY_SIZE, ts.getStartTimestamp(), ts.getCommitTimestamp(),
+                    ts.getStartAddress(), ts.getLastRecordAddress());
             offset += TM.ENTRY_SIZE;
             count--;
             if (count == 0 || offset + TM.ENTRY_SIZE >= _writeBuffer.remaining()) {
@@ -1308,8 +1315,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         if (address != Long.MAX_VALUE && _writeBuffer != null) {
 
             assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
-                    "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
-                            .position(), _currentAddress);
+                    "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress,
+                    _writeBuffer.position(), _currentAddress);
 
             try {
                 if (_writeBuffer.position() > 0) {
@@ -1365,8 +1372,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     }
 
                     assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
-                            "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
-                                    .position(), _currentAddress);
+                            "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress,
+                            _writeBuffer.position(), _currentAddress);
 
                     _persistit.getIOMeter().chargeFlushJournal(written, address);
                     return _writeBufferAddress;
@@ -1829,6 +1836,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
         PageNode _previous;
 
+        PageNode(final int volumeHandle, final long pageAddress) {
+            this(volumeHandle, pageAddress, Long.MIN_VALUE, -1);
+        }
+
         PageNode(final int volumeHandle, final long pageAddress, final long journalAddress, final long timestamp) {
             this._volumeHandle = volumeHandle;
             this._pageAddress = pageAddress;
@@ -1950,8 +1961,20 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             @Override
             public int compare(PageNode a, PageNode b) {
-                return a.getJournalAddress() > b.getJournalAddress() ? 1 : a.getJournalAddress() < b
-                        .getJournalAddress() ? -1 : 0;
+                if (!a.isInvalid() && !b.isInvalid()) {
+                    return a.getJournalAddress() > b.getJournalAddress() ? 1 : a.getJournalAddress() < b
+                            .getJournalAddress() ? -1 : 0;
+                }
+                if (a.isInvalid() && !b.isInvalid()) {
+                    return -1;
+                }
+                if (!a.isInvalid() && b.isInvalid()) {
+                    return 1;
+                }
+                if (a._volumeHandle != b._volumeHandle) {
+                    return a._volumeHandle - b._volumeHandle;
+                }
+                return a._pageAddress > b._pageAddress ? 1 : a._pageAddress < b._pageAddress ? -1 : 0;
             }
         };
 
@@ -2411,9 +2434,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 }
                 pageAddress = readPageBufferFromJournal(stablePageNode, bb);
             } catch (PersistitException ioe) {
-                _persistit.getAlertMonitor().post(
-                        new Event(AlertLevel.ERROR, _persistit.getLogBase().copyException, ioe, volume, pageNode
-                                .getPageAddress(), pageNode.getJournalAddress()), AlertMonitor.JOURNAL_CATEGORY);
+                _persistit
+                        .getAlertMonitor()
+                        .post(new Event(AlertLevel.ERROR, _persistit.getLogBase().copyException, ioe, volume,
+                                pageNode.getPageAddress(), pageNode.getJournalAddress()), AlertMonitor.JOURNAL_CATEGORY);
                 throw ioe;
             }
 
@@ -2459,8 +2483,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             }
             if (volume == null) {
                 _persistit.getAlertMonitor().post(
-                        new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volumeRef, pageNode
-                                .getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
+                        new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volumeRef,
+                                pageNode.getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
                 if (_ignoreMissingVolume.get()) {
                     _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), volumeRef,
                             pageNode.getJournalAddress());
@@ -2488,8 +2512,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             try {
                 volume.getStorage().writePage(bb, pageAddress);
             } catch (PersistitException ioe) {
-                _persistit.getLogBase().copyException.log(ioe, volume, pageNode.getPageAddress(), pageNode
-                        .getJournalAddress());
+                _persistit.getLogBase().copyException.log(ioe, volume, pageNode.getPageAddress(),
+                        pageNode.getJournalAddress());
                 throw ioe;
             }
 
@@ -2776,8 +2800,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
              */
             if (ts != null) {
                 if (ts.getMvvCount() > 0 && _persistit.isInitialized()) {
-                    _persistit.getLogBase().pruningIncomplete.log(ts, TransactionPlayer.addressToString(address,
-                            timestamp));
+                    _persistit.getLogBase().pruningIncomplete.log(ts,
+                            TransactionPlayer.addressToString(address, timestamp));
                 }
             }
         }
