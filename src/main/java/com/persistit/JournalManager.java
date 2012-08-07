@@ -77,6 +77,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;
     final static int HALF_URGENT = 5;
+    final static int URGENT_COMMIT_DELAY = 50; // delay in ms
     private final static long NS_PER_MS = 1000000L;
     private final static int IO_MEASUREMENT_CYCLES = 8;
 
@@ -140,13 +141,13 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * requires more space than is available in the current journal file, it
      * will advance to the start of the next journal file.
      */
-    private long _currentAddress;
+    private volatile long _currentAddress;
 
     /**
      * Smallest journal address at which a record still needed is located.
      * Initially zero, increases as journal files are consumed and deleted.
      */
-    private long _baseAddress;
+    private volatile long _baseAddress;
 
     private final Map<Long, FileChannel> _journalFileChannels = new HashMap<Long, FileChannel>();
 
@@ -537,16 +538,33 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * @return the JOURNAL_COPIER urgency on a scale of 0 to 10
      */
     @Override
-    public synchronized int urgency() {
+    public int urgency() {
         if (_copyFast.get()) {
             return URGENT;
         }
-        int urgency = _pageList.size() / _pageListSizeBase;
-        int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress / _blockSize);
-        if (!_appendOnly.get() && journalFileCount > 1) {
-            urgency += journalFileCount - 1;
+        int journalFileCount = (int) ((_currentAddress - _baseAddress) / _blockSize);
+        if (journalFileCount < HALF_URGENT) {
+            return journalFileCount;
         }
-        return Math.min(urgency, URGENT);
+        return Math.min(URGENT, journalFileCount - HALF_URGENT);
+    }
+
+    /**
+     * Introduce delay into an application thread when JOURNAL_COPIER thread is
+     * behind. The amount of delay depends on the value returned by
+     * {@link #urgency()}. When that value is {@value #URGENT} then the delay is
+     * {@value #URGENT_COMMIT_DELAY} milliseconds.
+     * 
+     * @throws PersistitInterruptedException
+     */
+    public void throttle() throws PersistitInterruptedException {
+        int urgency = _persistit.getJournalManager().urgency();
+        if (urgency == URGENT) {
+            Util.sleep(URGENT_COMMIT_DELAY);
+        } else if (urgency >= ALMOST_URGENT) {
+            Util.sleep(URGENT_COMMIT_DELAY / 4);
+        }
+
     }
 
     int handleForVolume(final Volume volume) throws PersistitException {
@@ -648,8 +666,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         synchronized (this) {
             if (address >= _writeBufferAddress && address + length <= _currentAddress) {
                 assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
-                        "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
-                                .position(), _currentAddress);
+                        "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress,
+                        _writeBuffer.position(), _currentAddress);
                 final int wbPosition = _writeBuffer.position();
                 final int wbLimit = _writeBuffer.limit();
                 _writeBuffer.position((int) (address - _writeBufferAddress));
@@ -948,8 +966,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         advance(TM.OVERHEAD);
         int offset = 0;
         for (final TransactionMapItem ts : _liveTransactionMap.values()) {
-            TM.putEntry(_writeBuffer, offset / TM.ENTRY_SIZE, ts.getStartTimestamp(), ts.getCommitTimestamp(), ts
-                    .getStartAddress(), ts.getLastRecordAddress());
+            TM.putEntry(_writeBuffer, offset / TM.ENTRY_SIZE, ts.getStartTimestamp(), ts.getCommitTimestamp(),
+                    ts.getStartAddress(), ts.getLastRecordAddress());
             offset += TM.ENTRY_SIZE;
             count--;
             if (count == 0 || offset + TM.ENTRY_SIZE >= _writeBuffer.remaining()) {
@@ -1303,8 +1321,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         if (address != Long.MAX_VALUE && _writeBuffer != null) {
 
             assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
-                    "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
-                            .position(), _currentAddress);
+                    "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress,
+                    _writeBuffer.position(), _currentAddress);
 
             try {
                 if (_writeBuffer.position() > 0) {
@@ -1360,8 +1378,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     }
 
                     assert _writeBufferAddress + _writeBuffer.position() == _currentAddress : String.format(
-                            "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress, _writeBuffer
-                                    .position(), _currentAddress);
+                            "writeBufferAddress=%,d position=%,d currentAddress=%,d", _writeBufferAddress,
+                            _writeBuffer.position(), _currentAddress);
 
                     _persistit.getIOMeter().chargeFlushJournal(written, address);
                     return _writeBufferAddress;
@@ -2133,7 +2151,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             int divisor = 1;
 
             if (iom.recentCharge() < iom.getQuiescentIOthreshold()) {
-                divisor = URGENT - HALF_URGENT;
+                divisor = HALF_URGENT;
             } else if (urgency > HALF_URGENT) {
                 divisor = urgency - HALF_URGENT;
             }
@@ -2406,9 +2424,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 }
                 pageAddress = readPageBufferFromJournal(stablePageNode, bb);
             } catch (PersistitException ioe) {
-                _persistit.getAlertMonitor().post(
-                        new Event(AlertLevel.ERROR, _persistit.getLogBase().copyException, ioe, volume, pageNode
-                                .getPageAddress(), pageNode.getJournalAddress()), AlertMonitor.JOURNAL_CATEGORY);
+                _persistit
+                        .getAlertMonitor()
+                        .post(new Event(AlertLevel.ERROR, _persistit.getLogBase().copyException, ioe, volume,
+                                pageNode.getPageAddress(), pageNode.getJournalAddress()), AlertMonitor.JOURNAL_CATEGORY);
                 throw ioe;
             }
 
@@ -2454,8 +2473,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             }
             if (volume == null) {
                 _persistit.getAlertMonitor().post(
-                        new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volumeRef, pageNode
-                                .getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
+                        new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volumeRef,
+                                pageNode.getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
                 if (_ignoreMissingVolume.get()) {
                     _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), volumeRef,
                             pageNode.getJournalAddress());
@@ -2483,15 +2502,15 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             try {
                 volume.getStorage().writePage(bb, pageAddress);
             } catch (PersistitException ioe) {
-                _persistit.getLogBase().copyException.log(ioe, volume, pageNode.getPageAddress(), pageNode
-                        .getJournalAddress());
+                _persistit.getLogBase().copyException.log(ioe, volume, pageNode.getPageAddress(),
+                        pageNode.getJournalAddress());
                 throw ioe;
             }
 
             volumes.add(volume);
             _copiedPageCount++;
             _persistit.getIOMeter().chargeCopyPageToVolume(volume, pageAddress, volume.getPageSize(),
-                    pageNode.getJournalAddress(), _copyFast.get() ? URGENT : urgency());
+                    pageNode.getJournalAddress(), urgency());
         }
 
         for (final Volume vol : volumes) {
@@ -2543,6 +2562,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             // Detect first journal address holding a mapped page
             // required for recovery
             //
+            PageNode boundaryPageNode = null;
+            TransactionMapItem boundaryTransaction = null;
+
             for (final PageNode pageNode : _pageMap.values()) {
                 //
                 // If there are multiple versions, we need to keep
@@ -2551,6 +2573,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 for (PageNode pn = pageNode; pn != null; pn = pn.getPrevious()) {
                     if (pn.getJournalAddress() < recoveryBoundary) {
                         recoveryBoundary = pn.getJournalAddress();
+                        boundaryPageNode = pn;
                     }
                 }
             }
@@ -2560,9 +2583,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             //
             for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator
                     .hasNext();) {
-                final TransactionMapItem ts = iterator.next();
-                if (ts.getStartAddress() < recoveryBoundary) {
-                    recoveryBoundary = ts.getStartAddress();
+                final TransactionMapItem item = iterator.next();
+                if (item.getStartAddress() < recoveryBoundary) {
+                    recoveryBoundary = item.getStartAddress();
+                    boundaryTransaction = item;
                 }
             }
 
@@ -2771,8 +2795,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
              */
             if (ts != null) {
                 if (ts.getMvvCount() > 0 && _persistit.isInitialized()) {
-                    _persistit.getLogBase().pruningIncomplete.log(ts, TransactionPlayer.addressToString(address,
-                            timestamp));
+                    _persistit.getLogBase().pruningIncomplete.log(ts,
+                            TransactionPlayer.addressToString(address, timestamp));
                 }
             }
         }
