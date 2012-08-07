@@ -460,7 +460,7 @@ public class Transaction {
          * higher than with the HARD policy.
          */
         GROUP;
-        
+
         static CommitPolicy forName(final String policyName) {
             for (CommitPolicy policy : values()) {
                 if (policy.name().equalsIgnoreCase(policyName)) {
@@ -594,7 +594,7 @@ public class Transaction {
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
             } catch (InterruptedException e) {
-            	_rollbackCompleted = true;
+                _rollbackCompleted = true;
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
@@ -621,7 +621,7 @@ public class Transaction {
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
             } catch (InterruptedException e) {
-            	_rollbackCompleted = true;
+                _rollbackCompleted = true;
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
@@ -862,12 +862,14 @@ public class Transaction {
                         policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
                 committed = true;
             } finally {
-            	
+
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
                         committed ? _commitTimestamp : TransactionStatus.ABORTED);
                 _commitCompleted = committed;
                 _rollbackPending = _rollbackCompleted = !committed;
             }
+
+            _persistit.getJournalManager().throttle();
         }
     }
 
@@ -1293,7 +1295,7 @@ public class Transaction {
                     + MAXIMUM_STEP);
         }
     }
-    
+
     private int treeHandle(final Tree tree) {
         final int treeHandle = tree.getHandle();
         assert treeHandle != 0 : "Undefined tree handle in " + tree;
