@@ -57,11 +57,6 @@ public class BufferPool {
     private final static long DEFAULT_WRITER_POLL_INTERVAL = 5000;
 
     private final static int PAGE_WRITER_TRANCHE_SIZE = 5000;
-
-    /**
-     * Default PageCacher polling interval
-     */
-    private final static long DEFAULT_CACHER_POLL_INTERVAL = 3000000;
     
     /**
      * Sleep time when buffers are exhausted
@@ -210,7 +205,7 @@ public class BufferPool {
     /**
      * Polling interval for PageCacher
      */
-    private volatile long _cacherPollInterval = DEFAULT_CACHER_POLL_INTERVAL;
+    private volatile long _cacherPollInterval;
     
     /**
      * The PAGE_WRITER IOTaskRunnable
@@ -320,6 +315,7 @@ public class BufferPool {
                 }
             }
             reader.close();
+            _cacherPollInterval = _persistit.getConfiguration().getBufferPollingInterval();
             _cacher.start();
         }
         catch (IOException e) {

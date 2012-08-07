@@ -284,6 +284,8 @@ public class Configuration {
      * Property name to specify the"buffer inventory" property name.
      */
     public final static String BUFFER_INVENTORY_PROPERTY_NAME = "bufferinventory";
+    
+    public final static String BUFFER_POLLING_INTERVAL_PROPERTY = "bufferpollinginterval";
 
     /**
      * Property name to specify the default {@link JoinPolicy}.
@@ -636,6 +638,7 @@ public class Configuration {
     private boolean jmx = true;
     private boolean appendOnly;
     private String bufferInventoryPathName;
+    private int bufferPollingInterval = 3000000; // default five minute polling
     private boolean ignoreMissingVolumes;
     private String tmpVolDir;
     private int tmpVolPageSize;
@@ -715,6 +718,7 @@ public class Configuration {
 
     void loadProperties() throws InvalidVolumeSpecificationException {
         setBufferInventoryPathName(getProperty(BUFFER_INVENTORY_PROPERTY_NAME));
+        setBufferPollingInterval(getIntegerProperty(BUFFER_POLLING_INTERVAL_PROPERTY, bufferPollingInterval));
         setAppendOnly(getBooleanProperty(APPEND_ONLY_PROPERTY, false));
         setCommitPolicy(getProperty(COMMIT_POLICY_PROPERTY_NAME));
         setConstructorOverride(getBooleanProperty(CONSTRUCTOR_OVERRIDE_PROPERTY_NAME, false));
@@ -1840,6 +1844,31 @@ public class Configuration {
     public void setBufferInventoryPathName(String pathName) {
         bufferInventoryPathName = pathName;
 
+    }
+    
+    /**
+     * Return polling interval defined by {@link #getBufferPollingInterval}
+     * @return  the number of seconds wait between warm-up polls
+     */
+    public int getBufferPollingInterval() {
+        return bufferPollingInterval;
+    }
+    
+    /**
+     * <p>
+     * Control the number of seconds between each poll for the 
+     * cache warm-up option in Persistit.
+     * </p>
+     * <p>
+     * Default value is <code>3000000</code><br />
+     * Property name is {@value #BUFFER_POLLING_INTERVAL_PROPERTY}
+     * </p>
+     * 
+     * @param seconds
+     *            the number of seconds between polls
+     */
+    public void setBufferPollingInterval(int seconds) {
+        bufferPollingInterval = seconds;
     }
     
     /**
