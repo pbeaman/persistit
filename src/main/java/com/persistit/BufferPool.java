@@ -315,7 +315,7 @@ public class BufferPool {
                 }
             }
             reader.close();
-            _cacherPollInterval = _persistit.getConfiguration().getBufferPollingInterval();
+            _cacherPollInterval = _persistit.getConfiguration().getBufferInventoryPollingInterval();
             _cacher.start();
         }
         catch (IOException e) {

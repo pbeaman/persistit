@@ -638,7 +638,7 @@ public class Configuration {
     private boolean jmx = true;
     private boolean appendOnly;
     private String bufferInventoryPathName;
-    private int bufferPollingInterval = 3000000; // default five minute polling
+    private long bufferInventoryPollInterval = 3000000; // default five minute polling
     private boolean ignoreMissingVolumes;
     private String tmpVolDir;
     private int tmpVolPageSize;
@@ -718,7 +718,7 @@ public class Configuration {
 
     void loadProperties() throws InvalidVolumeSpecificationException {
         setBufferInventoryPathName(getProperty(BUFFER_INVENTORY_PROPERTY_NAME));
-        setBufferPollingInterval(getIntegerProperty(BUFFER_POLLING_INTERVAL_PROPERTY, bufferPollingInterval));
+        setBufferInventoryPollingInterval(getLongProperty(BUFFER_POLLING_INTERVAL_PROPERTY, bufferInventoryPollInterval));
         setAppendOnly(getBooleanProperty(APPEND_ONLY_PROPERTY, false));
         setCommitPolicy(getProperty(COMMIT_POLICY_PROPERTY_NAME));
         setConstructorOverride(getBooleanProperty(CONSTRUCTOR_OVERRIDE_PROPERTY_NAME, false));
@@ -1847,11 +1847,11 @@ public class Configuration {
     }
     
     /**
-     * Return polling interval defined by {@link #getBufferPollingInterval}
+     * Return polling interval defined by {@link #getBufferInventoryPollingInterval}
      * @return  the number of seconds wait between warm-up polls
      */
-    public int getBufferPollingInterval() {
-        return bufferPollingInterval;
+    public long getBufferInventoryPollingInterval() {
+        return bufferInventoryPollInterval;
     }
     
     /**
@@ -1860,15 +1860,15 @@ public class Configuration {
      * cache warm-up option in Persistit.
      * </p>
      * <p>
-     * Default value is <code>3000000</code><br />
+     * Default value is <code>3000</code><br />
      * Property name is {@value #BUFFER_POLLING_INTERVAL_PROPERTY}
      * </p>
      * 
      * @param seconds
      *            the number of seconds between polls
      */
-    public void setBufferPollingInterval(int seconds) {
-        bufferPollingInterval = seconds;
+    public void setBufferInventoryPollingInterval(long seconds) {
+        bufferInventoryPollInterval = Util.rangeCheck(seconds, 60L, Long.MAX_VALUE) * 1000L;
     }
     
     /**

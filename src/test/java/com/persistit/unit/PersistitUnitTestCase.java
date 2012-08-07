@@ -59,10 +59,7 @@ public abstract class PersistitUnitTestCase {
     public void setUp() throws Exception {
         checkNoPersistitThreads();
         
-        // Use warm-up capability on tests
-        Properties prop = getProperties(true);
-        prop.setProperty("bufferinventory", "/tmp/persistit_test_data");
-        _persistit.initialize(prop);
+        _persistit.initialize(getProperties(true));
     }
 
     @After

@@ -21,21 +21,11 @@
 package com.persistit;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertTrue;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.util.Properties;
 
 import org.junit.Test;
 
 import com.persistit.unit.PersistitUnitTestCase;
-
-class BuffInfo {
-	public long page;
-	public Volume vol;
-}
 
 public class WarmupTest extends PersistitUnitTestCase {
 	
@@ -60,7 +50,6 @@ public class WarmupTest extends PersistitUnitTestCase {
         }
         
         Properties properties = _persistit.getProperties();
-        properties.setProperty("bufferinventory", "/tmp/persistit_test_data/");
         ex = null;
         _persistit.close();
 
