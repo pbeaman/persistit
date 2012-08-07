@@ -3692,6 +3692,8 @@ public class Exchange {
             buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
             _value.setPointerValue(page);
             _value.setPointerPageType(buffer.getPageType());
+            buffer.release();
+            buffer = null;
             storeInternal(_spareKey2, _value, level + 1, Exchange.StoreOptions.NONE);
             return true;
         } finally {

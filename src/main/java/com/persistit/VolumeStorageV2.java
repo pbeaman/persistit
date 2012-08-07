@@ -15,11 +15,13 @@
 
 package com.persistit;
 
-import static com.persistit.VolumeHeader.*;
+import static com.persistit.VolumeHeader.changeCreateTime;
+import static com.persistit.VolumeHeader.changeDirectoryRoot;
 import static com.persistit.VolumeHeader.changeExtendedPageCount;
 import static com.persistit.VolumeHeader.changeExtensionPages;
 import static com.persistit.VolumeHeader.changeFetchCounter;
 import static com.persistit.VolumeHeader.changeGarbageRoot;
+import static com.persistit.VolumeHeader.changeGlobalTimestamp;
 import static com.persistit.VolumeHeader.changeInitialPages;
 import static com.persistit.VolumeHeader.changeLastExtensionTime;
 import static com.persistit.VolumeHeader.changeLastReadTime;
@@ -35,6 +37,7 @@ import static com.persistit.VolumeHeader.getCreateTime;
 import static com.persistit.VolumeHeader.getDirectoryRoot;
 import static com.persistit.VolumeHeader.getExtensionPages;
 import static com.persistit.VolumeHeader.getGarbageRoot;
+import static com.persistit.VolumeHeader.getGlobalTimestamp;
 import static com.persistit.VolumeHeader.getId;
 import static com.persistit.VolumeHeader.getInitialPages;
 import static com.persistit.VolumeHeader.getLastExtensionTime;
@@ -53,8 +56,8 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 
-import com.persistit.AlertMonitor.Event;
 import com.persistit.AlertMonitor.AlertLevel;
+import com.persistit.AlertMonitor.Event;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
