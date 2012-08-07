@@ -18,7 +18,6 @@ package com.persistit;
 import org.junit.Test;
 
 import com.persistit.Exchange;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class Bug739533Test extends PersistitUnitTestCase {
 

@@ -45,7 +45,6 @@ import org.junit.Test;
 import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TreeNotFoundException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 public class TreeLifetimeTest extends PersistitUnitTestCase {

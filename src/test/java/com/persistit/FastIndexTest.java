@@ -22,7 +22,6 @@ import java.util.Random;
 import org.junit.Test;
 
 import com.persistit.ValueHelper.RawValueWriter;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class FastIndexTest extends PersistitUnitTestCase {
 

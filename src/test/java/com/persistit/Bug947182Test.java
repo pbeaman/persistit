@@ -41,7 +41,6 @@ import com.persistit.Exchange;
 import com.persistit.Persistit;
 import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 public class Bug947182Test extends PersistitUnitTestCase {

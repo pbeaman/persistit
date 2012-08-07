@@ -22,7 +22,6 @@ import org.junit.Test;
 import com.persistit.Exchange.Sequence;
 import com.persistit.exception.PersistitException;
 import com.persistit.policy.SplitPolicy;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class InsertSequenceTest extends PersistitUnitTestCase {
 

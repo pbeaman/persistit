@@ -28,6 +28,7 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Management;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.Value;
 import com.persistit.Volume;
 import com.persistit.exception.PersistitException;

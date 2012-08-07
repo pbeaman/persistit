@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
 import org.junit.Test;
 
 import com.persistit.Persistit;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.exception.PersistitException;
 import com.persistit.logging.Log4JAdapter;
 

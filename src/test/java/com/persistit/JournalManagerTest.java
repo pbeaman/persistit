@@ -46,7 +46,6 @@ import com.persistit.JournalManager.PageNode;
 import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 import com.persistit.util.Util;
 
@@ -88,6 +87,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         jman.writeCheckpointToJournal(checkpoint1);
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
         volume.getTree("JournalManagerTest1", false).resetHandle();
+
         assertTrue(exchange.next(true));
         final long[] timestamps = new long[100];
 
@@ -296,6 +296,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     public void testRollback() throws Exception {
         // Allow test to control when pruning will happen
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
+        _persistit.getJournalManager().setWritePagePruningEnabled(false);
         final Transaction txn = _persistit.getTransaction();
         for (int i = 0; i < 10; i++) {
             txn.begin();
@@ -346,6 +347,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     public void testRollbackLongRecords() throws Exception {
         // Allow test to control when pruning will happen
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
+        _persistit.getJournalManager().setWritePagePruningEnabled(false);
+
         final Volume volume = _persistit.getVolume(_volumeName);
         final Transaction txn = _persistit.getTransaction();
         for (int i = 0; i < 10; i++) {

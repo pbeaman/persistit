@@ -27,7 +27,6 @@ import java.util.Set;
 import org.junit.Test;
 
 import com.persistit.JournalManager.TreeDescriptor;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class Bug1018526Test extends PersistitUnitTestCase {
 

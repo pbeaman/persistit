@@ -20,10 +20,10 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.persistit.Exchange;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.Transaction;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.RollbackException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 import com.persistit.util.ArgParser;
 

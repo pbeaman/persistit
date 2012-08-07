@@ -19,7 +19,6 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Transaction;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * 

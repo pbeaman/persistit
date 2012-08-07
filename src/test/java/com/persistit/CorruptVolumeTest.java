@@ -23,7 +23,6 @@ import org.junit.Test;
 
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class CorruptVolumeTest extends PersistitUnitTestCase {
 

@@ -26,7 +26,6 @@ import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Persistit;
 import com.persistit.Transaction;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * At a DP site experiencing very low insert rates the JournalManager was

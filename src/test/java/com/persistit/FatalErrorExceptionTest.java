@@ -20,7 +20,6 @@ import static org.junit.Assert.fail;
 import org.junit.Test;
 
 import com.persistit.Persistit.FatalErrorException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class FatalErrorExceptionTest extends PersistitUnitTestCase {
 

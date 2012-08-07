@@ -24,7 +24,6 @@ import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TreeNotFoundException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * Attempt to cover all cases from the pseudo graph below and ensure that the
@@ -62,6 +61,8 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         _persistit.getCheckpointManager().setCheckpointIntervalNanos(FIVE_MIN_NANOS);
         super.setUp();
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
+        _persistit.getJournalManager().setWritePagePruningEnabled(false);
+
     }
 
     @Test
@@ -351,6 +352,8 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
                     currentInLiveMap = false;
                     safeCrashAndRestoreProperties();
                     _persistit.getJournalManager().setRollbackPruningEnabled(false);
+                    _persistit.getJournalManager().setWritePagePruningEnabled(false);
+
                 } else {
                     fail("Unknown test node: " + curNode);
                 }

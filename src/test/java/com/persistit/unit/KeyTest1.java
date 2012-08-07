@@ -30,6 +30,7 @@ import org.junit.Test;
 import com.persistit.Buffer;
 import com.persistit.Key;
 import com.persistit.KeyState;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.TestShim;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.MissingKeySegmentException;

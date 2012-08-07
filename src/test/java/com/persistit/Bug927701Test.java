@@ -19,7 +19,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * Failure detected during TPCC testing. Upon restarting server, the following
@@ -54,7 +53,7 @@ public class Bug927701Test extends PersistitUnitTestCase {
     @Test
     public void testBug927701() throws Exception {
         final JournalManager jman = _persistit.getJournalManager();
-        _persistit.getCleanupManager().setMinimumPruningDelay(0);
+        disableBackgroundCleanup();
         jman.setCopierInterval(1000);
         final long blockSize = jman.getBlockSize();
         /*

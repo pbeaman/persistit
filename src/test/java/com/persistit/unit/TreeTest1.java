@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
+import com.persistit.PersistitUnitTestCase;
 
 public class TreeTest1 extends PersistitUnitTestCase {
 

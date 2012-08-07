@@ -49,7 +49,7 @@ class TransactionIndex implements TransactionIndexMXBean {
     /**
      * Interval in milliseconds for updating the active transaction cache
      */
-    final static long POLLING_TASK_INTERVAL = 50;
+    final static long POLLING_TASK_INTERVAL = 10;
 
     /**
      * Default threshold value for moving long-running transactions to the

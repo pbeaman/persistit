@@ -21,7 +21,6 @@ import java.util.WeakHashMap;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class AccumulatorMemoryTest extends PersistitUnitTestCase {
 

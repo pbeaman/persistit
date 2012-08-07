@@ -28,6 +28,7 @@ import java.util.TreeMap;
 
 import org.junit.Test;
 
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.Value;
 import com.persistit.util.Util;
 

@@ -24,7 +24,6 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * Suppose a persistit tree has keys (1, 10), (1, 20), (2, 30). If an exchange's

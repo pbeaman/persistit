@@ -24,6 +24,7 @@ import java.util.TreeMap;
 import org.junit.Test;
 
 import com.persistit.PersistitMap;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.StreamLoader;
 import com.persistit.StreamSaver;
 import com.persistit.exception.PersistitException;

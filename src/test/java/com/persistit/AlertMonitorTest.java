@@ -31,7 +31,6 @@ import com.persistit.AlertMonitor.History;
 import com.persistit.logging.PersistitLevel;
 import com.persistit.logging.PersistitLogMessage.LogItem;
 import com.persistit.logging.PersistitLogger;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class AlertMonitorTest extends PersistitUnitTestCase {
 

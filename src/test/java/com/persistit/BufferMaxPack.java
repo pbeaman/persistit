@@ -20,7 +20,6 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import com.persistit.ValueHelper.RawValueWriter;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class BufferMaxPack extends PersistitUnitTestCase {
 

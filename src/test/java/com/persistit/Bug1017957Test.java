@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 import com.persistit.mxbeans.ManagementMXBean;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 /**

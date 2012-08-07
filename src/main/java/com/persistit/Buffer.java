@@ -263,6 +263,9 @@ public class Buffer extends SharedResource {
     public final static int MAX_KEY_RATIO = 16;
 
     private final static int BINARY_SEARCH_THRESHOLD = 6;
+    
+    private final static int PRUNE_MVV_HELPER_CHANGED = 1;
+    private final static int PRUNE_MVV_HELPER_HAS_LONG = 2;
 
     abstract static class VerifyVisitor {
 
@@ -501,15 +504,23 @@ public class Buffer extends SharedResource {
         Debug.$assert0.t(isMine());
         final long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
         if (isDirty() && !isTemporary() && getTimestamp() < checkpointTimestamp && timestamp > checkpointTimestamp) {
-            writePage();
+            writePage(false);
             _pool.bumpForcedCheckpointWrites();
         }
     }
 
     void writePage() throws PersistitException {
+        writePage(_persistit.getJournalManager().isWritePagePruningEnabled());
+    }
+
+    private void writePage(final boolean prune) throws PersistitException {
+        assert isMine();
         _persistit.checkFatal();
         final Volume volume = getVolume();
         if (volume != null) {
+            if (prune) {
+                pruneMvvValues(null, false);
+            }
             clearSlack();
             save();
             _vol.getStorage().writePage(this);
@@ -3461,7 +3472,12 @@ public class Buffer extends SharedResource {
                     if (visitor != null) {
                         visitor.visitDataRecord(key, p, tail, klength, offset, length, getBytes());
                     }
-                    Debug.$assert1.t(MVV.verify(_bytes, offset, length));
+                    
+                    if (!MVV.verify(_bytes, offset, length)) {
+                        throw new InvalidPageStructureException("invalid MVV record at offset/length=" + offset + "/"
+                                + length);
+                    }
+
                 }
 
                 if (_pool != null && getKeyCount() > _pool.getMaxKeys()) {
@@ -3541,63 +3557,15 @@ public class Buffer extends SharedResource {
                 final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                 _mvvCount = 0;
                 writePageOnCheckpoint(timestamp);
-                List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
-                for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
-                    final int kbData = getInt(p);
-                    final int tail = decodeKeyBlockTail(kbData);
-                    final int tbData = getInt(tail);
-                    final int klength = decodeTailBlockKLength(tbData);
-                    final int oldTailSize = decodeTailBlockSize(tbData);
-                    final int offset = tail + _tailHeaderSize + klength;
-                    final int oldSize = oldTailSize - klength - _tailHeaderSize;
-
-                    if (oldSize > 0) {
-                        int valueByte = _bytes[offset] & 0xFF;
-                        if (isLongMVV(_bytes, offset, oldSize)) {
-                            /*
-                             * Can't prune in this pass because of long record
-                             * timestamp management. Simply remember that there
-                             * are long records to prune, then prune them in a
-                             * copy of the buffer.
-                             */
-                            hasLongMvvRecords = true;
-                        }
-                        if (valueByte == MVV.TYPE_MVV) {
-                            final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(),
-                                    true, prunedVersions);
-                            if (newSize != oldSize) {
-                                changed = true;
-                                int newTailSize = klength + newSize + _tailHeaderSize;
-                                int oldNext = (tail + oldTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-                                int newNext = (tail + newTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-                                if (newNext < oldNext) {
-                                    // Free the remainder of the old tail block
-                                    deallocTail(newNext, oldNext - newNext);
-                                } else {
-                                    Debug.$assert0.t(newNext == oldNext);
-                                }
-                                // Rewrite the tail block header
-                                putInt(tail, encodeTailBlock(newTailSize, klength));
-                                if (Debug.ENABLED) {
-                                    MVV.verify(_bytes, offset, newSize);
-                                }
-                            }
-                            valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
-                            incCountIfMvv(_bytes, offset, newSize);
-                        }
-
-                        if (pruneAntiValue(valueByte, p, tree)) {
-                            changed = true;
-                            p -= KEYBLOCK_LENGTH;
-                        }
-                    }
-                }
+                int flags = pruneMvvValuesHelper(tree);
+                changed = (flags & PRUNE_MVV_HELPER_CHANGED) != 0;
+                hasLongMvvRecords = (flags & PRUNE_MVV_HELPER_HAS_LONG) != 0;
+                
                 if (changed) {
                     setDirtyAtTimestamp(timestamp);
                 }
 
-                deallocatePrunedVersions(_persistit, _vol, prunedVersions);
-                prunedVersions.clear();
+                List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
 
                 if (pruneLongMVVs && hasLongMvvRecords) {
                     List<PersistitException> deferredExceptions = new ArrayList<PersistitException>();
@@ -3638,6 +3606,66 @@ public class Buffer extends SharedResource {
         }
 
         return changed;
+    }
+    
+    private int pruneMvvValuesHelper(final Tree tree) throws PersistitException {
+        boolean changed = false;
+        boolean hasLongMvvRecords = false;
+        List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
+
+        for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
+            final int kbData = getInt(p);
+            final int tail = decodeKeyBlockTail(kbData);
+            final int tbData = getInt(tail);
+            final int klength = decodeTailBlockKLength(tbData);
+            final int oldTailSize = decodeTailBlockSize(tbData);
+            final int offset = tail + _tailHeaderSize + klength;
+            final int oldSize = oldTailSize - klength - _tailHeaderSize;
+
+            if (oldSize > 0) {
+                int valueByte = _bytes[offset] & 0xFF;
+                if (isLongMVV(_bytes, offset, oldSize)) {
+                    /*
+                     * Can't prune in this pass because of long record
+                     * timestamp management. Simply remember that there
+                     * are long records to prune, then prune them in a
+                     * copy of the buffer.
+                     */
+                    hasLongMvvRecords = true;
+                }
+                if (valueByte == MVV.TYPE_MVV) {
+                    final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(),
+                            true, prunedVersions);
+                    if (newSize != oldSize) {
+                        changed = true;
+                        int newTailSize = klength + newSize + _tailHeaderSize;
+                        int oldNext = (tail + oldTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+                        int newNext = (tail + newTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+                        if (newNext < oldNext) {
+                            // Free the remainder of the old tail block
+                            deallocTail(newNext, oldNext - newNext);
+                        } else {
+                            Debug.$assert0.t(newNext == oldNext);
+                        }
+                        // Rewrite the tail block header
+                        putInt(tail, encodeTailBlock(newTailSize, klength));
+                        if (Debug.ENABLED) {
+                            MVV.verify(_bytes, offset, newSize);
+                        }
+                    }
+                    valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
+                    incCountIfMvv(_bytes, offset, newSize);
+                }
+
+                if (pruneAntiValue(valueByte, p, tree)) {
+                    changed = true;
+                    p -= KEYBLOCK_LENGTH;
+                }
+            }
+        }
+        deallocatePrunedVersions(_persistit, _vol, prunedVersions);
+        prunedVersions.clear();
+        return (changed ? PRUNE_MVV_HELPER_CHANGED : 0) | (hasLongMvvRecords ? PRUNE_MVV_HELPER_HAS_LONG : 0); 
     }
 
     /**

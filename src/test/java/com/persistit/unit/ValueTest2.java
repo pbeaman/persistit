@@ -30,6 +30,7 @@ import java.util.TreeMap;
 import org.junit.Test;
 
 import com.persistit.Exchange;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.Value;
 import com.persistit.encoding.CollectionValueCoder;
 import com.persistit.exception.PersistitException;

@@ -24,7 +24,6 @@ import org.junit.Test;
 
 import com.persistit.CleanupManager.CleanupAction;
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class CleanupManagerTest extends PersistitUnitTestCase {
 

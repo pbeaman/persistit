@@ -207,6 +207,12 @@ public interface JournalManagerMXBean {
     @Description("True to enable pruning of rolled-back transactions")
     boolean isRollbackPruningEnabled();
 
+    @Description("True to enable pruning when writing pages to journal")
+    void setWritePagePruningEnabled(boolean rollbackPruning);
+
+    @Description("True to enable pruning when writing pages to journal")
+    boolean isWritePagePruningEnabled();
+
     @Description("Degree of urgency for copying pages: 0-10")
     int urgency();
 

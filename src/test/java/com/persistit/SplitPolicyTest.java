@@ -24,7 +24,6 @@ import org.junit.Test;
 
 import com.persistit.Exchange.Sequence;
 import com.persistit.policy.SplitPolicy;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class SplitPolicyTest extends PersistitUnitTestCase {
 
