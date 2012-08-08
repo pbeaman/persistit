@@ -589,6 +589,9 @@ public class Persistit {
                 initializeVolumes();
                 startJournal();
                 startBufferPools();
+                if (_configuration.getBufferInventoryPathName() != null) {
+                    warmupBufferPools();
+                }
                 finishRecovery();
                 startCheckpointManager();
                 startTransactionIndexPollTask();
@@ -714,6 +717,13 @@ public class Persistit {
     void startBufferPools() throws PersistitException {
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.startThreads();
+        }
+    }
+    
+    void warmupBufferPools() throws PersistitException {
+        String pathName = _configuration.getBufferInventoryPathName();
+        for (final BufferPool pool : _bufferPoolTable.values()) {
+            pool.warmupBufferPool(pathName, pool.toString());
         }
     }
 

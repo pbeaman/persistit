@@ -53,6 +53,7 @@ public abstract class PersistitUnitTestCase {
     @Before
     public void setUp() throws Exception {
         checkNoPersistitThreads();
+        
         _persistit.initialize(getProperties(true));
     }
 
@@ -83,7 +84,7 @@ public abstract class PersistitUnitTestCase {
         } catch (final Throwable t) {
             t.printStackTrace();
         } finally {
-            tearDown();
+           tearDown();
         }
     }
 
