@@ -297,6 +297,7 @@ public abstract class AbstractSuite {
         c.setJournalPath(substitute("$datapath$/persistit_journal"));
         c.setLogFile(substitute("$datapath$/persistit_$timestamp$.log"));
         c.setRmiPort(8081);
+        c.setBufferInventoryPathName("/tmp/persistit_test_data");
         BufferPoolConfiguration bpc = c.getBufferPoolMap().get(pageSize);
         if (mem.contains(",")) {
             bpc.parseBufferMemory(pageSize, "buffer.memory." + pageSize, mem);
