@@ -298,8 +298,6 @@ public class BufferPool {
     }
 
     void warmupBufferPool(String pathName, String fname) throws PersistitException {
-        System.out.println("Warmup buffer pool has been enabled");
-
         File file = new File(pathName, fname + ".log");
         _defaultLogPath = file.getAbsolutePath();
         final JournalManager jman = _persistit.getJournalManager();
@@ -453,7 +451,7 @@ public class BufferPool {
         }
     }
 
-    private void populateWarmupFile() throws PersistitException {
+    protected void populateWarmupFile() throws PersistitException {
         File file = new File(_defaultLogPath);
 
         try {
