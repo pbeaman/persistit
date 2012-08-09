@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -308,6 +309,7 @@ public class BufferPool {
                 file.createNewFile();
             }
             List<PageNode> pageNodes = new ArrayList<PageNode>();
+            HashMap<String, Volume> volumeMap = new HashMap<String, Volume>();
             BufferedReader reader = new BufferedReader(new FileReader(file));
             String currLine;
             while ((currLine = reader.readLine()) != null) {
@@ -321,12 +323,14 @@ public class BufferPool {
                             pn = new PageNode(vol.getHandle(), page);
                         }
                         pageNodes.add(pn);
+                        volumeMap.put(vol.getName(), vol);
                     }
                 }
             }
             Collections.sort(pageNodes, PageNode.READ_COMPARATOR);
             for (final PageNode pn : pageNodes) {
-                Buffer buff = get(jman.lookupVolumeHandle(pn.getVolumeHandle()),
+                Volume vol = jman.lookupVolumeHandle(pn.getVolumeHandle());
+                Buffer buff = get(volumeMap.get(vol.getName()),
                         pn.getPageAddress(), false, true);
                 buff.release();
             }
