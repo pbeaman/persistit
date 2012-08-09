@@ -1521,11 +1521,15 @@ public class Exchange {
                             long versionHandle = TransactionIndex.tss2vh(_transaction.getStartTimestamp(), tStep);
                             int storedLength = MVV.storeVersion(spareBytes, 0, spareSize, spareBytes.length,
                                     versionHandle, value.getEncodedBytes(), 0, valueSize);
-
+                            
                             incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
                             storedLength &= MVV.STORE_LENGTH_MASK;
                             spareValue.setEncodedSize(storedLength);
+                            
+                            // TODO remove after debugging
+                            MVV.verify(_persistit.getTransactionIndex(), spareBytes, 0, storedLength);
 
+                            
                             if (spareValue.getEncodedSize() > maxSimpleValueSize) {
                                 newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(spareValue,
                                         _transaction.isActive());

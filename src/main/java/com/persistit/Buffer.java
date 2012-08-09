@@ -263,7 +263,7 @@ public class Buffer extends SharedResource {
     public final static int MAX_KEY_RATIO = 16;
 
     private final static int BINARY_SEARCH_THRESHOLD = 6;
-    
+
     private final static int PRUNE_MVV_HELPER_CHANGED = 1;
     private final static int PRUNE_MVV_HELPER_HAS_LONG = 2;
 
@@ -1509,9 +1509,13 @@ public class Buffer extends SharedResource {
                 Debug.$assert0.t(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0 : true);
                 putInt(newTail + TAILBLOCK_POINTER, pointer);
             } else {
-                int storedLength = valueHelper.storeVersion(_bytes, newTail + _tailHeaderSize + klength, -1,
-                        _bytes.length); // TODO limit
-                incCountIfMvv(_bytes, newTail + _tailHeaderSize + klength, storedLength & MVV.STORE_LENGTH_MASK);
+                int offset = newTail + _tailHeaderSize + klength;
+                int storedLength = valueHelper.storeVersion(_bytes, offset, -1, _bytes.length); // TODO
+                                                                                                // limit
+                incCountIfMvv(_bytes, offset, storedLength & MVV.STORE_LENGTH_MASK);
+
+                // TODO - remove after debugging
+                MVV.verify(_persistit.getTransactionIndex(), _bytes, offset, storedLength & MVV.STORE_LENGTH_MASK);
             }
             //
             // Correct not to call getFastIndex()
@@ -1637,9 +1641,14 @@ public class Buffer extends SharedResource {
             Debug.$assert0.t(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0 : pointer == -1);
             putInt(newTail + TAILBLOCK_POINTER, (int) pointer);
         } else {
-            final int storedLength = valueHelper.storeVersion(_bytes, newTail + _tailHeaderSize + klength, oldTailSize
-                    - _tailHeaderSize - klength, _bytes.length); // TODO - limit
-            isMVV = isValueMVV(_bytes, newTail + _tailHeaderSize + klength, storedLength & MVV.STORE_LENGTH_MASK);
+            final int offset = newTail + _tailHeaderSize + klength;
+            final int storedLength = valueHelper.storeVersion(_bytes, offset, oldTailSize - _tailHeaderSize - klength,
+                    _bytes.length); // TODO - limit
+            isMVV = isValueMVV(_bytes, offset, storedLength & MVV.STORE_LENGTH_MASK);
+
+            // TODO - remove after debugging
+            MVV.verify(_persistit.getTransactionIndex(), _bytes, offset, storedLength & MVV.STORE_LENGTH_MASK);
+
         }
         if (!wasMVV && isMVV) {
             _mvvCount++;
@@ -3472,7 +3481,7 @@ public class Buffer extends SharedResource {
                     if (visitor != null) {
                         visitor.visitDataRecord(key, p, tail, klength, offset, length, getBytes());
                     }
-                    
+
                     if (!MVV.verify(_bytes, offset, length)) {
                         throw new InvalidPageStructureException("invalid MVV record at offset/length=" + offset + "/"
                                 + length);
@@ -3560,7 +3569,7 @@ public class Buffer extends SharedResource {
                 int flags = pruneMvvValuesHelper(tree);
                 changed = (flags & PRUNE_MVV_HELPER_CHANGED) != 0;
                 hasLongMvvRecords = (flags & PRUNE_MVV_HELPER_HAS_LONG) != 0;
-                
+
                 if (changed) {
                     setDirtyAtTimestamp(timestamp);
                 }
@@ -3607,7 +3616,7 @@ public class Buffer extends SharedResource {
 
         return changed;
     }
-    
+
     private int pruneMvvValuesHelper(final Tree tree) throws PersistitException {
         boolean changed = false;
         boolean hasLongMvvRecords = false;
@@ -3626,16 +3635,15 @@ public class Buffer extends SharedResource {
                 int valueByte = _bytes[offset] & 0xFF;
                 if (isLongMVV(_bytes, offset, oldSize)) {
                     /*
-                     * Can't prune in this pass because of long record
-                     * timestamp management. Simply remember that there
-                     * are long records to prune, then prune them in a
-                     * copy of the buffer.
+                     * Can't prune in this pass because of long record timestamp
+                     * management. Simply remember that there are long records
+                     * to prune, then prune them in a copy of the buffer.
                      */
                     hasLongMvvRecords = true;
                 }
                 if (valueByte == MVV.TYPE_MVV) {
-                    final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(),
-                            true, prunedVersions);
+                    final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true,
+                            prunedVersions);
                     if (newSize != oldSize) {
                         changed = true;
                         int newTailSize = klength + newSize + _tailHeaderSize;
@@ -3649,9 +3657,7 @@ public class Buffer extends SharedResource {
                         }
                         // Rewrite the tail block header
                         putInt(tail, encodeTailBlock(newTailSize, klength));
-                        if (Debug.ENABLED) {
-                            MVV.verify(_bytes, offset, newSize);
-                        }
+                        Debug.$assert0.t(MVV.verify(_bytes, offset, newSize));
                     }
                     valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
                     incCountIfMvv(_bytes, offset, newSize);
@@ -3665,7 +3671,7 @@ public class Buffer extends SharedResource {
         }
         deallocatePrunedVersions(_persistit, _vol, prunedVersions);
         prunedVersions.clear();
-        return (changed ? PRUNE_MVV_HELPER_CHANGED : 0) | (hasLongMvvRecords ? PRUNE_MVV_HELPER_HAS_LONG : 0); 
+        return (changed ? PRUNE_MVV_HELPER_CHANGED : 0) | (hasLongMvvRecords ? PRUNE_MVV_HELPER_HAS_LONG : 0);
     }
 
     /**
@@ -3737,8 +3743,7 @@ public class Buffer extends SharedResource {
                     if (!_enqueuedForAntiValuePruning) {
                         final int treeHandle = tree.getHandle();
                         assert treeHandle != 0 : "MVV found in a temporary tree " + tree;
-                        if (_persistit.getCleanupManager().offer(
-                                new CleanupAntiValue(treeHandle, getPageAddress()))) {
+                        if (_persistit.getCleanupManager().offer(new CleanupAntiValue(treeHandle, getPageAddress()))) {
                             _enqueuedForAntiValuePruning = true;
                         }
                     }
@@ -3769,7 +3774,7 @@ public class Buffer extends SharedResource {
         byte[] rawBytes = value.getEncodedBytes();
         int oldLongSize = value.getEncodedSize();
         // TODO - perhaps remove. Done as a precaution for now.
-        MVV.verify(rawBytes, 0, oldLongSize);
+        Debug.$assert0.t(MVV.verify(rawBytes, 0, oldLongSize));
         List<PrunedVersion> provisionalPrunedVersions = new ArrayList<PrunedVersion>();
         int newLongSize = MVV.prune(rawBytes, 0, oldLongSize, _persistit.getTransactionIndex(), true,
                 provisionalPrunedVersions);
@@ -3871,9 +3876,9 @@ public class Buffer extends SharedResource {
                                     r.getValueState().getEncodedBytes().length, Util.abridge(value.toString(),
                                             maxValueDisplayLength)));
                         } else {
-                            sb.append(String.format("\n%s  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d", mark, r
-                                    .getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), Util
-                                    .abridge(key.toString(), maxKeyDisplayLength), r.getPointerValue()));
+                            sb.append(String.format("\n%s  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d", mark,
+                                    r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(),
+                                    Util.abridge(key.toString(), maxKeyDisplayLength), r.getPointerValue()));
                         }
                     } else {
                         elision = true;
