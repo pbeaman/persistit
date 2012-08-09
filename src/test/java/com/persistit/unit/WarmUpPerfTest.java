@@ -48,9 +48,9 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
     private Exchange[] _exchanges;
     private Properties _savedProperties;
 
-
-    @Before
-    public void setUp() throws PersistitException {
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
         _keyRandom = new Random();
         _valueRandom = new Random();
         _exchanges = new Exchange[TREE_COUNT];
@@ -60,14 +60,17 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         }
     }
 
-    @After
-    public void tearDown() {
+    @Override
+    public void tearDown() throws Exception {
         _keyRandom = null;
         _valueRandom = null;
-        for(Exchange ex : _exchanges) {
-            _persistit.releaseExchange(ex);
+        if (_exchanges != null) {
+            for(Exchange ex : _exchanges) {
+                _persistit.releaseExchange(ex);
+            }
+            _exchanges = null;
         }
-        _exchanges = null;
+        super.tearDown();
     }
 
     private double doLoad() throws PersistitException {
@@ -232,5 +235,19 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         doShutdown();
         doStartup();
         doRandomFetches();
+    }
+    
+    public static void main(String[] args) throws Exception {
+        new WarmUpPerfTest().initAndRunTest();
+    }
+    
+    @Override
+    public void runAllTests() throws Exception {
+        loadOnly();
+        loadShutdown();
+        loadRandomFetch();
+        loadSequentialFetch();
+        loadShutdownStartupRandomFetch();
+        loadShutdownStartupSequentialFetch();
     }
 }
