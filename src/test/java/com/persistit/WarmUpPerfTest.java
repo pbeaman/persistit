@@ -80,7 +80,6 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
     private double doLoad() throws PersistitException {
         System.out.println("Start doLoad...");
         long start = System.nanoTime();
-        double duration = 0;
 
         final String LONG_STR = createString(MAX_VALUE_LEN);
         _keyRandom.setSeed(SEED);
@@ -98,7 +97,7 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
 
         if (WARMUP_ON) populateWarmupFile();
         
-        duration = nanoToSec(System.nanoTime() - start);
+        double duration = nanoToSec(System.nanoTime() - start);
         System.out.printf("doLoad took %fs%n", duration);
         return duration;
     }
@@ -106,7 +105,6 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
     private double doRandomFetches() throws PersistitException {
         System.out.println("Start doRandomFetches...");
         long start = System.nanoTime();
-        double duration = 0;
 
         int emptyFetches = 0;
         _keyRandom.setSeed(SEED);
@@ -128,7 +126,7 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
             System.out.println("Empty fetch performed");
         }
 
-        duration = nanoToSec(System.nanoTime() - start);
+        double duration = nanoToSec(System.nanoTime() - start);
         System.out.printf("doRandomFetches took %fs%n", duration);
         return duration;
     }
@@ -136,7 +134,6 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
     private double doSequentialFetches() throws PersistitException {
         System.out.println("Start doSequentialFetches...");
         long start = System.nanoTime();
-        double duration = 0;
 
         int[] keysPerEx = new int[TREE_COUNT];
 
@@ -161,7 +158,7 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
             System.out.println("Too few keys");
         }
 
-        duration = nanoToSec(System.nanoTime() - start);
+        double duration = nanoToSec(System.nanoTime() - start);
         System.out.printf("doSequentialFetches took %fs%n", duration);
         return duration;
     }
@@ -169,14 +166,13 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
     private double doShutdown() throws PersistitException {
         System.out.println("Start doShutdown...");
         long start = System.nanoTime();
-        double duration = 0;
 
         // See:  crashWithoutFlushAndRestoreProperties();
         assert _savedProperties == null;
         _savedProperties = _persistit.getProperties();
         _persistit.crash();
 
-        duration = nanoToSec(System.nanoTime() - start);
+        double duration = nanoToSec(System.nanoTime() - start);
         System.out.printf("doShutdown took %fs%n", duration);
         return duration;
     }
@@ -184,7 +180,6 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
     private double doStartup() throws PersistitException {
         System.out.println("Start doStartup...");
         long start = System.nanoTime();
-        double duration = 0;
 
         // See:  crashWithoutFlushAndRestoreProperties();
         assert _savedProperties != null;
@@ -194,7 +189,7 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
 
         setupExchanges();
         
-        duration = nanoToSec(System.nanoTime() - start);
+        double duration = nanoToSec(System.nanoTime() - start);
         System.out.printf("doStartup took %fs%n", duration);
         return duration;
     }
