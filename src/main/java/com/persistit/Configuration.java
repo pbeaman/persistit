@@ -264,15 +264,23 @@ public class Configuration {
      * Property name for the "append only" property.
      */
     public final static String APPEND_ONLY_PROPERTY = "appendonly";
-
+    
     /**
      * Property name for the "ignore missing volumes" property.
      */
     public final static String IGNORE_MISSING_VOLUMES_PROPERTY = "ignoremissingvolumes";
+    
     /**
      * Property name to specify the default {@link SplitPolicy}.
      */
     public final static String SPLIT_POLICY_PROPERTY_NAME = "splitpolicy";
+    
+    /**
+     * Property name to specify the"buffer inventory" property name.
+     */
+    public final static String BUFFER_INVENTORY_PROPERTY_NAME = "bufferinventory";
+    
+    public final static String BUFFER_POLLING_INTERVAL_PROPERTY = "bufferpollinginterval";
 
     /**
      * Property name to specify the default {@link JoinPolicy}.
@@ -624,6 +632,8 @@ public class Configuration {
     private int rmiServerPort;
     private boolean jmx = true;
     private boolean appendOnly;
+    private String bufferInventoryPathName;
+    private long bufferInventoryPollInterval = 3000000; // default five minute polling
     private boolean ignoreMissingVolumes;
     private String tmpVolDir;
     private int tmpVolPageSize;
@@ -702,6 +712,8 @@ public class Configuration {
     }
 
     void loadProperties() throws InvalidVolumeSpecificationException {
+        setBufferInventoryPathName(getProperty(BUFFER_INVENTORY_PROPERTY_NAME));
+        setBufferInventoryPollingInterval(getLongProperty(BUFFER_POLLING_INTERVAL_PROPERTY, bufferInventoryPollInterval));
         setAppendOnly(getBooleanProperty(APPEND_ONLY_PROPERTY, false));
         setCommitPolicy(getProperty(COMMIT_POLICY_PROPERTY_NAME));
         setConstructorOverride(getBooleanProperty(CONSTRUCTOR_OVERRIDE_PROPERTY_NAME, false));
@@ -1801,6 +1813,59 @@ public class Configuration {
         this.appendOnly = appendOnly;
     }
 
+    /**
+     * Return the path name defined by {@link #getBufferInventoryPathName}
+     * @return  the path where file to warm-up Persistit with sample buffer data is stored
+     */
+    public String getBufferInventoryPathName() {
+        return bufferInventoryPathName;
+    }
+
+    /**
+     * <p>
+     * Control where Persistit stores its buffer inventory. In this mode
+     * Persistit restarts with information from the last run. This method initializes
+     * the warm-up file at the specified location, if none is specified the buffer
+     * pool is not warmed up on start-up.
+     * </p>
+     * <p>
+     * Default value is <code>null</code><br />
+     * Property name is {@value #BUFFER_INVENTORY_PROPERTY_NAME}
+     * </p>
+     * 
+     * @param pathName
+     *            the name of the path to the warm-up file
+     */
+    public void setBufferInventoryPathName(String pathName) {
+        bufferInventoryPathName = pathName;
+
+    }
+    
+    /**
+     * Return polling interval defined by {@link #getBufferInventoryPollingInterval}
+     * @return  the number of seconds wait between warm-up polls
+     */
+    public long getBufferInventoryPollingInterval() {
+        return bufferInventoryPollInterval;
+    }
+    
+    /**
+     * <p>
+     * Control the number of seconds between each poll for the 
+     * cache warm-up option in Persistit.
+     * </p>
+     * <p>
+     * Default value is <code>3000</code><br />
+     * Property name is {@value #BUFFER_POLLING_INTERVAL_PROPERTY}
+     * </p>
+     * 
+     * @param seconds
+     *            the number of seconds between polls
+     */
+    public void setBufferInventoryPollingInterval(long seconds) {
+        bufferInventoryPollInterval = Util.rangeCheck(seconds, 60L, Long.MAX_VALUE) * 1000L;
+    }
+    
     /**
      * Return the value defined by {@link #setIgnoreMissingVolumes(boolean)}
      * 

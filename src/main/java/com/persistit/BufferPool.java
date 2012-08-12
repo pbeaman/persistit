@@ -16,7 +16,6 @@
 package com.persistit;
 
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -37,6 +36,7 @@ import com.persistit.exception.RetryException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
+import java.io.*;
 
 /**
  * A pool of {@link Buffer} objects, maintained on various lists that permit
@@ -52,7 +52,7 @@ public class BufferPool {
     private final static long DEFAULT_WRITER_POLL_INTERVAL = 5000;
 
     private final static int PAGE_WRITER_TRANCHE_SIZE = 5000;
-
+    
     /**
      * Sleep time when buffers are exhausted
      */
@@ -196,11 +196,24 @@ public class BufferPool {
     private volatile long _writerPollInterval = DEFAULT_WRITER_POLL_INTERVAL;
 
     private volatile int _pageWriterTrancheSize = PAGE_WRITER_TRANCHE_SIZE;
+    
+    /**
+     * Polling interval for PageCacher
+     */
+    private volatile long _cacherPollInterval;
+    
     /**
      * The PAGE_WRITER IOTaskRunnable
      */
     private PageWriter _writer;
-
+    
+    /**
+     * The PAGE_CACHER IOTaskRunnable
+     */
+    private PageCacher _cacher;
+        
+    private String _defaultLogPath;
+    
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
      * of the specified size.
@@ -237,7 +250,7 @@ public class BufferPool {
         _hashTable = new Buffer[_bufferCount * HASH_MULTIPLE];
         _hashLocks = new ReentrantLock[HASH_LOCKS];
         _maxKeys = (_bufferSize - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO;
-
+        
         for (int index = 0; index < HASH_LOCKS; index++) {
             _hashLocks[index] = new ReentrantLock();
         }
@@ -271,25 +284,59 @@ public class BufferPool {
             throw e;
         }
         _writer = new PageWriter();
-
+        _cacher = new PageCacher();
+    }
+    
+    void warmupBufferPool(String pathName, String fname) throws PersistitException {
+        File file = new File(pathName, fname + ".log");
+        _defaultLogPath = file.getAbsolutePath();
+        
+        try {
+            if (!file.exists()) {
+               file.createNewFile();
+            }
+            
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+            String currLine;
+            while ((currLine = reader.readLine()) != null) {
+                String[] info = currLine.split(" ");
+                if (info.length == 2) {
+                    Volume vol = _persistit.getVolume(info[1]);
+                    if (vol != null) {
+                        long page = Long.parseLong(info[0]);
+                    	Buffer buff = get(vol, page, false, true);
+                    	buff.release();
+                    }
+                }
+            }
+            reader.close();
+            _cacherPollInterval = _persistit.getConfiguration().getBufferInventoryPollingInterval();
+            _cacher.start();
+        }
+        catch (IOException e) {
+            throw new PersistitException(e);
+        }
     }
 
-    void startThreads() {
+    void startThreads() throws PersistitException {
         _writer.start();
     }
 
     void close() {
         _closed.set(true);
         _persistit.waitForIOTaskStop(_writer);
+        _persistit.waitForIOTaskStop(_cacher);
         _writer = null;
+        _cacher = null;
     }
 
     /**
-     * Abruptly stop (using {@link Thread#stop()}) the writer and collector
+     * Abruptly stop (using {@link Thread#stop()}) the writer, cacher, and collector
      * threads. This method should be used only by tests.
      */
     void crash() {
         IOTaskRunnable.crash(_writer);
+        IOTaskRunnable.crash(_cacher);
     }
 
     void flush(final long timestamp) throws PersistitInterruptedException {
@@ -378,6 +425,35 @@ public class BufferPool {
             if (array[index] == null)
                 array[index] = new ManagementImpl.BufferInfo();
             buffer.populateInfo(array[index]);
+        }
+    }
+    
+    private void populateWarmupFile() throws PersistitException {
+        File file = new File(_defaultLogPath);
+        
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+            for (int i = 0; i < _buffers.length; ++i) {
+                Buffer b = _buffers[i];
+                if (b != null && b.isValid() && !b.isDirty()) {
+                    long page = b.getPageAddress();
+                    Volume volume = b.getVolume();
+                    long page2 = b.getPageAddress();
+                    Volume volume2 = b.getVolume();
+                    
+                    // Check if buffer has changed while reading
+                    if (page == page2 && volume == volume2 && volume != null) {
+                        String addr = Long.toString(page);
+                        String vol = volume.getName(); 
+                        writer.append(addr + " " + vol);
+                        writer.newLine();
+                        writer.flush();
+                    }
+                }
+            }
+            writer.close();
+        } catch (IOException e) {
+            throw new PersistitException(e);
         }
     }
 
@@ -1313,6 +1389,35 @@ public class BufferPool {
         @Override
         protected long pollInterval() {
             return isFlushing() ? 0 : _writerPollInterval;
+        }
+    }
+    
+    /**
+     * Implementation of PAGE_CACHER thread
+     */
+    class PageCacher extends IOTaskRunnable {
+        
+        PageCacher() {
+            super(BufferPool.this._persistit);
+        }
+        
+        void start() {
+            start("PAGE_CACHER:" + _bufferSize, _cacherPollInterval);
+        }
+
+        @Override
+        public void runTask() throws Exception {
+            populateWarmupFile();
+        }
+        
+        @Override
+        protected boolean shouldStop() {
+            return _closed.get() && !isFlushing();
+        }
+        
+        @Override
+        protected long pollInterval() {
+            return isFlushing() ? 0 : _cacherPollInterval;
         }
     }
 
