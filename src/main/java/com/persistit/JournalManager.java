@@ -193,7 +193,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     private TransactionPlayerListener _listener = new ProactiveRollbackListener();
 
     private AtomicBoolean _writePagePruning = new AtomicBoolean(true);
-    
+
     private AtomicBoolean _rollbackPruning = new AtomicBoolean(true);
 
     /*
@@ -571,12 +571,13 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      */
     public void throttle() throws PersistitInterruptedException {
         int urgency = _persistit.getJournalManager().urgency();
-        if (urgency == URGENT) {
-            Util.sleep(URGENT_COMMIT_DELAY);
-        } else if (urgency >= ALMOST_URGENT) {
-            Util.sleep(URGENT_COMMIT_DELAY / 4);
+        if (!_appendOnly.get()) {
+            if (urgency == URGENT) {
+                Util.sleep(URGENT_COMMIT_DELAY);
+            } else if (urgency >= ALMOST_URGENT) {
+                Util.sleep(URGENT_COMMIT_DELAY / 4);
+            }
         }
-
     }
 
     int handleForVolume(final Volume volume) throws PersistitException {
