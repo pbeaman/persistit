@@ -854,9 +854,11 @@ public class Transaction {
             sequence(COMMIT_FLUSH_A);
             _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
             sequence(COMMIT_FLUSH_C);
+            long flushedTimetimestamp = -1;
             boolean committed = false;
             try {
                 flushTransactionBuffer(false);
+                flushedTimetimestamp = _persistit.getTimestampAllocator().getCurrentTimestamp();
                 committed = true;
             } finally {
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
@@ -866,7 +868,7 @@ public class Transaction {
             }
 
             _persistit.getJournalManager().throttle();
-            _persistit.getJournalManager().waitForDurability(
+            _persistit.getJournalManager().waitForDurability(flushedTimetimestamp, 
                     policy == CommitPolicy.SOFT ? _persistit.getTransactionCommitLeadTime() : 0,
                     policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
         }

@@ -1764,6 +1764,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * three commit modes: SOFT, HARD and GROUP. The two parameters represent
      * time intervals in milliseconds.
      * 
+     * @param flushedTimestamp
+     *            a timestamp take after the transaction buffer belonging to the
+     *            current transaction has been flushed.
      * @param leadTime
      *            time interval in milliseconds by which to anticipate I/O
      *            completion; the method will return as soon as the I/O
@@ -1778,10 +1781,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * @throws PersistitInterruptedException
      */
 
-    void waitForDurability(final long leadTime, final long stallTime) throws PersistitException {
+    void waitForDurability(final long flushedTimestamp, final long leadTime, final long stallTime)
+            throws PersistitException {
         JournalFlusher flusher = _flusher;
         if (flusher != null) {
-            flusher.waitForDurability(leadTime, stallTime);
+            flusher.waitForDurability(flushedTimestamp, leadTime, stallTime);
         } else {
             throw new IllegalStateException("JOURNAL_FLUSHER is not running");
         }
@@ -2202,16 +2206,15 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
         /**
          * General method used to wait for durability. {@See
-         * JournalManager#waitForDurability(long, long)}.
+         * JournalManager#waitForDurability(long, long, long)}.
          * 
          * @throws PersistitInterruptedException
          */
-        private void waitForDurability(final long leadTime, final long stallTime) throws PersistitException {
+        private void waitForDurability(final long flushedTimestamp, final long leadTime, final long stallTime) throws PersistitException {
             /*
              * Commit is known durable once the JOURNAL_FLUSHER thread has
-             * posted a timestamp value to _endTimestamp larger than this.
+             * posted an _endTimestamp larger than flushedTimestamp.
              */
-            final long timestamp = _persistit.getTimestampAllocator().getCurrentTimestamp();
             final long now = System.nanoTime();
 
             while (true) {
@@ -2234,7 +2237,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     endTimestamp = _endTimestamp;
                     startTime = _startTime;
                     endTime = _endTime;
-                    if (timestamp > startTimestamp && startTimestamp > endTimestamp) {
+                    if (flushedTimestamp > startTimestamp && startTimestamp > endTimestamp) {
                         estimatedRemainingIoNanos = Math.max(startTime + _expectedIoTime - now, 0);
                     }
                     if (startTimestamp == _startTimestamp && endTimestamp == _endTimestamp) {
@@ -2243,7 +2246,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     Util.spinSleep();
                 }
 
-                if (endTimestamp > timestamp && startTimestamp > timestamp) {
+                if (endTimestamp > flushedTimestamp && startTimestamp > flushedTimestamp) {
                     /*
                      * Done - commit is fully durable
                      */
@@ -2258,7 +2261,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 }
 
                 long estimatedNanosToFinish = Math.max(estimatedRemainingIoNanos, 0);
-                if (startTimestamp < timestamp) {
+                if (startTimestamp < flushedTimestamp) {
                     estimatedNanosToFinish += remainingSleepNanos + _expectedIoTime;
                 }
 
@@ -2295,7 +2298,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     }
                 }
             }
-            if (_lastExceptionTimestamp > timestamp) {
+            if (_lastExceptionTimestamp > flushedTimestamp) {
                 final Exception e = _lastException;
                 if (e instanceof PersistitException) {
                     throw (PersistitException) e;
