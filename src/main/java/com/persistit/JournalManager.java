@@ -2436,6 +2436,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     continue;
                 }
                 pageAddress = readPageBufferFromJournal(stablePageNode, bb);
+                _persistit.getIOMeter().chargeCopyPageFromJournal(volumeRef, pageAddress, volume.getPageSize(),
+                        stablePageNode.getJournalAddress(), urgency());
             } catch (PersistitException ioe) {
                 _persistit
                         .getAlertMonitor()

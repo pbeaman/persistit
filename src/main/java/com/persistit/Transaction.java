@@ -857,12 +857,8 @@ public class Transaction {
             boolean committed = false;
             try {
                 flushTransactionBuffer(false);
-                _persistit.getJournalManager().waitForDurability(
-                        policy == CommitPolicy.SOFT ? _persistit.getTransactionCommitLeadTime() : 0,
-                        policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
                 committed = true;
             } finally {
-
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
                         committed ? _commitTimestamp : TransactionStatus.ABORTED);
                 _commitCompleted = committed;
@@ -870,6 +866,9 @@ public class Transaction {
             }
 
             _persistit.getJournalManager().throttle();
+            _persistit.getJournalManager().waitForDurability(
+                    policy == CommitPolicy.SOFT ? _persistit.getTransactionCommitLeadTime() : 0,
+                    policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
         }
     }
 
