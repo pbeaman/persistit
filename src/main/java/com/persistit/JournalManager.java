@@ -2222,7 +2222,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 }
 
                 long remainingSleepNanos;
-                long voluntaryDelay = 0;
+                boolean didWait = false;
                 if (estimatedRemainingIoNanos == -1) {
                     remainingSleepNanos = Math.max(0, _flushInterval - (now - endTime));
                 } else {
@@ -2250,11 +2250,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     long delay = stallTime * NS_PER_MS - estimatedNanosToFinish;
                     if (delay > 0) {
                         Util.sleep(delay / NS_PER_MS);
-                        voluntaryDelay = delay;
+                        didWait = true;
                     }
                     kick();
                     if (delay <= 0) {
-                        voluntaryDelay = 1;
+                        didWait = true;
                         Util.spinSleep();
                     }
                 } else {
@@ -2265,7 +2265,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     long delay = ((estimatedNanosToFinish - leadTime * NS_PER_MS) / 2) + NS_PER_MS;
                     try {
                         if (delay > 0) {
-                            voluntaryDelay = delay;
+                            didWait = true;
                             if (_lock.readLock().tryLock(delay, TimeUnit.NANOSECONDS)) {
                                 _lock.readLock().unlock();
                             }
@@ -2274,7 +2274,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                         throw new PersistitInterruptedException(e);
                     }
                 }
-                if (voluntaryDelay == 0) {
+                if (!didWait) {
                     _waitLoopsWithNoDelay.incrementAndGet();
                 }
             }
