@@ -27,12 +27,12 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.persistit.unit.ConcurrentUtil;
 import org.junit.Test;
 
 import com.persistit.Accumulator.Type;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.unit.ConcurrentUtil;
 import com.persistit.unit.UnitTestProperties;
 
 public class AccumulatorTest extends PersistitUnitTestCase {
@@ -42,8 +42,8 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     @Test
     public void testBasicMethodsOneBucket() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
-        Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
-        TransactionStatus status = ti.registerTransaction();
+        final Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        final TransactionStatus status = ti.registerTransaction();
         acc.update(1, status, 0);
         assertEquals(1, acc.getLiveValue());
         assertEquals(1, acc.getSnapshotValue(1, 0));
@@ -62,13 +62,13 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     @Test
     public void testBasicMethodsMultipleBuckets() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1000);
-        Accumulator countAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
-        Accumulator sumAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
-        Accumulator minAcc = Accumulator.accumulator(Accumulator.Type.MIN, null, 0, 0, ti);
-        Accumulator maxAcc = Accumulator.accumulator(Accumulator.Type.MAX, null, 0, 0, ti);
-        Accumulator seqAcc = Accumulator.accumulator(Accumulator.Type.SEQ, null, 0, 0, ti);
+        final Accumulator countAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        final Accumulator sumAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        final Accumulator minAcc = Accumulator.accumulator(Accumulator.Type.MIN, null, 0, 0, ti);
+        final Accumulator maxAcc = Accumulator.accumulator(Accumulator.Type.MAX, null, 0, 0, ti);
+        final Accumulator seqAcc = Accumulator.accumulator(Accumulator.Type.SEQ, null, 0, 0, ti);
         for (int count = 0; count < 100000; count++) {
-            TransactionStatus status = ti.registerTransaction();
+            final TransactionStatus status = ti.registerTransaction();
             assertEquals(count, countAcc.getLiveValue());
             assertEquals(count * 3, seqAcc.getLiveValue());
             countAcc.update(1, status, 0);
@@ -82,7 +82,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                 ti.updateActiveTransactionCache();
             }
         }
-        long after = _tsa.updateTimestamp();
+        final long after = _tsa.updateTimestamp();
         assertEquals(100000, countAcc.getSnapshotValue(after, 0));
         assertEquals(-1016, minAcc.getSnapshotValue(after, 0));
         assertEquals(1016, maxAcc.getSnapshotValue(after, 0));
@@ -95,8 +95,8 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(0, maxAcc.getCheckpointValue());
         assertEquals(0, seqAcc.getCheckpointValue());
 
-        ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp(), Arrays.asList(new Accumulator[] { countAcc,
-                sumAcc, minAcc, maxAcc, seqAcc }));
+        ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp(),
+                Arrays.asList(new Accumulator[] { countAcc, sumAcc, minAcc, maxAcc, seqAcc }));
 
         assertEquals(countAcc.getLiveValue(), countAcc.getCheckpointValue());
         assertEquals(sumAcc.getLiveValue(), sumAcc.getCheckpointValue());
@@ -122,7 +122,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         try {
             acc.getSnapshotValue(txn1);
             fail("Should have thrown an exceptio");
-        } catch (IllegalStateException e) {
+        } catch (final IllegalStateException e) {
             expectedErrors++;
             // expected
         }
@@ -154,8 +154,9 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         for (int i = 0; i < threads.length; i++) {
             final int index = i;
             threads[i] = new Thread(new Runnable() {
+                @Override
                 public void run() {
-                    long end = System.currentTimeMillis() + 60000;
+                    final long end = System.currentTimeMillis() + 60000;
                     int cleanRun = 0;
                     while (System.currentTimeMillis() < end) {
                         try {
@@ -188,7 +189,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                             } finally {
                                 txn.end();
                             }
-                        } catch (Exception e) {
+                        } catch (final Exception e) {
                             System.out.println("Exception in thread #" + index);
                             e.printStackTrace();
                             break;
@@ -227,6 +228,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         final Thread[] threads = new Thread[50];
         for (int i = 0; i < threads.length; i++) {
             threads[i] = new Thread(new Runnable() {
+                @Override
                 public void run() {
                     while (System.currentTimeMillis() < stopTime) {
                         final TransactionStatus status;
@@ -245,10 +247,10 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                             }
                             ti.notifyCompleted(status, _tsa.updateTimestamp());
                             after.incrementAndGet();
-                        } catch (TimeoutException e) {
+                        } catch (final TimeoutException e) {
                             e.printStackTrace();
                             break;
-                        } catch (InterruptedException e) {
+                        } catch (final InterruptedException e) {
                             break;
                         }
                     }
@@ -264,13 +266,13 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             Thread.sleep(1);
             ti.updateActiveTransactionCache();
             ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp(), accumulators);
-            long low = after.get();
-            long timestamp = _tsa.updateTimestamp();
+            final long low = after.get();
+            final long timestamp = _tsa.updateTimestamp();
             elapsedNanos -= System.nanoTime();
-            long value = acc.getSnapshotValue(timestamp, 0);
+            final long value = acc.getSnapshotValue(timestamp, 0);
             elapsedNanos += System.nanoTime();
             calls++;
-            long high = before.get();
+            final long high = before.get();
             assertTrue(low <= value);
             assertTrue(value <= high);
         }
@@ -281,8 +283,8 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         //
         // Verify that retries were created
         //
-        assertTrue("At least one RetryException should have been thrown", ti
-                .incrementAccumulatorCheckpointRetryCounter() > 1);
+        assertTrue("At least one RetryException should have been thrown",
+                ti.incrementAccumulatorCheckpointRetryCounter() > 1);
         assertTrue("At least one RetryException should have been thrown",
                 ti.incrementAccumulatorSnapshotRetryCounter() > 1);
         final long workTime = (threads.length * time) - pauseTime.get();
@@ -295,17 +297,17 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     public void testCheckpointSaveToValue() throws Exception {
         final Value value = new Value((Persistit) null);
         final TransactionIndex ti = new TransactionIndex(_tsa, 5000);
-        Accumulator sumAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
-        TransactionStatus status = ti.registerTransaction();
+        final Accumulator sumAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        final TransactionStatus status = ti.registerTransaction();
         sumAcc.update(18, status, 0);
         status.commit(_tsa.getCurrentTimestamp());
         ti.notifyCompleted(status, _tsa.updateTimestamp());
         ti.checkpointAccumulatorSnapshots(_tsa.updateTimestamp(), Arrays.asList(new Accumulator[] { sumAcc }));
         assertEquals(18, sumAcc.getCheckpointValue());
         value.put(sumAcc);
-        Object object = value.get();
+        final Object object = value.get();
         assertTrue(object instanceof AccumulatorState);
-        AccumulatorState as = (AccumulatorState) object;
+        final AccumulatorState as = (AccumulatorState) object;
         assertEquals(18, as.getValue());
         assertEquals(sumAcc.getType(), as.getType());
         assertEquals(0, as.getIndex());
@@ -314,7 +316,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
 
     @Test
     public void testCheckpointSaveAccumulators() throws Exception {
-        int count = 1000;
+        final int count = 1000;
         for (int retry = 0; retry < 10; retry++) {
             System.out.printf("Retry %,5d\n", retry);
             final Transaction txn = _persistit.getTransaction();
@@ -377,12 +379,12 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertNotNull("Initial checkpoint successful (not null)", _persistit.checkpoint());
 
         for (int pass = 1; pass <= PASS_COUNT; ++pass) {
-            Volume vol = _persistit.getVolume(TEST_VOLUME_NAME);
+            final Volume vol = _persistit.getVolume(TEST_VOLUME_NAME);
             assertNull("Tree should not exist, pass" + pass, vol.getTree(TEST_TREE_NAME, false));
 
-            Exchange ex = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
-            Accumulator accum = ex.getTree().getAccumulator(ACCUM_TYPE, ACCUM_INDEX);
-            Transaction txn = _persistit.getTransaction();
+            final Exchange ex = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
+            final Accumulator accum = ex.getTree().getAccumulator(ACCUM_TYPE, ACCUM_INDEX);
+            final Transaction txn = _persistit.getTransaction();
 
             txn.begin();
             assertEquals("Initial accumulator value, pass" + pass, 0, accum.getSnapshotValue(txn));
@@ -411,8 +413,8 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     public void testDeltasCombineSingleAccumSingleStep() throws Exception {
         final int UPDATE_COUNT = 5;
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
-        Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
-        TransactionStatus status = ti.registerTransaction();
+        final Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        final TransactionStatus status = ti.registerTransaction();
         for (int i = 0; i < UPDATE_COUNT; ++i) {
             acc.update(1, status, 0);
         }
@@ -424,8 +426,8 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     public void testDeltasCombineSingleAccumMultiStep() throws Exception {
         final int UPDATE_COUNT = 5;
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
-        Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
-        TransactionStatus status = ti.registerTransaction();
+        final Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        final TransactionStatus status = ti.registerTransaction();
         for (int i = 0; i < UPDATE_COUNT; ++i) {
             acc.update(1, status, 0);
         }
@@ -433,7 +435,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             acc.update(1, status, 1);
         }
         assertEquals("Snapshot value step 0", UPDATE_COUNT, acc.getSnapshotValue(1, 0));
-        assertEquals("Snapshot value step 1", UPDATE_COUNT*2, acc.getSnapshotValue(1, 1));
+        assertEquals("Snapshot value step 1", UPDATE_COUNT * 2, acc.getSnapshotValue(1, 1));
         assertEquals("Delta count", 2, countDeltas(status));
     }
 
@@ -441,14 +443,14 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     public void testDeltasCombineMultiAccumSingleStep() throws Exception {
         final int UPDATE_COUNT = 5;
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
-        Accumulator acc1 = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
-        Accumulator acc2 = Accumulator.accumulator(Accumulator.Type.SEQ, null, 1, 0, ti);
-        TransactionStatus status = ti.registerTransaction();
+        final Accumulator acc1 = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        final Accumulator acc2 = Accumulator.accumulator(Accumulator.Type.SEQ, null, 1, 0, ti);
+        final TransactionStatus status = ti.registerTransaction();
         for (int i = 0; i < UPDATE_COUNT; ++i) {
             acc1.update(10, status, 0);
             acc2.update(1, status, 0);
         }
-        assertEquals("Snapshot value accum1", UPDATE_COUNT*10, acc1.getSnapshotValue(1, 0));
+        assertEquals("Snapshot value accum1", UPDATE_COUNT * 10, acc1.getSnapshotValue(1, 0));
         assertEquals("Snapshot value accum2", UPDATE_COUNT, acc2.getSnapshotValue(1, 0));
         assertEquals("Delta count", 2, countDeltas(status));
     }
@@ -457,21 +459,21 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     public void testDeltasCombineMultiAccumMultiStep() throws Exception {
         final int UPDATE_COUNT = 5;
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
-        Accumulator acc1 = Accumulator.accumulator(Accumulator.Type.MIN, null, 0, 0, ti);
-        Accumulator acc2 = Accumulator.accumulator(Accumulator.Type.MAX, null, 1, 0, ti);
-        TransactionStatus status = ti.registerTransaction();
+        final Accumulator acc1 = Accumulator.accumulator(Accumulator.Type.MIN, null, 0, 0, ti);
+        final Accumulator acc2 = Accumulator.accumulator(Accumulator.Type.MAX, null, 1, 0, ti);
+        final TransactionStatus status = ti.registerTransaction();
         for (int i = 0; i < UPDATE_COUNT; ++i) {
             acc1.update(i, status, 0);
             acc2.update(i, status, 0);
         }
         for (int i = 0; i < UPDATE_COUNT; ++i) {
-            acc1.update(i*2, status, 1);
-            acc2.update(i*2, status, 1);
+            acc1.update(i * 2, status, 1);
+            acc2.update(i * 2, status, 1);
         }
         assertEquals("Snapshot value accum1 step 0", 0, acc1.getSnapshotValue(1, 0));
-        assertEquals("Snapshot value accum2 step 0", UPDATE_COUNT-1, acc2.getSnapshotValue(1, 0));
+        assertEquals("Snapshot value accum2 step 0", UPDATE_COUNT - 1, acc2.getSnapshotValue(1, 0));
         assertEquals("Snapshot value accum1 step 1", 0, acc1.getSnapshotValue(1, 1));
-        assertEquals("Snapshot value accum2 step 1", (UPDATE_COUNT-1)*2, acc2.getSnapshotValue(1, 1));
+        assertEquals("Snapshot value accum2 step 1", (UPDATE_COUNT - 1) * 2, acc2.getSnapshotValue(1, 1));
         assertEquals("Delta count", 4, countDeltas(status));
     }
 
@@ -491,40 +493,37 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             accums[i] = Accumulator.accumulator(Accumulator.Type.SUM, null, i, 0, ti);
         }
 
-        Thread[] threads = new Thread[THREAD_COUNT];
+        final Thread[] threads = new Thread[THREAD_COUNT];
         for (int thread = 0; thread < THREAD_COUNT; ++thread) {
-            threads[thread] = ConcurrentUtil.createThread(
-                    "Thread_"+thread,
-                    new ConcurrentUtil.ThrowingRunnable() {
-                        @Override
-                        public void run() throws Throwable {
-                            TransactionStatus status = ti.registerTransaction();
-                            for (int acc = 0; acc < ACCUM_COUNT; ++acc) {
-                                for (int step = 0; step < STEP_COUNT; ++step) {
-                                    for (int up = 0; up < UPDATE_COUNT; ++up) {
-                                        accums[acc].update(1, status, step);
-                                    }
-                                }
+            threads[thread] = ConcurrentUtil.createThread("Thread_" + thread, new ConcurrentUtil.ThrowingRunnable() {
+                @Override
+                public void run() throws Throwable {
+                    final TransactionStatus status = ti.registerTransaction();
+                    for (int acc = 0; acc < ACCUM_COUNT; ++acc) {
+                        for (int step = 0; step < STEP_COUNT; ++step) {
+                            for (int up = 0; up < UPDATE_COUNT; ++up) {
+                                accums[acc].update(1, status, step);
                             }
-                            assertEquals("Delta count", DELTAS_PER_THREAD, countDeltas(status));
-                            status.commit(_tsa.updateTimestamp());
-                            ti.notifyCompleted(status, _tsa.getCurrentTimestamp());
                         }
                     }
-            );
+                    assertEquals("Delta count", DELTAS_PER_THREAD, countDeltas(status));
+                    status.commit(_tsa.updateTimestamp());
+                    ti.notifyCompleted(status, _tsa.getCurrentTimestamp());
+                }
+            });
         }
 
         ConcurrentUtil.startAndJoinAssertSuccess(RUN_TIME_MAX, threads);
 
         for (int acc = 0; acc < ACCUM_COUNT; ++acc) {
             for (int step = 0; step < STEP_COUNT; ++step) {
-                assertEquals("Accum "+acc+" step "+step+" snapshot after commit",
-                             FINAL_SNAPSHOT, accums[acc].getSnapshotValue(_tsa.updateTimestamp(), step));
+                assertEquals("Accum " + acc + " step " + step + " snapshot after commit", FINAL_SNAPSHOT,
+                        accums[acc].getSnapshotValue(_tsa.updateTimestamp(), step));
             }
         }
     }
 
-    private static int countDeltas(TransactionStatus status) {
+    private static int countDeltas(final TransactionStatus status) {
         int count = 0;
         Accumulator.Delta d = status.getDelta();
         while (d != null) {

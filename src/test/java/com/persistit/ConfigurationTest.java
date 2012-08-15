@@ -52,18 +52,18 @@ public class ConfigurationTest extends PersistitUnitTestCase {
         try {
             checkBufferSize(1023);
             fail("Exception expected");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
 
         try {
             checkBufferSize(0);
             fail("Exception expected");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
 
-        for (int size : validBufferSizes()) {
+        for (final int size : validBufferSizes()) {
             checkBufferSize(size);
         }
 
@@ -79,14 +79,14 @@ public class ConfigurationTest extends PersistitUnitTestCase {
         try {
             parseBooleanValue("z", "Neither True nor False");
             fail("Exception not thrown");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
 
         try {
             parseBooleanValue("z", null);
             fail("Exception not thrown");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
 
@@ -99,14 +99,14 @@ public class ConfigurationTest extends PersistitUnitTestCase {
         try {
             parseLongProperty("z", "not a number");
             fail("Exception not thrown");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
 
         try {
             parseLongProperty("z", null);
             fail("Exception not thrown");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
 
@@ -117,22 +117,22 @@ public class ConfigurationTest extends PersistitUnitTestCase {
         try {
             parseFloatProperty("z", "not a number");
             fail("Exception not thrown");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
 
         try {
             parseFloatProperty("z", null);
             fail("Exception not thrown");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
     }
 
     @Test
     public void testBufferMemoryConfigurations() throws Exception {
-        Configuration configuration = new Configuration();
-        BufferPoolConfiguration bpc = configuration.getBufferPoolMap().get(8192);
+        final Configuration configuration = new Configuration();
+        final BufferPoolConfiguration bpc = configuration.getBufferPoolMap().get(8192);
         bpc.parseBufferCount(8192, "buffer.count.8192", "100K");
         expectBPConfig(configuration, 8192, 102400, 102400, 0, Long.MAX_VALUE, 0, 1.0f);
         bpc.parseBufferMemory(8192, "buffer.memory.8192", ",100M,24M");
@@ -154,15 +154,16 @@ public class ConfigurationTest extends PersistitUnitTestCase {
                 bpc.parseBufferCount(bufferSize, propertyName, propertyValue);
             }
             fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
     }
 
-    private void expectBPConfig(Configuration configuration, int bufferSize, int minimumCount, int maximumCount,
-            long minimumMem, long maximumMem, long reservedMem, float fraction) {
-        for (int size : validBufferSizes()) {
-            BufferPoolConfiguration bpc = configuration.getBufferPoolMap().get(size);
+    private void expectBPConfig(final Configuration configuration, final int bufferSize, final int minimumCount,
+            final int maximumCount, final long minimumMem, final long maximumMem, final long reservedMem,
+            final float fraction) {
+        for (final int size : validBufferSizes()) {
+            final BufferPoolConfiguration bpc = configuration.getBufferPoolMap().get(size);
             if (size == bufferSize) {
                 assertEquals("Buffer size", bufferSize, bpc.getBufferSize());
                 assertEquals("Minimum count", minimumCount, bpc.getMinimumCount());
@@ -195,21 +196,21 @@ public class ConfigurationTest extends PersistitUnitTestCase {
         try {
             testLoadPropertiesBufferSpecificationsHelper(properties).getBufferPoolMap().get(1024).getMaximumCount();
             fail("Exception not thrown");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
     }
 
     @Test
     public void testBrokenServerConfiguration() throws Exception {
-        BufferPoolConfiguration bpc = new Configuration().getBufferPoolMap().get(16384);
+        final BufferPoolConfiguration bpc = new Configuration().getBufferPoolMap().get(16384);
         bpc.parseBufferMemory(16384, "buffer.memory.16384", "20M,512G,64M,0.50");
         final int bufferCount = bpc.computeBufferCount(7944576L * 1024L);
     }
 
     @Test
     public void testLoadFromPropertiesResource() throws Exception {
-        Configuration configuration = new Configuration();
+        final Configuration configuration = new Configuration();
         configuration.readPropertiesFile(RESOURCE_NAME);
         assertEquals("Should have read properties from resource", 32, configuration.getBufferPoolMap().get(16384)
                 .getMinimumCount());
@@ -225,7 +226,7 @@ public class ConfigurationTest extends PersistitUnitTestCase {
     }
 
     private Configuration testLoadPropertiesBufferSpecificationsHelper(final Properties properties) throws Exception {
-        Configuration configuration = new Configuration();
+        final Configuration configuration = new Configuration();
         configuration.merge(properties);
         configuration.loadPropertiesBufferSpecifications();
         return configuration;

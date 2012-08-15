@@ -15,8 +15,8 @@
 
 package com.persistit;
 
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -61,11 +61,12 @@ public class Bug1018526Test extends PersistitUnitTestCase {
             }
         }
         /*
-         * Don't require 0 because a checkpoint could write to the journal in a race
+         * Don't require 0 because a checkpoint could write to the journal in a
+         * race
          */
         assertTrue("Transaction on temporary volume should not have written to journal", failed < 3);
     }
-    
+
     @Test
     public void temporaryVolumesAndTreesNotReloaded() throws Exception {
         final Set<Integer> permTreeHandleSet = new HashSet<Integer>();
@@ -76,7 +77,7 @@ public class Bug1018526Test extends PersistitUnitTestCase {
             for (int j = 0; j < 10; j++) {
                 final Tree tempTree = tempVolume.getTree("temp_tree_" + i + "_" + j, true);
                 _persistit.getJournalManager().handleForTree(tempTree);
-                final Tree permTree= permVolume.getTree("perm_tree_" + i + "_" + j, true);
+                final Tree permTree = permVolume.getTree("perm_tree_" + i + "_" + j, true);
                 _persistit.getJournalManager().handleForTree(permTree);
                 if (!permTreeHandleSet.add(permTree.getHandle())) {
                     fail("Duplicate tree handle " + permTree.getHandle() + " for " + permTree);
@@ -87,9 +88,9 @@ public class Bug1018526Test extends PersistitUnitTestCase {
         _persistit.close();
         _persistit = new Persistit();
         _persistit.initialize(cfg);
-        Map<Integer, TreeDescriptor> map = _persistit.getJournalManager().queryTreeMap();
-        for (Integer handle : permTreeHandleSet) {
-            TreeDescriptor td = map.remove(handle);
+        final Map<Integer, TreeDescriptor> map = _persistit.getJournalManager().queryTreeMap();
+        for (final Integer handle : permTreeHandleSet) {
+            final TreeDescriptor td = map.remove(handle);
             assertNotNull("Permanent Tree should be un the tree map", td);
         }
         // expect 1: the directory tree

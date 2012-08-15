@@ -19,7 +19,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-
 /**
  * Persistit rev: 284
  * 
@@ -38,10 +37,10 @@ public class Bug989202Test extends PersistitUnitTestCase {
     @Test
     public void testVolumeCreateTime() throws Exception {
         final Volume volume = _persistit.getVolume("persistit");
-        long createTime = volume.getStatistics().getCreateTime();
+        final long createTime = volume.getStatistics().getCreateTime();
         volume.close();
-        Volume reopened = _persistit.loadVolume(volume.getSpecification());
-        long createTimeReopened = reopened.getStatistics().getCreateTime();
+        final Volume reopened = _persistit.loadVolume(volume.getSpecification());
+        final long createTimeReopened = reopened.getStatistics().getCreateTime();
         assertEquals("Create time should be preserved when a volume is closed", createTime, createTimeReopened);
 
     }

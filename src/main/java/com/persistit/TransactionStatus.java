@@ -99,7 +99,7 @@ class TransactionStatus {
      * already contains a value version from a concurrently executing
      * transaction must wait for that other transaction to commit or abort.
      */
-    private ReentrantLock _wwLock = new ReentrantLock(true);
+    private final ReentrantLock _wwLock = new ReentrantLock(true);
     /**
      * Pointer to next member of singly-linked list.
      */
@@ -127,9 +127,10 @@ class TransactionStatus {
     TransactionStatus(final TransactionIndexBucket bucket) {
         _bucket = bucket;
     }
-    
+
     /**
      * Constructs a partial copy. Used only in diagnostic code.
+     * 
      * @param status
      */
     TransactionStatus(final TransactionStatus status) {
@@ -206,7 +207,7 @@ class TransactionStatus {
     boolean isNotified() {
         return _notified;
     }
-    
+
     /**
      * Start commit processing. This method leaves the
      * <code>TransactionStatus</code> in a state indicating commit processing is
@@ -232,7 +233,7 @@ class TransactionStatus {
         }
         _tc = ABORTED;
     }
-    
+
     void complete(final long timestamp) {
         if (_tc > 0 || -_tc > timestamp && timestamp != ABORTED) {
             throw new IllegalStateException("Transaction not ready to complete: " + this);
@@ -242,11 +243,11 @@ class TransactionStatus {
         }
         _notified = true;
     }
-    
+
     boolean isLocked() {
         return _wwLock.isLocked();
     }
-    
+
     boolean isHeldByCurrentThread() {
         return _wwLock.isHeldByCurrentThread();
     }
@@ -299,8 +300,8 @@ class TransactionStatus {
      */
     int decrementMvvCount() {
         assert _tc == ABORTED : "can only decrement MVVs for an aborted transaction";
-        int count = _mvvCount.decrementAndGet();
-        assert count >= 0: "mvvCount is negative";
+        final int count = _mvvCount.decrementAndGet();
+        assert count >= 0 : "mvvCount is negative";
         if (count == 0) {
             _ta = _bucket.getTimestampAllocator().getCurrentTimestamp();
         }
@@ -359,7 +360,8 @@ class TransactionStatus {
      * Initialize this <code>TransactionStatus</code> instance for a new
      * transaction.
      * 
-     * @param ts Start time of this status.
+     * @param ts
+     *            Start time of this status.
      */
     void initialize(final long ts) {
         _ts = ts;
@@ -372,11 +374,12 @@ class TransactionStatus {
     }
 
     /**
-     * Initialize this <code>TransactionStatus</code> instance for an
-     * artificial transaction known to be aborted. The initial state
-     * is aborted, infinite MVV count, and notified.
-     *
-     * @param ts Start time of this status.
+     * Initialize this <code>TransactionStatus</code> instance for an artificial
+     * transaction known to be aborted. The initial state is aborted, infinite
+     * MVV count, and notified.
+     * 
+     * @param ts
+     *            Start time of this status.
      */
     void initializeAsAborted(final long ts) {
         initialize(ts);
@@ -391,15 +394,15 @@ class TransactionStatus {
     }
 
     static String versionString(final long version) {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         sb.append(String.format("%,d", TransactionIndex.vh2ts(version)));
-        int step = TransactionIndex.vh2step(version);
+        final int step = TransactionIndex.vh2step(version);
         if (step > 0) {
             sb.append(String.format("#%02d", step));
         }
         return sb.toString();
     }
-    
+
     static String tcString(final long ts) {
         if (ts == ABORTED) {
             return "ABORTED";

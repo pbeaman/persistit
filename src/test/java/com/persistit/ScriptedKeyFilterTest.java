@@ -37,10 +37,10 @@ public class ScriptedKeyFilterTest {
     @Test
     public void testScript() throws Exception {
         KeyFilter kf = null;
-        Key key = new Key((Persistit) null);
+        final Key key = new Key((Persistit) null);
         boolean okay = true;
-        final BufferedReader reader = new BufferedReader(new InputStreamReader(ScriptedKeyFilterTest.class
-                .getResourceAsStream(SCRIPT_NAME)));
+        final BufferedReader reader = new BufferedReader(new InputStreamReader(
+                ScriptedKeyFilterTest.class.getResourceAsStream(SCRIPT_NAME)));
         String line;
         int lineCount = 0;
         while ((line = reader.readLine()) != null) {
@@ -53,9 +53,9 @@ public class ScriptedKeyFilterTest {
                 if (line.startsWith("*")) {
                     star = true;
                 }
-                int p = line.indexOf(' ');
-                String kw = line.substring(star ? 1 : 0, p);
-                String arg = line.substring(p + 1);
+                final int p = line.indexOf(' ');
+                final String kw = line.substring(star ? 1 : 0, p);
+                final String arg = line.substring(p + 1);
                 if (star) {
                     System.out.println("Break at line " + lineCount);
                 }
@@ -87,7 +87,7 @@ public class ScriptedKeyFilterTest {
                     okay &= check(key, kf, Key.GTEQ, arg, lineCount);
                     break;
                 }
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 okay = false;
                 System.out.println();
                 System.out.println("Exception " + e + " on line " + lineCount + ": " + line);
@@ -120,7 +120,7 @@ public class ScriptedKeyFilterTest {
 
     private boolean check(final Key key, final KeyFilter kf, final Key.Direction direction, final String expected,
             final int lineCount) {
-        boolean result = kf.next(key, direction);
+        final boolean result = kf.next(key, direction);
         if (result) {
             if (expected.equals(key.toString())) {
                 return true;

@@ -35,7 +35,7 @@ public class Bug974589Test extends PersistitUnitTestCase {
 
     private static final String TREE_NAME = "Bug974589Test";
 
-    private static Exchange getExchange(Persistit persistit) throws PersistitException {
+    private static Exchange getExchange(final Persistit persistit) throws PersistitException {
         return persistit.getExchange(UnitTestProperties.VOLUME_NAME, TREE_NAME, true);
     }
 
@@ -59,7 +59,7 @@ public class Bug974589Test extends PersistitUnitTestCase {
             _persistit.checkpoint();
             _persistit.close();
 
-            Properties properties = _persistit.getProperties();
+            final Properties properties = _persistit.getProperties();
             _persistit = new Persistit();
             _persistit.initialize(properties);
 

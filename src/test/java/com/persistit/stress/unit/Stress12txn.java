@@ -21,7 +21,6 @@ import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress12txn extends StressBase {
@@ -30,7 +29,7 @@ public class Stress12txn extends StressBase {
             "count|int:1000:1:100000000|Number Repetitions per cycle",
             "size|int:1:1:100000|Number of nodes to populate", "seed|int:1:1:20000|Random seed", };
 
-    public Stress12txn(String argsString) {
+    public Stress12txn(final String argsString) {
         super(argsString);
     }
 
@@ -70,7 +69,7 @@ public class Stress12txn extends StressBase {
                     for (int index = 0; index < _size; index++) {
                         _counters[index] = new AtomicLong();
                     }
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     fail(e);
                 }
             }

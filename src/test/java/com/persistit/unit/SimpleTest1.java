@@ -122,7 +122,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
             sb.setLength(0);
             sb.append((char) (count / 20 + 64));
             sb.append((char) (count % 20 + 64));
-            String key = exchange.getKey().reset().decodeString();
+            final String key = exchange.getKey().reset().decodeString();
             assertEquals(sb.toString(), key);
         }
         assertEquals(400, count);
@@ -132,7 +132,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
             sb.setLength(0);
             sb.append((char) (count / 20 + 64));
             sb.append((char) (count % 20 + 64));
-            String key = exchange.getKey().reset().decodeString();
+            final String key = exchange.getKey().reset().decodeString();
             assertEquals(sb.toString(), key);
         }
         assertEquals(0, count);
@@ -298,8 +298,9 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         value.putString(sb);
         exchange.store();
 
-        key.clear().append("B").append(
-                "... a pretty long key value. The goal is to get the the record "
+        key.clear()
+                .append("B")
+                .append("... a pretty long key value. The goal is to get the the record "
                         + "for this key into the penultimate slot of the left page, followed "
                         + "by a short key on the edge.  Then delete that short key, so that"
                         + "this becomes the edge key.");

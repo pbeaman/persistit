@@ -54,7 +54,7 @@ public abstract class AbstractReference implements PersistitReference {
      * @param referent
      *            The object identified by the id
      */
-    protected AbstractReference(Object id, Object referent) {
+    protected AbstractReference(final Object id, final Object referent) {
         _id = id;
         _referent = referent;
         _knownNull = referent == null;
@@ -67,7 +67,7 @@ public abstract class AbstractReference implements PersistitReference {
      * 
      * @param id
      */
-    protected AbstractReference(Object id) {
+    protected AbstractReference(final Object id) {
         _id = id;
         _knownNull = false;
     }

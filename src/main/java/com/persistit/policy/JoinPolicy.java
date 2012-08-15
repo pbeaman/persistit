@@ -25,18 +25,17 @@ import com.persistit.Buffer;
  */
 public class JoinPolicy {
     /**
-     * Maximize the number of records in the left page,
-     * and minimize the number of records in the right page.
+     * Maximize the number of records in the left page, and minimize the number
+     * of records in the right page.
      */
     public final static JoinPolicy LEFT_BIAS = new JoinPolicy(-1, "LEFT");
     /**
-     * Minimize the number of records in the left page,
-     * and maximize the number of records in the right page.
+     * Minimize the number of records in the left page, and maximize the number
+     * of records in the right page.
      */
     public final static JoinPolicy RIGHT_BIAS = new JoinPolicy(1, "RIGHT");
     /**
-     * Balance the allocation of spaces evenly between
-     * left and right pages.
+     * Balance the allocation of spaces evenly between left and right pages.
      */
     public final static JoinPolicy EVEN_BIAS = new JoinPolicy(0, "EVEN");
 
@@ -54,7 +53,7 @@ public class JoinPolicy {
     String _name;
     int _bias;
 
-    protected JoinPolicy(int bias, String name) {
+    protected JoinPolicy(final int bias, final String name) {
         _bias = bias;
         _name = name;
     }
@@ -88,8 +87,8 @@ public class JoinPolicy {
      *         largest such measure for the best split point
      */
 
-    public int rebalanceFit(Buffer leftBuffer, Buffer rightBuffer, int kbOffset, int foundAt1, int foundAt2,
-            int virtualSize, int leftSize, int rightSize, int capacity) {
+    public int rebalanceFit(final Buffer leftBuffer, final Buffer rightBuffer, final int kbOffset, final int foundAt1,
+            final int foundAt2, final int virtualSize, final int leftSize, final int rightSize, final int capacity) {
         //
         // This implementation minimizes the difference -- i.e., attempts
         // to join the page into equally sized siblings.
@@ -129,7 +128,7 @@ public class JoinPolicy {
      * @return <code>true</code> if the buffer will accept content of the
      *         specified size
      */
-    public boolean acceptJoin(Buffer buffer, int virtualSize) {
+    public boolean acceptJoin(final Buffer buffer, final int virtualSize) {
         return virtualSize < buffer.getBufferSize();
     }
 

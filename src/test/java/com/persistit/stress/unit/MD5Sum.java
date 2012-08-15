@@ -22,7 +22,6 @@ import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Volume;
 import com.persistit.stress.AbstractStressTest;
-import com.persistit.util.Util;
 
 public class MD5Sum extends AbstractStressTest {
     /**
@@ -35,16 +34,15 @@ public class MD5Sum extends AbstractStressTest {
 
     private MessageDigest md;
 
-    public MD5Sum(String argsString) {
+    public MD5Sum(final String argsString) {
         super(argsString);
         try {
             md = MessageDigest.getInstance("MD5");
-        } catch (Exception e) {
+        } catch (final Exception e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
-
 
     @Override
     public void executeTest() throws Exception {
@@ -65,6 +63,5 @@ public class MD5Sum extends AbstractStressTest {
     private void update(final MessageDigest md, final byte[] bytes, final int length) throws DigestException {
         md.update(bytes, 0, length);
     }
-
 
 }

@@ -264,22 +264,22 @@ public class Configuration {
      * Property name for the "append only" property.
      */
     public final static String APPEND_ONLY_PROPERTY = "appendonly";
-    
+
     /**
      * Property name for the "ignore missing volumes" property.
      */
     public final static String IGNORE_MISSING_VOLUMES_PROPERTY = "ignoremissingvolumes";
-    
+
     /**
      * Property name to specify the default {@link SplitPolicy}.
      */
     public final static String SPLIT_POLICY_PROPERTY_NAME = "splitpolicy";
-    
+
     /**
      * Property name to specify the"buffer inventory" property name.
      */
     public final static String BUFFER_INVENTORY_PROPERTY_NAME = "bufferinventory";
-    
+
     public final static String BUFFER_POLLING_INTERVAL_PROPERTY = "bufferpollinginterval";
 
     /**
@@ -392,7 +392,7 @@ public class Configuration {
          * @param minimumCount
          *            the minimumCount to set
          */
-        public void setMinimumCount(int minimumCount) {
+        public void setMinimumCount(final int minimumCount) {
             this.minimumCount = minimumCount;
         }
 
@@ -407,7 +407,7 @@ public class Configuration {
          * @param maximumCount
          *            the maximumCount to set
          */
-        public void setMaximumCount(int maximumCount) {
+        public void setMaximumCount(final int maximumCount) {
             this.maximumCount = maximumCount;
         }
 
@@ -416,7 +416,7 @@ public class Configuration {
          * 
          * @param count
          */
-        public void setCount(int count) {
+        public void setCount(final int count) {
             setMinimumCount(count);
             setMaximumCount(count);
         }
@@ -432,7 +432,7 @@ public class Configuration {
          * @param minimumMemory
          *            the minimumMemory to set
          */
-        public void setMinimumMemory(long minimumMemory) {
+        public void setMinimumMemory(final long minimumMemory) {
             this.minimumMemory = minimumMemory;
         }
 
@@ -447,7 +447,7 @@ public class Configuration {
          * @param maximumMemory
          *            the maximumMemory to set
          */
-        public void setMaximumMemory(long maximumMemory) {
+        public void setMaximumMemory(final long maximumMemory) {
             this.maximumMemory = maximumMemory;
         }
 
@@ -462,7 +462,7 @@ public class Configuration {
          * @param reservedMemory
          *            the reservedMemory to set
          */
-        public void setReservedMemory(long reservedMemory) {
+        public void setReservedMemory(final long reservedMemory) {
             this.reservedMemory = reservedMemory;
         }
 
@@ -477,7 +477,7 @@ public class Configuration {
          * @param fraction
          *            the fraction to set
          */
-        public void setFraction(float fraction) {
+        public void setFraction(final float fraction) {
             this.fraction = fraction;
         }
 
@@ -496,10 +496,11 @@ public class Configuration {
             if (maximumCount == 0) {
                 return 0;
             }
-            long maximumAvailable = (long) ((availableHeapMemory - reservedMemory) * fraction);
-            long allocation = Math.min(maximumAvailable, maximumMemory);
-            int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
-            int buffers = Math.max(minimumCount, Math.min(maximumCount, (int) (allocation / bufferSizeWithOverhead)));
+            final long maximumAvailable = (long) ((availableHeapMemory - reservedMemory) * fraction);
+            final long allocation = Math.min(maximumAvailable, maximumMemory);
+            final int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
+            final int buffers = Math.max(minimumCount,
+                    Math.min(maximumCount, (int) (allocation / bufferSizeWithOverhead)));
             if (buffers < BufferPool.MINIMUM_POOL_COUNT || buffers > BufferPool.MAXIMUM_POOL_COUNT
                     || (long) buffers * (long) bufferSizeWithOverhead > maximumAvailable
                     || (long) (buffers + 1) * (long) bufferSizeWithOverhead < minimumMemory) {
@@ -510,8 +511,9 @@ public class Configuration {
             return buffers;
         }
 
+        @Override
         public String toString() {
-            StringBuilder sb = new StringBuilder("BufferPoolConfiguration(");
+            final StringBuilder sb = new StringBuilder("BufferPoolConfiguration(");
             sb.append(String.format("size=%d", bufferSize));
             if (minimumCount == maximumCount) {
                 sb.append(String.format(",count=%d", minimumCount));
@@ -545,7 +547,7 @@ public class Configuration {
          */
         public void parseBufferCount(final int bufferSize, final String propertyName, final String propertyValue) {
             reset();
-            int count = (int) parseLongProperty(propertyName, propertyValue);
+            final int count = (int) parseLongProperty(propertyName, propertyValue);
             Util.rangeCheck(count, BufferPool.MINIMUM_POOL_COUNT, BufferPool.MAXIMUM_POOL_COUNT);
             setMaximumCount(count);
             setMinimumCount(count);
@@ -633,7 +635,8 @@ public class Configuration {
     private boolean jmx = true;
     private boolean appendOnly;
     private String bufferInventoryPathName;
-    private long bufferInventoryPollInterval = 3000000; // default five minute polling
+    private long bufferInventoryPollInterval = 3000000; // default five minute
+                                                        // polling
     private boolean ignoreMissingVolumes;
     private String tmpVolDir;
     private int tmpVolPageSize;
@@ -644,8 +647,8 @@ public class Configuration {
      * passed to the {@link Persistit#initialize(Configuration)} method.
      */
     public Configuration() {
-        Map<Integer, BufferPoolConfiguration> map = new TreeMap<Integer, BufferPoolConfiguration>();
-        for (int bufferSize : BUFFER_SIZES) {
+        final Map<Integer, BufferPoolConfiguration> map = new TreeMap<Integer, BufferPoolConfiguration>();
+        for (final int bufferSize : BUFFER_SIZES) {
             map.put(bufferSize, new BufferPoolConfiguration(bufferSize));
         }
         bufferPoolMap = Collections.unmodifiableMap(map);
@@ -673,22 +676,22 @@ public class Configuration {
     }
 
     void readPropertiesFile(final String propertiesFileName) throws PersistitException {
-        Properties properties = new Properties();
+        final Properties properties = new Properties();
         try {
             if (propertiesFileName.contains(DEFAULT_PROPERTIES_FILE_SUFFIX)
                     || propertiesFileName.contains(File.separator)) {
                 properties.load(new FileInputStream(propertiesFileName));
             } else {
-                ResourceBundle bundle = ResourceBundle.getBundle(propertiesFileName);
-                for (Enumeration<String> e = bundle.getKeys(); e.hasMoreElements();) {
+                final ResourceBundle bundle = ResourceBundle.getBundle(propertiesFileName);
+                for (final Enumeration<String> e = bundle.getKeys(); e.hasMoreElements();) {
                     final String key = e.nextElement();
                     properties.put(key, bundle.getString(key));
                 }
             }
-        } catch (FileNotFoundException fnfe) {
+        } catch (final FileNotFoundException fnfe) {
             // A friendlier exception when the properties file is not found.
             throw new PropertiesNotFoundException(fnfe.getMessage());
-        } catch (IOException ioe) {
+        } catch (final IOException ioe) {
             throw new PersistitIOException(ioe);
         }
         merge(properties);
@@ -696,7 +699,7 @@ public class Configuration {
     }
 
     final static void checkBufferSize(final int bufferSize) {
-        for (int size : BUFFER_SIZES) {
+        for (final int size : BUFFER_SIZES) {
             if (size == bufferSize) {
                 return;
             }
@@ -741,13 +744,13 @@ public class Configuration {
 
     void loadPropertiesBufferSpecifications() {
         for (int index = 0; index < BUFFER_SIZES.length; index++) {
-            int size = BUFFER_SIZES[index];
+            final int size = BUFFER_SIZES[index];
 
             final String countPropertyName = BUFFERS_PROPERTY_NAME + size;
             final String memPropertyName = BUFFER_MEM_PROPERTY_NAME + size;
 
-            String countSpec = getProperty(countPropertyName);
-            String memSpec = getProperty(memPropertyName);
+            final String countSpec = getProperty(countPropertyName);
+            final String memSpec = getProperty(memPropertyName);
             int count = 0;
             final BufferPoolConfiguration bpc = bufferPoolMap.get(size);
 
@@ -770,13 +773,13 @@ public class Configuration {
     }
 
     void loadPropertiesVolumeSpecifications() throws InvalidVolumeSpecificationException {
-        for (Enumeration<?> enumeration = _properties.propertyNames(); enumeration.hasMoreElements();) {
-            String key = (String) enumeration.nextElement();
+        for (final Enumeration<?> enumeration = _properties.propertyNames(); enumeration.hasMoreElements();) {
+            final String key = (String) enumeration.nextElement();
             if (key.startsWith(VOLUME_PROPERTY_PREFIX)) {
                 boolean isOne = true;
                 try {
                     Integer.parseInt(key.substring(VOLUME_PROPERTY_PREFIX.length()));
-                } catch (NumberFormatException nfe) {
+                } catch (final NumberFormatException nfe) {
                     isOne = false;
                 }
                 if (isOne) {
@@ -789,12 +792,12 @@ public class Configuration {
 
     final static int bufferSizeFromPropertyName(final String propertyName) {
         if (propertyName.startsWith(BUFFERS_PROPERTY_NAME) || propertyName.startsWith(BUFFER_MEM_PROPERTY_NAME)) {
-            String[] s = propertyName.split("\\.");
+            final String[] s = propertyName.split("\\.");
             try {
-                int size = Integer.parseInt(s[2]);
+                final int size = Integer.parseInt(s[2]);
                 checkBufferSize(size);
                 return size;
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 // default to -1
             }
         }
@@ -812,7 +815,7 @@ public class Configuration {
      *            Properties containing substitution values
      * @return text with substituted property values
      */
-    public String substituteProperties(String text, Properties properties) {
+    public String substituteProperties(final String text, final Properties properties) {
         return substituteProperties(text, properties, 0);
     }
 
@@ -828,13 +831,13 @@ public class Configuration {
      *            Count of recursive calls - maximum depth is 20.
      * @return
      */
-    String substituteProperties(String text, Properties properties, int depth) {
+    String substituteProperties(String text, final Properties properties, final int depth) {
         int p = text.indexOf("${");
         while (p >= 0 && p < text.length()) {
             p += 2;
-            int q = text.indexOf("}", p);
+            final int q = text.indexOf("}", p);
             if (q > 0) {
-                String propertyName = text.substring(p, q);
+                final String propertyName = text.substring(p, q);
                 if (Util.isValidName(propertyName)) {
                     // sanity check to prevent stack overflow
                     // due to infinite loop
@@ -898,7 +901,7 @@ public class Configuration {
      *            The property name
      * @return The resulting string
      */
-    public String getProperty(String propertyName) {
+    public String getProperty(final String propertyName) {
         return getProperty(propertyName, null);
     }
 
@@ -937,12 +940,12 @@ public class Configuration {
      *            The default value
      * @return The resulting string
      */
-    public String getProperty(String propertyName, String defaultValue) {
-        String value = getProperty(propertyName, 0, _properties);
+    public String getProperty(final String propertyName, final String defaultValue) {
+        final String value = getProperty(propertyName, 0, _properties);
         return value == null ? defaultValue : value;
     }
 
-    private String getProperty(String propertyName, int depth, Properties properties) {
+    private String getProperty(final String propertyName, final int depth, final Properties properties) {
         String value = null;
 
         value = getSystemProperty(SYSTEM_PROPERTY_PREFIX + propertyName);
@@ -983,14 +986,15 @@ public class Configuration {
 
     private String getSystemProperty(final String propertyName) {
         return (String) AccessController.doPrivileged(new PrivilegedAction() {
+            @Override
             public Object run() {
                 return System.getProperty(propertyName);
             }
         });
     }
 
-    int getIntegerProperty(String propName, int dflt) {
-        long v = getLongProperty(propName, dflt);
+    int getIntegerProperty(final String propName, final int dflt) {
+        final long v = getLongProperty(propName, dflt);
         if (v >= Integer.MIN_VALUE && v <= Integer.MAX_VALUE) {
             return (int) v;
         }
@@ -1009,8 +1013,8 @@ public class Configuration {
      * @throws IllegalArgumentException
      *             if the supplied String is not a valid integer representation
      */
-    long getLongProperty(String propName, long dflt) {
-        String str = getProperty(propName);
+    long getLongProperty(final String propName, final long dflt) {
+        final String str = getProperty(propName);
         if (str == null) {
             return dflt;
         }
@@ -1032,7 +1036,7 @@ public class Configuration {
      * @throws IllegalArgumentException
      *             if the supplied String is not a valid integer representation.
      */
-    static long parseLongProperty(String propName, String str) {
+    static long parseLongProperty(final String propName, final String str) {
         if (str != null) {
             try {
                 long multiplier = 1;
@@ -1061,7 +1065,7 @@ public class Configuration {
                     sstr = str.substring(0, str.length() - 1);
                 }
                 return Long.parseLong(sstr) * multiplier;
-            } catch (NumberFormatException nfe) {
+            } catch (final NumberFormatException nfe) {
             }
         }
         throw new IllegalArgumentException("Invalid number '" + str + "' for property " + propName);
@@ -1084,11 +1088,11 @@ public class Configuration {
      *             if the supplied String is not a valid floating point
      *             representation, or is outside the supplied bounds.
      */
-    static float parseFloatProperty(String propName, String str) {
+    static float parseFloatProperty(final String propName, final String str) {
         if (str != null) {
             try {
                 return Float.parseFloat(str);
-            } catch (NumberFormatException e) {
+            } catch (final NumberFormatException e) {
 
             }
         }
@@ -1104,7 +1108,7 @@ public class Configuration {
      * @param str
      * @return the boolean value
      */
-    static boolean parseBooleanValue(String propName, String str) {
+    static boolean parseBooleanValue(final String propName, final String str) {
         if ("true".equalsIgnoreCase(str))
             return true;
         if ("false".equalsIgnoreCase(str))
@@ -1159,7 +1163,7 @@ public class Configuration {
      *            The default value
      * @return <i>true</i> or <i>false</i> as specified by the property
      */
-    public boolean getBooleanProperty(String propName, boolean dflt) {
+    public boolean getBooleanProperty(final String propName, final boolean dflt) {
         String str = getProperty(propName);
         if (str == null)
             return dflt;
@@ -1243,7 +1247,7 @@ public class Configuration {
      *            the path to set
      * 
      */
-    public void setJournalPath(String journalPath) {
+    public void setJournalPath(final String journalPath) {
         this.journalPath = journalPath;
     }
 
@@ -1271,7 +1275,7 @@ public class Configuration {
      * @param journalSize
      *            the journalSize to set
      */
-    public void setJournalSize(long journalSize) {
+    public void setJournalSize(final long journalSize) {
         Util.rangeCheck(journalSize, JournalManager.MINIMUM_BLOCK_SIZE, JournalManager.MAXIMUM_BLOCK_SIZE);
         this.journalSize = journalSize;
     }
@@ -1301,7 +1305,7 @@ public class Configuration {
      * @param sysVolume
      *            the sysVolume to set
      */
-    public void setSysVolume(String sysVolume) {
+    public void setSysVolume(final String sysVolume) {
         this.sysVolume = sysVolume;
     }
 
@@ -1327,7 +1331,7 @@ public class Configuration {
      * @param tmpVolDir
      *            the temporary volume directory to set
      */
-    public void setTmpVolDir(String tmpVolDir) {
+    public void setTmpVolDir(final String tmpVolDir) {
         this.tmpVolDir = tmpVolDir;
     }
 
@@ -1355,7 +1359,7 @@ public class Configuration {
      * @param tmpVolPageSize
      *            the default temporary volume page size to set
      */
-    public void setTmpVolPageSize(int tmpVolPageSize) {
+    public void setTmpVolPageSize(final int tmpVolPageSize) {
         this.tmpVolPageSize = tmpVolPageSize;
     }
 
@@ -1383,7 +1387,7 @@ public class Configuration {
      *            the maximum size in bytes to which a temporary volume file may
      *            grow to set
      */
-    public void setTmpVolMaxSize(long tmpVolMaxSize) {
+    public void setTmpVolMaxSize(final long tmpVolMaxSize) {
         Util.rangeCheck(tmpVolMaxSize, MINIMUM_TEMP_VOL_MAX_SIZE, MAXIMUM_TEMP_VOL_MAX_SIZE);
         this.tmpVolMaxSize = tmpVolMaxSize;
     }
@@ -1411,7 +1415,7 @@ public class Configuration {
      *            Name of the commitPolicy the commitPolicy to set
      * @see com.persistit.Transaction#commit()
      */
-    public void setCommitPolicy(String policyName) {
+    public void setCommitPolicy(final String policyName) {
         if (policyName != null) {
             setCommitPolicy(CommitPolicy.forName(policyName));
         }
@@ -1431,7 +1435,7 @@ public class Configuration {
      * 
      * 
      */
-    public void setCommitPolicy(CommitPolicy commitPolicy) {
+    public void setCommitPolicy(final CommitPolicy commitPolicy) {
         this.commitPolicy = commitPolicy;
     }
 
@@ -1459,7 +1463,7 @@ public class Configuration {
      *            Name of the <code>JoinPolicy</code> to set, one of "LEFT",
      *            "RIGHT" or "EVEN" (case insensitive)
      */
-    public void setJoinPolicy(String policyName) {
+    public void setJoinPolicy(final String policyName) {
         if (policyName != null) {
             setJoinPolicy(JoinPolicy.forName(policyName));
         }
@@ -1478,7 +1482,7 @@ public class Configuration {
      * @param joinPolicy
      *            the <code>JoinPolicy</code> to set
      */
-    public void setJoinPolicy(JoinPolicy joinPolicy) {
+    public void setJoinPolicy(final JoinPolicy joinPolicy) {
         this.joinPolicy = joinPolicy;
     }
 
@@ -1507,7 +1511,7 @@ public class Configuration {
      * 
      * @see SplitPolicy
      */
-    public void setSplitPolicy(String policyName) {
+    public void setSplitPolicy(final String policyName) {
         if (policyName != null) {
             setSplitPolicy(SplitPolicy.forName(policyName));
         }
@@ -1528,7 +1532,7 @@ public class Configuration {
      * 
      * @see SplitPolicy
      */
-    public void setSplitPolicy(SplitPolicy splitPolicy) {
+    public void setSplitPolicy(final SplitPolicy splitPolicy) {
         this.splitPolicy = splitPolicy;
     }
 
@@ -1556,7 +1560,7 @@ public class Configuration {
      *            the serial override pattern to set
      * @see DefaultCoderManager
      */
-    public void setSerialOverride(String serialOverride) {
+    public void setSerialOverride(final String serialOverride) {
         this.serialOverride = serialOverride;
     }
 
@@ -1586,7 +1590,7 @@ public class Configuration {
      * @param constructorOverride
      *            the constructorOverride to set
      */
-    public void setConstructorOverride(boolean constructorOverride) {
+    public void setConstructorOverride(final boolean constructorOverride) {
         this.constructorOverride = constructorOverride;
     }
 
@@ -1612,7 +1616,7 @@ public class Configuration {
      * @param showGUI
      *            <code>true</code> to start the AdminUI
      */
-    public void setShowGUI(boolean showGUI) {
+    public void setShowGUI(final boolean showGUI) {
         this.showGUI = showGUI;
     }
 
@@ -1641,7 +1645,7 @@ public class Configuration {
      *            "WARNING", "ERROR".
      * @see Persistit#setPersistitLogger(com.persistit.logging.PersistitLogger)
      */
-    public void setLogging(String logging) {
+    public void setLogging(final String logging) {
         this.logging = logging;
     }
 
@@ -1669,7 +1673,7 @@ public class Configuration {
      * @param logFile
      *            the logFile to set
      */
-    public void setLogFile(String logFile) {
+    public void setLogFile(final String logFile) {
         this.logFile = logFile;
     }
 
@@ -1696,7 +1700,7 @@ public class Configuration {
      * @param rmiHost
      *            the rmiHost to set
      */
-    public void setRmiHost(String rmiHost) {
+    public void setRmiHost(final String rmiHost) {
         this.rmiHost = rmiHost;
     }
 
@@ -1727,7 +1731,7 @@ public class Configuration {
      * @param rmiPort
      *            the rmiPort to set
      */
-    public void setRmiPort(int rmiPort) {
+    public void setRmiPort(final int rmiPort) {
         this.rmiPort = rmiPort;
     }
 
@@ -1753,7 +1757,7 @@ public class Configuration {
      * @param rmiServerPort
      *            the rmiServerPort to set
      */
-    public void setRmiServerPort(int rmiServerPort) {
+    public void setRmiServerPort(final int rmiServerPort) {
         this.rmiServerPort = rmiServerPort;
     }
 
@@ -1780,7 +1784,7 @@ public class Configuration {
      * @param jmx
      *            the jmx to set
      */
-    public void setJmxEnabled(boolean jmx) {
+    public void setJmxEnabled(final boolean jmx) {
         this.jmx = jmx;
     }
 
@@ -1809,13 +1813,15 @@ public class Configuration {
      * @param appendOnly
      *            <code>true</code> to start Persistit in append-only only
      */
-    public void setAppendOnly(boolean appendOnly) {
+    public void setAppendOnly(final boolean appendOnly) {
         this.appendOnly = appendOnly;
     }
 
     /**
      * Return the path name defined by {@link #getBufferInventoryPathName}
-     * @return  the path where file to warm-up Persistit with sample buffer data is stored
+     * 
+     * @return the path where file to warm-up Persistit with sample buffer data
+     *         is stored
      */
     public String getBufferInventoryPathName() {
         return bufferInventoryPathName;
@@ -1824,9 +1830,9 @@ public class Configuration {
     /**
      * <p>
      * Control where Persistit stores its buffer inventory. In this mode
-     * Persistit restarts with information from the last run. This method initializes
-     * the warm-up file at the specified location, if none is specified the buffer
-     * pool is not warmed up on start-up.
+     * Persistit restarts with information from the last run. This method
+     * initializes the warm-up file at the specified location, if none is
+     * specified the buffer pool is not warmed up on start-up.
      * </p>
      * <p>
      * Default value is <code>null</code><br />
@@ -1836,23 +1842,25 @@ public class Configuration {
      * @param pathName
      *            the name of the path to the warm-up file
      */
-    public void setBufferInventoryPathName(String pathName) {
+    public void setBufferInventoryPathName(final String pathName) {
         bufferInventoryPathName = pathName;
 
     }
-    
+
     /**
-     * Return polling interval defined by {@link #getBufferInventoryPollingInterval}
-     * @return  the number of seconds wait between warm-up polls
+     * Return polling interval defined by
+     * {@link #getBufferInventoryPollingInterval}
+     * 
+     * @return the number of seconds wait between warm-up polls
      */
     public long getBufferInventoryPollingInterval() {
         return bufferInventoryPollInterval;
     }
-    
+
     /**
      * <p>
-     * Control the number of seconds between each poll for the 
-     * cache warm-up option in Persistit.
+     * Control the number of seconds between each poll for the cache warm-up
+     * option in Persistit.
      * </p>
      * <p>
      * Default value is <code>3000</code><br />
@@ -1862,10 +1870,10 @@ public class Configuration {
      * @param seconds
      *            the number of seconds between polls
      */
-    public void setBufferInventoryPollingInterval(long seconds) {
+    public void setBufferInventoryPollingInterval(final long seconds) {
         bufferInventoryPollInterval = Util.rangeCheck(seconds, 60L, Long.MAX_VALUE) * 1000L;
     }
-    
+
     /**
      * Return the value defined by {@link #setIgnoreMissingVolumes(boolean)}
      * 
@@ -1892,7 +1900,7 @@ public class Configuration {
      * @param ignoreMissingVolumes
      *            <code>true</code> to ignore missing volumes
      */
-    public void setIgnoreMissingVolumes(boolean ignoreMissingVolumes) {
+    public void setIgnoreMissingVolumes(final boolean ignoreMissingVolumes) {
         this.ignoreMissingVolumes = ignoreMissingVolumes;
     }
 }

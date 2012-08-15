@@ -30,7 +30,8 @@ import javax.management.StandardMBean;
 /**
  * Wrapper for MXBean to enable the {@link Description} annotation.
  * 
- * @see <a href="http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4853303">Bug 4853303</a>
+ * @see <a href="http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4853303">Bug
+ *      4853303</a>
  * 
  * @author peter
  * 
@@ -38,9 +39,9 @@ import javax.management.StandardMBean;
  *            The actual MXBean type
  */
 public class MXBeanWrapper<T> extends StandardMBean implements NotificationEmitter {
-    private NotificationEmitter _emitter;
+    private final NotificationEmitter _emitter;
 
-    public MXBeanWrapper(T mbeanInterface, Class<T> implementation, final NotificationEmitter emitter)
+    public MXBeanWrapper(final T mbeanInterface, final Class<T> implementation, final NotificationEmitter emitter)
             throws NotCompliantMBeanException {
         super(mbeanInterface, implementation, true);
         _emitter = emitter;
@@ -57,7 +58,7 @@ public class MXBeanWrapper<T> extends StandardMBean implements NotificationEmitt
     }
 
     @Override
-    public String getDescription(MBeanOperationInfo info) {
+    public String getDescription(final MBeanOperationInfo info) {
         final Descriptor descriptor = info.getDescriptor();
         if (descriptor != null && descriptor.getFieldValue("Description") != null) {
             return (String) descriptor.getFieldValue("Description");
@@ -67,7 +68,7 @@ public class MXBeanWrapper<T> extends StandardMBean implements NotificationEmitt
     }
 
     @Override
-    public String getDescription(MBeanOperationInfo operation, MBeanParameterInfo info, int sequence) {
+    public String getDescription(final MBeanOperationInfo operation, final MBeanParameterInfo info, final int sequence) {
         final Descriptor descriptor = info.getDescriptor();
         if (descriptor != null && descriptor.getFieldValue("Description") != null) {
             return (String) descriptor.getFieldValue("Description");
@@ -77,7 +78,7 @@ public class MXBeanWrapper<T> extends StandardMBean implements NotificationEmitt
     }
 
     @Override
-    public String getParameterName(MBeanOperationInfo operation, MBeanParameterInfo info, int sequence) {
+    public String getParameterName(final MBeanOperationInfo operation, final MBeanParameterInfo info, final int sequence) {
         final Descriptor descriptor = info.getDescriptor();
         if (descriptor != null && descriptor.getFieldValue(PName.PNAME) != null) {
             return (String) descriptor.getFieldValue(PName.PNAME);
@@ -87,23 +88,23 @@ public class MXBeanWrapper<T> extends StandardMBean implements NotificationEmitt
     }
 
     @Override
-    public void addNotificationListener(NotificationListener listener, NotificationFilter filter, Object handback)
-            throws IllegalArgumentException {
+    public void addNotificationListener(final NotificationListener listener, final NotificationFilter filter,
+            final Object handback) throws IllegalArgumentException {
         if (_emitter != null) {
             _emitter.addNotificationListener(listener, filter, handback);
         }
     }
 
     @Override
-    public void removeNotificationListener(NotificationListener listener) throws ListenerNotFoundException {
+    public void removeNotificationListener(final NotificationListener listener) throws ListenerNotFoundException {
         if (_emitter != null) {
             _emitter.removeNotificationListener(listener);
         }
     }
 
     @Override
-    public void removeNotificationListener(NotificationListener listener, NotificationFilter filter, Object handback)
-            throws ListenerNotFoundException {
+    public void removeNotificationListener(final NotificationListener listener, final NotificationFilter filter,
+            final Object handback) throws ListenerNotFoundException {
         if (_emitter != null) {
             _emitter.removeNotificationListener(listener, filter, handback);
         }

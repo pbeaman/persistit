@@ -76,12 +76,13 @@ public class BackupTask extends Task {
     private volatile String _backupStatus;
 
     @Cmd("backup")
-    static Task setupTask(@Arg("file|string|Archive file path") String file,
-            @Arg("_flag|a|Start appendOnly mode") boolean start, @Arg("_flag|e|End appendOnly mode") boolean end,
-            @Arg("_flag|c|Request checkpoint before backup") boolean checkpoint,
-            @Arg("_flag|z|Compress output to ZIP format") boolean compressed,
-            @Arg("_flag|f|Emit a list of files that need to be copied") boolean showFiles,
-            @Arg("_flag|y|Copyback pages before starting") boolean copyback) throws Exception {
+    static Task setupTask(@Arg("file|string|Archive file path") final String file,
+            @Arg("_flag|a|Start appendOnly mode") final boolean start,
+            @Arg("_flag|e|End appendOnly mode") final boolean end,
+            @Arg("_flag|c|Request checkpoint before backup") final boolean checkpoint,
+            @Arg("_flag|z|Compress output to ZIP format") final boolean compressed,
+            @Arg("_flag|f|Emit a list of files that need to be copied") final boolean showFiles,
+            @Arg("_flag|y|Copyback pages before starting") final boolean copyback) throws Exception {
         final BackupTask task = new BackupTask();
         task._toFile = file;
         task._start = start;
@@ -103,7 +104,7 @@ public class BackupTask extends Task {
     protected void runTask() throws Exception {
         validate();
         final Management management = _persistit.getManagement();
-        boolean wasAppendOnly = management.getJournalInfo().isAppendOnly();
+        final boolean wasAppendOnly = management.getJournalInfo().isAppendOnly();
         if (_checkpoint) {
             postMessage("Waiting for checkpoint", 0);
             final Checkpoint cp = _persistit.checkpoint();
@@ -115,9 +116,9 @@ public class BackupTask extends Task {
         }
         if (_copyback && !wasAppendOnly) {
             postMessage("Copying back pages from journal", 0);
-            long start = _persistit.getJournalManager().getCopiedPageCount();
+            final long start = _persistit.getJournalManager().getCopiedPageCount();
             _persistit.copyBackPages();
-            long end = _persistit.getJournalManager().getCopiedPageCount();
+            final long end = _persistit.getJournalManager().getCopiedPageCount();
             postMessage((end - start) + " pages copied", 0);
         }
         try {
@@ -128,7 +129,7 @@ public class BackupTask extends Task {
                     doBackup();
                 }
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             _backupStatus = "Failed: " + e;
         } finally {
             management.setAppendOnly(_start ? true : _end ? false : wasAppendOnly);
@@ -136,7 +137,7 @@ public class BackupTask extends Task {
     }
 
     @Override
-    protected void postMessage(final String message, int level) {
+    protected void postMessage(final String message, final int level) {
         super.postMessage(message, level);
         _backupStatus = message;
     }
@@ -152,9 +153,9 @@ public class BackupTask extends Task {
         final long baseAddress = info.getBaseAddress();
         final long currentAddress = info.getCurrentJournalAddress();
         final long blockSize = info.getBlockSize();
-        String path = JournalManager.fileToPath(new File(info.getCurrentJournalFile()));
+        final String path = JournalManager.fileToPath(new File(info.getCurrentJournalFile()));
         for (long generation = baseAddress / blockSize; generation <= currentAddress / blockSize; generation++) {
-            File file = JournalManager.generationToFile(path, generation);
+            final File file = JournalManager.generationToFile(path, generation);
             _files.add(file.getAbsolutePath());
         }
         final StringBuilder sb = new StringBuilder();

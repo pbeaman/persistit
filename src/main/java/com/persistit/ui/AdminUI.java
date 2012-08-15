@@ -114,8 +114,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     private JFrame _frame = null;
     private JTabbedPane _tabbedPane = null;
     private Management _management;
-    private Map _actionMap = new HashMap();
-    private List _textComponentList = new ArrayList();
+    private final Map _actionMap = new HashMap();
+    private final List _textComponentList = new ArrayList();
     private String _rmiHost = DEFAULT_RMI_HOST;
     private SplashWindow _splashWindow;
     private String[] _taskStates;
@@ -146,6 +146,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     /**
      * Implements the Closeable interface
      */
+    @Override
     public boolean isAlive() {
         return _frame != null;
     }
@@ -153,8 +154,9 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     /**
      * Implements the Closeable interface
      */
+    @Override
     public void close() {
-        Timer timer = _refreshTimer;
+        final Timer timer = _refreshTimer;
         if (timer != null) {
             timer.cancel();
             _refreshTimer = null;
@@ -166,6 +168,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         _javaHelpAdapter = null;
 
         SwingUtilities.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 if (adapter != null) {
                     adapter.dispose();
@@ -180,6 +183,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     /**
      * Implements the Runnable interface
      */
+    @Override
     public void run() {
         resetRefreshTimer();
         refreshMenuEnableState();
@@ -189,12 +193,12 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     /**
      * Construct an AdminUI on the local Persistit instance.
      */
-    public AdminUI(Management management) {
+    public AdminUI(final Management management) {
         this();
         setManagement(management);
     }
 
-    public AdminUI(String rmiHost) {
+    public AdminUI(final String rmiHost) {
         this();
         _rmiHost = rmiHost;
         if (rmiHost != null)
@@ -213,7 +217,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         // daemon threads. Then they will go away when no non-daemon
         // threads are left.
         //
-        Thread daemonThread = new Thread() {
+        final Thread daemonThread = new Thread() {
+            @Override
             public void run() {
                 _frame = new JFrame();
                 if (ENABLE_SPLASH) {
@@ -227,12 +232,13 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         daemonThread.setDaemon(true);
         daemonThread.start();
 
-        Thread hostNameThread = new Thread() {
+        final Thread hostNameThread = new Thread() {
+            @Override
             public void run() {
                 try {
-                    InetAddress inetAddr = InetAddress.getLocalHost();
+                    final InetAddress inetAddr = InetAddress.getLocalHost();
                     _myHostName = inetAddr.getHostName();
-                } catch (Exception e) {
+                } catch (final Exception e) {
                 }
             }
         };
@@ -242,16 +248,16 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             daemonThread.join();
             if (ENABLE_SPLASH) {
                 Thread.sleep(2000);
-                SplashWindow sp = _splashWindow;
+                final SplashWindow sp = _splashWindow;
                 if (sp != null)
                     sp.dispose();
                 _splashWindow = null;
             }
-        } catch (InterruptedException ie) {
+        } catch (final InterruptedException ie) {
         }
     }
 
-    public void refresh(boolean reset) {
+    public void refresh(final boolean reset) {
         synchronized (this) {
             if (_refreshing)
                 return;
@@ -262,7 +268,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             if (management != null) {
                 try {
                     management.isInitialized();
-                } catch (RemoteException re) {
+                } catch (final RemoteException re) {
                     disconnect();
                     management = null;
                 }
@@ -270,16 +276,16 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
 
             if (_tabbedPane != null) {
                 try {
-                    AdminPanel mp = (AdminPanel) _tabbedPane.getSelectedComponent();
+                    final AdminPanel mp = (AdminPanel) _tabbedPane.getSelectedComponent();
                     mp.refresh(reset || management == null);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     postException(e);
                 }
             }
 
             // Reset toggle buttons to represent current state.
-            for (Iterator iter = _actionMap.values().iterator(); iter.hasNext();) {
-                AdminAction action = (AdminAction) iter.next();
+            for (final Iterator iter = _actionMap.values().iterator(); iter.hasNext();) {
+                final AdminAction action = (AdminAction) iter.next();
                 if (action.isToggle()) {
                     action.stateChanged(getManagementState(action));
                 }
@@ -293,8 +299,9 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         return _management;
     }
 
-    public void setManagement(Management newManagement) {
-        Management oldManagement = _management;
+    @Override
+    public void setManagement(final Management newManagement) {
+        final Management oldManagement = _management;
         if (oldManagement != null) {
             unfreeze(oldManagement);
         }
@@ -302,31 +309,31 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         SwingUtilities.invokeLater(this);
     }
 
-    private void unfreeze(Management management) {
+    private void unfreeze(final Management management) {
         try {
             management.setShutdownSuspended(false);
             management.setUpdateSuspended(false);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             e.printStackTrace();
         }
     }
 
-    public String getProperty(String propertyName) {
+    public String getProperty(final String propertyName) {
         try {
             if (_bundle == null) {
                 _bundle = ResourceBundle.getBundle(AdminUI.BUNDLE_NAME);
                 String propFileName = null;
                 try {
                     propFileName = System.getProperty(CONFIG_FILE_PROPERTY);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                 }
                 if (propFileName == null)
                     propFileName = DEFAULT_CONFIG_FILE;
                 try {
-                    FileInputStream fis = new FileInputStream(propFileName);
+                    final FileInputStream fis = new FileInputStream(propFileName);
                     _properties = new Properties();
                     _properties.load(fis);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                 }
             }
             String value = null;
@@ -335,7 +342,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             if (value == null)
                 value = _bundle.getString(propertyName);
             return value;
-        } catch (MissingResourceException mre) {
+        } catch (final MissingResourceException mre) {
             return null;
         }
     }
@@ -372,32 +379,32 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         return _nullMessage;
     }
 
-    public String getTaskStateString(int state) {
+    public String getTaskStateString(final int state) {
         if (state >= 0 && state < _taskStates.length) {
             return _taskStates[state];
         }
         return "?";
     }
 
-    public String formatDate(long ts) {
+    public String formatDate(final long ts) {
         if (ts == 0 || ts == Long.MAX_VALUE || ts == Long.MIN_VALUE)
             return "";
         return _dateFormat.format(new Date(ts));
     }
 
-    public String formatTime(long ts) {
+    public String formatTime(final long ts) {
         return _timeFormat.format(ts / 1000.0);
     }
 
-    public String formatInteger(int v) {
+    public String formatInteger(final int v) {
         return _integerFormat.format(v);
     }
 
-    public String formatLong(long v) {
+    public String formatLong(final long v) {
         return _longFormat.format(v);
     }
 
-    public String formatPercent(double v) {
+    public String formatPercent(final double v) {
         return _percentageFormat.format(v);
     }
 
@@ -405,7 +412,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         return path == null ? "" : String.format(_fileLocationFormat, path, address);
     }
 
-    private void setFrameTitle(String hostName) {
+    private void setFrameTitle(final String hostName) {
         String title = getProperty("title");
         if (title == null)
             title = "Persistit Admin Client";
@@ -426,19 +433,19 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
 
         _persistitAccentColor = new Color(119, 17, 34);
 
-        String lnfClassName = getProperty("lnf");
+        final String lnfClassName = getProperty("lnf");
         boolean lafLoaded = false;
         if (lnfClassName != null && lnfClassName.length() > 0) {
             try {
-                Class lnfClass = Class.forName(lnfClassName);
+                final Class lnfClass = Class.forName(lnfClassName);
 
                 Method setPropertyMethod = null;
 
-                Enumeration props = _bundle.getKeys();
+                final Enumeration props = _bundle.getKeys();
                 while (props.hasMoreElements()) {
-                    String propName = (String) props.nextElement();
+                    final String propName = (String) props.nextElement();
                     if (propName.startsWith("lnf.")) {
-                        String propValue = _bundle.getString(propName);
+                        final String propValue = _bundle.getString(propName);
                         if (setPropertyMethod == null) {
                             setPropertyMethod = lnfClass.getMethod("setProperty", new Class[] { String.class,
                                     String.class });
@@ -447,11 +454,11 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                         setPropertyMethod.invoke(null, new Object[] { propName, propValue });
                     }
                 }
-                javax.swing.LookAndFeel lnf = (javax.swing.LookAndFeel) lnfClass.newInstance();
+                final javax.swing.LookAndFeel lnf = (javax.swing.LookAndFeel) lnfClass.newInstance();
 
                 javax.swing.UIManager.setLookAndFeel(lnf);
                 lafLoaded = true;
-            } catch (Exception ex) {
+            } catch (final Exception ex) {
                 System.err.println("Could not load LnF class " + lnfClassName);
                 ex.printStackTrace();
             }
@@ -460,7 +467,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         if (!lafLoaded) {
             try {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 // Ignore exception
             }
         }
@@ -484,8 +491,10 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
 
         _frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         _frame.addWindowListener(new WindowAdapter() {
-            public void windowClosed(WindowEvent we) {
+            @Override
+            public void windowClosed(final WindowEvent we) {
                 SwingUtilities.invokeLater(new Runnable() {
+                    @Override
                     public void run() {
                         // if (_frame != null)
                         // {
@@ -503,13 +512,14 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         setupMenu();
         setupTabbedPanes();
         _tabbedPane.addChangeListener(new ChangeListener() {
-            public void stateChanged(ChangeEvent ce) {
+            @Override
+            public void stateChanged(final ChangeEvent ce) {
                 handleTabChanged();
             }
         });
         handleTabChanged();
         refreshMenuEnableState();
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        final Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         setFrameTitle(null);
         _frame.pack();
         _frame.setLocation((screenSize.width - _frame.getWidth()) / 2, (screenSize.height - _frame.getHeight()) / 2);
@@ -517,38 +527,38 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     }
 
     void setupMenu() {
-        JMenuBar bar = new JMenuBar();
+        final JMenuBar bar = new JMenuBar();
         _frame.setJMenuBar(bar);
 
-        String menuBarItems = getProperty("MainMenu");
-        StringTokenizer st1 = new StringTokenizer(menuBarItems, ",");
+        final String menuBarItems = getProperty("MainMenu");
+        final StringTokenizer st1 = new StringTokenizer(menuBarItems, ",");
         while (st1.hasMoreTokens()) {
-            String s = st1.nextToken();
-            AdminAction menuAction = createAction(this, s);
-            JMenu menu = new JMenu(menuAction);
+            final String s = st1.nextToken();
+            final AdminAction menuAction = createAction(this, s);
+            final JMenu menu = new JMenu(menuAction);
             menuAction.addButton(menu);
             bar.add(menu);
-            StringTokenizer st2 = new StringTokenizer(s, ":");
-            String actionName = st2.nextToken();
-            JComponent[] items = createMenuArray(this, "MainMenu", actionName);
+            final StringTokenizer st2 = new StringTokenizer(s, ":");
+            final String actionName = st2.nextToken();
+            final JComponent[] items = createMenuArray(this, "MainMenu", actionName);
             for (int index = 0; index < items.length; index++) {
                 menu.add(items[index]);
             }
         }
     }
 
-    JComponent[] createMenuArray(AdminCommand command, String basePropertyName, String actionName) {
-        ArrayList list = new ArrayList();
+    JComponent[] createMenuArray(final AdminCommand command, final String basePropertyName, final String actionName) {
+        final ArrayList list = new ArrayList();
         for (int index = 0;; index++) {
-            String propName = basePropertyName + "." + actionName + "." + index;
-            String t = getProperty(propName);
+            final String propName = basePropertyName + "." + actionName + "." + index;
+            final String t = getProperty(propName);
             if (t == null || t.startsWith("."))
                 break;
             if (t.startsWith("-")) {
                 list.add(new JSeparator());
             } else {
-                AdminAction action = createAction(command, t);
-                AbstractButton item = action.menuItem(command, propName);
+                final AdminAction action = createAction(command, t);
+                final AbstractButton item = action.menuItem(command, propName);
                 action.addButton(item);
                 list.add(item);
             }
@@ -558,36 +568,36 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
 
     private void setupTabbedPanes() {
         for (int index = 0;; index++) {
-            String paneSpecification = getProperty("TabbedPane." + index);
+            final String paneSpecification = getProperty("TabbedPane." + index);
             if (paneSpecification == null || paneSpecification.startsWith(".")) {
                 break;
             }
-            StringTokenizer st = new StringTokenizer(paneSpecification, ":");
-            String className = st.nextToken();
-            String caption = st.nextToken();
+            final StringTokenizer st = new StringTokenizer(paneSpecification, ":");
+            final String className = st.nextToken();
+            final String caption = st.nextToken();
             String iconName = null;
             if (st.hasMoreTokens()) {
                 iconName = st.nextToken();
             }
             try {
-                Class cl = Class.forName(className);
-                AdminPanel panel = (AdminPanel) cl.newInstance();
+                final Class cl = Class.forName(className);
+                final AdminPanel panel = (AdminPanel) cl.newInstance();
                 panel.setup(this);
-                _tabbedPane.addTab(caption, (JComponent) panel);
-            } catch (Exception e) {
+                _tabbedPane.addTab(caption, panel);
+            } catch (final Exception e) {
                 showMessage(e, getProperty("SetupFailedMessage"), JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
     private void handleTabChanged() {
-        int oldTab = _selectedTab;
-        int newTab = _tabbedPane.getSelectedIndex();
+        final int oldTab = _selectedTab;
+        final int newTab = _tabbedPane.getSelectedIndex();
         if (oldTab == newTab)
             return;
         _selectedTab = newTab;
-        AdminPanel oldPanel = oldTab == -1 ? null : (AdminPanel) _tabbedPane.getComponent(oldTab);
-        AdminPanel newPanel = newTab == -1 ? null : (AdminPanel) _tabbedPane.getComponent(newTab);
+        final AdminPanel oldPanel = oldTab == -1 ? null : (AdminPanel) _tabbedPane.getComponent(oldTab);
+        final AdminPanel newPanel = newTab == -1 ? null : (AdminPanel) _tabbedPane.getComponent(newTab);
         if (oldPanel != null) {
             oldPanel.setIsShowing(false);
             changeMenuMap(oldPanel.getMenuMap(), false);
@@ -600,22 +610,22 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         newPanel.setDefaultButton();
     }
 
-    void changeMenuMap(Map menuMap, boolean add) {
-        for (Iterator iter = menuMap.entrySet().iterator(); iter.hasNext();) {
-            Map.Entry entry = (Map.Entry) iter.next();
+    void changeMenuMap(final Map menuMap, final boolean add) {
+        for (final Iterator iter = menuMap.entrySet().iterator(); iter.hasNext();) {
+            final Map.Entry entry = (Map.Entry) iter.next();
             String menuName = (String) entry.getKey();
             if (menuName.indexOf(".") >= 0) {
                 menuName = menuName.substring(0, menuName.indexOf("."));
             }
-            JComponent[] items = (JComponent[]) entry.getValue();
-            Action menuAction = (Action) _actionMap.get(menuName);
-            JMenuBar bar = _frame.getJMenuBar();
+            final JComponent[] items = (JComponent[]) entry.getValue();
+            final Action menuAction = (Action) _actionMap.get(menuName);
+            final JMenuBar bar = _frame.getJMenuBar();
             if (menuAction != null) {
                 for (int index = 0; index < bar.getMenuCount(); index++) {
-                    JMenu menu = bar.getMenu(index);
+                    final JMenu menu = bar.getMenu(index);
                     if (menu.getAction() == menuAction) {
                         for (int k = 0; k < items.length; k++) {
-                            JComponent item = items[k];
+                            final JComponent item = items[k];
                             if (add) {
                                 menu.add(item);
                             } else {
@@ -629,8 +639,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     }
 
     void refreshMenuEnableState() {
-        for (Iterator iter = _actionMap.values().iterator(); iter.hasNext();) {
-            AdminAction action = (AdminAction) iter.next();
+        for (final Iterator iter = _actionMap.values().iterator(); iter.hasNext();) {
+            final AdminAction action = (AdminAction) iter.next();
             if (action.isDisableSensitive()) {
                 action.setEnabled(_management != null);
             }
@@ -643,34 +653,34 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
      * @param font
      *            The FontUIResource to be made the default
      */
-    private static void setUIFont(FontUIResource font) {
-        java.util.Enumeration keys = UIManager.getDefaults().keys();
+    private static void setUIFont(final FontUIResource font) {
+        final java.util.Enumeration keys = UIManager.getDefaults().keys();
         while (keys.hasMoreElements()) {
-            Object key = keys.nextElement();
-            Object value = UIManager.get(key);
+            final Object key = keys.nextElement();
+            final Object value = UIManager.get(key);
             if (value instanceof javax.swing.plaf.FontUIResource) {
                 UIManager.put(key, font);
             }
         }
     }
 
-    JComponent addLabeledField(JPanel panel, GridBagConstraints gbc, JComponent component, String propertyName,
-            boolean newLine) {
-        String prop = getProperty(propertyName);
-        StringTokenizer st = new StringTokenizer(prop, ":");
-        String caption = st.nextToken();
+    JComponent addLabeledField(final JPanel panel, final GridBagConstraints gbc, final JComponent component,
+            final String propertyName, final boolean newLine) {
+        final String prop = getProperty(propertyName);
+        final StringTokenizer st = new StringTokenizer(prop, ":");
+        final String caption = st.nextToken();
         String widthStr = st.nextToken();
-        String alignment = st.nextToken();
-        String gridwidth = st.nextToken();
-        String tooltip = st.nextToken();
+        final String alignment = st.nextToken();
+        final String gridwidth = st.nextToken();
+        final String tooltip = st.nextToken();
         String heightStr = "1";
-        int p = widthStr.indexOf(',');
+        final int p = widthStr.indexOf(',');
         if (p >= 0) {
             heightStr = widthStr.substring(p + 1);
             widthStr = widthStr.substring(0, p);
         }
 
-        JLabel label = new JLabel(caption);
+        final JLabel label = new JLabel(caption);
         label.setHorizontalAlignment(JLabel.TRAILING);
         gbc.gridwidth = 1;
         gbc.fill = GridBagConstraints.BOTH;
@@ -686,14 +696,14 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             } else {
                 gbc.gridwidth = Integer.parseInt(gridwidth);
             }
-        } catch (NumberFormatException nfe) {
+        } catch (final NumberFormatException nfe) {
             // ignore
         }
 
         component.setToolTipText(tooltip);
         JComponent wrappedComponent = component;
         if (component instanceof JTextField) {
-            JTextField textField = (JTextField) component;
+            final JTextField textField = (JTextField) component;
             textField.setColumns(Integer.parseInt(widthStr));
             textField.setHorizontalAlignment(alignment.equals("R") ? SwingConstants.TRAILING
                     : alignment.equals("C") ? SwingConstants.CENTER : SwingConstants.LEADING);
@@ -701,7 +711,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             textField.setEnabled(true);
             textField.setBackground(Color.white);
         } else if (component instanceof JTextArea) {
-            JTextArea textArea = (JTextArea) component;
+            final JTextArea textArea = (JTextArea) component;
             textArea.setColumns(Integer.parseInt(widthStr));
             textArea.setRows(Integer.parseInt(heightStr));
             textArea.setEditable(false);
@@ -725,8 +735,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         return component;
     }
 
-    AdminAction createAction(AdminCommand command, String specification) {
-        StringTokenizer st = new StringTokenizer(specification, ":");
+    AdminAction createAction(final AdminCommand command, final String specification) {
+        final StringTokenizer st = new StringTokenizer(specification, ":");
         String actionName = st.nextToken();
         String caption = null;
         String iconName = null;
@@ -735,19 +745,19 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         if (st.hasMoreTokens())
             iconName = st.nextToken();
 
-        boolean isDisableSensitive = actionName.startsWith("?");
+        final boolean isDisableSensitive = actionName.startsWith("?");
         if (isDisableSensitive)
             actionName = actionName.substring(1);
 
-        boolean isToggle = actionName.startsWith("*");
+        final boolean isToggle = actionName.startsWith("*");
         if (isToggle)
             actionName = actionName.substring(1);
 
-        boolean isRadio = actionName.startsWith("!");
+        final boolean isRadio = actionName.startsWith("!");
         if (isRadio)
             actionName = actionName.substring(1);
 
-        boolean hasSubActions = actionName.startsWith("+");
+        final boolean hasSubActions = actionName.startsWith("+");
         if (hasSubActions)
             actionName = actionName.substring(1);
 
@@ -759,7 +769,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 caption = caption.substring(0, mnemonicIndex) + caption.substring(mnemonicIndex + 1);
             }
 
-            int acceleratorIndex = caption.indexOf('^');
+            final int acceleratorIndex = caption.indexOf('^');
             if (acceleratorIndex >= 0 && acceleratorIndex + 1 < caption.length()) {
                 acceleratorChar = caption.charAt(acceleratorIndex + 1);
                 caption = caption.substring(0, acceleratorIndex) + caption.substring(acceleratorIndex + 2);
@@ -788,11 +798,11 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         return _tabbedPane;
     }
 
-    public AdminAction getAction(String actionName) {
+    public AdminAction getAction(final String actionName) {
         return (AdminAction) _actionMap.get(actionName);
     }
 
-    public TitledBorder createTitledBorder(String captionProperty) {
+    public TitledBorder createTitledBorder(final String captionProperty) {
         String caption = getProperty(captionProperty);
         if (caption == null || caption.length() == 0)
             caption = " ";
@@ -801,11 +811,12 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 TitledBorder.LEADING, TitledBorder.DEFAULT_POSITION, _boldFont, _persistitAccentColor);
     }
 
-    private void connectDialog(String defaultHost) {
+    private void connectDialog(final String defaultHost) {
         final Object value = JOptionPane.showInputDialog(_frame, "RMI Registry", "Connection Specification",
                 JOptionPane.QUESTION_MESSAGE, null, null, defaultHost);
         if (value instanceof String) {
-            Thread thread = new Thread() {
+            final Thread thread = new Thread() {
+                @Override
                 public void run() {
                     connect((String) value);
                 }
@@ -815,14 +826,14 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         }
     }
 
-    private boolean connect(String rmiHost) {
+    private boolean connect(final String rmiHost) {
         try {
             _rmiHost = rmiHost;
-            Management management = (Management) Naming.lookup("//" + rmiHost + "/PersistitManagementServer");
+            final Management management = (Management) Naming.lookup("//" + rmiHost + "/PersistitManagementServer");
             setManagement(management);
             setFrameTitle(rmiHost);
             return true;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             setManagement(null);
             showMessage(e, getProperty("ConnectionFailedMessage"), JOptionPane.ERROR_MESSAGE);
             return false;
@@ -835,13 +846,14 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
 
     void showMessage(final Object message, final String title, final int type) {
         SwingUtilities.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 JOptionPane.showMessageDialog(_frame, message, title, type);
             }
         });
     }
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         new AdminUI(args.length > 0 ? args[0] : null);
     }
 
@@ -860,26 +872,27 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         private int _mnemonicIndex;
         private int _acceleratorChar;
 
-        AdminAction(String actionName) {
+        AdminAction(final String actionName) {
             super();
             _name = actionName;
         }
 
-        AdminAction(AdminCommand command, String actionName, String caption) {
+        AdminAction(final AdminCommand command, final String actionName, final String caption) {
             super(caption);
             _name = actionName;
             _caption = caption;
             _command = command;
         }
 
-        AdminAction(AdminCommand command, String actionName, String caption, Icon icon) {
+        AdminAction(final AdminCommand command, final String actionName, final String caption, final Icon icon) {
             super(caption, icon);
             _name = actionName;
             _caption = caption;
             _command = command;
         }
 
-        public void actionPerformed(ActionEvent ae) {
+        @Override
+        public void actionPerformed(final ActionEvent ae) {
             if (!_refreshing) {
                 _command.actionPerformed(this, ae);
             }
@@ -893,6 +906,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             return _command;
         }
 
+        @Override
         public String toString() {
             return _caption;
         }
@@ -918,21 +932,21 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             return _buttonList;
         }
 
-        public void addButton(AbstractButton button) {
+        public void addButton(final AbstractButton button) {
             if (_buttonList == null)
                 _buttonList = new ArrayList();
             _buttonList.add(button);
             if (_mnemonicIndex >= 0) {
-                char mnemonicChar = _caption.charAt(_mnemonicIndex);
+                final char mnemonicChar = _caption.charAt(_mnemonicIndex);
                 button.setMnemonic((int) mnemonicChar);
             }
             if (_acceleratorChar > 0 && button instanceof JMenuItem && !(button instanceof JMenu)) {
-                KeyStroke accelerator = KeyStroke.getKeyStroke(_acceleratorChar, InputEvent.CTRL_MASK);
+                final KeyStroke accelerator = KeyStroke.getKeyStroke(_acceleratorChar, InputEvent.CTRL_MASK);
                 ((JMenuItem) button).setAccelerator(accelerator);
             }
         }
 
-        public void removeButton(AbstractButton button) {
+        public void removeButton(final AbstractButton button) {
             if (_buttonList != null) {
                 _buttonList.remove(button);
             }
@@ -940,10 +954,10 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 _buttonList = null;
         }
 
-        public void stateChanged(boolean selected) {
+        public void stateChanged(final boolean selected) {
             if (_buttonList != null) {
                 for (int i = 0; i < _buttonList.size(); i++) {
-                    AbstractButton button = (AbstractButton) _buttonList.get(i);
+                    final AbstractButton button = (AbstractButton) _buttonList.get(i);
                     if (button.isSelected() != selected) {
                         button.setSelected(selected);
                     }
@@ -951,7 +965,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             }
         }
 
-        public AbstractButton menuItem(AdminCommand command, String propName) {
+        public AbstractButton menuItem(final AdminCommand command, final String propName) {
             AbstractButton item;
             if (isToggle()) {
                 item = new JCheckBoxMenuItem(this);
@@ -964,15 +978,15 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                     item = new JMenu(this);
                     ButtonGroup bg = null;
                     for (int subIndex = 0;; subIndex++) {
-                        String subName = propName + "." + subIndex;
-                        String u = getProperty(subName);
+                        final String subName = propName + "." + subIndex;
+                        final String u = getProperty(subName);
                         if (u == null)
                             break;
-                        AdminAction action = createAction(command, u);
-                        AbstractButton subItem = action.menuItem(command, subName);
+                        final AdminAction action = createAction(command, u);
+                        final AbstractButton subItem = action.menuItem(command, subName);
                         item.add(subItem);
                         if (subItem instanceof JRadioButtonMenuItem) {
-                            boolean first = bg == null;
+                            final boolean first = bg == null;
                             if (first)
                                 bg = new ButtonGroup();
                             bg.add(subItem);
@@ -991,12 +1005,12 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         }
     }
 
-    ButtonModel getMenuItemModel(String actionName) {
-        AdminAction action = (AdminAction) _actionMap.get(actionName);
-        ArrayList buttons = action.getButtonList();
+    ButtonModel getMenuItemModel(final String actionName) {
+        final AdminAction action = (AdminAction) _actionMap.get(actionName);
+        final ArrayList buttons = action.getButtonList();
         if (buttons != null) {
-            for (Iterator iter = buttons.iterator(); iter.hasNext();) {
-                AbstractButton button = (AbstractButton) iter.next();
+            for (final Iterator iter = buttons.iterator(); iter.hasNext();) {
+                final AbstractButton button = (AbstractButton) iter.next();
                 if (button instanceof JMenuItem) {
                     return button.getModel();
                 }
@@ -1011,12 +1025,13 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         }
     }
 
-    public void actionPerformed(AdminAction action, ActionEvent ae) {
+    @Override
+    public void actionPerformed(final AdminAction action, final ActionEvent ae) {
         try {
-            String name = action._name;
+            final String name = action._name;
             boolean textModeChanged = false;
             // System.out.println("AdminUI actionPerformed: " + name);
-            Management management = _management;
+            final Management management = _management;
 
             if (name.startsWith("REFRESH")) {
                 int interval = 0;
@@ -1042,7 +1057,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 boolean state = ((AbstractButton) ae.getSource()).isSelected();
                 if (management != null && management.isInitialized()) {
                     if (state) {
-                        int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("ssusp.confirm"));
+                        final int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("ssusp.confirm"));
 
                         if (confirm != JOptionPane.YES_OPTION) {
                             state = false;
@@ -1059,7 +1074,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 if (management != null && management.isInitialized()) {
                     if (state) {
 
-                        int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("ususp.confirm"));
+                        final int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("ususp.confirm"));
 
                         if (confirm != JOptionPane.YES_OPTION) {
                             state = false;
@@ -1075,7 +1090,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 if (management != null && management.isInitialized()) {
                     if (state) {
 
-                        int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("aonly.confirm"));
+                        final int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("aonly.confirm"));
 
                         if (confirm != JOptionPane.YES_OPTION) {
                             state = false;
@@ -1091,7 +1106,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 if (management != null && management.isInitialized()) {
                     if (state) {
 
-                        int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("jcopy.confirm"));
+                        final int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("jcopy.confirm"));
 
                         if (confirm != JOptionPane.YES_OPTION) {
                             state = false;
@@ -1133,14 +1148,14 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 _fixedFontMode = true;
                 textModeChanged = true;
             } else if (name.startsWith("TASK.")) {
-                String taskDescriptorPropName = "TaskDescriptor." + name.substring(5);
-                String taskDescriptorString = getProperty(taskDescriptorPropName);
-                TaskSetupPanel tsp = new TaskSetupPanel(this, taskDescriptorString);
+                final String taskDescriptorPropName = "TaskDescriptor." + name.substring(5);
+                final String taskDescriptorString = getProperty(taskDescriptorPropName);
+                final TaskSetupPanel tsp = new TaskSetupPanel(this, taskDescriptorString);
 
-                JOptionPane optionPane = new JOptionPane(tsp, JOptionPane.QUESTION_MESSAGE,
+                final JOptionPane optionPane = new JOptionPane(tsp, JOptionPane.QUESTION_MESSAGE,
                         JOptionPane.OK_CANCEL_OPTION);
 
-                JDialog dialog = optionPane.createDialog(_frame, tsp.getTaskName());
+                final JDialog dialog = optionPane.createDialog(_frame, tsp.getTaskName());
                 dialog.setResizable(true);
 
                 tsp.refresh(false);
@@ -1148,19 +1163,19 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 dialog.pack();
                 dialog.setVisible(true);
 
-                Object value = optionPane.getValue();
+                final Object value = optionPane.getValue();
                 if (value != null && value instanceof Integer && ((Integer) value).intValue() == 0) {
                     doTask(tsp);
                 }
             } else if ("START_NEW_TASK".equals(name)) {
-                JPopupMenu popup = new JPopupMenu(getProperty("SelectNewTaskMessage"));
+                final JPopupMenu popup = new JPopupMenu(getProperty("SelectNewTaskMessage"));
                 for (int index = 0;; index++) {
-                    AdminAction taskAction = getAction("TASK." + index);
+                    final AdminAction taskAction = getAction("TASK." + index);
                     if (taskAction == null)
                         break;
                     popup.add(new JMenuItem(taskAction));
                 }
-                JComponent source = (JComponent) ae.getSource();
+                final JComponent source = (JComponent) ae.getSource();
                 popup.show(source, source.getWidth(), 0);
             } else {
                 System.out.println("Undefined ACTION name " + name);
@@ -1168,16 +1183,16 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
 
             if (textModeChanged)
                 handleTextModeChanged();
-        } catch (NoSuchObjectException ex) {
+        } catch (final NoSuchObjectException ex) {
             setManagement(null);
             scheduleRefresh(0);
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             postException(ex);
         }
     }
 
-    public boolean getManagementState(AdminAction action) {
-        String name = action.getName();
+    public boolean getManagementState(final AdminAction action) {
+        final String name = action.getName();
         try {
             if (_management == null)
                 return false;
@@ -1193,17 +1208,17 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             if ("USUSP".equals(name)) {
                 return _management.getJournalInfo().isFastCopying();
             }
-        } catch (RemoteException re) {
+        } catch (final RemoteException re) {
         }
         return false;
     }
 
     void handleTextModeChanged() {
-        for (Iterator iter = _textComponentList.iterator(); iter.hasNext();) {
-            JComponent component = (JComponent) iter.next();
+        for (final Iterator iter = _textComponentList.iterator(); iter.hasNext();) {
+            final JComponent component = (JComponent) iter.next();
             component.setFont(_fixedFontMode ? _fixedFont : _defaultFont);
             if (component instanceof JTextArea) {
-                JTextArea tc = (JTextArea) component;
+                final JTextArea tc = (JTextArea) component;
                 tc.setLineWrap(_wrapMode);
                 if (_wrapMode)
                     tc.setWrapStyleWord(_wrapWordMode);
@@ -1211,7 +1226,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         }
     }
 
-    void registerTextComponent(JComponent component) {
+    void registerTextComponent(final JComponent component) {
         _textComponentList.add(component);
     }
 
@@ -1222,11 +1237,11 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 try {
                     // Use reflection so this will compile and run (but not
                     // report the cause correctly) in JDK 1.3
-                    Method method = throwable.getClass().getMethod("getCause", new Class[0]);
+                    final Method method = throwable.getClass().getMethod("getCause", new Class[0]);
                     if (method != null) {
                         cause = (Throwable) method.invoke(throwable, new Object[0]);
                     }
-                } catch (NoSuchMethodException e) {
+                } catch (final NoSuchMethodException e) {
                     // ignore for JDK 1.3
                 }
             }
@@ -1236,7 +1251,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 throwable = ((Management.WrappedRemoteException) throwable).getCause();
             }
             showMessage(throwable, getProperty("ExceptionMessage"), JOptionPane.ERROR_MESSAGE);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             System.out.println("Exception while reporting throwable:");
             e.printStackTrace();
         }
@@ -1251,15 +1266,17 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         }
 
         _refreshTimerTask = new TimerTask() {
+            @Override
             public void run() {
                 try {
                     SwingUtilities.invokeAndWait(new Runnable() {
+                        @Override
                         public void run() {
                             refresh(false);
                         }
                     });
-                } catch (InterruptedException e) {
-                } catch (InvocationTargetException e) {
+                } catch (final InterruptedException e) {
+                } catch (final InvocationTargetException e) {
                 }
             }
         };
@@ -1273,17 +1290,17 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         }
     }
 
-    protected void doTask(TaskSetupPanel tsp) throws RemoteException {
-        Management management = getManagement();
+    protected void doTask(final TaskSetupPanel tsp) throws RemoteException {
+        final Management management = getManagement();
         if (management != null) {
             // TODO - reinstate task interface
-            management.startTask(tsp.getDescriptionString(), tsp.getOwnerString(), tsp.getCommandLine(), tsp
-                    .getExpirationTime(), tsp.isVerboseEnabled() ? Task.LOG_VERBOSE : Task.LOG_NORMAL);
+            management.startTask(tsp.getDescriptionString(), tsp.getOwnerString(), tsp.getCommandLine(),
+                    tsp.getExpirationTime(), tsp.isVerboseEnabled() ? Task.LOG_VERBOSE : Task.LOG_NORMAL);
         }
         scheduleRefresh(1000);
     }
 
-    private synchronized void showHelp(ActionEvent ae) {
+    private synchronized void showHelp(final ActionEvent ae) {
         // disabled and removed for now
         //
         // if (_javaHelpAdapter == null) {
@@ -1302,30 +1319,31 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     private class SplashWindow extends JWindow {
         Image _image;
 
-        private SplashWindow(JFrame frame) {
+        private SplashWindow(final JFrame frame) {
             super(frame);
         }
 
         private void display() {
-            URL url = AdminUI.class.getResource(SPLASH_FILE_NAME);
+            final URL url = AdminUI.class.getResource(SPLASH_FILE_NAME);
             _image = Toolkit.getDefaultToolkit().createImage(url);
             // Load the image
-            MediaTracker mt = new MediaTracker(this);
+            final MediaTracker mt = new MediaTracker(this);
             mt.addImage(_image, 0);
             try {
                 mt.waitForID(0);
-            } catch (InterruptedException ie) {
+            } catch (final InterruptedException ie) {
             }
 
             // Center the window on the screen.
-            int width = _image.getWidth(this);
-            int height = _image.getHeight(this);
+            final int width = _image.getWidth(this);
+            final int height = _image.getHeight(this);
 
             setSize(width, height);
-            Dimension screenDim = Toolkit.getDefaultToolkit().getScreenSize();
+            final Dimension screenDim = Toolkit.getDefaultToolkit().getScreenSize();
             setLocation((screenDim.width - width) / 2, (screenDim.height - height) / 2);
             addMouseListener(new MouseAdapter() {
-                public void mouseClicked(MouseEvent evt) {
+                @Override
+                public void mouseClicked(final MouseEvent evt) {
                     setVisible(false);
                     dispose();
                     _splashWindow = null;
@@ -1334,10 +1352,12 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             setVisible(true);
         }
 
-        public void update(Graphics g) {
+        @Override
+        public void update(final Graphics g) {
         }
 
-        public void paint(Graphics g) {
+        @Override
+        public void paint(final Graphics g) {
             g.drawImage(_image, 0, 0, this);
         }
     }

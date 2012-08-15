@@ -27,7 +27,7 @@ public class TestSamePageOptimization extends PersistitUnitTestCase {
 
     public void runTest() throws Exception {
         final Exchange ex = store();
-        int[] jumps = { 1, 2, 5, 10, 100, 1000, 10000, 50000, 1, 2, 5, 10, 100, 1000, 10000, 50000 };
+        final int[] jumps = { 1, 2, 5, 10, 100, 1000, 10000, 50000, 1, 2, 5, 10, 100, 1000, 10000, 50000 };
 
         System.out.printf("\nFetch time per jump count, with LevelCache enabled\n");
         for (int i = 0; i < jumps.length; i++) {
@@ -42,12 +42,12 @@ public class TestSamePageOptimization extends PersistitUnitTestCase {
 
     }
 
-    public long fetchesPerUnitTime(final Exchange ex, final int jump, final long duration, boolean enabled)
+    public long fetchesPerUnitTime(final Exchange ex, final int jump, final long duration, final boolean enabled)
             throws Exception {
-        Random random = new Random(1);
+        final Random random = new Random(1);
         int count = 0;
         int key = 0;
-        long expires = System.currentTimeMillis() + duration;
+        final long expires = System.currentTimeMillis() + duration;
         while (System.currentTimeMillis() < expires) {
             for (int j = 0; j < 100; j++) {
                 key = (key + random.nextInt(jump) - jump / 2 + KEYS) % KEYS;
@@ -63,8 +63,8 @@ public class TestSamePageOptimization extends PersistitUnitTestCase {
 
     private Exchange store() throws PersistitException {
         final Exchange ex = _persistit.getExchange("persistit", "TestSamePageOptimization", true);
-        ex.append(1).append("Pretty long key prefix").append(2).append("Another pretty long prefix").append(3).append(
-                Key.BEFORE);
+        ex.append(1).append("Pretty long key prefix").append(2).append("Another pretty long prefix").append(3)
+                .append(Key.BEFORE);
         ex.getValue().put(RED_FOX);
         for (int i = 0; i < KEYS; i++) {
             ex.to(i).store();

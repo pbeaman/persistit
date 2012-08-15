@@ -30,7 +30,7 @@ public class TreeSelectorTest {
 
     @Test
     public void allSelector() throws Exception {
-        TreeSelector ts = TreeSelector.parseSelector("*", false, '\\');
+        final TreeSelector ts = TreeSelector.parseSelector("*", false, '\\');
         assertTrue(ts.isVolumeNameSelected("mydata"));
         assertTrue(ts.isVolumeNameSelected("mystuff"));
         assertTrue(ts.isTreeNameSelected("mydata", "anindex"));
@@ -39,7 +39,7 @@ public class TreeSelectorTest {
 
     @Test
     public void simpleSelector() throws Exception {
-        TreeSelector ts = TreeSelector.parseSelector("*data:*index", false, '\\');
+        final TreeSelector ts = TreeSelector.parseSelector("*data:*index", false, '\\');
         assertTrue(ts.isVolumeNameSelected("mydata"));
         assertFalse(ts.isVolumeNameSelected("mystuff"));
         assertTrue(ts.isTreeNameSelected("mydata", "anindex"));
@@ -48,7 +48,7 @@ public class TreeSelectorTest {
 
     @Test
     public void volumeOnlySelector() throws Exception {
-        TreeSelector ts = TreeSelector.parseSelector("akiban_data*", false, '\\');
+        final TreeSelector ts = TreeSelector.parseSelector("akiban_data*", false, '\\');
         assertTrue(ts.isVolumeNameSelected("akiban_data.v01"));
         assertFalse(ts.isVolumeNameSelected("mystuff"));
         assertTrue(ts.isTreeNameSelected("akiban_data.v01", "anindex"));
@@ -57,7 +57,7 @@ public class TreeSelectorTest {
 
     @Test
     public void toxicCharactersSelector() throws Exception {
-        TreeSelector ts = TreeSelector.parseSelector("*:customer$$group(something...*)[a-z]$$$$27", false, '\\');
+        final TreeSelector ts = TreeSelector.parseSelector("*:customer$$group(something...*)[a-z]$$$$27", false, '\\');
         assertTrue(ts.isTreeNameSelected("akiban_data.v01", "customer$$group(something...)[a-z]$$$$27"));
         assertTrue(ts.isTreeNameSelected("akiban_data.v01", "customer$$group(something...xyz)[a-z]$$$$27"));
         assertFalse(ts.isTreeNameSelected("akiban_data.v01", "customer$$group(something...)m$$$$27"));
@@ -65,7 +65,7 @@ public class TreeSelectorTest {
 
     @Test
     public void simpleSelectorWithKeyFilter() throws Exception {
-        TreeSelector ts = TreeSelector.parseSelector("*data:*index{1:2}", false, '\\');
+        final TreeSelector ts = TreeSelector.parseSelector("*data:*index{1:2}", false, '\\');
         assertTrue(ts.isVolumeNameSelected("mydata"));
         assertFalse(ts.isVolumeNameSelected("mystuff"));
         assertTrue(ts.isTreeNameSelected("mydata", "anindex"));
@@ -76,7 +76,7 @@ public class TreeSelectorTest {
 
     @Test
     public void simpleTreeList() throws Exception {
-        TreeSelector ts = TreeSelector.parseSelector("v1:t1,v1:t2,v1:t3,v1:t4", false, '\\');
+        final TreeSelector ts = TreeSelector.parseSelector("v1:t1,v1:t2,v1:t3,v1:t4", false, '\\');
         assertTrue(ts.isVolumeNameSelected("v1"));
         assertFalse(ts.isVolumeNameSelected("v2"));
         assertTrue(ts.isTreeNameSelected("v1", "t1"));
@@ -90,7 +90,7 @@ public class TreeSelectorTest {
 
     @Test
     public void complexCase() throws Exception {
-        TreeSelector ts = TreeSelector.parseSelector("v1:t1{1:10,\"a\"},v?:t?{10:20},x*:other*", false, '\\');
+        final TreeSelector ts = TreeSelector.parseSelector("v1:t1{1:10,\"a\"},v?:t?{10:20},x*:other*", false, '\\');
         assertTrue(ts.isVolumeNameSelected("v1"));
         assertTrue(ts.isVolumeNameSelected("v9"));
         assertTrue(ts.isVolumeNameSelected("xanything"));
@@ -100,7 +100,7 @@ public class TreeSelectorTest {
         try {
             ts.keyFilter("v1", "t1");
             fail();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             // okay
         }
     }

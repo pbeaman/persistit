@@ -99,7 +99,7 @@ class JournalTool {
 
     private ByteBuffer _readBuffer;
 
-    private int _readBufferSize = DEFAULT_BUFFER_SIZE;
+    private final int _readBufferSize = DEFAULT_BUFFER_SIZE;
 
     private long _readBufferAddress;
 
@@ -123,7 +123,7 @@ class JournalTool {
         return _startAddr;
     }
 
-    public void setStartAddr(long startAddr) {
+    public void setStartAddr(final long startAddr) {
         _startAddr = startAddr;
     }
 
@@ -131,7 +131,7 @@ class JournalTool {
         return _endAddr;
     }
 
-    public void setEndAddr(long endAddr) {
+    public void setEndAddr(final long endAddr) {
         _endAddr = endAddr;
     }
 
@@ -147,7 +147,7 @@ class JournalTool {
         return _writer;
     }
 
-    public void setWriter(PrintWriter writer) {
+    public void setWriter(final PrintWriter writer) {
         _writer = writer;
     }
 
@@ -155,7 +155,7 @@ class JournalTool {
         return _selectedTypes;
     }
 
-    public void setSelectedTypes(BitSet selectedTypes) {
+    public void setSelectedTypes(final BitSet selectedTypes) {
         _selectedTypes = selectedTypes;
     }
 
@@ -163,7 +163,7 @@ class JournalTool {
         return _selectedPages;
     }
 
-    public void setSelectedPages(RangePredicate selectedPages) {
+    public void setSelectedPages(final RangePredicate selectedPages) {
         _selectedPages = selectedPages;
     }
 
@@ -171,7 +171,7 @@ class JournalTool {
         return _selectedTimestamps;
     }
 
-    public void setSelectedTimestamps(RangePredicate selectedTimestamps) {
+    public void setSelectedTimestamps(final RangePredicate selectedTimestamps) {
         _selectedTimestamps = selectedTimestamps;
     }
 
@@ -179,7 +179,7 @@ class JournalTool {
         return _keyDisplayLength;
     }
 
-    public void setKeyDisplayLength(int keyDisplayLength) {
+    public void setKeyDisplayLength(final int keyDisplayLength) {
         _keyDisplayLength = keyDisplayLength;
     }
 
@@ -187,7 +187,7 @@ class JournalTool {
         return _valueDisplayLength;
     }
 
-    public void setValueDisplayLength(int valueDisplayLength) {
+    public void setValueDisplayLength(final int valueDisplayLength) {
         _valueDisplayLength = valueDisplayLength;
     }
 
@@ -195,7 +195,7 @@ class JournalTool {
         return _verbose;
     }
 
-    public void setVerbose(boolean verbose) {
+    public void setVerbose(final boolean verbose) {
         _verbose = verbose;
     }
 
@@ -249,7 +249,7 @@ class JournalTool {
                     try {
                         switch (range.length) {
                         case 1:
-                            long v = Long.parseLong(range[0]);
+                            final long v = Long.parseLong(range[0]);
                             _left[index] = v;
                             _right[index] = v;
                             break;
@@ -269,7 +269,7 @@ class JournalTool {
                         default:
                             okay = false;
                         }
-                    } catch (NumberFormatException e) {
+                    } catch (final NumberFormatException e) {
                         okay = false;
                     }
                     if (!okay) {
@@ -300,7 +300,7 @@ class JournalTool {
     }
 
     public void init(final String[] args) {
-        ArgParser ap = new ArgParser("com.persistit.JournalTool", args, ARGS_TEMPLATE).strict();
+        final ArgParser ap = new ArgParser("com.persistit.JournalTool", args, ARGS_TEMPLATE).strict();
         if (ap.isUsageOnly()) {
             return;
         }
@@ -309,12 +309,12 @@ class JournalTool {
 
     void init(final ArgParser ap) {
         init(ap.getStringValue("path"), ap.getLongValue("start"), ap.getLongValue("end"), ap.getStringValue("types"),
-                ap.getStringValue("pages"), ap.getStringValue("timestamps"), ap.getIntValue("maxkey"), ap
-                        .getIntValue("maxvalue"), ap.isFlag('v'));
+                ap.getStringValue("pages"), ap.getStringValue("timestamps"), ap.getIntValue("maxkey"),
+                ap.getIntValue("maxvalue"), ap.isFlag('v'));
     }
 
-    void init(String path, long start, long end, String types, String pages, String timestamps, int maxkey,
-            int maxvalue, boolean v) {
+    void init(final String path, final long start, final long end, final String types, final String pages,
+            final String timestamps, final int maxkey, final int maxvalue, final boolean v) {
         _startAddr = start;
         _endAddr = end;
         String pathName = path;
@@ -379,7 +379,7 @@ class JournalTool {
             _currentAddress = _startAddr;
             _readBufferAddress = Long.MIN_VALUE;
             while (_currentAddress < _endAddr) {
-                int type = scanOneRecord();
+                final int type = scanOneRecord();
                 switch (type) {
                 case JE.TYPE:
                 case EOF:
@@ -409,14 +409,14 @@ class JournalTool {
      */
     private int scanOneRecord() throws Exception {
 
-        long from = _currentAddress;
+        final long from = _currentAddress;
         try {
             read(_currentAddress, OVERHEAD);
-        } catch (CorruptJournalException e) {
+        } catch (final CorruptJournalException e) {
             // This exception means abnormal end-of-file.
             _action.eof(from);
             return EOF;
-        } catch (PersistitIOException e) {
+        } catch (final PersistitIOException e) {
             if (e.getCause() instanceof FileNotFoundException) {
                 return EOJ;
             } else {
@@ -543,7 +543,7 @@ class JournalTool {
         return ((address / _blockSize) + 1) * _blockSize;
     }
 
-    private synchronized FileChannel getFileChannel(long address) throws PersistitIOException {
+    private synchronized FileChannel getFileChannel(final long address) throws PersistitIOException {
         final long generation = address / _blockSize;
         FileChannel channel = _journalFileChannels.get(generation);
         if (channel == null) {
@@ -551,7 +551,7 @@ class JournalTool {
                 final RandomAccessFile raf = new RandomAccessFile(addressToFile(address), "r");
                 channel = raf.getChannel();
                 _journalFileChannels.put(generation, channel);
-            } catch (IOException ioe) {
+            } catch (final IOException ioe) {
                 throw new PersistitIOException(ioe);
             }
         }
@@ -572,7 +572,7 @@ class JournalTool {
                 _readBuffer.clear();
 
                 int maxSize = _readBuffer.capacity();
-                long remainingInBlock = addressUp(address) - address;
+                final long remainingInBlock = addressUp(address) - address;
                 if (remainingInBlock < maxSize) {
                     maxSize = (int) remainingInBlock;
                 }
@@ -581,7 +581,7 @@ class JournalTool {
                 // Try to read up to maxSize bytes into _readBuffer
                 int offset = 0;
                 while (_readBuffer.remaining() > 0) {
-                    int readSize = fc.read(_readBuffer, offset + address % _blockSize);
+                    final int readSize = fc.read(_readBuffer, offset + address % _blockSize);
                     if (readSize < 0) {
                         break;
                     }
@@ -592,7 +592,7 @@ class JournalTool {
                 if (_readBuffer.remaining() < size) {
                     throw new CorruptJournalException("End of file at " + addressToString(address));
                 }
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 throw new PersistitIOException("Reading from " + addressToString(address), e);
             }
         }
@@ -608,19 +608,19 @@ class JournalTool {
 
     // -----------------------
 
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         final Persistit persistit = new Persistit();
         JournalTool jt = null;
         try {
             jt = new JournalTool(persistit);
             jt.init(args);
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             System.err.println(e.getLocalizedMessage());
             System.exit(1);
         }
         try {
             jt.scan();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             e.printStackTrace();
         } finally {
             persistit.close();
@@ -639,7 +639,7 @@ class JournalTool {
 
         final Value value = new Value(_persistit);
 
-        protected void start(long address, long timestamp, String type, int recordSize) {
+        protected void start(final long address, final long timestamp, final String type, final int recordSize) {
             sb.setLength(0);
             sb.append(String.format("%,18d%,16d %2s (%8d) ", address, timestamp, type, recordSize));
         }
@@ -652,7 +652,7 @@ class JournalTool {
             String s = null;
             try {
                 s = key.toString();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 s = e.getLocalizedMessage();
             }
             padf(s, _keyDisplayLength);
@@ -663,13 +663,13 @@ class JournalTool {
             try {
                 if (value.getEncodedSize() >= Buffer.LONGREC_SIZE
                         && (value.getEncodedBytes()[0] & 0xFF) == Buffer.LONGREC_TYPE) {
-                    long page = Buffer.decodeLongRecordDescriptorPointer(value.getEncodedBytes(), 0);
-                    int size = Buffer.decodeLongRecordDescriptorSize(value.getEncodedBytes(), 0);
+                    final long page = Buffer.decodeLongRecordDescriptorPointer(value.getEncodedBytes(), 0);
+                    final int size = Buffer.decodeLongRecordDescriptorSize(value.getEncodedBytes(), 0);
                     s = String.format("LONG_REC size %,8d page %12d", size, page);
                 } else {
                     s = value.toString();
                 }
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 s = e.getLocalizedMessage();
             }
             padf(s, _valueDisplayLength);
@@ -741,8 +741,8 @@ class JournalTool {
         @Override
         public void it(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
-            int handle = IT.getHandle(_readBuffer);
-            int vhandle = IT.getVolumeHandle(_readBuffer);
+            final int handle = IT.getHandle(_readBuffer);
+            final int vhandle = IT.getVolumeHandle(_readBuffer);
             final String treeName = IT.getTreeName(_readBuffer);
             start(address, timestamp, "IT", recordSize);
             appendf(" handle %05d volume %05d treeName %s", handle, vhandle, treeName);
@@ -763,11 +763,11 @@ class JournalTool {
         public void tx(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             start(address, timestamp, "TX", recordSize);
-            appendf(" committed %,d backchain %,d", TX.getCommitTimestamp(_readBuffer), TX
-                    .getBackchainAddress(_readBuffer));
+            appendf(" committed %,d backchain %,d", TX.getCommitTimestamp(_readBuffer),
+                    TX.getBackchainAddress(_readBuffer));
             flush();
-            int start = _readBuffer.position();
-            int end = start + recordSize;
+            final int start = _readBuffer.position();
+            final int end = start + recordSize;
             _readBuffer.position(_readBuffer.position() + TX.OVERHEAD);
             while (_readBuffer.position() < end) {
                 final int innerSize = getLength(_readBuffer);
@@ -790,8 +790,8 @@ class JournalTool {
                     key1Size);
             key1.setEncodedSize(key1Size);
             System.arraycopy(key1.getEncodedBytes(), 0, key2.getEncodedBytes(), 0, elisionCount);
-            System.arraycopy(_readBuffer.array(), _readBuffer.position() + DR.OVERHEAD + key1Size, key2
-                    .getEncodedBytes(), elisionCount, key2Size);
+            System.arraycopy(_readBuffer.array(), _readBuffer.position() + DR.OVERHEAD + key1Size,
+                    key2.getEncodedBytes(), elisionCount, key2Size);
             key2.setEncodedSize(key2Size + elisionCount);
             start(address, timestamp, "DR", recordSize);
             appendf(" tree %05d key1Size %,5d key2Size %,5d  ", thandle, key1Size, key2Size);
@@ -811,8 +811,8 @@ class JournalTool {
                     keySize);
             key1.setEncodedSize(keySize);
             value.ensureFit(valueSize);
-            System.arraycopy(_readBuffer.array(), _readBuffer.position() + SR.OVERHEAD + keySize, value
-                    .getEncodedBytes(), 0, valueSize);
+            System.arraycopy(_readBuffer.array(), _readBuffer.position() + SR.OVERHEAD + keySize,
+                    value.getEncodedBytes(), 0, valueSize);
             value.setEncodedSize(valueSize);
             start(address, timestamp, "SR", recordSize);
             appendf(" tree %05d keySize %,5d valueSize %,5d  ", thandle, keySize, valueSize);
@@ -875,7 +875,7 @@ class JournalTool {
         }
 
         @Override
-        public void d0(long address, long timestamp, int recordSize) throws Exception {
+        public void d0(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             start(address, timestamp, "D0", recordSize);
             final int thandle = D0.getTreeHandle(_readBuffer);
@@ -885,7 +885,7 @@ class JournalTool {
         }
 
         @Override
-        public void d1(long address, long timestamp, int recordSize) throws Exception {
+        public void d1(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             start(address, timestamp, "D1", recordSize);
             final int thandle = D1.getTreeHandle(_readBuffer);

@@ -54,9 +54,9 @@ public class ObjectCache {
     private Entry[] _entries = new Entry[DEFAULT_INITIAL_SIZE];
     private int _size;
     private int _deadCount;
-    private int _deadCountThreshold = 25;
+    private final int _deadCountThreshold = 25;
 
-    private ReferenceQueue<SoftReference<?>> _queue = new ReferenceQueue<SoftReference<?>>();
+    private final ReferenceQueue<SoftReference<?>> _queue = new ReferenceQueue<SoftReference<?>>();
 
     private static class Entry {
         Object _key;
@@ -132,13 +132,13 @@ public class ObjectCache {
      * 
      * @return The former value.
      */
-    public synchronized Object put(Key key, Object value) {
+    public synchronized Object put(final Key key, Object value) {
         if (value == null)
             value = NULL;
         Object previousValue = null;
 
         boolean found = false;
-        int offset = offset(key, _entries.length);
+        final int offset = offset(key, _entries.length);
         Entry entry = _entries[offset];
         while (entry != null && !found) {
             if (entry._key.equals(key)) {
@@ -178,12 +178,12 @@ public class ObjectCache {
      * 
      * @return The value, or <code>null</code> if there is none.
      */
-    public synchronized Object get(Key key) {
-        int offset = offset(key, _entries.length);
+    public synchronized Object get(final Key key) {
+        final int offset = offset(key, _entries.length);
         Entry entry = _entries[offset];
         while (entry != null) {
             if (entry._key.equals(key)) {
-                Object value = entry._reference.get();
+                final Object value = entry._reference.get();
                 if (value == NULL)
                     return null;
                 else
@@ -219,12 +219,12 @@ public class ObjectCache {
      *         known to be null, or <code>null</code> if the there is no cached
      *         value for this key.
      */
-    public synchronized Object getWithNull(Key key) {
-        int offset = offset(key, _entries.length);
+    public synchronized Object getWithNull(final Key key) {
+        final int offset = offset(key, _entries.length);
         Entry entry = _entries[offset];
         while (entry != null) {
             if (entry._key.equals(key)) {
-                Object value = entry._reference.get();
+                final Object value = entry._reference.get();
                 return value;
             }
             entry = entry._next;
@@ -239,8 +239,8 @@ public class ObjectCache {
      * @return <code>true</code> if the cache contains a representation of the
      *         value associated with the key; otherwise <code>false</code>
      */
-    public synchronized boolean isCached(Key key) {
-        int offset = offset(key, _entries.length);
+    public synchronized boolean isCached(final Key key) {
+        final int offset = offset(key, _entries.length);
         Entry entry = _entries[offset];
         while (entry != null) {
             if (entry._key.equals(key)) {
@@ -263,9 +263,9 @@ public class ObjectCache {
      *         {@link #getWithNull}; that is, the returned value value is an
      *         object, {@link #NULL} or <code>null</code>.
      */
-    public synchronized Object remove(Key key) {
+    public synchronized Object remove(final Key key) {
         Object value = null;
-        int offset = offset(key, _entries.length);
+        final int offset = offset(key, _entries.length);
         Entry entry = _entries[offset];
         if (entry == null)
             return null;
@@ -306,12 +306,12 @@ public class ObjectCache {
         if (_entries.length > newSize && _entries.length < newSize + DEFAULT_INITIAL_SIZE)
             return;
 
-        Entry[] newEntries = new Entry[newSize];
+        final Entry[] newEntries = new Entry[newSize];
         for (int offset = 0; offset < _entries.length; offset++) {
             Entry entry = _entries[offset];
             while (entry != null) {
-                int newOffset = offset(entry._key, newSize);
-                Entry next = entry._next;
+                final int newOffset = offset(entry._key, newSize);
+                final Entry next = entry._next;
                 entry._next = newEntries[newOffset];
                 newEntries[newOffset] = entry;
                 entry = next;
@@ -334,7 +334,7 @@ public class ObjectCache {
      * 
      * @param deadCountThreshold
      */
-    private void processQueue(int deadCountThreshold) {
+    private void processQueue(final int deadCountThreshold) {
         while (_queue.poll() != null)
             _deadCount++;
         if (_deadCount > deadCountThreshold) {
@@ -360,7 +360,7 @@ public class ObjectCache {
         }
     }
 
-    private int offset(Object key, int length) {
+    private int offset(final Object key, final int length) {
         return ((key.hashCode()) & 0x7FFFFFFF) % length;
     }
 

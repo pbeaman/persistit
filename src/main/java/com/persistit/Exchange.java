@@ -33,7 +33,7 @@ import static com.persistit.Key.LT;
 import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
-import static com.persistit.util.SequencerConstants.*;
+import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_A;
 import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.util.ArrayList;
@@ -141,8 +141,8 @@ public class Exchange {
 
         private final static long READ_COMMITTED_TS = TransactionStatus.UNCOMMITTED - 1;
 
-        private TransactionIndex _ti;
-        private Exchange _exchange;
+        private final TransactionIndex _ti;
+        private final Exchange _exchange;
         private TransactionStatus _status;
         private int _step;
         private int _foundOffset;
@@ -151,7 +151,7 @@ public class Exchange {
         private int _foundStep;
         private Usage _usage;
 
-        private MvvVisitor(TransactionIndex ti, final Exchange exchange) {
+        private MvvVisitor(final TransactionIndex ti, final Exchange exchange) {
             _ti = ti;
             _exchange = exchange;
         }
@@ -166,7 +166,7 @@ public class Exchange {
          * @param usage
          *            What reason this visit is being done for.
          */
-        public void initInternal(TransactionStatus status, int step, Usage usage) {
+        public void initInternal(final TransactionStatus status, final int step, final Usage usage) {
             Debug.$assert0.t(status != null || usage != Usage.STORE);
             _status = status;
             _step = step;
@@ -194,15 +194,15 @@ public class Exchange {
         }
 
         @Override
-        public void sawVersion(long version, int offset, int valueLength) throws PersistitException {
+        public void sawVersion(final long version, final int offset, final int valueLength) throws PersistitException {
             try {
                 switch (_usage) {
                 case FETCH:
-                    long ts = _status != null ? _status.getTs() : READ_COMMITTED_TS;
-                    long status = _ti.commitStatus(version, ts, _step);
+                    final long ts = _status != null ? _status.getTs() : READ_COMMITTED_TS;
+                    final long status = _ti.commitStatus(version, ts, _step);
                     if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status >= _foundVersion) {
                         assert status <= ts;
-                        int step = TransactionIndex.vh2step(version);
+                        final int step = TransactionIndex.vh2step(version);
                         if (step >= _foundStep || status > _foundVersion) {
                             _foundOffset = offset;
                             _foundLength = valueLength;
@@ -213,7 +213,7 @@ public class Exchange {
                     break;
 
                 case STORE:
-                    long depends = _ti.wwDependency(version, _status, 0);
+                    final long depends = _ti.wwDependency(version, _status, 0);
                     if (depends == TransactionStatus.TIMED_OUT) {
                         throw new WWRetryException(version);
                     }
@@ -229,7 +229,7 @@ public class Exchange {
                     }
                     break;
                 }
-            } catch (InterruptedException ie) {
+            } catch (final InterruptedException ie) {
                 throw new PersistitInterruptedException(ie);
             }
         }
@@ -266,10 +266,10 @@ public class Exchange {
 
     private Key _spareKey1;
     private Key _spareKey2;
-    private Key _spareKey3;
-    private Key _spareKey4;
+    private final Key _spareKey3;
+    private final Key _spareKey4;
 
-    private Value _spareValue;
+    private final Value _spareValue;
 
     private SplitPolicy _splitPolicy;
     private JoinPolicy _joinPolicy;
@@ -338,7 +338,8 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
-    public Exchange(Persistit persistit, String volumeName, String treeName, boolean create) throws PersistitException {
+    public Exchange(final Persistit persistit, final String volumeName, final String treeName, final boolean create)
+            throws PersistitException {
         this(persistit, persistit.getVolume(volumeName), treeName, create);
     }
 
@@ -361,7 +362,8 @@ public class Exchange {
      *            name does not already exist.
      * @throws PersistitException
      */
-    public Exchange(Persistit persistit, Volume volume, String treeName, boolean create) throws PersistitException {
+    public Exchange(final Persistit persistit, final Volume volume, final String treeName, final boolean create)
+            throws PersistitException {
         this(persistit);
         if (volume == null) {
             throw new NullPointerException();
@@ -380,7 +382,7 @@ public class Exchange {
      * @param exchange
      *            The <code>Exchange</code> to copy from.
      */
-    public Exchange(Exchange exchange) {
+    public Exchange(final Exchange exchange) {
         this(exchange._persistit);
         init(exchange);
     }
@@ -392,7 +394,7 @@ public class Exchange {
      * @param tree
      *            The <code>Tree</code> to access.
      */
-    public Exchange(Tree tree) {
+    public Exchange(final Tree tree) {
         this(tree._persistit);
         init(tree);
         _volume = tree.getVolume();
@@ -400,13 +402,13 @@ public class Exchange {
         initCache();
     }
 
-    void init(Volume volume, String treeName, boolean create) throws PersistitException {
+    void init(final Volume volume, final String treeName, final boolean create) throws PersistitException {
         assertCorrectThread(true);
         if (volume == null) {
             throw new NullPointerException();
         }
 
-        Tree tree = volume.getTree(treeName, create);
+        final Tree tree = volume.getTree(treeName, create);
         if (tree == null) {
             throw new TreeNotFoundException(treeName);
         }
@@ -434,7 +436,7 @@ public class Exchange {
         _joinPolicy = _persistit.getDefaultJoinPolicy();
     }
 
-    void init(Exchange exchange) {
+    void init(final Exchange exchange) {
         assertCorrectThread(true);
         _persistit = exchange._persistit;
         _volume = exchange._volume;
@@ -460,7 +462,7 @@ public class Exchange {
         _joinPolicy = exchange._joinPolicy;
     }
 
-    void removeState(boolean secure) {
+    void removeState(final boolean secure) {
         assertCorrectThread(false);
         _key.clear(secure);
         _value.clear(secure);
@@ -503,7 +505,7 @@ public class Exchange {
             _cachedTreeGeneration = _tree.getGeneration();
             _cacheDepth = _tree.getDepth();
             for (int index = 0; index < MAX_TREE_DEPTH; index++) {
-                LevelCache lc = _levelCache[index];
+                final LevelCache lc = _levelCache[index];
                 lc.invalidate();
             }
         }
@@ -529,7 +531,7 @@ public class Exchange {
         long _deallocLeftPage;
         long _deallocRightPage;
 
-        private LevelCache(int level) {
+        private LevelCache(final int level) {
             _level = level;
         }
 
@@ -542,7 +544,7 @@ public class Exchange {
                     + _bufferGeneration + ", foundAt=" + _buffer.foundAtString(_foundAt) + ">";
         }
 
-        private void copyTo(LevelCache to) {
+        private void copyTo(final LevelCache to) {
             Debug.$assert0.t(to._level == _level || to._level == -1);
             to._buffer = _buffer;
             to._page = _page;
@@ -556,12 +558,12 @@ public class Exchange {
             _bufferGeneration = -1;
         }
 
-        private void updateInsert(Buffer buffer, Key key, int foundAt) {
+        private void updateInsert(final Buffer buffer, final Key key, final int foundAt) {
             update(buffer, key, foundAt);
             _lastInsertAt = foundAt;
         }
 
-        private void update(Buffer buffer, Key key, int foundAt) {
+        private void update(final Buffer buffer, final Key key, final int foundAt) {
             Debug.$assert0.t(_level + PAGE_TYPE_DATA == buffer.getPageType());
             // Debug.$assert0.t(foundAt == -1 || (foundAt & EXACT_MASK) == 0
             // || Buffer.decodeDepth(foundAt) == key.getEncodedSize());
@@ -588,7 +590,7 @@ public class Exchange {
         }
 
         private Sequence sequence(final int foundAt) {
-            int delta = ((foundAt & P_MASK) - (_lastInsertAt & P_MASK));
+            final int delta = ((foundAt & P_MASK) - (_lastInsertAt & P_MASK));
             if ((foundAt & EXACT_MASK) == 0 && delta == KEYBLOCK_LENGTH) {
                 return Sequence.FORWARD;
             }
@@ -664,7 +666,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange setDepth(int depth) {
+    public Exchange setDepth(final int depth) {
         getKey().setDepth(depth);
         return this;
     }
@@ -675,7 +677,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange cut(int level) {
+    public Exchange cut(final int level) {
         getKey().cut(level);
         return this;
     }
@@ -696,7 +698,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange append(boolean item) {
+    public Exchange append(final boolean item) {
         getKey().append(item);
         return this;
     }
@@ -707,7 +709,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange append(byte item) {
+    public Exchange append(final byte item) {
         getKey().append(item);
         return this;
     }
@@ -718,7 +720,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange append(short item) {
+    public Exchange append(final short item) {
         getKey().append(item);
         return this;
     }
@@ -729,7 +731,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange append(char item) {
+    public Exchange append(final char item) {
         getKey().append(item);
         return this;
     }
@@ -740,7 +742,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange append(int item) {
+    public Exchange append(final int item) {
         getKey().append(item);
         return this;
     }
@@ -751,7 +753,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange append(long item) {
+    public Exchange append(final long item) {
         getKey().append(item);
         return this;
     }
@@ -762,7 +764,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange append(float item) {
+    public Exchange append(final float item) {
         getKey().append(item);
         return this;
     }
@@ -773,7 +775,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange append(double item) {
+    public Exchange append(final double item) {
         getKey().append(item);
         return this;
     }
@@ -784,7 +786,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange append(Object item) {
+    public Exchange append(final Object item) {
         getKey().append(item);
         return this;
     }
@@ -795,7 +797,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange to(boolean item) {
+    public Exchange to(final boolean item) {
         getKey().to(item);
         return this;
     }
@@ -806,7 +808,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange to(byte item) {
+    public Exchange to(final byte item) {
         getKey().to(item);
         return this;
     }
@@ -817,7 +819,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange to(short item) {
+    public Exchange to(final short item) {
         getKey().to(item);
         return this;
     }
@@ -828,7 +830,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange to(char item) {
+    public Exchange to(final char item) {
         getKey().to(item);
         return this;
     }
@@ -839,7 +841,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange to(int item) {
+    public Exchange to(final int item) {
         getKey().to(item);
         return this;
     }
@@ -850,7 +852,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange to(long item) {
+    public Exchange to(final long item) {
         getKey().to(item);
         return this;
     }
@@ -861,7 +863,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange to(float item) {
+    public Exchange to(final float item) {
         getKey().to(item);
         return this;
     }
@@ -872,7 +874,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange to(double item) {
+    public Exchange to(final double item) {
         getKey().to(item);
         return this;
     }
@@ -883,7 +885,7 @@ public class Exchange {
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
-    public Exchange to(Object item) {
+    public Exchange to(final Object item) {
         getKey().to(item);
         return this;
     }
@@ -1032,10 +1034,10 @@ public class Exchange {
      * @return Encoded key location within the data page. The page itself is
      *         made valid in the level cache.
      */
-    private int search(Key key, boolean writer) throws PersistitException {
+    private int search(final Key key, final boolean writer) throws PersistitException {
         Buffer buffer = null;
         checkLevelCache();
-        LevelCache lc = _levelCache[0];
+        final LevelCache lc = _levelCache[0];
         buffer = quicklyReclaimBuffer(lc, writer);
 
         if (buffer == null) {
@@ -1044,7 +1046,7 @@ public class Exchange {
 
         checkPageType(buffer, PAGE_TYPE_DATA, true);
 
-        int foundAt = findKey(buffer, key, lc);
+        final int foundAt = findKey(buffer, key, lc);
 
         if (buffer.isBeforeLeftEdge(foundAt) || buffer.isAfterRightEdge(foundAt)) {
             buffer.release();
@@ -1066,7 +1068,7 @@ public class Exchange {
      * @return
      * @throws PersistitInterruptedException
      */
-    private int findKey(Buffer buffer, Key key, LevelCache lc) throws PersistitInterruptedException {
+    private int findKey(final Buffer buffer, final Key key, final LevelCache lc) throws PersistitInterruptedException {
         //
         // Possibly we can accelerate.
         //
@@ -1099,7 +1101,7 @@ public class Exchange {
      * @return Encoded key location within the level. The page itself is valid
      *         within the level cache.
      */
-    private int searchTree(Key key, int toLevel, boolean writer) throws PersistitException {
+    private int searchTree(final Key key, final int toLevel, final boolean writer) throws PersistitException {
         Buffer oldBuffer = null;
         int currentLevel;
         int foundAt = -1;
@@ -1128,8 +1130,8 @@ public class Exchange {
                     oldBuffer = null;
                 }
 
-                LevelCache lc = _levelCache[currentLevel];
-                Buffer buffer = lc._buffer;
+                final LevelCache lc = _levelCache[currentLevel];
+                final Buffer buffer = lc._buffer;
 
                 if (buffer == null || buffer.isBeforeLeftEdge(foundAt)) {
                     oldBuffer = buffer; // So it will be released
@@ -1197,11 +1199,12 @@ public class Exchange {
      *            current level in the tree
      * @return Encoded key location within the page.
      */
-    private int searchLevel(Key key, boolean edge, long pageAddress, int currentLevel, boolean writer)
-            throws PersistitException {
+    private int searchLevel(final Key key, final boolean edge, long pageAddress, final int currentLevel,
+            final boolean writer) throws PersistitException {
         Buffer oldBuffer = null;
         try {
-            long initialPageAddress = pageAddress; // DEBUG - debugging only
+            final long initialPageAddress = pageAddress; // DEBUG - debugging
+                                                         // only
             long oldPageAddress = pageAddress;
             for (int rightWalk = MAX_WALK_RIGHT; rightWalk-- > 0;) {
                 Buffer buffer = null;
@@ -1210,7 +1213,7 @@ public class Exchange {
                             + oldPageAddress + " initialPage=" + initialPageAddress + " key=<" + key.toString() + ">"
                             + " oldBuffer=<" + oldBuffer + ">" + " invalid page address");
                 }
-                LevelCache lc = _levelCache[currentLevel];
+                final LevelCache lc = _levelCache[currentLevel];
 
                 if (lc._page == pageAddress) {
                     buffer = quicklyReclaimBuffer(lc, writer);
@@ -1235,7 +1238,7 @@ public class Exchange {
                     lc.invalidate();
                 }
 
-                int foundAt = findKey(buffer, key, lc);
+                final int foundAt = findKey(buffer, key, lc);
                 if (!buffer.isAfterRightEdge(foundAt) || edge & (foundAt & EXACT_MASK) != 0) {
                     lc.update(buffer, key, foundAt);
                     return foundAt;
@@ -1277,7 +1280,7 @@ public class Exchange {
      * @throws PersistitException
      *             Upon error
      */
-    Exchange store(Key key, Value value) throws PersistitException {
+    Exchange store(final Key key, final Value value) throws PersistitException {
         assertCorrectThread(true);
         _persistit.checkClosed();
         if (_volume.isReadOnly()) {
@@ -1319,7 +1322,7 @@ public class Exchange {
      * @throws PersistitException
      *             uponError
      */
-    boolean storeInternal(Key key, Value value, int level, int options) throws PersistitException {
+    boolean storeInternal(Key key, final Value value, int level, final int options) throws PersistitException {
 
         final boolean doMVCC = (options & StoreOptions.MVCC) > 0;
         final boolean doFetch = (options & StoreOptions.FETCH) > 0;
@@ -1357,7 +1360,7 @@ public class Exchange {
         long newLongRecordPointer = 0;
         long newLongRecordPointerMVV = 0;
 
-        boolean isLongRecord = value.getEncodedSize() > maxSimpleValueSize;
+        final boolean isLongRecord = value.getEncodedSize() > maxSimpleValueSize;
         if (isLongRecord) {
             //
             // This method may delay significantly for I/O and must
@@ -1403,7 +1406,7 @@ public class Exchange {
                 }
 
                 checkLevelCache();
-                List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
+                final List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
 
                 try {
                     if (level >= _cacheDepth) {
@@ -1425,7 +1428,7 @@ public class Exchange {
 
                     Debug.$assert0.t(buffer == null);
                     int foundAt = -1;
-                    LevelCache lc = _levelCache[level];
+                    final LevelCache lc = _levelCache[level];
                     buffer = quicklyReclaimBuffer(lc, true);
 
                     if (buffer != null) {
@@ -1480,7 +1483,7 @@ public class Exchange {
 
                         if (doMVCC) {
                             valueToStore = spareValue;
-                            int valueSize = value.getEncodedSize();
+                            final int valueSize = value.getEncodedSize();
                             /*
                              * If key didn't exist the value is truly
                              * non-existent and not just undefined/zero length
@@ -1514,22 +1517,21 @@ public class Exchange {
                             _mvvVisitor.initInternal(tStatus, tStep, MvvVisitor.Usage.STORE);
                             MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
 
-                            int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
+                            final int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
                             spareValue.ensureFit(mvvSize);
                             spareBytes = spareValue.getEncodedBytes();
 
-                            long versionHandle = TransactionIndex.tss2vh(_transaction.getStartTimestamp(), tStep);
+                            final long versionHandle = TransactionIndex.tss2vh(_transaction.getStartTimestamp(), tStep);
                             int storedLength = MVV.storeVersion(spareBytes, 0, spareSize, spareBytes.length,
                                     versionHandle, value.getEncodedBytes(), 0, valueSize);
-                            
+
                             incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
                             storedLength &= MVV.STORE_LENGTH_MASK;
                             spareValue.setEncodedSize(storedLength);
-                            
+
                             // TODO remove after debugging
                             MVV.verify(_persistit.getTransactionIndex(), spareBytes, 0, storedLength);
 
-                            
                             if (spareValue.getEncodedSize() > maxSimpleValueSize) {
                                 newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(spareValue,
                                         _transaction.isActive());
@@ -1616,7 +1618,7 @@ public class Exchange {
                         continue;
                     }
 
-                } catch (WWRetryException re) {
+                } catch (final WWRetryException re) {
                     if (buffer != null) {
                         buffer.releaseTouched();
                         buffer = null;
@@ -1624,7 +1626,7 @@ public class Exchange {
                     try {
                         sequence(WRITE_WRITE_STORE_A);
                         // TODO - timeout?
-                        long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
+                        final long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
                                 _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME);
                         if (depends != 0 && depends != TransactionStatus.ABORTED) {
                             // version is from concurrent txn that already
@@ -1634,10 +1636,10 @@ public class Exchange {
                             _transaction.rollback();
                             throw new RollbackException();
                         }
-                    } catch (InterruptedException ie) {
+                    } catch (final InterruptedException ie) {
                         throw new PersistitInterruptedException(ie);
                     }
-                } catch (RetryException re) {
+                } catch (final RetryException re) {
                     if (buffer != null) {
                         buffer.releaseTouched();
                         buffer = null;
@@ -1647,7 +1649,7 @@ public class Exchange {
                         _treeHolder.release();
                         treeClaimAcquired = false;
                     }
-                    boolean doWait = (options & StoreOptions.WAIT) != 0;
+                    final boolean doWait = (options & StoreOptions.WAIT) != 0;
                     treeClaimAcquired = _treeHolder.claim(true, doWait ? SharedResource.DEFAULT_MAX_WAIT_TIME : 0);
                     if (!treeClaimAcquired) {
                         if (!doWait) {
@@ -1707,7 +1709,7 @@ public class Exchange {
         return _persistit.getTimestampAllocator().updateTimestamp();
     }
 
-    private void insertIndexLevel(Key key, Value value) throws PersistitException {
+    private void insertIndexLevel(final Key key, final Value value) throws PersistitException {
 
         Buffer buffer = null;
         try {
@@ -1717,11 +1719,11 @@ public class Exchange {
 
             buffer.init(PAGE_TYPE_INDEX_MIN + _tree.getDepth() - 1);
 
-            long newTopPage = buffer.getPageAddress();
-            long leftSiblingPointer = _tree.getRootPageAddr();
+            final long newTopPage = buffer.getPageAddress();
+            final long leftSiblingPointer = _tree.getRootPageAddr();
 
             Debug.$assert0.t(leftSiblingPointer == _tree.getRootPageAddr());
-            long rightSiblingPointer = value.getPointerValue();
+            final long rightSiblingPointer = value.getPointerValue();
             //
             // Note: left and right sibling are of the same level and therefore
             // it is not necessary to invoke value.setPointerPageType() here.
@@ -1761,8 +1763,8 @@ public class Exchange {
      *         ancestor index page.
      */
     // TODO - Check insertIndexLevel timestamps
-    private boolean putLevel(LevelCache lc, Key key, ValueHelper valueWriter, Buffer buffer, int foundAt,
-            boolean okToSplit) throws PersistitException {
+    private boolean putLevel(final LevelCache lc, final Key key, final ValueHelper valueWriter, final Buffer buffer,
+            final int foundAt, final boolean okToSplit) throws PersistitException {
         Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                 && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
         final Sequence sequence = lc.sequence(foundAt);
@@ -1770,7 +1772,7 @@ public class Exchange {
         long timestamp = timestamp();
         buffer.writePageOnCheckpoint(timestamp);
 
-        int result = buffer.putValue(key, valueWriter, foundAt, false);
+        final int result = buffer.putValue(key, valueWriter, foundAt, false);
         if (result != -1) {
             buffer.setDirtyAtTimestamp(timestamp);
             lc.updateInsert(buffer, key, result);
@@ -1809,15 +1811,16 @@ public class Exchange {
                 // (appropriately) invalid.
                 //
 
-                int at = buffer.split(rightSibling, key, valueWriter, foundAt, _spareKey1, sequence, _splitPolicy);
+                final int at = buffer
+                        .split(rightSibling, key, valueWriter, foundAt, _spareKey1, sequence, _splitPolicy);
                 if (at < 0) {
                     lc.updateInsert(rightSibling, key, -at);
                 } else {
                     lc.updateInsert(buffer, key, at);
                 }
 
-                long oldRightSibling = buffer.getRightSibling();
-                long newRightSibling = rightSibling.getPageAddress();
+                final long oldRightSibling = buffer.getRightSibling();
+                final long newRightSibling = rightSibling.getPageAddress();
 
                 Debug.$assert0.t(newRightSibling > 0 && oldRightSibling != newRightSibling);
                 Debug.$assert0.t(rightSibling.getPageType() == buffer.getPageType());
@@ -1840,12 +1843,12 @@ public class Exchange {
         }
     }
 
-    private Buffer quicklyReclaimBuffer(LevelCache lc, boolean writer) throws PersistitException {
-        Buffer buffer = lc._buffer;
+    private Buffer quicklyReclaimBuffer(final LevelCache lc, final boolean writer) throws PersistitException {
+        final Buffer buffer = lc._buffer;
         if (buffer == null)
             return null;
 
-        boolean available = buffer.claim(writer, 0);
+        final boolean available = buffer.claim(writer, 0);
         if (available) {
             if (buffer.getPageAddress() == lc._page && buffer.getVolume() == _volume
                     && _cachedTreeGeneration == _tree.getGeneration() && buffer.getGeneration() == lc._bufferGeneration
@@ -1899,8 +1902,8 @@ public class Exchange {
      *         <code>false</code>.
      * @throws PersistitException
      */
-    public boolean traverse(Direction direction, boolean deep) throws PersistitException {
-        boolean result = traverse(direction, deep, Integer.MAX_VALUE);
+    public boolean traverse(final Direction direction, final boolean deep) throws PersistitException {
+        final boolean result = traverse(direction, deep, Integer.MAX_VALUE);
         return result;
     }
 
@@ -2022,7 +2025,7 @@ public class Exchange {
 
             for (;;) {
                 ++_keysVisitedDuringTraverse;
-                LevelCache lc = _levelCache[0];
+                final LevelCache lc = _levelCache[0];
                 boolean matches = false;
                 //
                 // Optimal path - pick up the buffer and location left
@@ -2080,11 +2083,11 @@ public class Exchange {
                     edge = false;
                     foundAt = buffer.traverse(_key, direction, foundAt);
                     if (buffer.isAfterRightEdge(foundAt)) {
-                        long rightSiblingPage = buffer.getRightSibling();
+                        final long rightSiblingPage = buffer.getRightSibling();
 
                         Debug.$assert0.t(rightSiblingPage >= 0 && rightSiblingPage <= MAX_VALID_PAGE_ADDR);
                         if (rightSiblingPage > 0) {
-                            Buffer rightSibling = _pool.get(_volume, rightSiblingPage, false, true);
+                            final Buffer rightSibling = _pool.get(_volume, rightSiblingPage, false, true);
                             buffer.releaseTouched();
                             //
                             // Reset foundAtNext to point to the first key block
@@ -2161,7 +2164,7 @@ public class Exchange {
                         if (matches) {
                             index = _key.nextElementIndex(parentIndex);
                             if (index > 0) {
-                                boolean isVisibleMatch = fetchFromBufferInternal(buffer, outValue, foundAt,
+                                final boolean isVisibleMatch = fetchFromBufferInternal(buffer, outValue, foundAt,
                                         minimumBytes);
                                 //
                                 // In any case (matching sibling, child or
@@ -2282,7 +2285,7 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
-    public boolean traverse(final Direction direction, final KeyFilter keyFilter, int minBytes)
+    public boolean traverse(final Direction direction, final KeyFilter keyFilter, final int minBytes)
             throws PersistitException {
         if (keyFilter == null) {
             return traverse(direction, true, minBytes);
@@ -2313,8 +2316,8 @@ public class Exchange {
                 return false;
             }
             if (keyFilter.isKeyPrefixFilter()) {
-                return traverse(direction, true, minBytes, keyFilter.getMinimumDepth(), keyFilter
-                        .getKeyPrefixByteCount());
+                return traverse(direction, true, minBytes, keyFilter.getMinimumDepth(),
+                        keyFilter.getKeyPrefixByteCount());
             }
             final boolean matched = traverse(direction, true, minBytes);
             totalVisited += _keysVisitedDuringTraverse;
@@ -2364,7 +2367,7 @@ public class Exchange {
      * @return <code>true</code> if there is a key to traverse to, else null.
      * @throws PersistitException
      */
-    public boolean next(boolean deep) throws PersistitException {
+    public boolean next(final boolean deep) throws PersistitException {
         return traverse(GT, deep);
     }
 
@@ -2383,7 +2386,7 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
-    public boolean previous(boolean deep) throws PersistitException {
+    public boolean previous(final boolean deep) throws PersistitException {
         return traverse(LT, deep);
     }
 
@@ -2395,7 +2398,7 @@ public class Exchange {
      * @return <code>true</code> if there is a key to traverse to, else null.
      * @throws PersistitException
      */
-    public boolean next(KeyFilter filter) throws PersistitException {
+    public boolean next(final KeyFilter filter) throws PersistitException {
         return traverse(GT, filter, Integer.MAX_VALUE);
     }
 
@@ -2408,7 +2411,7 @@ public class Exchange {
      * @return <code>true</code> if there is a key to traverse to, else null.
      * @throws PersistitException
      */
-    public boolean previous(KeyFilter filter) throws PersistitException {
+    public boolean previous(final KeyFilter filter) throws PersistitException {
         return traverse(LT, filter, Integer.MAX_VALUE);
     }
 
@@ -2435,11 +2438,11 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
-    public boolean hasNext(KeyFilter filter) throws PersistitException {
+    public boolean hasNext(final KeyFilter filter) throws PersistitException {
         if (filter == null)
             return hasNext();
         _key.copyTo(_spareKey2);
-        boolean result = traverse(GT, filter, 0);
+        final boolean result = traverse(GT, filter, 0);
         _spareKey2.copyTo(_key);
         return result;
     }
@@ -2461,7 +2464,7 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
-    public boolean hasNext(boolean deep) throws PersistitException {
+    public boolean hasNext(final boolean deep) throws PersistitException {
         return traverse(GT, deep, -1);
     }
 
@@ -2495,7 +2498,7 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
-    public boolean hasPrevious(boolean deep) throws PersistitException {
+    public boolean hasPrevious(final boolean deep) throws PersistitException {
         return traverse(LT, deep, -1);
     }
 
@@ -2508,11 +2511,11 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
-    public boolean hasPrevious(KeyFilter filter) throws PersistitException {
+    public boolean hasPrevious(final KeyFilter filter) throws PersistitException {
         if (filter == null)
             return hasPrevious();
         _key.copyTo(_spareKey2);
-        boolean result = traverse(GT, filter, 0);
+        final boolean result = traverse(GT, filter, 0);
         _spareKey2.copyTo(_key);
         return result;
     }
@@ -2619,7 +2622,7 @@ public class Exchange {
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
-    public Exchange fetch(int minimumBytes) throws PersistitException {
+    public Exchange fetch(final int minimumBytes) throws PersistitException {
         return fetch(_value, minimumBytes);
     }
 
@@ -2638,7 +2641,7 @@ public class Exchange {
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
-    public Exchange fetch(Value value) throws PersistitException {
+    public Exchange fetch(final Value value) throws PersistitException {
         return fetch(value, Integer.MAX_VALUE);
     }
 
@@ -2666,7 +2669,7 @@ public class Exchange {
      * @throws PersistitException
      *             for any internal error
      */
-    private boolean mvccFetch(Value value, int minimumBytes) throws PersistitException {
+    private boolean mvccFetch(final Value value, final int minimumBytes) throws PersistitException {
         final TransactionStatus status;
         final int step;
         if (_transaction.isActive()) {
@@ -2678,12 +2681,12 @@ public class Exchange {
         }
         _mvvVisitor.initInternal(status, step, MvvVisitor.Usage.FETCH);
 
-        int valueSize = value.getEncodedSize();
-        byte[] valueBytes = value.getEncodedBytes();
+        final int valueSize = value.getEncodedSize();
+        final byte[] valueBytes = value.getEncodedBytes();
         MVV.visitAllVersions(_mvvVisitor, valueBytes, 0, valueSize);
 
         if (_mvvVisitor.foundVersion()) {
-            int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _mvvVisitor.getOffset(), valueBytes);
+            final int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _mvvVisitor.getOffset(), valueBytes);
             value.setEncodedSize(finalSize);
             return true;
         } else {
@@ -2725,7 +2728,7 @@ public class Exchange {
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
-    public Exchange fetch(Value value, int minimumBytes) throws PersistitException {
+    public Exchange fetch(final Value value, int minimumBytes) throws PersistitException {
         assertCorrectThread(true);
         _persistit.checkClosed();
 
@@ -2754,8 +2757,8 @@ public class Exchange {
      *             As thrown from any internal method.
      * @return <code>true</code> if the value was visible.
      */
-    private boolean fetchFromBufferInternal(Buffer buffer, Value value, int foundAt, int minimumBytes)
-            throws PersistitException {
+    private boolean fetchFromBufferInternal(final Buffer buffer, final Value value, final int foundAt,
+            final int minimumBytes) throws PersistitException {
         buffer.fetch(foundAt, value);
         return fetchFromValueInternal(value, minimumBytes, buffer);
     }
@@ -2776,7 +2779,7 @@ public class Exchange {
      *             As thrown from any internal method.
      * @return <code>true</code> if the value was visible.
      */
-    private boolean fetchFromValueInternal(Value value, int minimumBytes, Buffer bufferForPruning)
+    private boolean fetchFromValueInternal(final Value value, final int minimumBytes, final Buffer bufferForPruning)
             throws PersistitException {
         boolean visible = true;
         /*
@@ -2822,11 +2825,11 @@ public class Exchange {
      * @throws PersistitException
      *             As thrown from {@link #search(Key, boolean)}
      */
-    private void searchAndFetchInternal(Value value, int minimumBytes) throws PersistitException {
+    private void searchAndFetchInternal(final Value value, final int minimumBytes) throws PersistitException {
         Buffer buffer = null;
         try {
-            int foundAt = search(_key, false);
-            LevelCache lc = _levelCache[0];
+            final int foundAt = search(_key, false);
+            final LevelCache lc = _levelCache[0];
             buffer = lc._buffer;
             fetchFromBufferInternal(buffer, value, foundAt, minimumBytes);
             _volume.getStatistics().bumpFetchCounter();
@@ -2839,15 +2842,15 @@ public class Exchange {
         }
     }
 
-    boolean isLongRecord(Value value) {
+    boolean isLongRecord(final Value value) {
         return value.isDefined() && Buffer.isLongRecord(value.getEncodedBytes(), 0, value.getEncodedSize());
     }
 
-    boolean isLongMVV(Value value) {
+    boolean isLongMVV(final Value value) {
         return value.isDefined() && Buffer.isLongMVV(value.getEncodedBytes(), 0, value.getEncodedSize());
     }
 
-    void fetchFixupForLongRecords(Value value, int minimumBytes) throws PersistitException {
+    void fetchFixupForLongRecords(final Value value, final int minimumBytes) throws PersistitException {
         if (minimumBytes >= 0 && isLongRecord(value)) {
             //
             // This will potential require numerous pages: the buffer
@@ -2873,7 +2876,7 @@ public class Exchange {
         assertCorrectThread(true);
         _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
-        boolean result = traverse(GT, true, 0, _key.getDepth() + 1, size);
+        final boolean result = traverse(GT, true, 0, _key.getDepth() + 1, size);
         _spareKey2.copyTo(_key);
         return result;
     }
@@ -2894,7 +2897,7 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
         _spareValue.clear();
-        boolean result = removeInternal(EQ, true);
+        final boolean result = removeInternal(EQ, true);
         _spareValue.copyTo(_value);
         Debug.$assert0.t(_value.isDefined() == result);
         return result;
@@ -2983,11 +2986,11 @@ public class Exchange {
      *         else </i>false</i>.
      * @throws PersistitException
      */
-    public boolean remove(Direction direction) throws PersistitException {
+    public boolean remove(final Direction direction) throws PersistitException {
         return removeInternal(direction, false);
     }
 
-    private boolean removeInternal(Direction selection, boolean fetchFirst) throws PersistitException {
+    private boolean removeInternal(final Direction selection, final boolean fetchFirst) throws PersistitException {
         assertCorrectThread(true);
         _persistit.checkClosed();
 
@@ -2995,7 +2998,7 @@ public class Exchange {
             throw new IllegalArgumentException("Invalid mode " + selection);
         }
 
-        int keySize = _key.getEncodedSize();
+        final int keySize = _key.getEncodedSize();
 
         _key.copyTo(_spareKey3);
         _key.copyTo(_spareKey4);
@@ -3046,7 +3049,7 @@ public class Exchange {
      * @throws IllegalArgumentException
      *             if key1 is equal to or greater than key2
      */
-    public boolean removeKeyRange(Key key1, Key key2) throws PersistitException {
+    public boolean removeKeyRange(final Key key1, final Key key2) throws PersistitException {
         key1.copyTo(_spareKey3);
         key2.copyTo(_spareKey4);
 
@@ -3083,7 +3086,8 @@ public class Exchange {
      * @return <code>true</code> if any records were removed.
      * @throws PersistitException
      */
-    private boolean removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
+    private boolean removeKeyRangeInternal(final Key key1, final Key key2, final boolean fetchFirst)
+            throws PersistitException {
         Debug.$assert0.t(key1.getEncodedSize() > 0);
         Debug.$assert0.t(key2.getEncodedSize() > 0);
         Debug.$assert0.t(key1.compareTo(key2) < 0);
@@ -3107,7 +3111,7 @@ public class Exchange {
 
         boolean anyRemoved = false;
         boolean keyIsLessThan = true;
-        Key nextKey = new Key(key1);
+        final Key nextKey = new Key(key1);
 
         while (keyIsLessThan && !key1.isRightEdge()) {
             Buffer buffer = null;
@@ -3159,8 +3163,8 @@ public class Exchange {
      * @return <code>true</code> if any records were removed.
      * @throws PersistitException
      */
-    boolean raw_removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst, boolean removeOnlyAntiValue)
-            throws PersistitException {
+    boolean raw_removeKeyRangeInternal(final Key key1, final Key key2, final boolean fetchFirst,
+            final boolean removeOnlyAntiValue) throws PersistitException {
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
@@ -3199,7 +3203,7 @@ public class Exchange {
                     if (tryQuickDelete) {
                         Buffer buffer = null;
                         try {
-                            int foundAt1 = search(key1, true) & P_MASK;
+                            final int foundAt1 = search(key1, true) & P_MASK;
                             buffer = _levelCache[0]._buffer;
 
                             if (foundAt1 > buffer.getKeyBlockStart() && foundAt1 < buffer.getKeyBlockEnd()) {
@@ -3224,7 +3228,7 @@ public class Exchange {
                                         buffer.writePageOnCheckpoint(timestamp);
                                         _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2);
 
-                                        boolean removed = buffer.removeKeys(foundAt1, foundAt2, _spareKey1);
+                                        final boolean removed = buffer.removeKeys(foundAt1, foundAt2, _spareKey1);
                                         if (removed) {
                                             _tree.bumpChangeCount();
                                             buffer.setDirtyAtTimestamp(timestamp);
@@ -3267,11 +3271,11 @@ public class Exchange {
                     long pageAddr2 = pageAddr1;
 
                     for (int level = _cacheDepth; --level >= 0;) {
-                        LevelCache lc = _levelCache[level];
+                        final LevelCache lc = _levelCache[level];
                         lc.initRemoveFields();
                         depth = level;
 
-                        int foundAt1 = searchLevel(key1, true, pageAddr1, level, true);
+                        final int foundAt1 = searchLevel(key1, true, pageAddr1, level, true);
                         int foundAt2 = -1;
 
                         //
@@ -3323,8 +3327,8 @@ public class Exchange {
                             //
                             // Come down to the left of the key.
                             //
-                            int p1 = lc._leftBuffer.previousKeyBlock(foundAt1);
-                            int p2 = lc._rightBuffer.previousKeyBlock(foundAt2);
+                            final int p1 = lc._leftBuffer.previousKeyBlock(foundAt1);
+                            final int p2 = lc._rightBuffer.previousKeyBlock(foundAt2);
 
                             Debug.$assert0.t(p1 != -1 && p2 != -1);
                             pageAddr1 = lc._leftBuffer.getPointer(p1);
@@ -3354,8 +3358,8 @@ public class Exchange {
                     final long timestamp = timestamp();
                     for (int level = _cacheDepth; --level >= 0;) {
                         lc = _levelCache[level];
-                        Buffer buffer1 = lc._leftBuffer;
-                        Buffer buffer2 = lc._rightBuffer;
+                        final Buffer buffer1 = lc._leftBuffer;
+                        final Buffer buffer2 = lc._rightBuffer;
                         int foundAt1 = lc._leftFoundAt;
                         int foundAt2 = lc._rightFoundAt;
                         foundAt1 &= P_MASK;
@@ -3369,7 +3373,7 @@ public class Exchange {
                             // Deletion spans multiple pages at this level.
                             // We will need to join or rebalance the pages.
                             //
-                            long leftGarbagePage = buffer1.getRightSibling();
+                            final long leftGarbagePage = buffer1.getRightSibling();
                             _key.copyTo(_spareKey1);
 
                             // Before we remove the records in this range, we
@@ -3379,8 +3383,8 @@ public class Exchange {
                             _volume.getStructure().harvestLongRecords(buffer2, 0, foundAt2);
 
                             Debug.$assert0.t(_tree.isMine() && buffer1.isMine() && buffer2.isMine());
-                            boolean rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1, _spareKey2,
-                                    _joinPolicy);
+                            final boolean rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1,
+                                    _spareKey2, _joinPolicy);
                             if (buffer1.isDataPage()) {
                                 _tree.bumpChangeCount();
                             }
@@ -3388,7 +3392,7 @@ public class Exchange {
                             buffer1.setDirtyAtTimestamp(timestamp);
                             buffer2.setDirtyAtTimestamp(timestamp);
 
-                            long rightGarbagePage = buffer1.getRightSibling();
+                            final long rightGarbagePage = buffer1.getRightSibling();
 
                             if (rightGarbagePage != leftGarbagePage) {
                                 // here we just remember the page boundaries
@@ -3420,18 +3424,18 @@ public class Exchange {
                                 //
                                 needsReindex = true;
                                 if (level < _cacheDepth - 1) {
-                                    LevelCache parentLc = _levelCache[level + 1];
-                                    Buffer buffer = parentLc._leftBuffer;
+                                    final LevelCache parentLc = _levelCache[level + 1];
+                                    final Buffer buffer = parentLc._leftBuffer;
 
                                     Debug.$assert0.t(buffer != null);
                                     if (parentLc._rightBuffer == buffer) {
-                                        int foundAt = buffer.findKey(_spareKey1);
+                                        final int foundAt = buffer.findKey(_spareKey1);
                                         Debug.$assert0.t((foundAt & EXACT_MASK) == 0);
                                         // Try it the simple way
                                         _value.setPointerValue(buffer2.getPageAddress());
                                         _value.setPointerPageType(buffer2.getPageType());
                                         _rawValueWriter.init(_value);
-                                        int fit = buffer.putValue(_spareKey1, _rawValueWriter, foundAt, false);
+                                        final int fit = buffer.putValue(_spareKey1, _rawValueWriter, foundAt, false);
 
                                         // If it worked then we're done.
                                         if (fit != -1) {
@@ -3472,7 +3476,7 @@ public class Exchange {
                         }
                     }
                     break;
-                } catch (RetryException re) {
+                } catch (final RetryException re) {
                     // handled below by releasing claims and retrying
                 } finally {
                     //
@@ -3508,7 +3512,7 @@ public class Exchange {
                 long left = -1;
                 long right = -1;
                 for (int level = _cacheDepth; --level >= 0;) {
-                    LevelCache lc = _levelCache[level];
+                    final LevelCache lc = _levelCache[level];
                     left = lc._deallocLeftPage;
                     right = lc._deallocRightPage;
                     if (left != 0) {
@@ -3543,8 +3547,8 @@ public class Exchange {
     private void removeKeyRangeReleaseLevel(final int level) {
 
         final LevelCache lc = _levelCache[level];
-        Buffer buffer1 = lc._leftBuffer;
-        Buffer buffer2 = lc._rightBuffer;
+        final Buffer buffer1 = lc._leftBuffer;
+        final Buffer buffer2 = lc._rightBuffer;
 
         if (buffer2 != null && (lc._flags & RIGHT_CLAIMED) != 0) {
             buffer2.releaseTouched();
@@ -3558,7 +3562,8 @@ public class Exchange {
         lc._flags = 0;
     }
 
-    private void removeFetchFirst(Buffer buffer1, int foundAt1, Buffer buffer2, int foundAt2) throws PersistitException {
+    private void removeFetchFirst(final Buffer buffer1, int foundAt1, final Buffer buffer2, final int foundAt2)
+            throws PersistitException {
         if (buffer1 == buffer2) {
             if (buffer1.nextKeyBlock(foundAt1) == (foundAt2 & P_MASK)) {
                 buffer1.fetch(foundAt1 | EXACT_MASK, _spareValue);
@@ -3628,7 +3633,7 @@ public class Exchange {
                 if (!buffer.isAfterRightEdge(foundAt)) {
                     break;
                 }
-                Buffer oldBuffer = buffer;
+                final Buffer oldBuffer = buffer;
                 final long rightPageAddress = buffer.getRightSibling();
                 if (rightPageAddress == 0) {
                     break;
@@ -3663,10 +3668,10 @@ public class Exchange {
         try {
             buffer = _pool.get(_volume, page, false, true);
             buffer.clearEnqueuedForPruning();
-            long at = buffer.at(Buffer.KEY_BLOCK_START);
+            final long at = buffer.at(Buffer.KEY_BLOCK_START);
             if (at > 0) {
-                int offset = (int) (at >>> 32);
-                int size = (int) at;
+                final int offset = (int) (at >>> 32);
+                final int size = (int) at;
                 if (size == 1 && buffer.getBytes()[offset] == MVV.TYPE_ANTIVALUE) {
                     buffer.nextKey(_spareKey1, Buffer.KEY_BLOCK_START);
                     buffer.release();
@@ -3708,8 +3713,9 @@ public class Exchange {
         }
     }
 
-    private void checkPageType(Buffer buffer, int expectedType, boolean releaseOnFailure) throws PersistitException {
-        int type = buffer.getPageType();
+    private void checkPageType(final Buffer buffer, final int expectedType, final boolean releaseOnFailure)
+            throws PersistitException {
+        final int type = buffer.getPageType();
         if (type != expectedType) {
             if (releaseOnFailure) {
                 buffer.releaseTouched();
@@ -3733,8 +3739,8 @@ public class Exchange {
     }
 
     private boolean checkThread(final boolean set) {
-        Thread t = Thread.currentThread();
-        boolean okay = _thread == null || _thread == t;
+        final Thread t = Thread.currentThread();
+        final boolean okay = _thread == null || _thread == t;
         if (okay) {
             _thread = set ? t : null;
         }
@@ -3770,7 +3776,7 @@ public class Exchange {
      *            If <code>true</code> return MVVs as described otherwise return
      *            the appropriate single version.
      */
-    void ignoreMVCCFetch(boolean doIgnore) {
+    void ignoreMVCCFetch(final boolean doIgnore) {
         _ignoreMVCCFetch = doIgnore;
     }
 
@@ -3790,12 +3796,12 @@ public class Exchange {
         return _isDirectoryExchange;
     }
 
-    public void setSplitPolicy(SplitPolicy policy) {
+    public void setSplitPolicy(final SplitPolicy policy) {
         assertCorrectThread(true);
         _splitPolicy = policy;
     }
 
-    public void setJoinPolicy(JoinPolicy policy) {
+    public void setJoinPolicy(final JoinPolicy policy) {
         assertCorrectThread(true);
         _joinPolicy = policy;
     }
@@ -3834,9 +3840,9 @@ public class Exchange {
                 foundAt = buffer.traverse(_key, direction, foundAt);
                 direction = GT;
                 if (buffer.isAfterRightEdge(foundAt)) {
-                    long rightSiblingPage = buffer.getRightSibling();
+                    final long rightSiblingPage = buffer.getRightSibling();
                     if (rightSiblingPage > 0) {
-                        Buffer rightSibling = _pool.get(_volume, rightSiblingPage, false, true);
+                        final Buffer rightSibling = _pool.get(_volume, rightSiblingPage, false, true);
                         buffer.releaseTouched();
                         //
                         // Reset foundAtNext to point to the first key block
@@ -3885,7 +3891,7 @@ public class Exchange {
      * @param appCache
      *            the object to be cached for application convenience.
      */
-    public void setAppCache(Object appCache) {
+    public void setAppCache(final Object appCache) {
         assertCorrectThread(true);
         _appCache = appCache;
     }
@@ -3914,8 +3920,8 @@ public class Exchange {
         if (level >= _tree.getDepth() || level <= -_tree.getDepth()) {
             throw new IllegalArgumentException("Tree depth is " + _tree.getDepth());
         }
-        int lvl = level >= 0 ? level : _tree.getDepth() + level;
-        int foundAt = searchTree(_key, lvl, false);
+        final int lvl = level >= 0 ? level : _tree.getDepth() + level;
+        final int foundAt = searchTree(_key, lvl, false);
         final Buffer buffer = _levelCache[lvl]._buffer;
         try {
             if (foundAt == -1) {
@@ -3954,7 +3960,7 @@ public class Exchange {
      *             Any error during fetch
      */
     boolean isValueLongRecord() throws PersistitException {
-        boolean savedIgnore = _ignoreMVCCFetch;
+        final boolean savedIgnore = _ignoreMVCCFetch;
         try {
             _ignoreMVCCFetch = true;
             searchAndFetchInternal(_spareValue, -1);
@@ -3976,7 +3982,7 @@ public class Exchange {
      *             Any error during fetch
      */
     boolean isValueLongMVV() throws PersistitException {
-        boolean savedIgnore = _ignoreMVCCFetch;
+        final boolean savedIgnore = _ignoreMVCCFetch;
         try {
             _ignoreMVCCFetch = true;
             searchAndFetchInternal(_spareValue, -1);

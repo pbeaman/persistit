@@ -21,10 +21,6 @@ import java.util.Properties;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Persistit;
-import com.persistit.Transaction;
-
 /**
  * I did an update that failed due to constraint violation and the transaction
  * was rolled back.
@@ -88,14 +84,14 @@ public class Bug915594Test extends PersistitUnitTestCase {
         txn.rollback();
         txn.end();
         _persistit.checkpoint();
-        Properties properties = _persistit.getProperties();
+        final Properties properties = _persistit.getProperties();
         ex = null;
         txn = null;
         _persistit.close();
 
         _persistit = new Persistit();
         _persistit.initialize(properties);
-        Exchange ex2 = _persistit.getExchange("persistit", "Bug915594Test", true);
+        final Exchange ex2 = _persistit.getExchange("persistit", "Bug915594Test", true);
         assertTrue(!ex2.clear().next(true));
     }
 }

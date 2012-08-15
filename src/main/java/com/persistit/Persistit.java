@@ -344,7 +344,7 @@ public class Persistit {
         final String _threadName = Thread.currentThread().getName();
         final long _systemTime = System.currentTimeMillis();
 
-        private FatalErrorException(String msg, Throwable cause) {
+        private FatalErrorException(final String msg, final Throwable cause) {
             super(msg, cause);
         }
     }
@@ -366,11 +366,11 @@ public class Persistit {
             while (!_stop) {
                 try {
                     Util.sleep(FLUSH_DELAY_INTERVAL);
-                } catch (PersistitInterruptedException ie) {
+                } catch (final PersistitInterruptedException ie) {
                     break;
                 }
                 pollAlertMonitors(false);
-                PersistitLogger logger = _logger;
+                final PersistitLogger logger = _logger;
                 if (logger != null) {
                     logger.flush();
                 }
@@ -461,12 +461,11 @@ public class Persistit {
 
     private volatile long _commitStallTime = DEFAULT_COMMIT_STALL_TIME;
 
-    private ThreadLocal<SoftReference<int[]>> _intArrayThreadLocal = new ThreadLocal<SoftReference<int[]>>();
-    
-    private ThreadLocal<SoftReference<Key>> _keyThreadLocal = new ThreadLocal<SoftReference<Key>>();
-    
-    private ThreadLocal<SoftReference<Value>> _valueThreadLocal = new ThreadLocal<SoftReference<Value>>();
-    
+    private final ThreadLocal<SoftReference<int[]>> _intArrayThreadLocal = new ThreadLocal<SoftReference<int[]>>();
+
+    private final ThreadLocal<SoftReference<Key>> _keyThreadLocal = new ThreadLocal<SoftReference<Key>>();
+
+    private final ThreadLocal<SoftReference<Value>> _valueThreadLocal = new ThreadLocal<SoftReference<Value>>();
 
     /**
      * <p>
@@ -492,7 +491,7 @@ public class Persistit {
      */
     public void initialize() throws PersistitException {
         if (!isInitialized()) {
-            Configuration configuration = new Configuration();
+            final Configuration configuration = new Configuration();
             configuration.readPropertiesFile();
             initialize(configuration);
         }
@@ -517,9 +516,9 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
-    public void initialize(String propertiesFileName) throws PersistitException {
+    public void initialize(final String propertiesFileName) throws PersistitException {
         if (!isInitialized()) {
-            Configuration configuration = new Configuration();
+            final Configuration configuration = new Configuration();
             configuration.readPropertiesFile(propertiesFileName);
             initialize(configuration);
         }
@@ -547,9 +546,9 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
-    public void initialize(Properties properties) throws PersistitException {
+    public void initialize(final Properties properties) throws PersistitException {
         if (!isInitialized()) {
-            Configuration configuration = new Configuration(properties);
+            final Configuration configuration = new Configuration(properties);
             initialize(configuration);
         }
     }
@@ -574,7 +573,7 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
-    public synchronized void initialize(Configuration configuration) throws PersistitException {
+    public synchronized void initialize(final Configuration configuration) throws PersistitException {
         if (!isInitialized()) {
             _configuration = configuration;
             try {
@@ -616,14 +615,14 @@ public class Persistit {
             _logFlusher.start();
 
             getPersistitLogger().open();
-            String logLevel = _configuration.getLogging();
+            final String logLevel = _configuration.getLogging();
             if (logLevel != null && getPersistitLogger() instanceof DefaultPersistitLogger) {
                 ((DefaultPersistitLogger) getPersistitLogger()).setLevel(logLevel);
             }
             _logBase.configure(getPersistitLogger());
             _logBase.start.log(_startTime);
             _logBase.copyright.log(copyright());
-        } catch (Exception e) {
+        } catch (final Exception e) {
             System.err.println("Persistit(tm) Logging is disabled due to " + e);
             if (e.getMessage() != null && e.getMessage().length() > 0) {
                 System.err.println(e.getMessage());
@@ -634,14 +633,14 @@ public class Persistit {
     }
 
     void initializeRecovery() throws PersistitException {
-        String journalPath = _configuration.getJournalPath();
+        final String journalPath = _configuration.getJournalPath();
         _recoveryManager.init(journalPath);
         _recoveryManager.buildRecoveryPlan();
     }
 
     void initializeJournal() throws PersistitException {
-        String journalPath = _configuration.getJournalPath();
-        long journalSize = _configuration.getJournalSize();
+        final String journalPath = _configuration.getJournalPath();
+        final long journalSize = _configuration.getJournalSize();
 
         _journalManager.init(_recoveryManager, journalPath, journalSize);
         _journalManager.setAppendOnly(_configuration.isAppendOnly());
@@ -654,7 +653,7 @@ public class Persistit {
             if (poolSize > 0) {
                 final int bufferSize = config.getBufferSize();
                 _logBase.allocateBuffers.log(poolSize, bufferSize);
-                BufferPool pool = new BufferPool(poolSize, bufferSize, this);
+                final BufferPool pool = new BufferPool(poolSize, bufferSize, this);
                 _bufferPoolTable.put(bufferSize, pool);
                 if (_configuration.isJmxEnabled()) {
                     registerBufferPoolMXBean(bufferSize);
@@ -672,13 +671,13 @@ public class Persistit {
     }
 
     void initializeManagement() {
-        String rmiHost = _configuration.getRmiHost();
-        int rmiPort = _configuration.getRmiPort();
-        int serverPort = _configuration.getRmiServerPort();
-        boolean enableJmx = _configuration.isJmxEnabled();
+        final String rmiHost = _configuration.getRmiHost();
+        final int rmiPort = _configuration.getRmiPort();
+        final int serverPort = _configuration.getRmiServerPort();
+        final boolean enableJmx = _configuration.isJmxEnabled();
 
         if (rmiHost != null || rmiPort > 0) {
-            ManagementImpl management = (ManagementImpl) getManagement();
+            final ManagementImpl management = (ManagementImpl) getManagement();
             management.register(rmiHost, rmiPort, serverPort);
         }
         if (enableJmx) {
@@ -688,12 +687,12 @@ public class Persistit {
 
     void initializeOther() {
         // Set up the parent CoderManager for this instance.
-        DefaultCoderManager cm = new DefaultCoderManager(this, _configuration.getSerialOverride());
+        final DefaultCoderManager cm = new DefaultCoderManager(this, _configuration.getSerialOverride());
         _coderManager.set(cm);
         if (_configuration.isShowGUI()) {
             try {
                 setupGUI(true);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 _logBase.configurationError.log(e);
             }
         }
@@ -719,9 +718,9 @@ public class Persistit {
             pool.startThreads();
         }
     }
-    
+
     void warmupBufferPools() throws PersistitException {
-        String pathName = _configuration.getBufferInventoryPathName();
+        final String pathName = _configuration.getBufferInventoryPathName();
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.warmupBufferPool(pathName, pool.toString());
         }
@@ -732,8 +731,8 @@ public class Persistit {
     }
 
     void finishRecovery() throws PersistitException, TestException {
-        _recoveryManager.applyAllRecoveredTransactions(_recoveryManager.getDefaultCommitListener(), _recoveryManager
-                .getDefaultRollbackListener());
+        _recoveryManager.applyAllRecoveredTransactions(_recoveryManager.getDefaultCommitListener(),
+                _recoveryManager.getDefaultRollbackListener());
         _recoveryManager.close();
         flush();
         _logBase.recoveryDone.log(_journalManager.getPageMapSize(), _recoveryManager.getAppliedTransactionCount(),
@@ -756,32 +755,32 @@ public class Persistit {
             registerMBean(_journalManager, JournalManagerMXBean.class, JournalManagerMXBean.MXBEAN_NAME);
             registerMBean(_recoveryManager, RecoveryManagerMXBean.class, RecoveryManagerMXBean.MXBEAN_NAME);
             registerMBean(_alertMonitor, AlertMonitorMXBean.class, AlertMonitorMXBean.MXBEAN_NAME);
-        } catch (Exception exception) {
+        } catch (final Exception exception) {
             _logBase.mbeanException.log(exception);
         }
     }
 
     private void registerBufferPoolMXBean(final int bufferSize) {
         try {
-            BufferPoolMXBean bean = new BufferPoolMXBeanImpl(this, bufferSize);
+            final BufferPoolMXBean bean = new BufferPoolMXBeanImpl(this, bufferSize);
             registerMBean(bean, BufferPoolMXBean.class, BufferPoolMXBeanImpl.mbeanName(bufferSize));
-        } catch (Exception exception) {
+        } catch (final Exception exception) {
             _logBase.mbeanException.log(exception);
         }
     }
 
     private void registerMBean(final Object mbean, final Class<?> mbeanInterface, final String name) throws Exception {
-        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
-        ObjectName on = new ObjectName(name);
+        final MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
+        final ObjectName on = new ObjectName(name);
         NotificationEmitter emitter = null;
         if (mbean instanceof AlertMonitor) {
-            AlertMonitor monitor = (AlertMonitor) mbean;
+            final AlertMonitor monitor = (AlertMonitor) mbean;
             monitor.setObjectName(on);
             emitter = monitor;
         }
 
         @SuppressWarnings({ "unchecked", "rawtypes" })
-        MXBeanWrapper wrapper = new MXBeanWrapper(mbean, mbeanInterface, emitter);
+        final MXBeanWrapper wrapper = new MXBeanWrapper(mbean, mbeanInterface, emitter);
         server.registerMBean(wrapper, on);
 
         _logBase.mbeanRegistered.log(on);
@@ -790,26 +789,26 @@ public class Persistit {
             _alertMonitors.add((AlertMonitorMXBean) mbean);
         }
     }
-    
+
     Map<ObjectName, Object> getMXBeans() {
         return Collections.unmodifiableMap(_mxbeans);
     }
 
     private void unregisterMXBeans() {
-        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
+        final MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         for (final ObjectName on : _mxbeans.keySet()) {
             try {
                 server.unregisterMBean(on);
                 _logBase.mbeanUnregistered.log(on);
-            } catch (InstanceNotFoundException exception) {
+            } catch (final InstanceNotFoundException exception) {
                 // ignore
-            } catch (Exception exception) {
+            } catch (final Exception exception) {
                 _logBase.mbeanException.log(exception);
             }
         }
     }
 
-    synchronized void addVolume(Volume volume) throws VolumeAlreadyExistsException {
+    synchronized void addVolume(final Volume volume) throws VolumeAlreadyExistsException {
         Volume otherVolume;
         otherVolume = getVolume(volume.getName());
         if (otherVolume != null) {
@@ -818,7 +817,7 @@ public class Persistit {
         _volumes.add(volume);
     }
 
-    synchronized void removeVolume(Volume volume) throws PersistitInterruptedException {
+    synchronized void removeVolume(final Volume volume) throws PersistitInterruptedException {
         _volumes.remove(volume);
     }
 
@@ -851,7 +850,8 @@ public class Persistit {
      * 
      * @throws PersistitException
      */
-    public Exchange getExchange(Volume volume, String treeName, boolean create) throws PersistitException {
+    public Exchange getExchange(final Volume volume, final String treeName, final boolean create)
+            throws PersistitException {
         if (volume == null)
             throw new VolumeNotFoundException();
         List<Exchange> stack;
@@ -912,8 +912,9 @@ public class Persistit {
      * 
      * @throws PersistitException
      */
-    public Exchange getExchange(String volumeName, String treeName, boolean create) throws PersistitException {
-        Volume volume = getVolume(volumeName);
+    public Exchange getExchange(final String volumeName, final String treeName, final boolean create)
+            throws PersistitException {
+        final Volume volume = getVolume(volumeName);
         if (volume == null)
             throw new VolumeNotFoundException(volumeName);
         return getExchange(volume, treeName, create);
@@ -941,7 +942,7 @@ public class Persistit {
      * 
      * @throws IllegalStateException
      */
-    public void releaseExchange(Exchange exchange) {
+    public void releaseExchange(final Exchange exchange) {
         releaseExchange(exchange, false);
     }
 
@@ -975,7 +976,7 @@ public class Persistit {
      */
 
     // TODO - why not one pool.
-    public void releaseExchange(Exchange exchange, boolean secure) {
+    public void releaseExchange(final Exchange exchange, final boolean secure) {
         if (exchange == null) {
             return;
         }
@@ -1097,7 +1098,7 @@ public class Persistit {
     public Volume createTemporaryVolume() throws PersistitException {
         int pageSize = _configuration.getTmpVolPageSize();
         if (pageSize == 0) {
-            for (int size : _bufferPoolTable.keySet()) {
+            for (final int size : _bufferPoolTable.keySet()) {
                 if (size > pageSize) {
                     pageSize = size;
                 }
@@ -1146,7 +1147,7 @@ public class Persistit {
             return false;
         } else {
             volume.closing();
-            boolean deleted = volume.delete();
+            final boolean deleted = volume.delete();
             volume.close();
             return deleted;
         }
@@ -1218,7 +1219,7 @@ public class Persistit {
     }
 
     @Deprecated
-    public String substituteProperties(String text, Properties properties) {
+    public String substituteProperties(final String text, final Properties properties) {
         return _configuration.substituteProperties(text, properties, 0);
     }
 
@@ -1245,14 +1246,14 @@ public class Persistit {
      * @return the <code>Volume</code>, or <i>null</i> if there is no unique
      *         open Volume that matches the supplied <code>partialName</code>.
      */
-    public Volume getVolume(String name) {
+    public Volume getVolume(final String name) {
         if (name == null) {
             throw new NullPointerException("Null volume name");
         }
         Volume result = null;
 
         for (int i = 0; i < _volumes.size(); i++) {
-            Volume vol = _volumes.get(i);
+            final Volume vol = _volumes.get(i);
             if (name.equals(vol.getName())) {
                 if (result == null)
                     result = vol;
@@ -1267,7 +1268,7 @@ public class Persistit {
 
         final File file = new File(name).getAbsoluteFile();
         for (int i = 0; i < _volumes.size(); i++) {
-            Volume vol = _volumes.get(i);
+            final Volume vol = _volumes.get(i);
             if (file.equals(vol.getAbsoluteFile())) {
                 if (result == null)
                     result = vol;
@@ -1420,25 +1421,25 @@ public class Persistit {
 
     /**
      * Copy back all pages from the journal to their host Volumes. This
-     * condenses the total number of journals as much as possible given
-     * the current activity in the system.
+     * condenses the total number of journals as much as possible given the
+     * current activity in the system.
      * 
      * @throws Exception
      */
     public void copyBackPages() throws Exception {
         /*
-         * Up to three complete cycles needed on an idle system:
-         * 1) Outstanding activity, dirty pages
-         * 2) Copy back changes made by first checkpoint (accumulators, etc)
-         * 3) Journal completely caught up, rollover if big enough
+         * Up to three complete cycles needed on an idle system: 1) Outstanding
+         * activity, dirty pages 2) Copy back changes made by first checkpoint
+         * (accumulators, etc) 3) Journal completely caught up, rollover if big
+         * enough
          */
-        for(int i = 0; i < 5; ++i) {
+        for (int i = 0; i < 5; ++i) {
             if (!_closed.get() && _initialized.get()) {
                 _checkpointManager.checkpoint();
                 _journalManager.copyBack();
-                int fileCount = _journalManager.getJournalFileCount();
-                long size = _journalManager.getCurrentJournalSize();
-                if((fileCount == 1) && (size < JournalManager.ROLLOVER_THRESHOLD)) {
+                final int fileCount = _journalManager.getJournalFileCount();
+                final long size = _journalManager.getCurrentJournalSize();
+                if ((fileCount == 1) && (size < JournalManager.ROLLOVER_THRESHOLD)) {
                     break;
                 }
             } else {
@@ -1463,8 +1464,8 @@ public class Persistit {
      * @throws VolumeNotFoundException
      *             if the volume was not found
      */
-    private Volume getSpecialVolume(String propName, String dflt) throws VolumeNotFoundException {
-        String volumeName = _configuration.getSysVolume();
+    private Volume getSpecialVolume(final String propName, final String dflt) throws VolumeNotFoundException {
+        final String volumeName = _configuration.getSysVolume();
 
         Volume volume = getVolume(volumeName);
         if (volume == null) {
@@ -1482,7 +1483,7 @@ public class Persistit {
      *            the desired buffer size
      * @return the <code>BufferPool</code> for the specific buffer size
      */
-    BufferPool getBufferPool(int size) {
+    BufferPool getBufferPool(final int size) {
         return _bufferPoolTable.get(new Integer(size));
     }
 
@@ -1508,7 +1509,7 @@ public class Persistit {
                 if (transaction != null) {
                     try {
                         transaction.close();
-                    } catch (PersistitException e) {
+                    } catch (final PersistitException e) {
                         _logBase.exception.log(e);
                     }
                 }
@@ -1533,7 +1534,7 @@ public class Persistit {
      *         per transaction.
      */
     public String transactionReport(final int max) {
-        long[] timestamps = _transactionIndex.oldestTransactions(max);
+        final long[] timestamps = _transactionIndex.oldestTransactions(max);
         if (timestamps == null) {
             return "Unstable after 10 retries";
         }
@@ -1632,7 +1633,7 @@ public class Persistit {
                 while (_suspendShutdown.get()) {
                     try {
                         wait(SHORT_DELAY);
-                    } catch (InterruptedException ie) {
+                    } catch (final InterruptedException ie) {
                         throw new PersistitInterruptedException(ie);
                     }
                 }
@@ -1683,13 +1684,13 @@ public class Persistit {
             for (final Transaction txn : transactions) {
                 try {
                     txn.close();
-                } catch (PersistitException e) {
+                } catch (final PersistitException e) {
                     _logBase.exception.log(e);
                 }
             }
 
             _journalManager.close();
-            IOTaskRunnable task = _transactionIndex.close();
+            final IOTaskRunnable task = _transactionIndex.close();
             waitForIOTaskStop(task);
 
             for (final Volume volume : volumes) {
@@ -1698,7 +1699,7 @@ public class Persistit {
 
             if (flush) {
                 for (final BufferPool pool : _bufferPoolTable.values()) {
-                    int count = pool.getDirtyPageCount();
+                    final int count = pool.getDirtyPageCount();
                     if (count > 0) {
                         _logBase.strandedPages.log(pool, count);
                     }
@@ -1718,7 +1719,7 @@ public class Persistit {
         if (journalManager != null) {
             try {
                 journalManager.crash();
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 _logBase.exception.log(e);
             }
         }
@@ -1731,7 +1732,7 @@ public class Persistit {
         for (final Volume volume : volumes) {
             try {
                 volume.getStorage().close();
-            } catch (PersistitException pe) {
+            } catch (final PersistitException pe) {
                 // ignore -
             }
         }
@@ -1779,7 +1780,7 @@ public class Persistit {
                 _logBase.end.log(System.currentTimeMillis());
                 _logger.close();
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             e.printStackTrace();
         }
         if (_management != null) {
@@ -1859,7 +1860,7 @@ public class Persistit {
         while (!task.isStopped()) {
             try {
                 task.join(SHORT_DELAY);
-            } catch (InterruptedException ie) {
+            } catch (final InterruptedException ie) {
                 break;
             }
             final long now = System.currentTimeMillis();
@@ -1885,7 +1886,7 @@ public class Persistit {
         final ArrayList<Volume> volumes = _volumes;
 
         for (int index = 0; index < volumes.size(); index++) {
-            Volume volume = volumes.get(index);
+            final Volume volume = volumes.get(index);
             if (!volume.getStorage().isReadOnly()) {
                 volume.getStorage().force();
             }
@@ -1898,9 +1899,9 @@ public class Persistit {
             checkFatal();
             throw new PersistitClosedException();
         }
-//        if (Thread.currentThread().isInterrupted()) {
-//            throw new PersistitInterruptedException(new InterruptedException());
-//        }
+        // if (Thread.currentThread().isInterrupted()) {
+        // throw new PersistitInterruptedException(new InterruptedException());
+        // }
     }
 
     void checkFatal() throws FatalErrorException {
@@ -2027,7 +2028,7 @@ public class Persistit {
         try {
             policy = CommitPolicy.valueOf(policyName.toUpperCase());
             setDefaultTransactionCommitPolicy(policy);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new IllegalArgumentException("Invalid CommitPolicy name: " + policyName);
         }
     }
@@ -2096,7 +2097,7 @@ public class Persistit {
      * 
      * @param coderManager
      */
-    public void setCoderManager(CoderManager coderManager) {
+    public void setCoderManager(final CoderManager coderManager) {
         _coderManager.set(coderManager);
     }
 
@@ -2130,24 +2131,24 @@ public class Persistit {
         return _classIndex;
     }
 
-    Class<?> classForHandle(int handle) {
-        ClassInfo ci = _classIndex.lookupByHandle(handle);
+    Class<?> classForHandle(final int handle) {
+        final ClassInfo ci = _classIndex.lookupByHandle(handle);
         if (ci == null)
             return null;
         else
             return ci.getDescribedClass();
     }
 
-    KeyCoder lookupKeyCoder(Class<?> cl) {
-        CoderManager cm = _coderManager.get();
+    KeyCoder lookupKeyCoder(final Class<?> cl) {
+        final CoderManager cm = _coderManager.get();
         if (cm == null) {
             return null;
         }
         return cm.lookupKeyCoder(cl);
     }
 
-    ValueCoder lookupValueCoder(Class<?> cl) {
-        CoderManager cm = _coderManager.get();
+    ValueCoder lookupValueCoder(final Class<?> cl) {
+        final CoderManager cm = _coderManager.get();
         if (cm == null) {
             return null;
         }
@@ -2199,7 +2200,7 @@ public class Persistit {
      * @param logger
      *            The new logger implementation
      */
-    public void setPersistitLogger(PersistitLogger logger) {
+    public void setPersistitLogger(final PersistitLogger logger) {
         _logger = logger;
     }
 
@@ -2217,11 +2218,11 @@ public class Persistit {
      * Called periodically by the LogFlusher thread to emit pending
      * {@link AlertMonitorMXBean} messages to the log.
      */
-    void pollAlertMonitors(boolean force) {
+    void pollAlertMonitors(final boolean force) {
         for (final AlertMonitorMXBean monitor : _alertMonitors) {
             try {
                 monitor.poll(force);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 _logBase.exception.log(e);
             }
         }
@@ -2235,13 +2236,13 @@ public class Persistit {
      * @throws PersistitException
      */
     public void checkAllVolumes() throws PersistitException {
-        IntegrityCheck icheck = new IntegrityCheck(this);
+        final IntegrityCheck icheck = new IntegrityCheck(this);
         for (int index = 0; index < _volumes.size(); index++) {
-            Volume volume = _volumes.get(index);
+            final Volume volume = _volumes.get(index);
             System.out.println("Checking " + volume + " ");
             try {
                 icheck.checkVolume(volume);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 System.out.println(e + " while performing IntegrityCheck on " + volume);
             }
         }
@@ -2270,7 +2271,7 @@ public class Persistit {
      * @throws IllegalAccessException
      * @throws InstantiationException
      */
-    public void setupGUI(boolean suspendShutdown) throws IllegalAccessException, InstantiationException,
+    public void setupGUI(final boolean suspendShutdown) throws IllegalAccessException, InstantiationException,
             ClassNotFoundException, RemoteException {
         if (_localGUI == null) {
             _logBase.startAdminUI.log();
@@ -2322,7 +2323,7 @@ public class Persistit {
      *            <code>true</code> to specify that Persistit will wait when
      *            attempting to close; otherwise <code>false</code>.
      */
-    public void setShutdownSuspended(boolean suspended) {
+    public void setShutdownSuspended(final boolean suspended) {
         _suspendShutdown.set(suspended);
     }
 
@@ -2349,7 +2350,7 @@ public class Persistit {
      *            <code>true</code> to suspend all updates; <code>false</code>
      *            to enable updates.
      */
-    public void setUpdateSuspended(boolean suspended) {
+    public void setUpdateSuspended(final boolean suspended) {
         _suspendUpdates.set(suspended);
     }
 
@@ -2366,7 +2367,7 @@ public class Persistit {
              * that the number of excess Accumulators is kept to a reasonable
              * number.
              */
-            for (AccumulatorRef ref : _accumulators) {
+            for (final AccumulatorRef ref : _accumulators) {
                 if (ref._checkpointRef != null) {
                     checkpointCount++;
                 }
@@ -2375,7 +2376,7 @@ public class Persistit {
         if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
             try {
                 _checkpointManager.createCheckpoint();
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 _logBase.exception.log(e);
             }
         }
@@ -2424,8 +2425,8 @@ public class Persistit {
     synchronized void clearSessionCLI() {
         _cliSessionMap.remove(getSessionId());
     }
-    
-    int[] getThreadLocalIntArray(int size) {
+
+    int[] getThreadLocalIntArray(final int size) {
         final SoftReference<int[]> ref = _intArrayThreadLocal.get();
         if (ref != null) {
             final int[] ints = ref.get();
@@ -2450,7 +2451,7 @@ public class Persistit {
         _keyThreadLocal.set(new SoftReference<Key>(key));
         return key;
     }
-    
+
     Value getThreadLocalValue() {
         final SoftReference<Value> ref = _valueThreadLocal.get();
         if (ref != null) {
@@ -2486,21 +2487,21 @@ public class Persistit {
      * @param args
      * @throws Exception
      */
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         final ArgParser ap = new ArgParser("Persistit", args, ARG_TEMPLATE).strict();
         if (ap.isUsageOnly()) {
             return;
         }
 
         Persistit persistit = null;
-        String propertiesFileName = ap.getStringValue("properties");
+        final String propertiesFileName = ap.getStringValue("properties");
         if (!propertiesFileName.isEmpty()) {
             persistit = new Persistit();
             persistit.initialize(propertiesFileName);
         }
-        String scriptName = ap.getStringValue("script");
+        final String scriptName = ap.getStringValue("script");
 
-        int cliport = ap.getIntValue("cliport");
+        final int cliport = ap.getIntValue("cliport");
 
         if (cliport > -1 && !propertiesFileName.isEmpty()) {
             throw new IllegalArgumentException("Specify only one: properties or cliport");
@@ -2508,7 +2509,7 @@ public class Persistit {
 
         if (cliport > 1) {
             System.out.printf("Starting a Persistit CLI server on port %d\n", cliport);
-            Task task = CLI.cliserver(cliport);
+            final Task task = CLI.cliserver(cliport);
             task.runTask();
             task.setPersistit(persistit);
         } else if (!scriptName.isEmpty()) {
@@ -2519,10 +2520,10 @@ public class Persistit {
             if (persistit == null) {
                 throw new IllegalArgumentException("Must specify a properties file");
             }
-            boolean gui = ap.isFlag('g');
-            boolean icheck = ap.isFlag('i');
-            boolean wait = ap.isFlag('w');
-            boolean copy = ap.isFlag('c');
+            final boolean gui = ap.isFlag('g');
+            final boolean icheck = ap.isFlag('i');
+            final boolean wait = ap.isFlag('w');
+            final boolean copy = ap.isFlag('c');
 
             try {
                 if (gui) {
@@ -2537,7 +2538,7 @@ public class Persistit {
                 if (wait) {
                     persistit.setShutdownSuspended(true);
                 }
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 e.printStackTrace();
                 persistit.setShutdownSuspended(false);
             } finally {

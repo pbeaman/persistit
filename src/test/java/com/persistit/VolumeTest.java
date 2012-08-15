@@ -26,13 +26,13 @@ import java.io.RandomAccessFile;
 import java.util.List;
 import java.util.Properties;
 
-import com.persistit.unit.UnitTestProperties;
 import org.junit.Test;
 
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.VolumeFullException;
+import com.persistit.unit.UnitTestProperties;
 
 public class VolumeTest extends PersistitUnitTestCase {
 
@@ -47,80 +47,80 @@ public class VolumeTest extends PersistitUnitTestCase {
         try {
             volume.setId(12345);
             fail("Can't change volume id");
-        } catch (IllegalStateException e) {
+        } catch (final IllegalStateException e) {
             // ok
         }
         try {
             assertNull(volume.getSpecification());
-        } catch (IllegalStateException e) {
+        } catch (final IllegalStateException e) {
             // ok
         }
         try {
             assertNull(volume.getStructure());
-        } catch (IllegalStateException e) {
+        } catch (final IllegalStateException e) {
             // ok
         }
         try {
             assertNull(volume.getStorage());
-        } catch (IllegalStateException e) {
+        } catch (final IllegalStateException e) {
             // ok
         }
         try {
             assertNull(volume.getStatistics());
-        } catch (IllegalStateException e) {
+        } catch (final IllegalStateException e) {
             // ok
         }
     }
 
     @Test
     public void testCreateOpenVolume() throws Exception {
-        VolumeSpecification vs = validVolumeSpecification("${datapath}/vtest, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
-        Volume volume1 = new Volume(vs);
+        final VolumeSpecification vs = validVolumeSpecification("${datapath}/vtest, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
+        final Volume volume1 = new Volume(vs);
         volume1.open(_persistit);
-        long id = volume1.getId();
+        final long id = volume1.getId();
         _persistit.flush();
         _persistit.copyBackPages();
         volume1.close();
 
-        Volume volume2 = new Volume(vs);
+        final Volume volume2 = new Volume(vs);
         volume2.open(_persistit);
         assertEquals(id, volume2.getId());
-        long maxPages = volume2.getSpecification().getMaximumPages();
+        final long maxPages = volume2.getSpecification().getMaximumPages();
         assertEquals(1024 * 1024 / 16384, maxPages);
         for (int i = 2; i < 1000; i++) {
             try {
                 volume2.getStorage().claimHeadBuffer();
                 assertEquals(i, volume2.getStorage().allocNewPage());
                 volume2.getStorage().releaseHeadBuffer();
-            } catch (VolumeFullException e) {
+            } catch (final VolumeFullException e) {
                 assertEquals(maxPages, i);
                 break;
             }
         }
         assertEquals(maxPages, volume2.getStorage().getNextAvailablePage());
         assertEquals(maxPages, volume2.getStorage().getExtentedPageCount());
-        File file = new File(volume2.getPath());
+        final File file = new File(volume2.getPath());
         assertEquals(maxPages * 16384, file.length());
         volume2.close();
-        RandomAccessFile raf = new RandomAccessFile(file, "rw");
+        final RandomAccessFile raf = new RandomAccessFile(file, "rw");
         raf.write(new byte[16]);
         raf.close();
 
-        Volume volume3 = new Volume(vs);
+        final Volume volume3 = new Volume(vs);
         try {
             volume3.open(_persistit);
             fail("Volume should have been corrupt");
-        } catch (CorruptVolumeException e) {
+        } catch (final CorruptVolumeException e) {
             // okay
         }
     }
 
     @Test
     public void testDeleteVolume() throws Exception {
-        VolumeSpecification vs = validVolumeSpecification("${datapath}/vtest, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
-        Volume volume1 = new Volume(vs);
+        final VolumeSpecification vs = validVolumeSpecification("${datapath}/vtest, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
+        final Volume volume1 = new Volume(vs);
         volume1.open(_persistit);
-        File file = new File(volume1.getPath());
+        final File file = new File(volume1.getPath());
         assertEquals(32768, file.length());
         assertTrue(_persistit.deleteVolume("vtest"));
         assertTrue(volume1.isClosed());
@@ -129,9 +129,9 @@ public class VolumeTest extends PersistitUnitTestCase {
 
     @Test
     public void testDottedVolumeName() throws Exception {
-        VolumeSpecification vs = validVolumeSpecification("${datapath}/.thisStuffWontBeIgnored, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
-        Volume volume1 = _persistit.loadVolume(vs);
-        Exchange ex = _persistit.getExchange(".thisStuffWontBeIgnored", "emptyTreeTest", true);
+        final VolumeSpecification vs = validVolumeSpecification("${datapath}/.thisStuffWontBeIgnored, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
+        final Volume volume1 = _persistit.loadVolume(vs);
+        final Exchange ex = _persistit.getExchange(".thisStuffWontBeIgnored", "emptyTreeTest", true);
         assertEquals(ex.getVolume(), volume1);
     }
 
@@ -171,7 +171,7 @@ public class VolumeTest extends PersistitUnitTestCase {
     public void volumeLoadAndSaveGlobalTimestamp() throws Exception {
         final long MARKER = 123456789L;
         _persistit.getTimestampAllocator().updateTimestamp(MARKER);
-        VolumeSpecification vs = validVolumeSpecification("${datapath}/testGlobalTimestamp, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
+        final VolumeSpecification vs = validVolumeSpecification("${datapath}/testGlobalTimestamp, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create");
 
         final Volume vol1 = _persistit.loadVolume(vs);
         vol1.close();
@@ -192,8 +192,8 @@ public class VolumeTest extends PersistitUnitTestCase {
         _persistit.getTimestampAllocator().bumpTimestamp(1000000);
 
         // Write records to check on later
-        Exchange ex = _persistit.getExchange(UnitTestProperties.VOLUME_NAME, "VolumeTest", true);
-        Transaction txn = _persistit.getTransaction();
+        final Exchange ex = _persistit.getExchange(UnitTestProperties.VOLUME_NAME, "VolumeTest", true);
+        final Transaction txn = _persistit.getTransaction();
         txn.begin();
         for (int i = 0; i < RECORDS; ++i) {
             ex.clear().append(i).getValue().put(i);
@@ -206,15 +206,15 @@ public class VolumeTest extends PersistitUnitTestCase {
         _persistit.flush();
         _persistit.copyBackPages();
 
-        List<File> journalFiles = _persistit.getJournalManager().unitTestGetAllJournalFiles();
-        Properties properties = _persistit.getProperties();
+        final List<File> journalFiles = _persistit.getJournalManager().unitTestGetAllJournalFiles();
+        final Properties properties = _persistit.getProperties();
         _persistit.crash();
 
         /*
          * Worst case (or slipped finger) scenario of missing journal files
          */
-        for (File file : journalFiles) {
-            boolean success = file.delete();
+        for (final File file : journalFiles) {
+            final boolean success = file.delete();
             assertEquals("Deleted journal file " + file.getName(), true, success);
         }
 
@@ -231,7 +231,7 @@ public class VolumeTest extends PersistitUnitTestCase {
             try {
                 exchange.getVolume().close(5000);
                 fail("Expect an InUseException");
-            } catch (InUseException e) {
+            } catch (final InUseException e) {
                 final long elapsed = System.currentTimeMillis() - start;
                 assertTrue("Expected InUseException to happen at 5000 ms but was " + elapsed, elapsed > 4000
                         && elapsed < 10000);
@@ -244,7 +244,7 @@ public class VolumeTest extends PersistitUnitTestCase {
     private VolumeSpecification validVolumeSpecification(final String specification) throws Exception {
         try {
             return _persistit.getConfiguration().volumeSpecification(specification);
-        } catch (InvalidVolumeSpecificationException e) {
+        } catch (final InvalidVolumeSpecificationException e) {
             fail(specification + " should be valid: " + e);
             return null;
         }
@@ -254,7 +254,7 @@ public class VolumeTest extends PersistitUnitTestCase {
         try {
             new VolumeSpecification(specification);
             fail();
-        } catch (InvalidVolumeSpecificationException e) {
+        } catch (final InvalidVolumeSpecificationException e) {
             // ok
         }
     }

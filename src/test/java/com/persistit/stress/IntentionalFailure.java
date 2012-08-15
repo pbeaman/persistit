@@ -24,7 +24,7 @@ public class IntentionalFailure extends AbstractSuite {
         return IntentionalFailure.class.getSimpleName();
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         new IntentionalFailure(args).runTest();
     }
 
@@ -32,6 +32,7 @@ public class IntentionalFailure extends AbstractSuite {
         super(name(), args);
     }
 
+    @Override
     public void runTest() throws Exception {
 
         deleteFiles(substitute("$datapath$/persistit*"));
@@ -46,10 +47,10 @@ public class IntentionalFailure extends AbstractSuite {
             persistit.close();
         }
     }
-    
+
     class Fail extends AbstractStressTest {
 
-        protected Fail(String argsString) {
+        protected Fail(final String argsString) {
             super(argsString);
         }
 
@@ -57,6 +58,6 @@ public class IntentionalFailure extends AbstractSuite {
         protected void executeTest() throws Exception {
             throw new RuntimeException("Intentional Failure");
         }
-        
+
     }
 }

@@ -419,9 +419,8 @@ import com.persistit.util.Util;
  * <td>+14</td>
  * <td>type (char) - type of Accumulator (0=SUM, 1=MAX, 2=MIN, 3=SEQ)</td>
  * </tr>
- * </table>
- * </tr>
- *
+ * </table> </tr>
+ * 
  * </table>
  * 
  * @author peter
@@ -445,7 +444,7 @@ public class JournalRecord {
             TM.TYPE, CP.TYPE, IV.TYPE, IT.TYPE, D1.TYPE, D0.TYPE, TX.TYPE };
 
     public static boolean isValidType(final int t) {
-        for (int type : TYPES) {
+        for (final int type : TYPES) {
             if (t == type) {
                 return true;
             }
@@ -497,7 +496,7 @@ public class JournalRecord {
         return getInt(bb, 0);
     }
 
-    static void putLength(final ByteBuffer bb, int length) {
+    static void putLength(final ByteBuffer bb, final int length) {
         putInt(bb, 0, length);
     }
 
@@ -505,7 +504,7 @@ public class JournalRecord {
         return getChar(bb, 4);
     }
 
-    static void putType(final ByteBuffer bb, int type) {
+    static void putType(final ByteBuffer bb, final int type) {
         putChar(bb, 4, type);
     }
 
@@ -513,7 +512,7 @@ public class JournalRecord {
         return getLong(bb, 8);
     }
 
-    public static void putTimestamp(final ByteBuffer bb, long timestamp) {
+    public static void putTimestamp(final ByteBuffer bb, final long timestamp) {
         putLong(bb, 8, timestamp);
     }
 

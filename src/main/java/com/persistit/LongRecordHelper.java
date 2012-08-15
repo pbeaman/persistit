@@ -60,21 +60,21 @@ class LongRecordHelper {
      * @param minimumBytesToFetch
      * @throws PersistitException
      */
-    void fetchLongRecord(Value value, int minimumBytesToFetch) throws PersistitException {
+    void fetchLongRecord(final Value value, final int minimumBytesToFetch) throws PersistitException {
 
         Buffer buffer = null;
 
         try {
-            byte[] rawBytes = value.getEncodedBytes();
-            int rawSize = value.getEncodedSize();
+            final byte[] rawBytes = value.getEncodedBytes();
+            final int rawSize = value.getEncodedSize();
             if (rawSize != LONGREC_SIZE) {
                 corrupt("Invalid LONG_RECORD value size=" + rawSize + " but should be " + LONGREC_SIZE);
             }
             if ((rawBytes[0] & 0xFF) != LONGREC_TYPE) {
                 corrupt("Invalid LONG_RECORD value type=" + (rawBytes[0] & 0xFF) + " but should be " + LONGREC_TYPE);
             }
-            int longSize = Buffer.decodeLongRecordDescriptorSize(rawBytes, 0);
-            long startAtPage = Buffer.decodeLongRecordDescriptorPointer(rawBytes, 0);
+            final int longSize = Buffer.decodeLongRecordDescriptorSize(rawBytes, 0);
+            final long startAtPage = Buffer.decodeLongRecordDescriptorPointer(rawBytes, 0);
 
             int remainingSize = Math.min(longSize, minimumBytesToFetch);
 
@@ -161,10 +161,10 @@ class LongRecordHelper {
         // Calculate how many LONG_RECORD pages we will need.
         //
         boolean completed = false;
-        int longSize = value.getLongSize();
-        byte[] longBytes = value.getLongBytes();
-        byte[] rawBytes = value.getEncodedBytes();
-        int maxSegmentSize = _volume.getPool().getBufferSize() - HEADER_SIZE;
+        final int longSize = value.getLongSize();
+        final byte[] longBytes = value.getLongBytes();
+        final byte[] rawBytes = value.getEncodedBytes();
+        final int maxSegmentSize = _volume.getPool().getBufferSize() - HEADER_SIZE;
 
         Debug.$assert0.t(value.isLongRecordMode());
         Debug.$assert0.t(rawBytes.length == LONGREC_SIZE);
@@ -194,7 +194,7 @@ class LongRecordHelper {
 
                     System.arraycopy(longBytes, offset, buffer.getBytes(), HEADER_SIZE, segmentSize);
 
-                    int end = HEADER_SIZE + segmentSize;
+                    final int end = HEADER_SIZE + segmentSize;
                     if (end < buffer.getBufferSize()) {
                         buffer.clearBytes(end, buffer.getBufferSize());
                     }
@@ -209,7 +209,7 @@ class LongRecordHelper {
                     buffer = null;
                 }
 
-                long page = looseChain;
+                final long page = looseChain;
                 looseChain = 0;
                 Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
                 completed = true;

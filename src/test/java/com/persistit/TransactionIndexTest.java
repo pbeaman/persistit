@@ -32,12 +32,12 @@ public class TransactionIndexTest extends TestCase {
     public void testBasicMethods() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
 
-        TransactionStatus ts1 = ti.registerTransaction();
+        final TransactionStatus ts1 = ti.registerTransaction();
         ti.updateActiveTransactionCache();
         assertTrue(ti.hasConcurrentTransaction(0, ts1.getTs() + 1));
         ts1.commit(_tsa.updateTimestamp());
 
-        TransactionStatus ts2 = ti.registerTransaction();
+        final TransactionStatus ts2 = ti.registerTransaction();
         /*
          * True because the ActiveTransactionCache hasn't been updated yet.
          */
@@ -60,8 +60,8 @@ public class TransactionIndexTest extends TestCase {
         assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()) + 1, ts2.getTs(), 2)));
         assertFalse(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()) + 2, ts2.getTs(), 1)));
 
-        TransactionStatus ts3 = ti.registerTransaction();
-        TransactionStatus ts4 = ti.registerTransaction();
+        final TransactionStatus ts3 = ti.registerTransaction();
+        final TransactionStatus ts4 = ti.registerTransaction();
 
         ts2.commit(_tsa.updateTimestamp());
         ti.updateActiveTransactionCache();
@@ -149,8 +149,8 @@ public class TransactionIndexTest extends TestCase {
             array[count].decrementMvvCount();
         }
         assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());
-        assertEquals(array.length - ti.getLongRunningThreshold() - ti.getAbortedCount() - ti.getFreeCount(), ti
-                .getLongRunningCount());
+        assertEquals(array.length - ti.getLongRunningThreshold() - ti.getAbortedCount() - ti.getFreeCount(),
+                ti.getLongRunningCount());
         assertEquals(50, ti.getAbortedCount());
         for (int count = 0; count < 20; count++) {
             array[count].commit(array[20].getTs());
@@ -161,8 +161,9 @@ public class TransactionIndexTest extends TestCase {
         assertEquals(ti.getMaxFreeListSize(), ti.getFreeCount());
         assertEquals(50, ti.getAbortedCount());
         assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());
-        assertEquals(array.length - ti.getCurrentCount() - ti.getAbortedCount() - ti.getFreeCount()
-                - ti.getDroppedCount(), ti.getLongRunningCount());
+        assertEquals(
+                array.length - ti.getCurrentCount() - ti.getAbortedCount() - ti.getFreeCount() - ti.getDroppedCount(),
+                ti.getLongRunningCount());
 
         ti.updateActiveTransactionCache();
         /*
@@ -203,17 +204,18 @@ public class TransactionIndexTest extends TestCase {
 
     private long tryBlockingWwDependency(final TransactionIndex ti, final TransactionStatus target,
             final TransactionStatus source, final long wait, final long timeout, final AtomicLong elapsed,
-            boolean commit) throws Exception {
+            final boolean commit) throws Exception {
         final AtomicLong result = new AtomicLong();
         final Thread t = new Thread(new Runnable() {
+            @Override
             public void run() {
                 try {
                     final long start = System.currentTimeMillis();
                     result.set(ti.wwDependency(TransactionIndex.ts2vh(target.getTs()), source, timeout));
                     elapsed.set(System.currentTimeMillis() - start);
-                } catch (IllegalArgumentException e) {
+                } catch (final IllegalArgumentException e) {
                     e.printStackTrace();
-                } catch (InterruptedException e) {
+                } catch (final InterruptedException e) {
                     e.printStackTrace();
                 }
             }
@@ -274,7 +276,7 @@ public class TransactionIndexTest extends TestCase {
         /*
          * Commit processing
          */
-        long commitTimestamp = _tsa.updateTimestamp();
+        final long commitTimestamp = _tsa.updateTimestamp();
         ts1.commit(commitTimestamp);
         /*
          * Transactions which will ultimately be non-concurrent.
@@ -294,14 +296,15 @@ public class TransactionIndexTest extends TestCase {
             final TransactionStatus source, final long timeout, final AtomicLong result, final AtomicLong elapsed)
             throws Exception {
         final Thread t = new Thread(new Runnable() {
+            @Override
             public void run() {
                 try {
                     final long start = System.currentTimeMillis();
                     result.set(ti.wwDependency(TransactionIndex.ts2vh(target.getTs()), source, timeout));
                     elapsed.set(System.currentTimeMillis() - start);
-                } catch (IllegalArgumentException e) {
+                } catch (final IllegalArgumentException e) {
                     e.printStackTrace();
-                } catch (InterruptedException e) {
+                } catch (final InterruptedException e) {
                     e.printStackTrace();
                 }
             }
@@ -317,7 +320,7 @@ public class TransactionIndexTest extends TestCase {
         /*
          * Commit processing
          */
-        long commitTimestamp = _tsa.updateTimestamp();
+        final long commitTimestamp = _tsa.updateTimestamp();
         ts1.commit(commitTimestamp);
         ti.updateActiveTransactionCache();
         ti.cleanup();
@@ -339,16 +342,16 @@ public class TransactionIndexTest extends TestCase {
     public void testBug914474() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
 
-        TransactionStatus ts1 = ti.registerTransaction();
+        final TransactionStatus ts1 = ti.registerTransaction();
 
-        TransactionStatus ts2 = ti.registerTransaction();
+        final TransactionStatus ts2 = ti.registerTransaction();
         ts2.commit(_tsa.updateTimestamp());
         ti.notifyCompleted(ts2, _tsa.getCurrentTimestamp());
         /*
          * Cause ts2 to be "obsolete"
          */
         for (int i = 0; i < 100; i++) {
-            TransactionStatus ts3 = ti.registerTransaction();
+            final TransactionStatus ts3 = ti.registerTransaction();
             ts3.commit(_tsa.updateTimestamp());
             ti.notifyCompleted(ts3, _tsa.getCurrentTimestamp());
         }

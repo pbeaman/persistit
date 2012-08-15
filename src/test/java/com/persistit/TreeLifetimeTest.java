@@ -57,13 +57,13 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         return _persistit.getVolume(UnitTestProperties.VOLUME_NAME);
     }
 
-    private Exchange getExchange(boolean create) throws PersistitException {
+    private Exchange getExchange(final boolean create) throws PersistitException {
         return _persistit.getExchange(getVolume(), TREE_NAME, create);
     }
 
     @Test
     public void testRemovedTreeGoesToGarbageChain() throws PersistitException {
-        Transaction txn = _persistit.getTransaction();
+        final Transaction txn = _persistit.getTransaction();
 
         txn.begin();
         Exchange ex = getExchange(true);
@@ -86,33 +86,33 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         ex = null;
 
         final List<Long> garbage = getVolume().getStructure().getGarbageList();
-        assertTrue("Expected tree root <" + treeRoot + "> in garbage list <" + garbage.toString() + ">", garbage
-                .contains(treeRoot));
+        assertTrue("Expected tree root <" + treeRoot + "> in garbage list <" + garbage.toString() + ">",
+                garbage.contains(treeRoot));
     }
 
     @Test
     public void testGetTreeWithoutCreateShouldCreate() throws PersistitException {
-        Transaction txn = _persistit.getTransaction();
+        final Transaction txn = _persistit.getTransaction();
 
         txn.begin();
         try {
             getExchange(false);
             fail("Tree should not have existed!");
-        } catch (TreeNotFoundException e) {
+        } catch (final TreeNotFoundException e) {
             // expected
         }
 
         final Volume volume = getVolume();
 
         // Check on disk
-        List<String> treeNames = Arrays.asList(volume.getTreeNames());
-        assertFalse("Tree <" + TREE_NAME + "> should not be in Volume list <" + treeNames + ">", treeNames
-                .contains(TREE_NAME));
+        final List<String> treeNames = Arrays.asList(volume.getTreeNames());
+        assertFalse("Tree <" + TREE_NAME + "> should not be in Volume list <" + treeNames + ">",
+                treeNames.contains(TREE_NAME));
 
         // Check in-memory
         assertFalse("Volume should not know about tree", volume.getStructure().treeMapContainsName(TREE_NAME));
-        assertEquals("Journal should not have handle for tree", -1, _persistit.getJournalManager().handleForTree(
-                new TreeDescriptor(volume.getHandle(), TREE_NAME), false));
+        assertEquals("Journal should not have handle for tree", -1,
+                _persistit.getJournalManager().handleForTree(new TreeDescriptor(volume.getHandle(), TREE_NAME), false));
 
         txn.commit();
         txn.end();
@@ -133,8 +133,8 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
 
         assertNull("Tree should not exist after remove", getVolume().getTree(TREE_NAME, false));
 
-        CleanupManager cm = _persistit.getCleanupManager();
-        boolean accepted = cm.offer(new CleanupManager.CleanupPruneAction(treeHandle, rootPage));
+        final CleanupManager cm = _persistit.getCleanupManager();
+        final boolean accepted = cm.offer(new CleanupManager.CleanupPruneAction(treeHandle, rootPage));
         assertTrue("CleanupPruneAction was accepted", accepted);
         cm.kick();
         while (cm.getEnqueuedCount() > 0) {
@@ -150,7 +150,7 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
 
         final ConcurrentLinkedQueue<Throwable> threadErrors = new ConcurrentLinkedQueue<Throwable>();
 
-        Exchange origEx = getExchange(true);
+        final Exchange origEx = getExchange(true);
         for (int i = 0; i < 5; ++i) {
             origEx.clear().append(i).store();
         }
@@ -163,7 +163,7 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
                 try {
                     ex = getExchange(false);
                     ex.removeTree();
-                } catch (Throwable t) {
+                } catch (final Throwable t) {
                     threadErrors.add(t);
                 }
                 if (ex != null) {
@@ -185,7 +185,7 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
                     }
                     sequence(TREE_CREATE_REMOVE_C);
                     assertEquals("New tree has zero keys in it", 0, count);
-                } catch (Throwable t) {
+                } catch (final Throwable t) {
                     threadErrors.add(t);
                 }
                 if (ex != null) {

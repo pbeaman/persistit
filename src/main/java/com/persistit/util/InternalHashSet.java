@@ -65,13 +65,13 @@ public class InternalHashSet {
         public abstract int hashCode();
     }
 
-    public Entry lookup(int hashCode) {
+    public Entry lookup(final int hashCode) {
         return _entries[hashCode & _mask];
     }
 
-    public void put(Entry newEntry) {
-        int index = newEntry.getHashCode() & _mask;
-        Entry entry = _entries[index];
+    public void put(final Entry newEntry) {
+        final int index = newEntry.getHashCode() & _mask;
+        final Entry entry = _entries[index];
         newEntry._next = entry;
         _entries[index] = newEntry;
         _count++;
@@ -81,13 +81,13 @@ public class InternalHashSet {
     }
 
     void grow() {
-        Entry[] temp = new Entry[_entries.length * 2];
+        final Entry[] temp = new Entry[_entries.length * 2];
         _mask = temp.length - 1;
         for (int index = 0; index < _entries.length; index++) {
             Entry entry = _entries[index];
             while (entry != null) {
-                int newIndex = entry.getHashCode() & _mask;
-                Entry newEntry = entry;
+                final int newIndex = entry.getHashCode() & _mask;
+                final Entry newEntry = entry;
 
                 entry = entry._next;
                 newEntry._next = temp[newIndex];
@@ -97,7 +97,7 @@ public class InternalHashSet {
         _entries = temp;
     }
 
-    public Entry next(Entry entry) {
+    public Entry next(final Entry entry) {
         if (entry != null && entry._next != null) {
             return entry._next;
         } else {

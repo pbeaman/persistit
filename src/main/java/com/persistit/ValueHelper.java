@@ -32,17 +32,18 @@ interface ValueHelper {
     final static ValueHelper EMPTY_VALUE_WRITER = new ValueHelper() {
 
         @Override
-        public int requiredLength(byte[] target, int targetOffset, int targetLength) {
+        public int requiredLength(final byte[] target, final int targetOffset, final int targetLength) {
             return 0;
         }
 
         @Override
-        public int storeVersion(byte[] target, int targetOffset, int targetLength, int targetLimit) {
+        public int storeVersion(final byte[] target, final int targetOffset, final int targetLength,
+                final int targetLimit) {
             return 0;
         }
 
         @Override
-        public void saveValue(byte[] target, int targetOffset, int targetLength) {
+        public void saveValue(final byte[] target, final int targetOffset, final int targetLength) {
         }
 
         @Override
@@ -51,7 +52,7 @@ interface ValueHelper {
         }
 
         @Override
-        public void setPointerValue(long poiner) {
+        public void setPointerValue(final long poiner) {
             throw new UnsupportedOperationException();
         }
 
@@ -70,7 +71,8 @@ interface ValueHelper {
         }
 
         @Override
-        public int storeVersion(byte[] target, int targetOffset, int targetLength, int targetLimit) {
+        public int storeVersion(final byte[] target, final int targetOffset, final int targetLength,
+                final int targetLimit) {
             System.arraycopy(_value.getEncodedBytes(), 0, target, targetOffset, _value.getEncodedSize()); // TODO
                                                                                                           // -
                                                                                                           // limit
@@ -78,11 +80,11 @@ interface ValueHelper {
         }
 
         @Override
-        public void saveValue(byte[] target, int targetOffset, int targetLength) {
+        public void saveValue(final byte[] target, final int targetOffset, final int targetLength) {
         }
 
         @Override
-        public int requiredLength(byte[] target, int targetOffset, int targetLength) {
+        public int requiredLength(final byte[] target, final int targetOffset, final int targetLength) {
             return _value.getEncodedSize();
         }
 
@@ -92,7 +94,7 @@ interface ValueHelper {
         }
 
         @Override
-        public void setPointerValue(long pointer) {
+        public void setPointerValue(final long pointer) {
             _value.setPointerValue(pointer);
         }
 
@@ -114,17 +116,18 @@ interface ValueHelper {
         }
 
         @Override
-        public int storeVersion(byte[] target, int targetOffset, int targetLength, int targetLimit) {
-            return MVV.storeVersion(target, targetOffset, targetLength, target.length, _version, _value
-                    .getEncodedBytes(), 0, _value.getEncodedSize());
+        public int storeVersion(final byte[] target, final int targetOffset, final int targetLength,
+                final int targetLimit) {
+            return MVV.storeVersion(target, targetOffset, targetLength, target.length, _version,
+                    _value.getEncodedBytes(), 0, _value.getEncodedSize());
         }
 
         @Override
-        public void saveValue(byte[] target, int targetOffset, int targetLength) {
+        public void saveValue(final byte[] target, final int targetOffset, final int targetLength) {
         }
 
         @Override
-        public int requiredLength(byte[] target, int targetOffset, int targetLength) {
+        public int requiredLength(final byte[] target, final int targetOffset, final int targetLength) {
             return MVV.exactRequiredLength(target, targetOffset, targetLength, _version, _value.getEncodedSize());
         }
 
@@ -134,7 +137,7 @@ interface ValueHelper {
         }
 
         @Override
-        public void setPointerValue(long pointer) {
+        public void setPointerValue(final long pointer) {
             _value.setPointerValue(pointer);
         }
 

@@ -20,13 +20,13 @@ import com.persistit.stress.unit.StressRecovery.TransactionType;
 public class StressRecoveryTxn1 implements TransactionType {
 
     @Override
-    public long performTransaction(long ticketId) throws Exception {
+    public long performTransaction(final long ticketId) throws Exception {
         // TODO Auto-generated method stub
         return -1;
     }
 
     @Override
-    public void verifyTransaction(long ticketId) throws Exception {
+    public void verifyTransaction(final long ticketId) throws Exception {
         // TODO Auto-generated method stub
 
     }

@@ -53,7 +53,8 @@ public class BackupTaskTest extends PersistitUnitTestCase {
         final File file = File.createTempFile("backup", ".zip");
         file.deleteOnExit();
 
-        BackupTask backup1 = (BackupTask) CLI.parseTask(_persistit, "backup -z -c file=" + file.getAbsolutePath());
+        final BackupTask backup1 = (BackupTask) CLI
+                .parseTask(_persistit, "backup -z -c file=" + file.getAbsolutePath());
 
         backup1.setMessageWriter(writer);
         backup1.setup(1, "backup file=" + file.getAbsolutePath(), "cli", 0, 5);
@@ -91,7 +92,8 @@ public class BackupTaskTest extends PersistitUnitTestCase {
         final File file = File.createTempFile("backup", ".zip");
         file.deleteOnExit();
 
-        BackupTask backup1 = (BackupTask) CLI.parseTask(_persistit, "backup -y -c file=" + file.getAbsolutePath());
+        final BackupTask backup1 = (BackupTask) CLI
+                .parseTask(_persistit, "backup -y -c file=" + file.getAbsolutePath());
 
         backup1.setMessageWriter(writer);
         backup1.setPersistit(_persistit);
@@ -118,8 +120,8 @@ public class BackupTaskTest extends PersistitUnitTestCase {
         exchange.to(Key.BEFORE);
         int extras = 0;
         while (exchange.next()) {
-            int key = exchange.getKey().reset().decodeInt();
-            boolean found = tw.commitTransactions.remove(key);
+            final int key = exchange.getKey().reset().decodeInt();
+            final boolean found = tw.commitTransactions.remove(key);
             if (!found) {
                 extras++;
             }
@@ -150,7 +152,7 @@ public class BackupTaskTest extends PersistitUnitTestCase {
                     if (!backupStarted.get()) {
                         commitTransactions.add(key);
                     }
-                    int count = counter.incrementAndGet();
+                    final int count = counter.incrementAndGet();
                     transaction.end();
                     // Once the counter has advanced to TRANSACTION_COUNT,
                     // throttle this
@@ -160,7 +162,7 @@ public class BackupTaskTest extends PersistitUnitTestCase {
                         Thread.sleep(10);
                     }
                 }
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 e.printStackTrace();
             }
         }

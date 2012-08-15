@@ -52,7 +52,7 @@ public abstract class AbstractStressTest implements Runnable {
         return _persistit;
     }
 
-    protected void setPersistit(Persistit db) {
+    protected void setPersistit(final Persistit db) {
         _persistit = db;
     }
 
@@ -74,6 +74,7 @@ public abstract class AbstractStressTest implements Runnable {
         _threadIndex = index;
     }
 
+    @Override
     public void run() {
         _threadName = Thread.currentThread().getName();
         try {
@@ -127,7 +128,7 @@ public abstract class AbstractStressTest implements Runnable {
             _result = new TestResult(false, throwable);
         }
         forceStop();
-        long elapsed = (System.nanoTime() - _startTime) / AbstractSuite.NS_PER_S;
+        final long elapsed = (System.nanoTime() - _startTime) / AbstractSuite.NS_PER_S;
         System.err.printf("\n%s at %,d seconds: %s\n", this, elapsed, _result);
     }
 

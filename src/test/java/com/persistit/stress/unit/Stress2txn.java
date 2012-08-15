@@ -22,7 +22,6 @@ import com.persistit.TransactionRunnable;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress2txn extends StressBase {
@@ -37,7 +36,7 @@ public class Stress2txn extends StressBase {
     int _seed;
     String _opflags;
 
-    public Stress2txn(String argsString) {
+    public Stress2txn(final String argsString) {
         super(argsString);
     }
 
@@ -89,7 +88,7 @@ public class Stress2txn extends StressBase {
                 if (remainingAttempts % 5 == 0) {
                     try {
                         Thread.sleep(100);
-                    } catch (InterruptedException e) {
+                    } catch (final InterruptedException e) {
                     }
                 }
                 if (remainingAttempts == 0) {
@@ -159,8 +158,7 @@ public class Stress2txn extends StressBase {
 
                                 final int size2 = value2.getEncodedSize();
                                 if (size2 != size1) {
-                                    fail("Value is size " + size2 + ", should be " + size1
-                                            + " key=" + _ex.getKey());
+                                    fail("Value is size " + size2 + ", should be " + size1 + " key=" + _ex.getKey());
                                 }
                             }
                         }, 10, 0, CommitPolicy.SOFT);
@@ -208,8 +206,8 @@ public class Stress2txn extends StressBase {
                     }
                 }
                 if (count1 != count2 && !isStopped()) {
-                    fail("Traverse count is " + count1 + " but should be " + count2
-                            + " on repetition=" + _repeat + " in thread=" + _threadIndex);
+                    fail("Traverse count is " + count1 + " but should be " + count2 + " on repetition=" + _repeat
+                            + " in thread=" + _threadIndex);
                     break;
                 }
             }

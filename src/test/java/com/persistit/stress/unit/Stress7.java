@@ -16,23 +16,22 @@
 package com.persistit.stress.unit;
 
 import com.persistit.Key;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 /**
  * Test to try all split and join locations and conditions. Plan: 1. For each of
- * several key and value sizes, create a tree with enough key/value pairs of that
- * size to yield 3-level tree 2. Between each key position on one or more pages,
- * insert one or more key/value pairs to force a split, then delete them to
- * cause a rejoin 3. Make sure the resulting tree is valid.
+ * several key and value sizes, create a tree with enough key/value pairs of
+ * that size to yield 3-level tree 2. Between each key position on one or more
+ * pages, insert one or more key/value pairs to force a split, then delete them
+ * to cause a rejoin 3. Make sure the resulting tree is valid.
  * 
  */
 public class Stress7 extends StressBase {
 
-    public Stress7(String argsString) {
+    public Stress7(final String argsString) {
         super(argsString);
     }
-    
+
     private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Repetitions",
             "count|int:1000:0:100000|Number of nodes to populate", "size|int:500:1:10000|Max splitting value size",
             "seed|int:1:1:20000|Random seed",
@@ -81,7 +80,6 @@ public class Stress7 extends StressBase {
                 _exs.clear().append("stress7").append(_threadIndex).remove(Key.GTEQ);
                 addWork(1);
 
-
                 setPhase("a");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     _exs.clear().append("stress7").append(_threadIndex).append(_count).append(_sb1);
@@ -110,8 +108,7 @@ public class Stress7 extends StressBase {
                     addWork(1);
 
                     if (_exs.getValue().isDefined()) {
-                        fail("Value for key " + _exs.getKey()
-                                + " is defined but should not be");
+                        fail("Value for key " + _exs.getKey() + " is defined but should not be");
                         break;
                     }
                 }
@@ -120,6 +117,5 @@ public class Stress7 extends StressBase {
             }
         }
     }
-
 
 }

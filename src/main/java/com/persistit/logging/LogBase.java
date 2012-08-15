@@ -171,7 +171,7 @@ public class LogBase {
 
     @Message("WARNING|Missing volume %s referenced at journal address %,d")
     public final LogItem missingVolume = PersistitLogMessage.empty();
-    
+
     @Message("WARNING|Lost page %,d from missing volume %s referenced at journal address %,d")
     public final LogItem lostPageFromMissingVolume = PersistitLogMessage.empty();
 
@@ -256,9 +256,9 @@ public class LogBase {
                     final String[] v = annotation.value().split("\\|");
                     final PersistitLevel level = PersistitLevel.valueOf(v[0]);
                     final String message = v[1];
-                    LogItem logItem = (LogItem) field.get(this);
+                    final LogItem logItem = (LogItem) field.get(this);
                     logItem.configure(logger, level, message);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     System.err.printf("%s on field %s with annotation %s", e, field, annotation);
                 }
             }
@@ -266,4 +266,3 @@ public class LogBase {
     }
 
 }
-

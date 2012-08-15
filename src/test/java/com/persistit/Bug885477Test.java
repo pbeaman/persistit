@@ -21,10 +21,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Key;
-import com.persistit.Transaction;
-
 /**
  * Suppose a persistit tree has keys (1, 10), (1, 20), (2, 30). If an exchange's
  * key is (1), then traverse(GTEQ, false) should traverse to the first record,

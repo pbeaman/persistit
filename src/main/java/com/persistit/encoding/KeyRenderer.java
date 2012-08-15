@@ -37,13 +37,13 @@ public interface KeyRenderer extends KeyCoder {
 
     /**
      * <p>
-     * Populate the state of the supplied target <code>Object</code> by
-     * decoding the next key segment of the supplied <code>Key</code>. This
-     * method will be called only if this <code>KeyRenderer</code> has been
-     * registered with the current {@link CoderManager} to encode objects having
-     * the supplied <code>Class</code> value. In addition, Persistit will never
-     * call this method to decode a value that was <code>null</code> when
-     * written because null values are handled by built-in encoding logic.
+     * Populate the state of the supplied target <code>Object</code> by decoding
+     * the next key segment of the supplied <code>Key</code>. This method will
+     * be called only if this <code>KeyRenderer</code> has been registered with
+     * the current {@link CoderManager} to encode objects having the supplied
+     * <code>Class</code> value. In addition, Persistit will never call this
+     * method to decode a value that was <code>null</code> when written because
+     * null values are handled by built-in encoding logic.
      * </p>
      * <p>
      * When this method is called the value {@link Key#getIndex()} will be the

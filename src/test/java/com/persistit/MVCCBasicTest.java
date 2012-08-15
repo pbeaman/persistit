@@ -255,7 +255,7 @@ public class MVCCBasicTest extends MVCCTestBase {
 
     @Test
     public void testTraverseShallowTwoTrx() throws Exception {
-        List<KVPair> baseList = kvList("a", "A", "z", "Z");
+        final List<KVPair> baseList = kvList("a", "A", "z", "Z");
         trx1.begin();
         try {
             storeAll(ex1, baseList);
@@ -299,7 +299,7 @@ public class MVCCBasicTest extends MVCCTestBase {
 
         trx1.begin();
         try {
-            List<KVPair> fList = combine(trx1List, trx2List);
+            final List<KVPair> fList = combine(trx1List, trx2List);
             assertEquals("final forward,shallow traversal", fList, traverseAllFoward(ex1, false));
             Collections.reverse(fList);
             assertEquals("final reverse,shallow traversal", fList, traverseAllReverse(ex1, false));
@@ -312,7 +312,7 @@ public class MVCCBasicTest extends MVCCTestBase {
 
     @Test
     public void testTraverseDeepTwoTrx() throws Exception {
-        List<KVPair> baseList = kvList("a", "A", "z", "Z");
+        final List<KVPair> baseList = kvList("a", "A", "z", "Z");
 
         trx1.begin();
         try {
@@ -352,7 +352,7 @@ public class MVCCBasicTest extends MVCCTestBase {
 
         trx1.begin();
         try {
-            List<KVPair> fList = combine(trx1List, trx2List);
+            final List<KVPair> fList = combine(trx1List, trx2List);
 
             assertEquals("final forward,deep traversal", fList, traverseAllFoward(ex1, true));
             Collections.reverse(fList);
@@ -384,19 +384,19 @@ public class MVCCBasicTest extends MVCCTestBase {
                 }
             }
 
-            Exchange[] exchanges = { ex1, ex1 };
-            Key.Direction[] directions = { Key.GT, Key.LT };
-            boolean[] deepFlags = { true, false };
+            final Exchange[] exchanges = { ex1, ex1 };
+            final Key.Direction[] directions = { Key.GT, Key.LT };
+            final boolean[] deepFlags = { true, false };
 
-            for (Exchange ex : exchanges) {
+            for (final Exchange ex : exchanges) {
                 final String expectedSeg2 = (ex == ex1) ? "trx1" : "trx2";
                 final Key key = ex.getKey();
                 final Value value = ex.getValue();
 
-                for (Key.Direction dir : directions) {
+                for (final Key.Direction dir : directions) {
                     final Key.EdgeValue startEdge = (dir == Key.GT) ? Key.BEFORE : Key.AFTER;
 
-                    for (boolean deep : deepFlags) {
+                    for (final boolean deep : deepFlags) {
                         final String desc = expectedSeg2 + " " + dir + " " + (deep ? "deep" : "shallow") + ", ";
 
                         int traverseCount = 0;
@@ -405,9 +405,9 @@ public class MVCCBasicTest extends MVCCTestBase {
                             ++traverseCount;
                             if (deep) {
                                 assertEquals(desc + "key depth", 2, key.getDepth());
-                                int keySeg1 = key.indexTo(0).decodeInt();
-                                String keySeg2 = key.indexTo(1).decodeString();
-                                int val = value.getInt();
+                                final int keySeg1 = key.indexTo(0).decodeInt();
+                                final String keySeg2 = key.indexTo(1).decodeString();
+                                final int val = value.getInt();
                                 assertEquals(desc + "key seg1 equals value", keySeg1, val);
                                 assertEquals(desc + "key seg2", expectedSeg2, keySeg2);
                             } else {
@@ -438,13 +438,13 @@ public class MVCCBasicTest extends MVCCTestBase {
         trx1.begin();
         trx2.begin();
         try {
-            List<KVPair> trx1List = kvList("a", "A", "c", "C", "e", "E", "f", "f", "i", "I");
-            List<KVPair> trx2List = kvList("b", "B", "d", "D", "g", "G", "h", "H", "j", "J");
+            final List<KVPair> trx1List = kvList("a", "A", "c", "C", "e", "E", "f", "f", "i", "I");
+            final List<KVPair> trx2List = kvList("b", "B", "d", "D", "g", "G", "h", "H", "j", "J");
 
             storeAll(ex1, trx1List);
             storeAll(ex2, trx2List);
 
-            KeyFilter filter = new KeyFilter(new KeyFilter.Term[] { KeyFilter.rangeTerm("b", "i") });
+            final KeyFilter filter = new KeyFilter(new KeyFilter.Term[] { KeyFilter.rangeTerm("b", "i") });
             trx1List.remove(0);
             trx2List.remove(trx2List.size() - 1);
 
@@ -471,7 +471,7 @@ public class MVCCBasicTest extends MVCCTestBase {
     public void testShallowTraverseWrongParentValueBug() throws Exception {
         trx1.begin();
         try {
-            List<KVPair> kvList = kvList("a", "A", "b", "B", "z", "Z");
+            final List<KVPair> kvList = kvList("a", "A", "b", "B", "z", "Z");
             storeAll(ex1, kvList);
             store(ex1, "a", "a", "AA");
 
@@ -567,7 +567,7 @@ public class MVCCBasicTest extends MVCCTestBase {
 
     @Test
     public void testTwoTrxRemoveRanges() throws Exception {
-        List<KVPair> bothList = kvList("a", "A", "m", "M", "z", "Z");
+        final List<KVPair> bothList = kvList("a", "A", "m", "M", "z", "Z");
         trx1.begin();
         try {
             storeAll(ex1, bothList);
@@ -576,16 +576,16 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.end();
         }
 
-        Key ka = new Key(_persistit);
-        Key kb = new Key(_persistit);
+        final Key ka = new Key(_persistit);
+        final Key kb = new Key(_persistit);
 
         trx1.begin();
         trx2.begin();
         try {
-            List<KVPair> trx1List1 = kvList("b", "B", "e", "e", "f", "f", "x", "X");
+            final List<KVPair> trx1List1 = kvList("b", "B", "e", "e", "f", "f", "x", "X");
             storeAll(ex1, trx1List1);
 
-            List<KVPair> trx2List = kvList("d", "D", "n", "N", "v", "V", "y", "Y");
+            final List<KVPair> trx2List = kvList("d", "D", "n", "N", "v", "V", "y", "Y");
             storeAll(ex2, trx2List);
 
             // Explicitly testing overlapping ranges, as the overlaps should
@@ -595,16 +595,16 @@ public class MVCCBasicTest extends MVCCTestBase {
             kb.clear().append("v");
             assertTrue("trx1 keys removed", ex1.removeKeyRange(ka, kb));
 
-            List<KVPair> trx1List2 = kvList("a", "A", "x", "X", "z", "Z");
+            final List<KVPair> trx1List2 = kvList("a", "A", "x", "X", "z", "Z");
             assertEquals("trx1 traverse post removeKeyRange", trx1List2, traverseAllFoward(ex1, true));
-            assertEquals("trx2 traverse post trx1 removeKeyRange", combine(bothList, trx2List), traverseAllFoward(ex2,
-                    true));
+            assertEquals("trx2 traverse post trx1 removeKeyRange", combine(bothList, trx2List),
+                    traverseAllFoward(ex2, true));
 
             ka.clear().append("n");
             kb.clear().append(Key.AFTER);
             assertTrue("trx2 keys removed", ex2.removeKeyRange(ka, kb));
-            assertEquals("trx2 traverse post removeAll", kvList("a", "A", "d", "D", "m", "M"), traverseAllFoward(ex2,
-                    true));
+            assertEquals("trx2 traverse post removeAll", kvList("a", "A", "d", "D", "m", "M"),
+                    traverseAllFoward(ex2, true));
             assertEquals("trx1 traverse post trx2 removeAll", trx1List2, traverseAllFoward(ex1, true));
 
             trx1.commit();
@@ -641,7 +641,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         insertRemoveAllAndVerify(keyCount);
     }
 
-    private void insertRemoveAllAndVerify(int keyCount) throws Exception {
+    private void insertRemoveAllAndVerify(final int keyCount) throws Exception {
         trx1.begin();
         try {
             for (int i = 0; i < keyCount; ++i) {
@@ -681,7 +681,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         try {
             int curKey = 0;
             for (int d1 = 0; d1 < TOTAL_DEPTH_1; ++d1) {
-                String s = String.valueOf((char) ('a' + d1));
+                final String s = String.valueOf((char) ('a' + d1));
                 ex1.clear().append(s);
                 ex1.getValue().clear().put(s.toUpperCase());
                 ex1.store();
@@ -718,8 +718,8 @@ public class MVCCBasicTest extends MVCCTestBase {
             // Can stop when we hit first sibling (depth < traverse minDepth)
             ex1.clear().append("a");
             assertEquals("'a' hasChildren after remove", false, ex1.hasChildren());
-            assertEquals("keys traversed for 'a' hasChildren post-remove", TOTAL_DEPTH_2 + 1, ex1
-                    .getKeysVisitedDuringTraverse());
+            assertEquals("keys traversed for 'a' hasChildren post-remove", TOTAL_DEPTH_2 + 1,
+                    ex1.getKeysVisitedDuringTraverse());
 
             // Should be able to stop when first (depth < traverse minDepth)
             ex1.clear().append("a").append(TOTAL_DEPTH_2);
@@ -729,17 +729,17 @@ public class MVCCBasicTest extends MVCCTestBase {
             // Same optimization test, by way of specially known KeyFilter
             ex1.clear().append("a");
             final KeyFilter filter1 = new KeyFilter(ex1.getKey(), ex1.getKey().getDepth() + 1, Integer.MAX_VALUE);
-            assertEquals("traverse w/filter1 found key post-remove", false, ex1.traverse(Key.GT, filter1,
-                    Integer.MAX_VALUE));
-            assertEquals("keys traversed with filter1 post-remove", TOTAL_DEPTH_2 + 1, ex1
-                    .getKeysVisitedDuringTraverse());
+            assertEquals("traverse w/filter1 found key post-remove", false,
+                    ex1.traverse(Key.GT, filter1, Integer.MAX_VALUE));
+            assertEquals("keys traversed with filter1 post-remove", TOTAL_DEPTH_2 + 1,
+                    ex1.getKeysVisitedDuringTraverse());
 
             // If not using the 'special' KeyFilter, we can't exit traverse
             // early
             final KeyFilter filter2 = new KeyFilter(new KeyFilter.Term[] { KeyFilter.simpleTerm("a") }, 2,
                     Integer.MAX_VALUE);
-            assertEquals("traverse w/filter2 found key post-remove", false, ex1.traverse(Key.GT, filter2,
-                    Integer.MAX_VALUE));
+            assertEquals("traverse w/filter2 found key post-remove", false,
+                    ex1.traverse(Key.GT, filter2, Integer.MAX_VALUE));
             // All depth1 and depth2 in range ('a','j')
             final int expectedKeys = (TOTAL_DEPTH_1 - 1) * TOTAL_DEPTH_2 + TOTAL_DEPTH_1 - 1;
             assertEquals("keys traversed with filter2 post-remove", expectedKeys, ex1.getKeysVisitedDuringTraverse());
@@ -802,8 +802,8 @@ public class MVCCBasicTest extends MVCCTestBase {
 
             ex1.clear().append(10);
             final KeyFilter filter2 = new KeyFilter(ex1.getKey(), ex1.getKey().getDepth() + 1, Integer.MAX_VALUE);
-            assertEquals("traverse filter found key post-remove", false, ex1.traverse(Key.GT, filter2,
-                    Integer.MAX_VALUE));
+            assertEquals("traverse filter found key post-remove", false,
+                    ex1.traverse(Key.GT, filter2, Integer.MAX_VALUE));
             assertEquals("keys traversed w/filter post-remove", 2, ex1.getKeysVisitedDuringTraverse());
 
             trx1.commit();
@@ -859,7 +859,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         final List<KVPair> secondList = kvList();
 
         for (int i = 0; i < KEY_COUNT; ++i) {
-            int value = i * 10;
+            final int value = i * 10;
             baseList.add(new KVPair(i, null, value));
             secondList.add(new KVPair(i + KEY_COUNT, null, value + 1));
         }
@@ -879,7 +879,7 @@ public class MVCCBasicTest extends MVCCTestBase {
         trx1.begin();
         Exchange storeEx = null;
         try {
-            Iterator<KVPair> insertIt = secondList.iterator();
+            final Iterator<KVPair> insertIt = secondList.iterator();
             _persistit.setSessionId(trx1.getSessionId());
             storeEx = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, false);
 
@@ -888,8 +888,8 @@ public class MVCCBasicTest extends MVCCTestBase {
                 traversedList.add(new KVPair(ex1.getKey().decodeInt(), null, ex1.getValue().getInt()));
 
                 if (insertIt.hasNext()) {
-                    int prevStep = trx1.incrementStep();
-                    KVPair pair = insertIt.next();
+                    final int prevStep = trx1.incrementStep();
+                    final KVPair pair = insertIt.next();
                     store(storeEx, pair.k1, pair.v);
                     trx1.setStep(prevStep);
                 }
@@ -943,9 +943,9 @@ public class MVCCBasicTest extends MVCCTestBase {
                 traversedStep0.add(new KVPair(ex1.getKey().decodeInt(), null, ex1.getValue().getInt()));
 
                 if (updatedIt.hasNext()) {
-                    int prevStep = trx1.incrementStep();
+                    final int prevStep = trx1.incrementStep();
                     ex1.remove();
-                    KVPair pair = updatedIt.next();
+                    final KVPair pair = updatedIt.next();
                     store(storeEx, pair.k1, pair.v);
                     trx1.setStep(prevStep);
                 }
@@ -985,7 +985,7 @@ public class MVCCBasicTest extends MVCCTestBase {
 
         trx1.begin();
         try {
-            for (int step : stepOrder) {
+            for (final int step : stepOrder) {
                 trx1.setStep(step);
                 store(ex1, KEY1, step);
             }
@@ -1059,12 +1059,12 @@ public class MVCCBasicTest extends MVCCTestBase {
     // Test Helpers
     //
 
-    private Exchange createExchange(Transaction txn) throws PersistitException {
+    private Exchange createExchange(final Transaction txn) throws PersistitException {
         _persistit.setSessionId(txn.getSessionId());
         return _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
     }
 
-    private void releaseExchange(Exchange ex) {
+    private void releaseExchange(final Exchange ex) {
         if (ex != null) {
             _persistit.releaseExchange(ex);
         }

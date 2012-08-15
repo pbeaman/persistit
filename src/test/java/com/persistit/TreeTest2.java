@@ -23,7 +23,6 @@ import java.util.Properties;
 
 import org.junit.Test;
 
-
 public class TreeTest2 extends PersistitUnitTestCase {
 
     final static int COUNT = 10000;
@@ -31,7 +30,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
     @Test
     public void testLotsOfTrees() throws Exception {
         Volume volume = _persistit.getVolume("persistit");
-        Transaction txn = _persistit.getTransaction();
+        final Transaction txn = _persistit.getTransaction();
         assertEquals(1, volume.getStructure().directoryExchange().getTree().getRootPageAddr());
         for (int counter = 0; counter < COUNT; counter++) {
             txn.begin();
@@ -52,7 +51,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
             txn.end();
         }
 
-        Properties properties = _persistit.getProperties();
+        final Properties properties = _persistit.getProperties();
         _persistit.getJournalManager().flush();
         _persistit.crash();
         _persistit = new Persistit();
@@ -61,7 +60,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
         volume = _persistit.getVolume("persistit");
         assertTrue(1 != volume.getStructure().directoryExchange().getTree().getRootPageAddr());
 
-        String[] treeNames = volume.getTreeNames();
+        final String[] treeNames = volume.getTreeNames();
         for (final String t : treeNames) {
             assertTrue(!t.startsWith("TreeTest1"));
         }
@@ -69,7 +68,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
 
     @Test
     public void testSameTreeName() throws Exception {
-        Transaction txn = _persistit.getTransaction();
+        final Transaction txn = _persistit.getTransaction();
         for (int counter = 0; counter < 100; counter++) {
             txn.begin();
             try {

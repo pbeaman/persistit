@@ -20,8 +20,6 @@ import java.io.InputStreamReader;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.KeyParser;
 import com.persistit.policy.SplitPolicy;
 
 /*

@@ -93,7 +93,7 @@ public class TransactionIndexConcurrencyTest {
     public void testConcurrentOperations() throws Exception {
         final long start = System.currentTimeMillis();
         final AtomicLong reported = new AtomicLong(start);
-        Timer timer = new Timer();
+        final Timer timer = new Timer();
         final AtomicInteger errCount = new AtomicInteger();
         timer.schedule(new TimerTask() {
 
@@ -110,14 +110,15 @@ public class TransactionIndexConcurrencyTest {
         }, 10, 10);
         final Thread threads[] = new Thread[threadCount];
         for (int i = 0; i < threadCount; i++) {
-            Thread thread = new Thread(new Runnable() {
+            final Thread thread = new Thread(new Runnable() {
+                @Override
                 public void run() {
                     final Txn txn = new Txn();
                     try {
                         for (int i = 0; i < iterations; i++) {
                             runTransaction(txn, i);
                         }
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         errCount.incrementAndGet();
                         e.printStackTrace();
                     }
@@ -155,9 +156,9 @@ public class TransactionIndexConcurrencyTest {
 
     private void report(final long elapsed) {
         System.out.printf("%,8dms:  Commits=%,d Aborts=%,d\nCurrentCount=%,d  AbortedCount=%,d  "
-                + "LongRunningCount=%,d  FreeCount=%,d\natCache=%s\n\n", elapsed, commits.get(), aborts.get(), ti
-                .getCurrentCount(), ti.getAbortedCount(), ti.getLongRunningCount(), ti.getFreeCount(), ti
-                .getActiveTransactionCache());
+                + "LongRunningCount=%,d  FreeCount=%,d\natCache=%s\n\n", elapsed, commits.get(), aborts.get(),
+                ti.getCurrentCount(), ti.getAbortedCount(), ti.getLongRunningCount(), ti.getFreeCount(),
+                ti.getActiveTransactionCache());
 
     }
 
@@ -165,11 +166,11 @@ public class TransactionIndexConcurrencyTest {
         txn.status = ti.registerTransaction();
         final long ts = txn.status.getTs();
         sometimesSleep(5);
-        int vcount = RANDOM.nextInt(4);
+        final int vcount = RANDOM.nextInt(4);
         boolean okay = true;
         for (int i = 0; okay && i < vcount; i++) {
-            int mvvIndex = RANDOM.nextInt(mvvCount);
-            MVV mvv = mvvs[mvvIndex];
+            final int mvvIndex = RANDOM.nextInt(mvvCount);
+            final MVV mvv = mvvs[mvvIndex];
             boolean retry = true;
             int index = 0;
             while (retry && okay) {
@@ -179,8 +180,8 @@ public class TransactionIndexConcurrencyTest {
                 synchronized (mvv) {
                     prune(mvv);
                     for (; index < mvv.versionHandles.size(); index++) {
-                        long vh = mvv.versionHandles.get(index);
-                        long tc = ti.wwDependency(vh, txn.status, 0);
+                        final long vh = mvv.versionHandles.get(index);
+                        final long tc = ti.wwDependency(vh, txn.status, 0);
                         if (tc == TIMED_OUT) {
                             timeouts.incrementAndGet();
                             versionHandle = vh;
@@ -199,10 +200,10 @@ public class TransactionIndexConcurrencyTest {
                     }
                 }
                 if ((count % 10000) == 0) {
-                	Thread.sleep(100);
+                    Thread.sleep(100);
                 }
                 if (retry) {
-                    long tc = ti.wwDependency(versionHandle, txn.status, 300000);
+                    final long tc = ti.wwDependency(versionHandle, txn.status, 300000);
                     if (tc == TIMED_OUT) {
                         throw new TimeoutException();
                     }
@@ -221,15 +222,15 @@ public class TransactionIndexConcurrencyTest {
             aborts.incrementAndGet();
         }
         sometimesSleep(1);
-        long tc = tsa.updateTimestamp();
+        final long tc = tsa.updateTimestamp();
         ti.notifyCompleted(txn.status, tc);
     }
 
     void prune(final MVV mvv) throws TimeoutException, InterruptedException {
-        long ts0 = 0;
+        final long ts0 = 0;
         for (int index = 0; index < mvv.versionHandles.size(); index++) {
-            long vh = mvv.versionHandles.get(index);
-            long tc = ti.commitStatus(vh, Long.MAX_VALUE, 0);
+            final long vh = mvv.versionHandles.get(index);
+            final long tc = ti.commitStatus(vh, Long.MAX_VALUE, 0);
             if (tc == ABORTED) {
                 // remove if aborted
                 mvv.versionHandles.remove(index);

@@ -44,7 +44,7 @@ public class BufferTest extends PersistitUnitTestCase {
         final StringBuilder sb = new StringBuilder();
         final Buffer b1 = ex.getBufferPool().get(ex.getVolume(), 1, true, false);
         final Buffer b2 = ex.getBufferPool().get(ex.getVolume(), 2, true, false);
-        RawValueWriter vwriter = new RawValueWriter();
+        final RawValueWriter vwriter = new RawValueWriter();
         b1.init(Buffer.PAGE_TYPE_DATA);
         b2.init(Buffer.PAGE_TYPE_DATA);
         b1.getFastIndex();
@@ -140,7 +140,7 @@ public class BufferTest extends PersistitUnitTestCase {
 
     }
 
-    private boolean combo(Exchange ex, Buffer b1, Buffer b2) throws Exception {
+    private boolean combo(final Exchange ex, final Buffer b1, final Buffer b2) throws Exception {
 
         try {
             b1.init(Buffer.PAGE_TYPE_DATA);
@@ -148,9 +148,9 @@ public class BufferTest extends PersistitUnitTestCase {
             b2.init(Buffer.PAGE_TYPE_DATA);
             b2.clearSlack();
 
-            int n1 = fillPage(ex, b1, 1, leftn, leftklen, leftvlen);
+            final int n1 = fillPage(ex, b1, 1, leftn, leftklen, leftvlen);
             fillPage(ex, b2, n1, 1, leftklen, leftvlen);
-            int n2 = fillPage(ex, b2, n1 + 1, rightn, rightklen, rightvlen);
+            final int n2 = fillPage(ex, b2, n1 + 1, rightn, rightklen, rightvlen);
 
             if (leftShorten > 0) {
                 fillPage(ex, b1, 1, n1 - 1, leftklen, leftvlen - leftShorten);
@@ -168,15 +168,16 @@ public class BufferTest extends PersistitUnitTestCase {
             b1.verify(null, null);
             b2.verify(null, null);
             return false;
-        } catch (RebalanceException e) {
+        } catch (final RebalanceException e) {
             return true;
         }
     }
 
-    private int fillPage(Exchange ex, Buffer b, int k, int n, int klen, int vlen) throws PersistitException {
-        RawValueWriter vwriter = new RawValueWriter();
+    private int fillPage(final Exchange ex, final Buffer b, final int k, final int n, final int klen, final int vlen)
+            throws PersistitException {
+        final RawValueWriter vwriter = new RawValueWriter();
         vwriter.init(ex.getValue());
-        StringBuilder sb = new StringBuilder(vlen);
+        final StringBuilder sb = new StringBuilder(vlen);
         while (sb.length() < vlen) {
             sb.append(RED_FOX);
         }
@@ -202,9 +203,10 @@ public class BufferTest extends PersistitUnitTestCase {
         return -1;
     }
 
-    private void joinPages(Exchange ex, Buffer b1, Buffer b2, int key1, int key2) throws PersistitException {
+    private void joinPages(final Exchange ex, final Buffer b1, final Buffer b2, final int key1, final int key2)
+            throws PersistitException {
         ex.getKey().clear().append(String.format(String.format("%05d%" + leftklen + "s", key1, "")));
-        int foundAt1 = b1.findKey(ex.getKey());
+        final int foundAt1 = b1.findKey(ex.getKey());
         ex.getKey().clear().append(String.format(String.format("%05d%" + leftklen + "s", key2, "")));
         int foundAt2 = b2.findKey(ex.getKey());
         if ((foundAt2 & Buffer.EXACT_MASK) != 0) {
@@ -217,8 +219,8 @@ public class BufferTest extends PersistitUnitTestCase {
      * ----------
      */
 
-    String keyString(char fill, int length, int prefix, int width, int k) {
-        StringBuilder sb = new StringBuilder();
+    String keyString(final char fill, final int length, final int prefix, final int width, final int k) {
+        final StringBuilder sb = new StringBuilder();
         for (int i = 0; i < prefix && i < length; i++) {
             sb.append(fill);
         }

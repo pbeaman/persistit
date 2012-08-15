@@ -41,7 +41,7 @@ public class FileLockTest extends PersistitUnitTestCase {
         try {
             p2.initialize(properties);
             fail("Created second Persistit instance");
-        } catch (PersistitException pe) {
+        } catch (final PersistitException pe) {
             // success - we intended to fail
         } finally {
             p2.close(false);

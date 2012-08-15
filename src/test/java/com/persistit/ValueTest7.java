@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.junit.Test;
 
-import com.persistit.Value;
 import com.persistit.Value.Version;
 
 public class ValueTest7 extends PersistitUnitTestCase {
@@ -32,7 +31,7 @@ public class ValueTest7 extends PersistitUnitTestCase {
 
         List<Version> versions;
         Version version;
-        Value value = new Value(_persistit);
+        final Value value = new Value(_persistit);
 
         versions = value.unpackMvvVersions();
         assertEquals(1, versions.size());
@@ -49,16 +48,16 @@ public class ValueTest7 extends PersistitUnitTestCase {
 
     @Test
     public void testUnpackMvvVersions() throws Exception {
-        Value value = new Value(_persistit);
+        final Value value = new Value(_persistit);
         value.ensureFit(100000);
-        Value v = new Value(_persistit);
+        final Value v = new Value(_persistit);
         for (int i = 1; i < 5; i++) {
             v.put(RED_FOX + "_" + i);
-            int s = TestShim.storeVersion(value.getEncodedBytes(), 0, value.getEncodedSize(), 100000, i, v
-                    .getEncodedBytes(), 0, v.getEncodedSize());
+            final int s = TestShim.storeVersion(value.getEncodedBytes(), 0, value.getEncodedSize(), 100000, i,
+                    v.getEncodedBytes(), 0, v.getEncodedSize());
             value.setEncodedSize(s);
         }
-        List<Version> versions = value.unpackMvvVersions();
+        final List<Version> versions = value.unpackMvvVersions();
         for (int i = 0; i < 5; i++) {
             final Version version = versions.remove(0);
             assertEquals(i, version.getVersionHandle());

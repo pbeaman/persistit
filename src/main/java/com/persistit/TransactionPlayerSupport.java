@@ -34,4 +34,3 @@ interface TransactionPlayerSupport {
 
     void convertToLongRecord(Value value, int treeHandle, long address, long commitTimestamp) throws PersistitException;
 }
-

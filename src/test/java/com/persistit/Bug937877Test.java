@@ -24,8 +24,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Transaction;
 import com.persistit.util.ThreadSequencer;
 
 public class Bug937877Test extends PersistitUnitTestCase {
@@ -52,11 +50,12 @@ public class Bug937877Test extends PersistitUnitTestCase {
             ex.clear().append(k).store();
         }
 
-        Thread thread = new Thread(new Runnable() {
+        final Thread thread = new Thread(new Runnable() {
+            @Override
             public void run() {
                 try {
                     _persistit.checkpoint();
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     e.printStackTrace();
                 }
             }
@@ -65,7 +64,7 @@ public class Bug937877Test extends PersistitUnitTestCase {
         txn.commit();
         txn.end();
 
-        String history = sequencerHistory();
+        final String history = sequencerHistory();
         disableSequencer();
 
         // prevents spurious "MissingThreadException" from background thread

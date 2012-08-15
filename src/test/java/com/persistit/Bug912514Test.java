@@ -15,10 +15,10 @@
 
 package com.persistit;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
-
 
 /**
  * https://bugs.launchpad.net/akiban-persistit/+bug/912514
@@ -39,19 +39,19 @@ import org.junit.Test;
  */
 
 public class Bug912514Test extends PersistitUnitTestCase {
-    
+
     private final static String ROLLBACK = "rollback";
-    
+
     private void fetchAndStoreAndRemoveHelper(final boolean inTxn, final String... sequence) throws Exception {
         final Transaction txn = _persistit.getTransaction();
         final Exchange exchange = _persistit.getExchange("persistit", "Bug912514Test", true);
         String previous = null;
-        for (String string : sequence) {
+        for (final String string : sequence) {
 
             if (inTxn) {
                 txn.begin();
             }
-            
+
             if (string == null) {
                 exchange.to(1).fetchAndRemove();
             } else {
@@ -75,7 +75,6 @@ public class Bug912514Test extends PersistitUnitTestCase {
             }
             exchange.fetch();
             compare(previous, exchange.getValue());
-
 
         }
     }

@@ -19,7 +19,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-
 public class IOMeterChargeBenchmark extends PersistitUnitTestCase {
 
     private final static long SECOND = 1000000000;
@@ -33,23 +32,23 @@ public class IOMeterChargeBenchmark extends PersistitUnitTestCase {
     @Test
     public void testBenchmarkIOMeterCharge() throws Exception {
         final IOMeter ioMeter = new IOMeter();
-        long start = System.nanoTime();
+        final long start = System.nanoTime();
         for (int count = 0; count < 10000000; count++) {
             ioMeter.chargeWriteOtherToJournal(123, 445678);
         }
-        long elapsed = System.nanoTime() - start;
+        final long elapsed = System.nanoTime() - start;
         assertTrue(elapsed < 2 * SECOND);
     }
 
     @Test
     public void testIOMeterPoll() throws Exception {
-        IOMeter ioMeter = new IOMeter();
+        final IOMeter ioMeter = new IOMeter();
         for (int counter = 0; counter < 200; counter++) {
             ioMeter.chargeWriteOtherToJournal(1000, counter);
             if (counter % 40 == 0) {
                 ioMeter.poll();
             }
-            long charge = ioMeter.recentCharge();
+            final long charge = ioMeter.recentCharge();
             if (counter > 10) {
                 assertTrue("charge=" + charge, charge > 18000 && charge < 22000);
             }

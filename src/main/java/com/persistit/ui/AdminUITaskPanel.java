@@ -53,7 +53,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
     private static double MAIN_SPLITPANE_RESIZE_WEIGHT = .20;
     private ManagementTableModel _taskStatusArrayModel;
 
-    private Map _menuMap = new TreeMap();
+    private final Map _menuMap = new TreeMap();
     private boolean _refreshing;
 
     private JPanel _taskListPanel;
@@ -78,7 +78,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
     private long _selectedTaskId = -1;
 
     @Override
-    protected void setup(AdminUI ui) throws NoSuchMethodException, RemoteException {
+    protected void setup(final AdminUI ui) throws NoSuchMethodException, RemoteException {
         _adminUI = ui;
         _taskListPanel = new JPanel(new BorderLayout());
 
@@ -95,12 +95,12 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
 
         _taskTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
             @Override
-            public void valueChanged(ListSelectionEvent lse) {
-                int[] selectedRows = _taskTable.getSelectedRows();
+            public void valueChanged(final ListSelectionEvent lse) {
+                final int[] selectedRows = _taskTable.getSelectedRows();
                 if (!lse.getValueIsAdjusting() && !_refreshing) {
                     if (selectedRows.length == 1) {
-                        int index = selectedRows[0];
-                        TaskStatus[] array = (TaskStatus[]) _taskStatusArrayModel.getInfoArray();
+                        final int index = selectedRows[0];
+                        final TaskStatus[] array = (TaskStatus[]) _taskStatusArrayModel.getInfoArray();
                         if (array != null && index < array.length) {
                             selectTask(array[index]);
                         } else {
@@ -114,11 +114,11 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
             }
         });
 
-        JScrollPane treeScrollPane = new JScrollPane(_taskTable);
+        final JScrollPane treeScrollPane = new JScrollPane(_taskTable);
         treeScrollPane.setBorder(null);
         _taskListPanel.setBorder(_adminUI.createTitledBorder("TaskPanel.tasks"));
 
-        JPanel buttonPanel = new JPanel();
+        final JPanel buttonPanel = new JPanel();
         buttonPanel.add(new JButton(ui.getAction("START_NEW_TASK")));
         buttonPanel.add(new JButton(ui.getAction("SUSPEND_TASKS")));
         buttonPanel.add(new JButton(ui.getAction("RESUME_TASKS")));
@@ -127,7 +127,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
 
         _taskListPanel.add(treeScrollPane, BorderLayout.CENTER);
         _taskListPanel.add(buttonPanel, BorderLayout.SOUTH);
-        GridBagConstraints gbc = new GridBagConstraints();
+        final GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(3, 1, 1, 3);
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -162,7 +162,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
         _messageLogArea = (JTextArea) ui.addLabeledField(_detailPanel, gbc, new JTextArea(), "TaskPanel.messageLog",
                 true);
 
-        JSplitPane mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        final JSplitPane mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         mainSplitPane.setResizeWeight(MAIN_SPLITPANE_RESIZE_WEIGHT);
 
         mainSplitPane.add(_taskListPanel);
@@ -179,28 +179,28 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
     }
 
     @Override
-    public void actionPerformed(AdminAction action, ActionEvent ae) {
-        Management management = _adminUI.getManagement();
+    public void actionPerformed(final AdminAction action, final ActionEvent ae) {
+        final Management management = _adminUI.getManagement();
         if (management == null)
             return;
         try {
-            String name = action.getName();
-            boolean suspend = "SUSPEND_TASKS".equals(name);
-            boolean resume = "RESUME_TASKS".equals(name);
-            boolean stop = "STOP_TASKS".equals(name);
-            boolean remove = "REMOVE_TASKS".equals(name);
+            final String name = action.getName();
+            final boolean suspend = "SUSPEND_TASKS".equals(name);
+            final boolean resume = "RESUME_TASKS".equals(name);
+            final boolean stop = "STOP_TASKS".equals(name);
+            final boolean remove = "REMOVE_TASKS".equals(name);
 
             if (suspend || resume || stop || remove) {
-                int[] selectedRows = _taskTable.getSelectedRows();
-                TaskStatus[] tsArray = new TaskStatus[selectedRows.length];
+                final int[] selectedRows = _taskTable.getSelectedRows();
+                final TaskStatus[] tsArray = new TaskStatus[selectedRows.length];
                 for (int index = 0; index < tsArray.length; index++) {
-                    int row = selectedRows[index];
-                    TaskStatus ts = (TaskStatus) _taskStatusArrayModel.getValueAt(row, -1);
+                    final int row = selectedRows[index];
+                    final TaskStatus ts = (TaskStatus) _taskStatusArrayModel.getValueAt(row, -1);
                     tsArray[index] = ts;
                 }
                 for (int index = 0; index < tsArray.length; index++) {
-                    TaskStatus ts = tsArray[index];
-                    long taskId = ts.getTaskId();
+                    final TaskStatus ts = tsArray[index];
+                    final long taskId = ts.getTaskId();
                     if (suspend || resume) {
                         management.setTaskSuspended(taskId, suspend);
                     } else if (stop || remove) {
@@ -209,7 +209,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
                 }
             }
             _adminUI.scheduleRefresh(-1);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             _adminUI.postException(e);
             if (!(e instanceof RemoteException)) {
                 e.printStackTrace();
@@ -217,7 +217,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
         }
     }
 
-    private boolean selectTask(TaskStatus taskStatus) {
+    private boolean selectTask(final TaskStatus taskStatus) {
         _selectedTaskId = -1;
         if (taskStatus != null) {
             _selectedTaskId = taskStatus.getTaskId();
@@ -227,23 +227,23 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
     }
 
     private void updateDetailedTaskStatus() {
-        Management management = _adminUI.getManagement();
+        final Management management = _adminUI.getManagement();
 
         if (_selectedTaskId == -1 || management == null) {
             updateDetailedTaskStatus(null);
         } else {
             try {
-                TaskStatus[] array = management.queryTaskStatus(_selectedTaskId, true, false, false);
+                final TaskStatus[] array = management.queryTaskStatus(_selectedTaskId, true, false, false);
                 if (array.length == 1) {
                     updateDetailedTaskStatus(array[0]);
                 }
-            } catch (RemoteException re) {
+            } catch (final RemoteException re) {
                 _adminUI.postException(re);
             }
         }
     }
 
-    private void updateDetailedTaskStatus(TaskStatus taskStatus) {
+    private void updateDetailedTaskStatus(final TaskStatus taskStatus) {
         if (taskStatus == null) {
             _taskIdField.setText("");
             _stateField.setText("");
@@ -267,7 +267,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
                     .toString());
             _statusDetailArea.setText(taskStatus.getStatusDetail());
 
-            StringBuilder sb = new StringBuilder();
+            final StringBuilder sb = new StringBuilder();
             int size = 0;
             if (taskStatus.getMessages() != null) {
                 size = taskStatus.getMessages().length;
@@ -280,14 +280,14 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
         }
     }
 
-    private boolean equals(Object a, Object b) {
+    private boolean equals(final Object a, final Object b) {
         if (a == null)
             return b == null;
         else
             return a.equals(b);
     }
 
-    private void setTaskActionEnabledState(boolean enabled) {
+    private void setTaskActionEnabledState(final boolean enabled) {
         AdminAction action;
         action = _adminUI.getAction("SUSPEND_TASKS");
         if (action != null)
@@ -304,7 +304,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
     }
 
     @Override
-    protected void refresh(boolean reset) {
+    protected void refresh(final boolean reset) {
         synchronized (this) {
             if (_refreshing)
                 return;
@@ -313,13 +313,13 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
         try {
             boolean liveTasks = false;
             boolean stillSelected = false;
-            Management management = _adminUI.getManagement();
+            final Management management = _adminUI.getManagement();
             if (management != null) {
-                TaskStatus[] taskStatusArray = management.queryTaskStatus(-1, false, false, false);
+                final TaskStatus[] taskStatusArray = management.queryTaskStatus(-1, false, false, false);
                 _taskStatusArrayModel.setInfoArray(taskStatusArray);
                 setTaskActionEnabledState(_taskTable.getSelectedRowCount() > 0);
                 for (int index = 0; index < taskStatusArray.length; index++) {
-                    TaskStatus ts = taskStatusArray[index];
+                    final TaskStatus ts = taskStatusArray[index];
                     if (ts.getState() < Task.STATE_DONE)
                         liveTasks = true;
                     if (ts.getTaskId() == _selectedTaskId)
@@ -330,7 +330,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
                 selectTask(null);
             updateDetailedTaskStatus();
             scheduleFastRefresh(liveTasks);
-        } catch (RemoteException re) {
+        } catch (final RemoteException re) {
             _adminUI.postException(re);
         } finally {
             synchronized (this) {
@@ -340,13 +340,13 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
     }
 
     @Override
-    public void setIsShowing(boolean isShowing) {
+    public void setIsShowing(final boolean isShowing) {
         if (_fastRefreshIntervalSet) {
             _adminUI.scheduleRefresh(isShowing ? FAST_REFRESH_INTERVAL : _savedRefreshInterval);
         }
     }
 
-    private void scheduleFastRefresh(boolean liveTasks) {
+    private void scheduleFastRefresh(final boolean liveTasks) {
         if (liveTasks && !_fastRefreshIntervalSet) {
             _savedRefreshInterval = _adminUI.getRefreshInterval();
             _fastRefreshIntervalSet = true;

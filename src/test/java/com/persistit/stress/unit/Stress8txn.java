@@ -29,7 +29,7 @@ import com.persistit.util.Debug;
  */
 public class Stress8txn extends StressBase {
 
-    public Stress8txn(String argsString) {
+    public Stress8txn(final String argsString) {
         super(argsString);
     }
 
@@ -217,7 +217,6 @@ public class Stress8txn extends StressBase {
                 _exs.store();
                 addWork(1);
 
-
                 _exs.clear().append("stress8txn").append(_a2).append(_b2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _b1 == 1);
                 _exs.store();
@@ -230,7 +229,6 @@ public class Stress8txn extends StressBase {
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _a1 == 1);
                 _exs.store();
                 addWork(1);
-
 
                 _exs.clear().append("stress8txn").append(_a2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _a1 == 1);
@@ -308,7 +306,7 @@ public class Stress8txn extends StressBase {
         while (ex.next()) {
             addWork(1);
 
-            int value = getAccountValue(ex);
+            final int value = getAccountValue(ex);
             total += value;
         }
         ex.cut();
@@ -358,7 +356,6 @@ public class Stress8txn extends StressBase {
                     exc.fetch();
                     addWork(1);
 
-
                     final int valueCC = getAccountValue(exc);
 
                     Debug.$assert1.t(valueC == valueCC);
@@ -372,7 +369,6 @@ public class Stress8txn extends StressBase {
                         final int valueC1 = getAccountValue(exc);
                         exc.fetch();
                         addWork(1);
-
 
                         final int valueCC1 = getAccountValue(exc);
 

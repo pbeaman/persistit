@@ -21,8 +21,6 @@ import java.util.Properties;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Persistit;
 import com.persistit.RecoveryManager.DefaultRecoveryListener;
 import com.persistit.exception.MissingThreadException;
 import com.persistit.exception.PersistitException;
@@ -172,7 +170,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
 
     @Test
     public void testMakeBranchTxnLongRecord() throws Exception {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         final Properties properties = _persistit.getProperties();
 
         while (sb.length() < 20000) {
@@ -207,9 +205,9 @@ public class Bug777918Test extends PersistitUnitTestCase {
         //
         try {
             _persistit.initialize(properties);
-        } catch (MissingThreadException e) {
+        } catch (final MissingThreadException e) {
             // expected
-        } catch (TestException e) {
+        } catch (final TestException e) {
             // expected
         }
 
@@ -243,7 +241,8 @@ public class Bug777918Test extends PersistitUnitTestCase {
         boolean crashed = false;
 
         @Override
-        public void startTransaction(long address, long startTimestamp, long commitTimestamp) throws PersistitException {
+        public void startTransaction(final long address, final long startTimestamp, final long commitTimestamp)
+                throws PersistitException {
             if (startTimestamp > 50000 && !checkpointed) {
                 _persistit.checkpoint();
                 checkpointed = true;

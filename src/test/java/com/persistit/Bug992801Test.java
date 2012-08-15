@@ -17,12 +17,7 @@ package com.persistit;
 
 import static org.junit.Assert.assertTrue;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-
 import org.junit.Test;
-
-import com.persistit.exception.PersistitException;
 
 public class Bug992801Test extends PersistitUnitTestCase {
     /*

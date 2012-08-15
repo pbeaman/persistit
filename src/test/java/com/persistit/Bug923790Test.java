@@ -19,8 +19,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Transaction;
 import com.persistit.util.Util;
 
 /**
@@ -59,7 +57,7 @@ public class Bug923790Test extends PersistitUnitTestCase {
 
     @Test
     public void testInduceBug923790() throws Exception {
-        Exchange ex = _persistit.getExchange("persistit", "Bug923790Test", true);
+        final Exchange ex = _persistit.getExchange("persistit", "Bug923790Test", true);
 
         ex.getValue().put("abcdef");
         ex.to(-1).store();
@@ -68,20 +66,21 @@ public class Bug923790Test extends PersistitUnitTestCase {
             ex.to(i).store();
         }
 
-        Transaction txn = _persistit.getTransaction();
+        final Transaction txn = _persistit.getTransaction();
         txn.begin();
         for (int i = 100; --i >= 0;) {
             ex.getValue().put(RED_FOX.substring(0, i % RED_FOX.length()));
             ex.to(i).store();
         }
         new Thread(new Runnable() {
+            @Override
             public void run() {
-                Transaction txn = _persistit.getTransaction();
+                final Transaction txn = _persistit.getTransaction();
                 try {
                     txn.begin();
                     Util.sleep(1000);
                     txn.commit();
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     e.printStackTrace();
                 } finally {
                     txn.end();

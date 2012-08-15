@@ -361,7 +361,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         key2.to(1);
         assertTrue(key2.compareTo(key1) > 0);
 
-        key1.to((int) 1);
+        key1.to(1);
         key2.to((long) 1);
         assertTrue(key2.compareTo(key1) > 0);
 
@@ -370,10 +370,10 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertTrue(key2.compareTo(key1) > 0);
 
         key1.to((float) 1.0);
-        key2.to((double) 1.0);
+        key2.to(1.0);
         assertTrue(key2.compareTo(key1) > 0);
 
-        key1.to((double) 1.0);
+        key1.to(1.0);
         key2.to(new byte[10]);
         assertTrue(key2.compareTo(key1) > 0);
 
@@ -447,7 +447,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                 break;
             }
             key1.to(k);
-            int v = key1.reset().decodeInt();
+            final int v = key1.reset().decodeInt();
             if (k != -v) {
                 assertEquals(k, v);
             }
@@ -697,7 +697,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             key1.clear().reset().isNull();
             Assert.fail("Expected MissingKeySegmentException!");
-        } catch (MissingKeySegmentException e) {
+        } catch (final MissingKeySegmentException e) {
             // expected
         }
     }
@@ -728,7 +728,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             TestShim.testValidForAppend(key1);
             fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
     }
@@ -740,7 +740,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             TestShim.testValidForAppend(key1);
             fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
     }
@@ -752,7 +752,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             TestShim.testValidForAppend(key1);
             fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
     }
@@ -764,7 +764,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             TestShim.testValidForAppend(key1);
             fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
     }
@@ -776,7 +776,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             TestShim.testValidForAppend(key1);
             fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // expected
         }
     }
@@ -787,7 +787,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             TestShim.testValidForStoreAndFetch(key1, Buffer.MIN_BUFFER_SIZE);
             fail("Expected InvalidKeyException");
-        } catch (InvalidKeyException e) {
+        } catch (final InvalidKeyException e) {
             // Expected
         }
     }
@@ -799,7 +799,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             TestShim.testValidForStoreAndFetch(key1, Buffer.MIN_BUFFER_SIZE);
             fail("Expected InvalidKeyException");
-        } catch (InvalidKeyException e) {
+        } catch (final InvalidKeyException e) {
             // Expected
         }
     }
@@ -811,7 +811,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             TestShim.testValidForStoreAndFetch(key1, Buffer.MAX_BUFFER_SIZE);
             fail("Expected InvalidKeyException");
-        } catch (InvalidKeyException e) {
+        } catch (final InvalidKeyException e) {
             // expected
         }
     }
@@ -823,7 +823,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             TestShim.testValidForStoreAndFetch(key1, Buffer.MIN_BUFFER_SIZE);
             fail("Expected InvalidKeyException");
-        } catch (InvalidKeyException e) {
+        } catch (final InvalidKeyException e) {
             // Expected
         }
     }
@@ -840,7 +840,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
             try {
                 TestShim.testValidForStoreAndFetch(key1, bsize);
                 fail("Expected IllegalArgumentException for buffer buffer size " + bsize);
-            } catch (InvalidKeyException e) {
+            } catch (final InvalidKeyException e) {
                 // Expected
             }
         }
@@ -852,7 +852,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             TestShim.testValidForTraverse(key1);
             fail("Expected InvalidKeyException");
-        } catch (InvalidKeyException e) {
+        } catch (final InvalidKeyException e) {
             // Expected
         }
     }
@@ -937,10 +937,10 @@ public class KeyTest1 extends PersistitUnitTestCase {
                                             // rook, bishop)
         };
         final Key key1 = newKey();
-        for (String s : strings) {
+        for (final String s : strings) {
             assertEquals("character count", 4, s.length());
             key1.clear().append(s);
-            String decoded = key1.decodeString();
+            final String decoded = key1.decodeString();
             assertEquals("append and decode", s, decoded);
         }
     }
@@ -955,6 +955,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         return f1 == f2;
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
         test2();
@@ -986,7 +987,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         return sb.toString();
     }
 
-    private void debug(boolean condition) {
+    private void debug(final boolean condition) {
         if (!condition) {
             return;
         }
@@ -997,15 +998,15 @@ public class KeyTest1 extends PersistitUnitTestCase {
         return new Key(_persistit);
     }
 
-    private static Key appendInvalidSegment(Key key) {
+    private static Key appendInvalidSegment(final Key key) {
         key.append("asdf");
         assertTrue("encoded size > 1", key.getEncodedSize() > 1);
         key.setEncodedSize(key.getEncodedSize() - 1);
         return key;
     }
 
-    private static void fillKey(Key key) {
-        byte[] array = new byte[key.getMaximumSize() - 2];
+    private static void fillKey(final Key key) {
+        final byte[] array = new byte[key.getMaximumSize() - 2];
         for (int i = 0; i < array.length; ++i) {
             array[i] = 10;
         }

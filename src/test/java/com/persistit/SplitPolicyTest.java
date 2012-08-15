@@ -29,10 +29,10 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
 
     @Test
     public void testLeftBias() {
-        Buffer nullBuffer = null;
-        int mockLeftSize = 20;
+        final Buffer nullBuffer = null;
+        final int mockLeftSize = 20;
         int capacity = 0;
-        SplitPolicy leftBias = SplitPolicy.LEFT_BIAS;
+        final SplitPolicy leftBias = SplitPolicy.LEFT_BIAS;
         assertEquals("LEFT", leftBias.toString());
         int measure = leftBias.splitFit(nullBuffer, 0, 0, false, mockLeftSize, 0, 0, 0, capacity, 0, Sequence.NONE);
         /* splitFit should return 0 since leftSize is larger than capcity */
@@ -46,10 +46,10 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
 
     @Test
     public void testRightBias() {
-        Buffer nullBuffer = null;
-        int mockRightSize = 20;
+        final Buffer nullBuffer = null;
+        final int mockRightSize = 20;
         int capacity = 0;
-        SplitPolicy rightBias = SplitPolicy.RIGHT_BIAS;
+        final SplitPolicy rightBias = SplitPolicy.RIGHT_BIAS;
         assertEquals("RIGHT", rightBias.toString());
         int measure = rightBias.splitFit(nullBuffer, 0, 0, false, 0, mockRightSize, 0, 0, capacity, 0, Sequence.NONE);
         /* splitFit should return 0 since rightSize is larger than capacity */
@@ -63,11 +63,11 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
 
     @Test
     public void testEvenBias() {
-        Buffer nullBuffer = null;
+        final Buffer nullBuffer = null;
         int mockRightSize = 20;
         int mockLeftSize = 20;
         int capacity = 0;
-        SplitPolicy evenBias = SplitPolicy.EVEN_BIAS;
+        final SplitPolicy evenBias = SplitPolicy.EVEN_BIAS;
         assertEquals("EVEN", evenBias.toString());
         int measure = evenBias.splitFit(nullBuffer, 0, 0, false, mockLeftSize, mockRightSize, 0, 0, capacity, 0,
                 Sequence.NONE);
@@ -100,11 +100,11 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
 
     @Test
     public void testNiceBias() {
-        Buffer nullBuffer = null;
+        final Buffer nullBuffer = null;
         int mockRightSize = 20;
         int mockLeftSize = 20;
         int capacity = 0;
-        SplitPolicy niceBias = SplitPolicy.NICE_BIAS;
+        final SplitPolicy niceBias = SplitPolicy.NICE_BIAS;
         assertEquals("NICE", niceBias.toString());
         int measure = niceBias.splitFit(nullBuffer, 0, 0, false, mockLeftSize, mockRightSize, 0, 0, capacity, 0,
                 Sequence.NONE);
@@ -140,7 +140,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         final Exchange ex = _persistit.getExchange("persistit", "SplitPolicyTest", true);
         ex.getValue().put("aaabbbcccdddeee");
         ex.to(1);
-        long page = ex.fetchBufferCopy(0).getPageAddress();
+        final long page = ex.fetchBufferCopy(0).getPageAddress();
         final Buffer buffer = ex.getBufferPool().get(ex.getVolume(), page, false, true);
         buffer.releaseTouched();
         for (int i = 0; buffer.getAvailableSize() > 100; i++) {
@@ -150,7 +150,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         int mockRightSize = 20;
         int mockLeftSize = 20;
         int capacity = 0;
-        SplitPolicy packBias = SplitPolicy.PACK_BIAS;
+        final SplitPolicy packBias = SplitPolicy.PACK_BIAS;
         assertEquals("PACK", packBias.toString());
         //
         // For non-sequential inserts, works the same as NICE_BIAS.
@@ -185,13 +185,13 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         // Sequential insert cases
         //
         for (int p = buffer.getKeyBlockStart(); p < buffer.getKeyBlockEnd(); p += Buffer.KEYBLOCK_LENGTH) {
-            int splitBest = split(packBias, buffer, p, Sequence.FORWARD);
+            final int splitBest = split(packBias, buffer, p, Sequence.FORWARD);
             if (p > buffer.getKeyBlockStart() + 256 && p < buffer.getKeyBlockEnd() - 256) {
                 assertEquals(splitBest, p);
             }
         }
         for (int p = buffer.getKeyBlockStart(); p < buffer.getKeyBlockEnd(); p += Buffer.KEYBLOCK_LENGTH) {
-            int splitBest = split(packBias, buffer, p, Sequence.REVERSE);
+            final int splitBest = split(packBias, buffer, p, Sequence.REVERSE);
             if (p > buffer.getKeyBlockStart() + 260 && p < buffer.getKeyBlockEnd() - 260) {
                 assertEquals(splitBest, p + Buffer.KEYBLOCK_LENGTH);
             }
@@ -203,11 +203,11 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         int bestMeasure = -1;
         int leftSize = 0;
         int rightSize = buffer.getBufferSize() + 10;
-        int perKeySize = rightSize / buffer.getKeyCount();
+        final int perKeySize = rightSize / buffer.getKeyCount();
         for (int p = buffer.getKeyBlockStart(); p < buffer.getKeyBlockEnd(); p += Buffer.KEYBLOCK_LENGTH) {
 
-            int measure = policy.splitFit(buffer, p, foundAt, false, leftSize, rightSize, buffer.getBufferSize() - 100,
-                    leftSize + rightSize, buffer.getBufferSize(), best, sequence);
+            final int measure = policy.splitFit(buffer, p, foundAt, false, leftSize, rightSize,
+                    buffer.getBufferSize() - 100, leftSize + rightSize, buffer.getBufferSize(), best, sequence);
             if (measure > bestMeasure) {
                 best = p;
                 bestMeasure = measure;
@@ -256,7 +256,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         for (long page = 2; page < 20; page++) {
             final Buffer buffer = ex.getBufferPool().get(ex.getVolume(), page, false, true);
             if (buffer.isDataPage()) {
-                int available = buffer.getAvailableSize();
+                final int available = buffer.getAvailableSize();
                 System.out.println(buffer + " avail=" + available);
                 total = total + buffer.getBufferSize();
                 used = used + buffer.getBufferSize() - buffer.getAvailableSize();

@@ -24,7 +24,7 @@ package com.persistit.exception;
 public class BufferSizeUnavailableException extends PersistitException {
     private static final long serialVersionUID = 7231838587511494996L;
 
-    public BufferSizeUnavailableException(String msg) {
+    public BufferSizeUnavailableException(final String msg) {
         super(msg);
     }
 

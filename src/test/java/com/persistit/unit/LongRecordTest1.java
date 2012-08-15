@@ -141,7 +141,7 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
             Util.fill(sb1, counter, 10);
         }
         ex.fetch().getValue().getString(sb2);
-        boolean ok = equals(sb1, sb2);
+        final boolean ok = equals(sb1, sb2);
         Debug.$assert1.t(ok);
         assertTrue(equals(sb1, sb2));
     }

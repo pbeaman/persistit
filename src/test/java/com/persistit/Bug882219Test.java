@@ -23,8 +23,6 @@ import java.util.TimerTask;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Transaction;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
@@ -59,8 +57,9 @@ public class Bug882219Test extends PersistitUnitTestCase {
         final Exchange ex = _persistit.getExchange("persistit", "bug882219", true);
         final Thread foregroundThread = Thread.currentThread();
 
-        Timer timer = new Timer("Interrupter");
+        final Timer timer = new Timer("Interrupter");
         timer.schedule(new TimerTask() {
+            @Override
             public void run() {
                 foregroundThread.interrupt();
             }
@@ -83,14 +82,14 @@ public class Bug882219Test extends PersistitUnitTestCase {
                     }
                     txn.commit(CommitPolicy.HARD); // force disk I/O
                     commits++;
-                } catch (PersistitInterruptedException e) {
+                } catch (final PersistitInterruptedException e) {
                     // clear interrupted flag and ignore
                     Thread.interrupted();
-                } catch (PersistitIOException e) {
+                } catch (final PersistitIOException e) {
                     if (e.getCause() instanceof InterruptedIOException) {
                         // ignore
                     }
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     // of interest
                     e.printStackTrace();
                     errors++;

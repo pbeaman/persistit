@@ -30,14 +30,14 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
 
     private final static int SIZE = 1000;
 
-    private String _volumeName = "persistit";
+    private final String _volumeName = "persistit";
 
     @Test
     public void testSimplePrimordialTree() throws Exception {
         final Exchange ex = _persistit.getExchange(_volumeName, "primordial", true);
         nonTransactionalStore(ex);
 
-        IntegrityCheck icheck = icheck();
+        final IntegrityCheck icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertTrue(icheck.getDataByteCount() >= RED_FOX.length() * SIZE);
         assertTrue(icheck.getDataPageCount() > 0);
@@ -58,7 +58,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
 
         transactionalStore(ex);
 
-        IntegrityCheck icheck = icheck();
+        final IntegrityCheck icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertTrue(icheck.getDataByteCount() >= RED_FOX.length() * SIZE);
         assertTrue(icheck.getDataPageCount() > 0);
@@ -80,7 +80,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         transactionalStore(ex);
 
         corrupt1(ex);
-        IntegrityCheck icheck = icheck();
+        final IntegrityCheck icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertTrue(icheck.getFaults().length > 0);
 
@@ -92,7 +92,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         disableBackgroundCleanup();
         transactionalStore(ex);
         corrupt2(ex);
-        IntegrityCheck icheck = icheck();
+        final IntegrityCheck icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertTrue(icheck.getFaults().length > 0);
     }
@@ -106,7 +106,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         IntegrityCheck icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertEquals(0, icheck.getFaults().length);
-        long holeCount = icheck.getIndexHoleCount();
+        final long holeCount = icheck.getIndexHoleCount();
         assertTrue(holeCount > 0);
 
         assertEquals(0, cm.getAcceptedCount());
@@ -158,7 +158,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
 
         for (int i = 0; i < 10; i++) {
             final Exchange ex = _persistit.getExchange(_volumeName, "mvv" + i, true);
-            Transaction txn = ex.getTransaction();
+            final Transaction txn = ex.getTransaction();
             txn.begin();
             try {
                 transactionalStore(ex);
@@ -196,8 +196,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         }
         assertTrue(_persistit.getTransactionIndex().getAbortedCount() > 0);
 
-        IntegrityCheck icheck = (IntegrityCheck) IntegrityCheck.icheck("*", false, false, false, false, true, true,
-                false);
+        final IntegrityCheck icheck = IntegrityCheck.icheck("*", false, false, false, false, true, true, false);
         icheck.setPersistit(_persistit);
         icheck.setMessageWriter(new PrintWriter(System.out));
 
@@ -206,13 +205,13 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         _persistit.getTransactionIndex().cleanup();
         assertEquals(0, _persistit.getTransactionIndex().getAbortedCount());
     }
-    
+
     @Test
     public void testCorruptGarbageChain() throws PersistitException {
         final Exchange ex = _persistit.getExchange(_volumeName, "mvv", true);
         nonTransactionalStore(ex);
         corrupt4(ex);
-        IntegrityCheck icheck = icheck();
+        final IntegrityCheck icheck = icheck();
         icheck.checkVolume(ex.getVolume());
         assertTrue(icheck.getFaults().length > 0);
     }
@@ -267,13 +266,13 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
      * @throws PersistitException
      */
     private void corrupt1(final Exchange ex) throws PersistitException {
-        Key key = ex.getKey();
+        final Key key = ex.getKey();
         ex.clear().to(key(500));
-        Buffer copy = ex.fetchBufferCopy(0);
-        Buffer buffer = ex.getBufferPool().get(ex.getVolume(), copy.getPageAddress(), true, true);
+        final Buffer copy = ex.fetchBufferCopy(0);
+        final Buffer buffer = ex.getBufferPool().get(ex.getVolume(), copy.getPageAddress(), true, true);
         buffer.nextKey(key, buffer.toKeyBlock(0));
         assertTrue(key.getEncodedSize() > 1);
-        int t = (int) (buffer.at(buffer.toKeyBlock(0)) >>> 32);
+        final int t = (int) (buffer.at(buffer.toKeyBlock(0)) >>> 32);
         buffer.getBytes()[t - key.getEncodedSize() + 1]++;
         buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
         buffer.release();
@@ -290,8 +289,8 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         ex.clear().to(key(500));
         int corrupted = 0;
         while (corrupted < 10 && ex.next()) {
-            byte[] bytes = ex.getValue().getEncodedBytes();
-            int length = ex.getValue().getEncodedSize();
+            final byte[] bytes = ex.getValue().getEncodedBytes();
+            final int length = ex.getValue().getEncodedSize();
             if (MVV.isArrayMVV(bytes, 0, length)) {
                 bytes[9]++;
                 ex.store();
@@ -308,33 +307,34 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
      * @throws PersistitException
      */
     private void corrupt3(final Exchange ex) throws PersistitException {
-        Key key = ex.getKey();
+        final Key key = ex.getKey();
         ex.clear().to(key(500));
-        Buffer copy = ex.fetchBufferCopy(1);
+        final Buffer copy = ex.fetchBufferCopy(1);
         assertNotNull(copy);
         assertTrue(copy.isIndexPage());
-        Buffer buffer = ex.getBufferPool().get(ex.getVolume(), copy.getPageAddress(), true, true);
+        final Buffer buffer = ex.getBufferPool().get(ex.getVolume(), copy.getPageAddress(), true, true);
         buffer.nextKey(key, buffer.toKeyBlock(0));
         buffer.removeKeys(36, 52, ex.getKey());
         buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
         buffer.release();
     }
-    
+
     /**
      * Corrupts garbage chain by adding a live data chain to it
+     * 
      * @throw PersistitException
      */
     private void corrupt4(final Exchange ex) throws PersistitException {
-        Key key = ex.getKey();
+        final Key key = ex.getKey();
         ex.clear().to(key(500));
-        Buffer copy = ex.fetchBufferCopy(0);
-        Buffer buffer = ex.getBufferPool().get(ex.getVolume(), copy.getPageAddress(), true, true);
+        final Buffer copy = ex.fetchBufferCopy(0);
+        final Buffer buffer = ex.getBufferPool().get(ex.getVolume(), copy.getPageAddress(), true, true);
         ex.getVolume().getStructure().deallocateGarbageChain(buffer.getPageAddress(), buffer.getRightSibling());
         buffer.release();
     }
 
     private IntegrityCheck icheck() {
-        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        final IntegrityCheck icheck = new IntegrityCheck(_persistit);
         icheck.setMessageLogVerbosity(Task.LOG_VERBOSE);
         icheck.setMessageWriter(new PrintWriter(System.out));
         return icheck;

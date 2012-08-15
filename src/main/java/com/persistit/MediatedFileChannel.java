@@ -153,24 +153,24 @@ class MediatedFileChannel extends FileChannel {
      * --------------------------------
      */
     @Override
-    public void force(boolean metaData) throws IOException {
+    public void force(final boolean metaData) throws IOException {
         while (true) {
             try {
                 _channel.force(metaData);
                 break;
-            } catch (ClosedChannelException e) {
+            } catch (final ClosedChannelException e) {
                 handleClosedChannelException(e);
             }
         }
     }
 
     @Override
-    public int read(ByteBuffer byteBuffer, long position) throws IOException {
+    public int read(final ByteBuffer byteBuffer, final long position) throws IOException {
         final int offset = byteBuffer.position();
         while (true) {
             try {
                 return _channel.read(byteBuffer, position);
-            } catch (ClosedChannelException e) {
+            } catch (final ClosedChannelException e) {
                 handleClosedChannelException(e);
             }
             byteBuffer.position(offset);
@@ -182,29 +182,29 @@ class MediatedFileChannel extends FileChannel {
         while (true) {
             try {
                 return _channel.size();
-            } catch (ClosedChannelException e) {
+            } catch (final ClosedChannelException e) {
                 handleClosedChannelException(e);
             }
         }
     }
 
     @Override
-    public FileChannel truncate(long size) throws IOException {
+    public FileChannel truncate(final long size) throws IOException {
         while (true) {
             try {
                 return _channel.truncate(size);
-            } catch (ClosedChannelException e) {
+            } catch (final ClosedChannelException e) {
                 handleClosedChannelException(e);
             }
         }
     }
 
     @Override
-    public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
+    public synchronized FileLock tryLock(final long position, final long size, final boolean shared) throws IOException {
         if (_lockChannel == null) {
             try {
                 _lockChannel = new RandomAccessFile(_lockFile, "rw").getChannel();
-            } catch (IOException ioe) {
+            } catch (final IOException ioe) {
                 if (!shared) {
                     throw ioe;
                 } else {
@@ -220,12 +220,12 @@ class MediatedFileChannel extends FileChannel {
     }
 
     @Override
-    public int write(ByteBuffer byteBuffer, long position) throws IOException {
+    public int write(final ByteBuffer byteBuffer, final long position) throws IOException {
         final int offset = byteBuffer.position();
         while (true) {
             try {
                 return _channel.write(byteBuffer, position);
-            } catch (ClosedChannelException e) {
+            } catch (final ClosedChannelException e) {
                 handleClosedChannelException(e);
             }
             byteBuffer.position(offset);
@@ -247,20 +247,20 @@ class MediatedFileChannel extends FileChannel {
                     _lockFile.delete();
                     _lockChannel.close();
                 }
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 exception = e;
             }
             try {
                 if (_channel != null) {
                     _channel.close();
                 }
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 exception = e;
             }
             if (exception != null) {
                 throw exception;
             }
-        } catch (ClosedChannelException e) {
+        } catch (final ClosedChannelException e) {
             // ignore - whatever, the channel is closed
         }
     }
@@ -277,12 +277,12 @@ class MediatedFileChannel extends FileChannel {
      * --------------------------------
      */
     @Override
-    public FileLock lock(long position, long size, boolean shared) throws IOException {
+    public FileLock lock(final long position, final long size, final boolean shared) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public MappedByteBuffer map(MapMode arg0, long arg1, long arg2) throws IOException {
+    public MappedByteBuffer map(final MapMode arg0, final long arg1, final long arg2) throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -292,45 +292,45 @@ class MediatedFileChannel extends FileChannel {
     }
 
     @Override
-    public FileChannel position(long arg0) throws IOException {
+    public FileChannel position(final long arg0) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public int read(ByteBuffer byteBuffer) throws IOException {
+    public int read(final ByteBuffer byteBuffer) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long read(ByteBuffer[] arg0, int arg1, int arg2) throws IOException {
+    public long read(final ByteBuffer[] arg0, final int arg1, final int arg2) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long transferFrom(ReadableByteChannel arg0, long arg1, long arg2) throws IOException {
+    public long transferFrom(final ReadableByteChannel arg0, final long arg1, final long arg2) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long transferTo(long arg0, long arg1, WritableByteChannel arg2) throws IOException {
+    public long transferTo(final long arg0, final long arg1, final WritableByteChannel arg2) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public int write(ByteBuffer byteBuffer) throws IOException {
+    public int write(final ByteBuffer byteBuffer) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long write(ByteBuffer[] arg0, int arg1, int arg2) throws IOException {
+    public long write(final ByteBuffer[] arg0, final int arg1, final int arg2) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     /*
      * --------------------------------
-     *
+     * 
      * Method and interface intended solely for unit tests.
-     *
+     * 
      * --------------------------------
      */
 
@@ -348,10 +348,11 @@ class MediatedFileChannel extends FileChannel {
     }
 
     /**
-     * Interface implemented by an error-injecting FileChannel subclass used
-     * in unit tests.
+     * Interface implemented by an error-injecting FileChannel subclass used in
+     * unit tests.
+     * 
      * @author peter
-     *
+     * 
      */
     interface TestChannelInjector {
         void setChannel(FileChannel channel);

@@ -30,32 +30,36 @@ import com.persistit.exception.PersistitException;
 
 /**
  * <p>
- * A persistent <code>java.util.SortedMap</code> over a Persistit
- * database. Keys and values inserted into this map are serialized and stored
- * within Persistit using the encoding methods of {@link Key} and {@link Value}.
+ * A persistent <code>java.util.SortedMap</code> over a Persistit database. Keys
+ * and values inserted into this map are serialized and stored within Persistit
+ * using the encoding methods of {@link Key} and {@link Value}.
  * </p>
  * <p>
  * To construct a <code>PersistitMap</code> you supply an {@link Exchange}. The
  * keys inserted into this map are appended to the key within the {@link Tree}
  * originally supplied by the <code>Exchange</code>. For example, the code
  * 
- * <pre><code>
+ * <pre>
+ * <code>
  * Exchange ex = new Exchange(&quot;demo&quot;, &quot;composers&quot;, true);
  * ex.append(&quot;My Favorite Johns&quot;);
  * Map&lt;String, String&gt; map = new PersistitMap&lt;String, String&gt;(ex);
  * map.put(&quot;Brahms&quot;, &quot;Johannes&quot;);
  * map.put(&quot;Bach&quot;, &quot;Johann&quot;);
- * </code></pre>
+ * </code>
+ * </pre>
  * 
  * is equivalent to
  * 
- * <pre><code>
+ * <pre>
+ * <code>
  * Exchange ex = new Exchange(&quot;demo&quot;, &quot;composers&quot;, true);
  * ex.getValue().put(&quot;Johannes&quot;);
  * ex.clear().append(&quot;My Favorite Johns&quot;, &quot;Brahms&quot;).store();
  * ex.getValue().put(&quot;Johann&quot;);
  * ex.clear().append(&quot;My Favorite Johns&quot;, &quot;Bach&quot;).store();
- * </code></pre>
+ * </code>
+ * </pre>
  * 
  * </p>
  * <p>
@@ -123,25 +127,29 @@ import com.persistit.exception.PersistitException;
  * expected types. For example, the following will compile correctly but throw a
  * ClassCastException at runtime:
  * 
- * <pre><code>
+ * <pre>
+ * <code>
  * Exchange ex = new Exchange(&quot;demo&quot;, &quot;composers&quot;, true);
  * PersistitMap&lt;String, Integer&gt; map1 = new PersistitMap&lt;String, Integer&gt;();
  * map1.put(&quot;Adams&quot;, Integer.valueOf(1));
  * PersistitMap&lt;String, String&gt; map2 = new PersistitMap&lt;String, String&gt;();
  * String lastName = map2.get(&quot;Adams&quot;);
- * </code></pre>
+ * </code>
+ * </pre>
  * 
  * <p>
- * Note that any {@link PersistitException} that may occur during execution of one of the
- * <code>SortedMap</code> methods is thrown within the unchecked wrapper class
- * {@link PersistitMapException}. Applications using <code>PersistitMap</code> should
- * catch and handled <code>PersistitMapException</code>.
+ * Note that any {@link PersistitException} that may occur during execution of
+ * one of the <code>SortedMap</code> methods is thrown within the unchecked
+ * wrapper class {@link PersistitMapException}. Applications using
+ * <code>PersistitMap</code> should catch and handled
+ * <code>PersistitMapException</code>.
  * </p>
+ * 
  * @version 1.0
  */
 public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K, V> {
 
-    private Exchange _ex;
+    private final Exchange _ex;
     private long _sizeGeneration;
     private int _size;
     private boolean _allowConcurrentModification = false;
@@ -168,7 +176,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      *            <code>Exchange</code>. The original Exchange is unchanged, and
      *            may be reused by the caller.
      */
-    public PersistitMap(Exchange ex) {
+    public PersistitMap(final Exchange ex) {
         _ex = new Exchange(ex);
 
         _ex.append(Key.BEFORE);
@@ -189,15 +197,16 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      *             if fromKey is after toKey or if either fromKey or toKey is
      *             outside the range of the supplied base PersistitMap
      */
-    private PersistitMap(PersistitMap<K, V> pm, boolean useFrom, Object fromKey, boolean useTo, Object toKey) {
+    private PersistitMap(final PersistitMap<K, V> pm, final boolean useFrom, final Object fromKey, final boolean useTo,
+            final Object toKey) {
         _ex = new Exchange(pm._ex);
 
         _sizeGeneration = -1; // Unknown
         if (useFrom) {
-            Key key = new Key(_ex.getKey());
+            final Key key = new Key(_ex.getKey());
             try {
                 key.to(fromKey);
-            } catch (UnsupportedOperationException use) {
+            } catch (final UnsupportedOperationException use) {
                 throw new ClassCastException(fromKey != null ? fromKey.getClass().getName() : null);
             }
             if (pm._fromKey != null && pm._fromKey.compareTo(key) > 0 || pm._toKey != null
@@ -209,10 +218,10 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
             _fromKey = pm._fromKey;
         }
         if (useTo) {
-            Key key = new Key(_ex.getKey());
+            final Key key = new Key(_ex.getKey());
             try {
                 key.to(toKey);
-            } catch (UnsupportedOperationException use) {
+            } catch (final UnsupportedOperationException use) {
                 throw new ClassCastException(toKey != null ? toKey.getClass().getName() : null);
             }
             if (pm._fromKey != null && pm._fromKey.compareTo(key) > 0 || pm._toKey != null
@@ -252,7 +261,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      *            <code>ConcurrentModificationException</code> if the Persistit
      *            Tree backing this Map changes.
      */
-    public void setAllowConcurrentModification(boolean allow) {
+    public void setAllowConcurrentModification(final boolean allow) {
         _allowConcurrentModification = allow;
     }
 
@@ -272,7 +281,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
         }
     }
 
-    private boolean toKey(Object key) {
+    private boolean toKey(final Object key) {
         try {
             _ex.to(key);
             if (_fromKey != null && _fromKey.compareTo(_ex.getKey()) > 0)
@@ -280,7 +289,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
             if (_toKey != null && _toKey.compareTo(_ex.getKey()) < 0)
                 return false;
             return true;
-        } catch (UnsupportedOperationException uoe) {
+        } catch (final UnsupportedOperationException uoe) {
             throw new ClassCastException(key != null ? key.getClass().getName() : null);
         }
     }
@@ -323,7 +332,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
             _size = size;
             _sizeGeneration = _ex.getChangeCount();
             return _size;
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -355,7 +364,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
             } else {
                 return true;
             }
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -380,8 +389,8 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      *         value.
      */
     @Override
-    public synchronized boolean containsValue(Object value) {
-        Value lookupValue = new Value(_ex.getPersistitInstance());
+    public synchronized boolean containsValue(final Object value) {
+        final Value lookupValue = new Value(_ex.getPersistitInstance());
         try {
             lookupValue.put(value);
             toLeftEdge();
@@ -393,7 +402,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
                 }
             }
             return false;
-        } catch (Exception exception) {
+        } catch (final Exception exception) {
             throw new PersistitMapException(exception);
         }
     }
@@ -413,13 +422,13 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      *             <code>null</code> keys.
      */
     @Override
-    public synchronized boolean containsKey(Object key) {
+    public synchronized boolean containsKey(final Object key) {
         try {
             if (!toKey(key)) {
                 return false;
             }
             return _ex.isValueDefined();
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -453,7 +462,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      * @see #containsKey(Object)
      */
     @Override
-    public synchronized V get(Object key) {
+    public synchronized V get(final Object key) {
         try {
             if (!toKey(key))
                 return null;
@@ -462,9 +471,9 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
                 return null;
             }
             @SuppressWarnings("unchecked")
-            V value = (V) _ex.getValue().get();
+            final V value = (V) _ex.getValue().get();
             return value;
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -503,13 +512,13 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      */
     @Override
     @SuppressWarnings("unchecked")
-    public synchronized V put(K key, V value) {
+    public synchronized V put(final K key, final V value) {
         try {
             if (!toKey(key)) {
                 throw new IllegalArgumentException("Key " + key + " is out of submap range");
             }
 
-            long changeCount = _sizeGeneration;
+            final long changeCount = _sizeGeneration;
             Object result = null;
             _ex.getValue().put(value);
             _ex.fetchAndStore();
@@ -520,7 +529,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
             }
 
             return (V) result;
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -553,7 +562,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      *             stored in this map.
      * 
      */
-    public synchronized void putFast(Object key, Object value) {
+    public synchronized void putFast(final Object key, final Object value) {
         try {
             if (!toKey(key)) {
                 throw new IllegalArgumentException("Key " + key + " is out of submap range");
@@ -562,7 +571,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
             _ex.getValue().put(value);
             _ex.store();
             _sizeGeneration = -1;
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -585,13 +594,13 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      */
     @Override
     @SuppressWarnings("unchecked")
-    public synchronized V remove(Object key) {
+    public synchronized V remove(final Object key) {
         try {
             if (!toKey(key)) {
                 throw new IllegalArgumentException("Key " + key + " is out of submap range");
             }
-            long changeCount = _sizeGeneration;
-            boolean removed = _ex.fetchAndRemove();
+            final long changeCount = _sizeGeneration;
+            final boolean removed = _ex.fetchAndRemove();
             Object result = null;
             if (removed) {
                 adjustSize(changeCount, -1);
@@ -600,7 +609,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
                 }
             }
             return (V) result;
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -616,17 +625,17 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      *            key whose mapping is to be removed from the map.
      * 
      */
-    public synchronized void removeFast(Object key) {
+    public synchronized void removeFast(final Object key) {
         try {
             if (!toKey(key)) {
                 throw new IllegalArgumentException("Key " + key + " is out of submap range");
             }
-            long changeCount = _sizeGeneration;
-            boolean removed = _ex.remove();
+            final long changeCount = _sizeGeneration;
+            final boolean removed = _ex.remove();
             if (removed) {
                 adjustSize(changeCount, -1);
             }
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -643,7 +652,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      * @param delta
      *            1 if a key was added, -1 if removed.
      */
-    private void adjustSize(long changeCount, int delta) {
+    private void adjustSize(final long changeCount, final int delta) {
         if (_sizeGeneration >= 0) {
             if (_ex.getChangeCount() == changeCount + 1) {
                 _size += delta;
@@ -682,9 +691,9 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      *             the specified map is <code>null</code>.
      */
     @Override
-    public synchronized void putAll(Map t) {
-        for (Iterator iterator = t.entrySet().iterator(); iterator.hasNext();) {
-            Map.Entry entry = (Map.Entry) iterator.next();
+    public synchronized void putAll(final Map t) {
+        for (final Iterator iterator = t.entrySet().iterator(); iterator.hasNext();) {
+            final Map.Entry entry = (Map.Entry) iterator.next();
             putFast(entry.getKey(), entry.getValue());
         }
     }
@@ -699,7 +708,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
     public synchronized void clear() {
         try {
             toLeftEdge();
-            Key key = new Key(_ex.getKey());
+            final Key key = new Key(_ex.getKey());
             if (_toKey == null) {
                 key.to(Key.AFTER);
             } else {
@@ -708,21 +717,21 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
             _ex.removeKeyRange(_ex.getKey(), key);
             _size = 0;
             _sizeGeneration = _ex.getChangeCount();
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
 
     /**
-     * Unchecked wrapper for {@link PersistitException}s that may be thrown 
-     * by methods of {@link SortedMap}.
+     * Unchecked wrapper for {@link PersistitException}s that may be thrown by
+     * methods of {@link SortedMap}.
      */
     public static class PersistitMapException extends RuntimeException {
         private static final long serialVersionUID = 7257161738800744724L;
 
         Exception _exception;
 
-        PersistitMapException(Exception ee) {
+        PersistitMapException(final Exception ee) {
             _exception = ee;
         }
 
@@ -737,11 +746,11 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      * tree.
      */
     public class ExchangeEntry<K, V> implements Map.Entry<K, V> {
-        private K _key;
-        private V _value;
-        private ExchangeIterator<Map.Entry<K, V>> _iterator;
+        private final K _key;
+        private final V _value;
+        private final ExchangeIterator<Map.Entry<K, V>> _iterator;
 
-        private ExchangeEntry(K key, V value, ExchangeIterator<Map.Entry<K, V>> iterator) {
+        private ExchangeEntry(final K key, final V value, final ExchangeIterator<Map.Entry<K, V>> iterator) {
             _key = key;
             _value = value;
             _iterator = iterator;
@@ -788,7 +797,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
          */
         @Override
         @SuppressWarnings("unchecked")
-        public synchronized V setValue(V value) {
+        public synchronized V setValue(final V value) {
             Object result = null;
             try {
                 _ex.to(_key);
@@ -799,7 +808,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
                     changeCount++;
                 _iterator._changeCount = changeCount;
                 result = _value;
-            } catch (PersistitException pe) {
+            } catch (final PersistitException pe) {
                 throw new PersistitMapException(pe);
             }
             return (V) result;
@@ -811,9 +820,9 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
          * fields are equal.
          */
         @Override
-        public boolean equals(Object o) {
+        public boolean equals(final Object o) {
             if (o instanceof Map.Entry) {
-                Map.Entry entry = (Map.Entry) o;
+                final Map.Entry entry = (Map.Entry) o;
                 return (entry.getKey() == null ? _key == null : entry.getKey().equals(_key))
                         && (entry.getValue() == null ? _value == null : entry.getValue().equals(_value));
             } else
@@ -832,7 +841,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
 
     private final class ExchangeValueIterator extends ExchangeIterator<V> {
 
-        protected ExchangeValueIterator(PersistitMap<K, V> pm, boolean allowConcurrentModification) {
+        protected ExchangeValueIterator(final PersistitMap<K, V> pm, final boolean allowConcurrentModification) {
             super(pm, allowConcurrentModification);
 
         }
@@ -846,7 +855,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
 
     private final class ExchangeKeyIterator extends ExchangeIterator<K> {
 
-        protected ExchangeKeyIterator(PersistitMap<K, V> pm, boolean allowConcurrentModification) {
+        protected ExchangeKeyIterator(final PersistitMap<K, V> pm, final boolean allowConcurrentModification) {
             super(pm, allowConcurrentModification);
 
         }
@@ -861,7 +870,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
 
     private final class ExchangeEntryIterator extends ExchangeIterator<Map.Entry<K, V>> {
 
-        protected ExchangeEntryIterator(PersistitMap<K, V> pm, boolean allowConcurrentModification) {
+        protected ExchangeEntryIterator(final PersistitMap<K, V> pm, final boolean allowConcurrentModification) {
             super(pm, allowConcurrentModification);
 
         }
@@ -895,7 +904,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
         boolean _hasNext;
         Key _trailingKey;
 
-        ExchangeIterator(PersistitMap<K, V> pm, boolean allowConcurrentModification) {
+        ExchangeIterator(final PersistitMap<K, V> pm, final boolean allowConcurrentModification) {
 
             _pm = pm;
             _iteratorExchange = new Exchange(_ex);
@@ -962,14 +971,14 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
          *            for this iterator. Otherwise, sets up a filter based on
          *            the supplied <code>Term</code>.
          */
-        public void setFilterTerm(KeyFilter.Term term) {
+        public void setFilterTerm(final KeyFilter.Term term) {
             if (term == null) {
                 _keyFilter = null;
             } else {
-                Key key = _iteratorExchange.getKey();
-                Key spareKey = _iteratorExchange.getAuxiliaryKey1();
+                final Key key = _iteratorExchange.getKey();
+                final Key spareKey = _iteratorExchange.getAuxiliaryKey1();
                 key.copyTo(spareKey);
-                int depth = spareKey.getDepth();
+                final int depth = spareKey.getDepth();
                 spareKey.cut();
                 _keyFilter = new KeyFilter(spareKey).append(term).limit(depth, depth);
             }
@@ -1009,14 +1018,14 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
             }
 
             boolean removed = false;
-            long changeCount = _iteratorExchange.getChangeCount();
+            final long changeCount = _iteratorExchange.getChangeCount();
             if (_traversed) {
                 _trailingKey.copyTo(_iteratorExchange.getKey());
                 _traversed = false;
             }
             try {
                 removed = _iteratorExchange.remove();
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 throw new PersistitMapException(e);
             }
             if (!removed) {
@@ -1039,13 +1048,13 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
                 // user calls next(), hasNext(), remove() in that sequence,
                 // the original key to be removed is still available.
                 _iteratorExchange.getKey().copyTo(_trailingKey);
-                boolean result = _iteratorExchange.traverse(_direction, _keyFilter, Integer.MAX_VALUE);
+                final boolean result = _iteratorExchange.traverse(_direction, _keyFilter, Integer.MAX_VALUE);
                 if (!result || _toKey == null) {
                     return result;
                 } else {
                     return _toKey.compareTo(_iteratorExchange.getKey()) <= 0;
                 }
-            } catch (PersistitException de) {
+            } catch (final PersistitException de) {
                 throw new PersistitMapException(de);
             }
         }
@@ -1091,7 +1100,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
                 }
 
                 @Override
-                public boolean contains(Object k) {
+                public boolean contains(final Object k) {
                     return PersistitMap.this.containsKey(k);
                 }
             };
@@ -1141,7 +1150,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
                 }
 
                 @Override
-                public boolean contains(Object v) {
+                public boolean contains(final Object v) {
                     return PersistitMap.this.containsValue(v);
                 }
             };
@@ -1170,7 +1179,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
                 }
 
                 @Override
-                public boolean contains(Object v) {
+                public boolean contains(final Object v) {
                     return PersistitMap.this.containsValue(v);
                 }
             };
@@ -1205,7 +1214,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      * @return a view of the specified range within this sorted map.
      */
     @Override
-    public SortedMap<K, V> subMap(Object fromKey, Object toKey) {
+    public SortedMap<K, V> subMap(final Object fromKey, final Object toKey) {
         return new PersistitMap<K, V>(this, true, fromKey, true, toKey);
     }
 
@@ -1221,7 +1230,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      * @return a view of the specified range within this sorted map.
      */
     @Override
-    public SortedMap<K, V> headMap(Object toKey) {
+    public SortedMap<K, V> headMap(final Object toKey) {
         return new PersistitMap<K, V>(this, false, null, true, toKey);
     }
 
@@ -1238,7 +1247,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      * @return a view of the specified range within this sorted map.
      */
     @Override
-    public SortedMap<K, V> tailMap(Object fromKey) {
+    public SortedMap<K, V> tailMap(final Object fromKey) {
         return new PersistitMap<K, V>(this, true, fromKey, false, null);
     }
 
@@ -1262,7 +1271,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
                 return (K) _ex.getKey().decode();
             } else
                 throw new NoSuchElementException();
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -1286,7 +1295,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
                 return (K) _ex.getKey().decode();
             } else
                 throw new NoSuchElementException();
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -1305,7 +1314,7 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
      * @return <code>true</code> if the specified object is equal to this map.
      */
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         return super.equals(o);
     }
 
@@ -1356,4 +1365,3 @@ public class PersistitMap<K, V> extends AbstractMap<K, V> implements SortedMap<K
     }
 
 }
-

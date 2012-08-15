@@ -27,11 +27,11 @@ import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import com.persistit.exception.CorruptVolumeException;
 import org.junit.Test;
 
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.CorruptJournalException;
+import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.unit.UnitTestProperties;
@@ -45,8 +45,9 @@ public class IOFailureTest extends PersistitUnitTestCase {
      * because it uses some package- private methods in Persistit.
      */
 
-    private String _volumeName = "persistit";
+    private final String _volumeName = "persistit";
 
+    @Override
     protected Properties getProperties(final boolean cleanup) {
         final Properties p = UnitTestProperties.getProperties(cleanup);
         p.setProperty("journalsize", Integer.toString(BLOCKSIZE));
@@ -87,7 +88,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
                 } finally {
                     txn.end();
                 }
-            } catch (PersistitIOException e) {
+            } catch (final PersistitIOException e) {
                 if (e.getMessage().contains("Disk Full")) {
                     break;
                     // okay
@@ -144,14 +145,14 @@ public class IOFailureTest extends PersistitUnitTestCase {
          */
         _persistit.getJournalManager().force();
 
-        Exchange ex = _persistit.getExchange(_volumeName, "IOFailureTest", false);
+        final Exchange ex = _persistit.getExchange(_volumeName, "IOFailureTest", false);
 
         final ErrorInjectingFileChannel eifc = errorInjectingChannel(_persistit.getJournalManager().getFileChannel(0));
         eifc.injectTestIOException(new IOException(reason), "r");
         try {
             ex.clear().append(0).next();
             fail("Should have gotten an IOException");
-        } catch (PersistitIOException ioe) {
+        } catch (final PersistitIOException ioe) {
             assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
         }
         eifc.injectTestIOException(null, "");
@@ -179,6 +180,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         mfcj.injectTestIOException(new IOException(reason), "r");
         final long start = System.currentTimeMillis();
         new Timer().schedule(new TimerTask() {
+            @Override
             public void run() {
                 mfcj.injectTestIOException(null, "");
             }
@@ -198,7 +200,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         final String reason = "Read Failure";
         store1(0);
 
-        Exchange ex = _persistit.getExchange(_volumeName, "IOFailureTest", false);
+        final Exchange ex = _persistit.getExchange(_volumeName, "IOFailureTest", false);
         final Volume volume = _persistit.getVolume(_volumeName);
         /*
          * Remove all pages from the pool
@@ -242,7 +244,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         try {
             ex.clear().append(0).next();
             fail("Should have gotten an IOException");
-        } catch (PersistitIOException ioe) {
+        } catch (final PersistitIOException ioe) {
             assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
         }
         mfcv.injectTestIOException(null, "");
@@ -270,6 +272,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
          */
         final long start = System.currentTimeMillis();
         new Timer().schedule(new TimerTask() {
+            @Override
             public void run() {
                 mfcv.injectTestIOException(null, "");
             }
@@ -282,7 +285,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
     public void testJournalEOFonRecovery() throws Exception {
         final Properties properties = _persistit.getProperties();
         final JournalManager jman = _persistit.getJournalManager();
-        Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
         exchange.getValue().put(RED_FOX);
         int count = 0;
         long checkpointAddr = 0;
@@ -316,7 +319,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         try {
             _persistit.initialize(properties);
             fail("Expected CorruptJournalException");
-        } catch (CorruptJournalException cje) {
+        } catch (final CorruptJournalException cje) {
             // expected
         }
         file1.delete();
@@ -325,7 +328,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         try {
             _persistit.initialize(properties);
             fail("Expected CorruptVolumeException");
-        } catch (CorruptVolumeException cve) {
+        } catch (final CorruptVolumeException cve) {
             // expected
         }
     }
@@ -337,7 +340,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         try {
             _persistit.getJournalManager().writePageMap();
             _persistit.getJournalManager().flush();
-        } catch (PersistitIOException ioe) {
+        } catch (final PersistitIOException ioe) {
             final String detail = ioe.getMessage();
             assertTrue("Message does not include cause's message", detail.endsWith(RED_FOX));
         } finally {
@@ -367,11 +370,11 @@ public class IOFailureTest extends PersistitUnitTestCase {
                 _persistit.copyBackPages();
                 done = true;
                 break;
-            } catch (PersistitIOException ioe) {
+            } catch (final PersistitIOException ioe) {
                 assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
             }
         }
-        long elapsed = System.currentTimeMillis() - start;
+        final long elapsed = System.currentTimeMillis() - start;
         assertTrue(done ? "Copyback took too long" : "Copyback did not complete", done && elapsed >= 2000);
         assertEquals("Copyback did not move base address to end of journal", _persistit.getJournalManager()
                 .getCurrentAddress(), _persistit.getJournalManager().getBaseAddress());

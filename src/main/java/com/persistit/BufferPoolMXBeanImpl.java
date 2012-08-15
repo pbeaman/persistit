@@ -23,8 +23,9 @@ import com.persistit.mxbeans.Description;
 
 /**
  * MXBean that exposes information about a {@link BufferPool}.
+ * 
  * @author peter
- *
+ * 
  */
 class BufferPoolMXBeanImpl implements BufferPoolMXBean {
 
@@ -47,16 +48,16 @@ class BufferPoolMXBeanImpl implements BufferPoolMXBean {
     }
 
     private BufferPoolInfo recent() {
-        long now = System.currentTimeMillis();
+        final long now = System.currentTimeMillis();
         if (_recent.getAcquisitionTime() < now - MAX_STALE) {
             try {
-                BufferPoolInfo[] array = _persistit.getManagement().getBufferPoolInfoArray();
-                for (BufferPoolInfo info : array) {
+                final BufferPoolInfo[] array = _persistit.getManagement().getBufferPoolInfoArray();
+                for (final BufferPoolInfo info : array) {
                     if (info.getBufferSize() == _bufferSize) {
                         _recent = info;
                     }
                 }
-            } catch (RemoteException e) {
+            } catch (final RemoteException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }

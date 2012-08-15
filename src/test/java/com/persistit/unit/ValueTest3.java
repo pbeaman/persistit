@@ -75,6 +75,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             assertTrue("T 3-arg constructor should not be called", false);
         }
 
+        @Override
         public String toString() {
             return "T:" + _a + _b;
         }
@@ -95,6 +96,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             super(x, y, z);
         }
 
+        @Override
         public String toString() {
             return "T" + super.toString();
         }
@@ -117,6 +119,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             super(x, y, z);
         }
 
+        @Override
         public String toString() {
             return "T" + super.toString();
         }
@@ -130,6 +133,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             super(persistit, TTT.class);
         }
 
+        @Override
         public Object get(final Value value, final Class clazz, final CoderContext context) {
             _getCounter++;
             final TTT ttt = new TTT("x", "y");
@@ -153,6 +157,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             oos.defaultWriteObject();
         }
 
+        @Override
         public String toString() {
             return "S:" + _a + _b;
         }
@@ -171,6 +176,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             _ff = "Final field";
         }
 
+        @Override
         public String toString() {
             return "S" + super.toString() + _c + _d;
         }
@@ -188,6 +194,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             _f = new W(f);
         }
 
+        @Override
         public String toString() {
             return "S" + super.toString() + _e + _f;
 
@@ -208,6 +215,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
 
         private static final ObjectStreamField[] serialPersistentFields = { new ObjectStreamField("_g", String.class), };
 
+        @Override
         public String toString() {
             return "S" + super.toString() + _g + _h + _ff;
         }
@@ -229,6 +237,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             return _value ? R_TRUE : R_FALSE;
         }
 
+        @Override
         public String toString() {
             if (this == R_TRUE) {
                 return "true";
@@ -253,6 +262,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             return new WReplacement(_value);
         }
 
+        @Override
         public String toString() {
             return "W:" + _value;
         }
@@ -271,6 +281,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             return new W(_value);
         }
 
+        @Override
         public String toString() {
             return "WReplacement:" + _value;
         }
@@ -285,18 +296,21 @@ public class ValueTest3 extends PersistitUnitTestCase {
         public E() {
         }
 
+        @Override
         public void readExternal(final ObjectInput oi) throws IOException {
             oi.readUTF(); // "foo"
             _a = oi.readUTF();
             _b = oi.readUTF();
         }
 
+        @Override
         public void writeExternal(final ObjectOutput oo) throws IOException {
             oo.writeUTF("hello");
             oo.writeUTF(_a);
             oo.writeUTF(_b);
         }
 
+        @Override
         public String toString() {
             return "E:" + _a + _b;
         }
@@ -318,6 +332,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             _b = b;
         }
 
+        @Override
         public String toString() {
             return "E" + super.toString() + (_thread != null ? "" : "");
         }
@@ -512,6 +527,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
         new ValueTest3().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         _exchange = _persistit.getExchange("persistit", "ValueTest3", true);
 

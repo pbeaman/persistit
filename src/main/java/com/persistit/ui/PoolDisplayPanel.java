@@ -40,19 +40,19 @@ public class PoolDisplayPanel extends JPanel {
     private final static String[] HEADER_NAMES = { "Index", "Page", "Type", "Status", "Writer Thread",
             "Available Space", "Right Sibling", };
 
-    private Management _management;
-    private BufferTableModel _btm = new BufferTableModel();
+    private final Management _management;
+    private final BufferTableModel _btm = new BufferTableModel();
 
-    public PoolDisplayPanel(Management management) {
+    public PoolDisplayPanel(final Management management) {
         _management = management;
 
         setLayout(new BorderLayout());
         setMinimumSize(new Dimension(800, 600));
 
         add(new JScrollPane(new JTable(_btm)), BorderLayout.CENTER);
-        JPanel selector = new JPanel(new FlowLayout());
+        final JPanel selector = new JPanel(new FlowLayout());
         add(selector, BorderLayout.SOUTH);
-        ButtonGroup bg = new ButtonGroup();
+        final ButtonGroup bg = new ButtonGroup();
 
         JRadioButton rb;
         final JLabel stats = new JLabel();
@@ -60,7 +60,7 @@ public class PoolDisplayPanel extends JPanel {
 
         rb = new JRadioButton(new AbstractAction("All") {
             @Override
-            public void actionPerformed(ActionEvent ae) {
+            public void actionPerformed(final ActionEvent ae) {
                 _btm.setSource(0);
                 stats.setText(_btm.getBufferStats());
             }
@@ -71,7 +71,7 @@ public class PoolDisplayPanel extends JPanel {
 
         rb = new JRadioButton(new AbstractAction("LRU Queue") {
             @Override
-            public void actionPerformed(ActionEvent ae) {
+            public void actionPerformed(final ActionEvent ae) {
                 _btm.setSource(1);
             }
         });
@@ -80,7 +80,7 @@ public class PoolDisplayPanel extends JPanel {
 
         rb = new JRadioButton(new AbstractAction("Invalid Queue") {
             @Override
-            public void actionPerformed(ActionEvent ae) {
+            public void actionPerformed(final ActionEvent ae) {
                 _btm.setSource(2);
                 stats.setText(_btm.getBufferStats());
             }
@@ -92,7 +92,7 @@ public class PoolDisplayPanel extends JPanel {
         JToggleButton tb;
         tb = new JToggleButton(new AbstractAction("Valid") {
             @Override
-            public void actionPerformed(ActionEvent ae) {
+            public void actionPerformed(final ActionEvent ae) {
                 _btm.setIncludeMask("v", ((JToggleButton) (ae.getSource())).isSelected());
                 stats.setText(_btm.getBufferStats());
             }
@@ -101,7 +101,7 @@ public class PoolDisplayPanel extends JPanel {
 
         tb = new JToggleButton(new AbstractAction("Dirty") {
             @Override
-            public void actionPerformed(ActionEvent ae) {
+            public void actionPerformed(final ActionEvent ae) {
                 _btm.setIncludeMask("d", ((JToggleButton) (ae.getSource())).isSelected());
                 stats.setText(_btm.getBufferStats());
             }
@@ -110,7 +110,7 @@ public class PoolDisplayPanel extends JPanel {
 
         tb = new JToggleButton(new AbstractAction("Reader") {
             @Override
-            public void actionPerformed(ActionEvent ae) {
+            public void actionPerformed(final ActionEvent ae) {
                 _btm.setIncludeMask("r", ((JToggleButton) (ae.getSource())).isSelected());
                 stats.setText(_btm.getBufferStats());
             }
@@ -119,16 +119,16 @@ public class PoolDisplayPanel extends JPanel {
 
         tb = new JToggleButton(new AbstractAction("Writer") {
             @Override
-            public void actionPerformed(ActionEvent ae) {
+            public void actionPerformed(final ActionEvent ae) {
                 _btm.setIncludeMask("w", ((JToggleButton) (ae.getSource())).isSelected());
                 stats.setText(_btm.getBufferStats());
             }
         });
         selector.add(tb);
 
-        JButton b = new JButton(new AbstractAction("Refresh") {
+        final JButton b = new JButton(new AbstractAction("Refresh") {
             @Override
-            public void actionPerformed(ActionEvent ae) {
+            public void actionPerformed(final ActionEvent ae) {
                 _btm._selectedBufferCount = -1;
                 _btm.fireTableDataChanged();
                 stats.setText(_btm.getBufferStats());
@@ -141,19 +141,19 @@ public class PoolDisplayPanel extends JPanel {
     private class BufferTableModel extends AbstractTableModel {
         private int _traversalType = 0;
         private String _includeMask = null;
-        private String _excludeMask = null;
+        private final String _excludeMask = null;
 
         private long _missCount;
         private long _newCount;
         private long _hitCount;
         private double _hitRatio;
 
-        private DecimalFormat _df = new DecimalFormat("#####.#####");
+        private final DecimalFormat _df = new DecimalFormat("#####.#####");
 
         private BufferInfo[] _buffers;
         private int _selectedBufferCount = -1;
 
-        void setIncludeMask(String mask, boolean selected) {
+        void setIncludeMask(final String mask, final boolean selected) {
             if (selected && _includeMask == null)
                 _includeMask = "";
             if (selected && (_includeMask.indexOf(mask) == -1)) {
@@ -161,7 +161,7 @@ public class PoolDisplayPanel extends JPanel {
                 _selectedBufferCount = -1;
                 fireTableDataChanged();
             } else if (!selected && (_includeMask != null) && (_includeMask.indexOf(mask) != -1)) {
-                int p = _includeMask.indexOf(mask);
+                final int p = _includeMask.indexOf(mask);
                 _includeMask = _includeMask.substring(0, p) + _includeMask.substring(p + 1);
                 _selectedBufferCount = -1;
                 if (_includeMask.length() == 0)
@@ -170,7 +170,7 @@ public class PoolDisplayPanel extends JPanel {
             }
         }
 
-        void setSource(int code) {
+        void setSource(final int code) {
             if (_traversalType != code) {
                 _traversalType = code;
                 _selectedBufferCount = -1;
@@ -191,18 +191,18 @@ public class PoolDisplayPanel extends JPanel {
         }
 
         @Override
-        public String getColumnName(int column) {
+        public String getColumnName(final int column) {
             return HEADER_NAMES[column];
         }
 
         @Override
-        public Object getValueAt(int row, int column) {
+        public Object getValueAt(final int row, final int column) {
             if (_selectedBufferCount < 0)
                 loadBuffers();
             if (row >= _selectedBufferCount)
                 return "";
 
-            BufferInfo bufferInfo = _buffers[row];
+            final BufferInfo bufferInfo = _buffers[row];
             switch (column) {
             case 0:
                 return Integer.toString(bufferInfo.getPoolIndex());
@@ -220,7 +220,7 @@ public class PoolDisplayPanel extends JPanel {
                 return bufferInfo.getStatusName();
 
             case 4:
-                String threadName = bufferInfo.getWriterThreadName();
+                final String threadName = bufferInfo.getWriterThreadName();
                 return threadName == null ? "" : threadName;
 
             case 5:
@@ -236,7 +236,7 @@ public class PoolDisplayPanel extends JPanel {
 
         private void loadBuffers() {
             try {
-                BufferPoolInfo[] pools = _management.getBufferPoolInfoArray();
+                final BufferPoolInfo[] pools = _management.getBufferPoolInfoArray();
 
                 if (pools.length < 1) {
                     _selectedBufferCount = 0;
@@ -246,10 +246,10 @@ public class PoolDisplayPanel extends JPanel {
                     _newCount = 0;
                     _hitRatio = 0;
                 } else {
-                    String managementClassName = _management.getClass().getName();
-                    boolean isRemote = managementClassName.indexOf("Stub") > 0;
+                    final String managementClassName = _management.getClass().getName();
+                    final boolean isRemote = managementClassName.indexOf("Stub") > 0;
 
-                    BufferPoolInfo info = pools[0];
+                    final BufferPoolInfo info = pools[0];
 
                     if (isRemote) {
                         _buffers = _management.getBufferInfoArray(info.getBufferSize(), _traversalType, _includeMask,
@@ -269,7 +269,7 @@ public class PoolDisplayPanel extends JPanel {
                     _newCount = info.getNewCount();
                     _hitRatio = info.getHitRatio();
                 }
-            } catch (Exception ex) {
+            } catch (final Exception ex) {
                 ex.printStackTrace();
                 _selectedBufferCount = 0;
 

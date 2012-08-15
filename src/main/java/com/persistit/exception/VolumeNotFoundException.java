@@ -29,8 +29,7 @@ public class VolumeNotFoundException extends PersistitException {
         super();
     }
 
-    public VolumeNotFoundException(String msg) {
+    public VolumeNotFoundException(final String msg) {
         super(msg);
     }
 }
-

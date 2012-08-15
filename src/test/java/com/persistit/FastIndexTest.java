@@ -34,7 +34,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
     public void testIndexSize() throws Exception {
         final Buffer b1 = getABuffer();
         try {
-            FastIndex fi = b1.getFastIndex();
+            final FastIndex fi = b1.getFastIndex();
             /*
              * BUFFER_SIZE - HEADER_SIZE / MAX_KEY_RATIO BUFFER_SIZE = 16384
              * HEADER_SIZE = 32 MAX_KEY_RATIO = 16 16384 - 32 / 16 = 16352 / 16
@@ -53,7 +53,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
         final Buffer b1 = getABuffer();
         try {
             b1.init(Buffer.PAGE_TYPE_GARBAGE);
-            FastIndex fi = b1.getFastIndex();
+            final FastIndex fi = b1.getFastIndex();
             fi.invalidate();
             assertEquals(false, fi.isValid());
             fi.recompute();
@@ -72,13 +72,13 @@ public class FastIndexTest extends PersistitUnitTestCase {
 
     @Test
     public void testFastIndexRecompute() throws Exception {
-        Buffer b1 = getABuffer();
+        final Buffer b1 = getABuffer();
         try {
             b1.init(Buffer.PAGE_TYPE_DATA);
-            Key key = new Key(_persistit);
-            Value value = new Value(_persistit);
-            RawValueWriter vwriter = new RawValueWriter();
-            FastIndex fi = b1.getFastIndex();
+            final Key key = new Key(_persistit);
+            final Value value = new Value(_persistit);
+            final RawValueWriter vwriter = new RawValueWriter();
+            final FastIndex fi = b1.getFastIndex();
             fi.recompute();
             vwriter.init(value);
             fakeKey(key, "A");
@@ -108,9 +108,9 @@ public class FastIndexTest extends PersistitUnitTestCase {
             fakeKey(key, "ABJ");
             b1.putValue(key, vwriter);
 
-            String inserteds = fi.toString();
+            final String inserteds = fi.toString();
             fi.recompute();
-            String computeds = fi.toString();
+            final String computeds = fi.toString();
             assertEquals(inserteds, computeds);
         } finally {
             b1.release();
@@ -125,27 +125,27 @@ public class FastIndexTest extends PersistitUnitTestCase {
 
     @Test
     public void testRandomInsert() throws Exception {
-        Random random = new Random(3);
-        Buffer b1 = getABuffer();
+        final Random random = new Random(3);
+        final Buffer b1 = getABuffer();
         try {
-            FastIndex f1 = b1.getFastIndex();
+            final FastIndex f1 = b1.getFastIndex();
 
             b1.init(Buffer.PAGE_TYPE_DATA);
-            Key key = new Key(_persistit);
-            Value value = new Value(_persistit);
+            final Key key = new Key(_persistit);
+            final Value value = new Value(_persistit);
             for (int i = 0; i < 1000; i++) {
-                int size = random.nextInt(10) + 2;
-                byte[] bytes = new byte[size];
+                final int size = random.nextInt(10) + 2;
+                final byte[] bytes = new byte[size];
                 random.nextBytes(bytes);
                 System.arraycopy(bytes, 0, key.getEncodedBytes(), 0, size);
                 key.setEncodedSize(size);
-                RawValueWriter vwriter = new RawValueWriter();
+                final RawValueWriter vwriter = new RawValueWriter();
                 vwriter.init(value);
                 b1.putValue(key, vwriter);
 
-                String s1 = f1.toString();
+                final String s1 = f1.toString();
                 f1.recompute();
-                String s2 = f1.toString();
+                final String s2 = f1.toString();
                 assertEquals(s1, s2);
             }
         } finally {

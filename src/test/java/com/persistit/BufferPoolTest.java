@@ -63,8 +63,8 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         pool.setFlushTimestamp(-1);
         try {
             final int buffers = pool.getBufferCount();
-            int[] priorities = new int[buffers / 2];
-            BufferHolder[] holders = new BufferHolder[buffers / 2];
+            final int[] priorities = new int[buffers / 2];
+            final BufferHolder[] holders = new BufferHolder[buffers / 2];
             for (int i = 0; i < holders.length; i++) {
                 holders[i] = new BufferHolder();
             }
@@ -85,7 +85,7 @@ public class BufferPoolTest extends PersistitUnitTestCase {
             assertEquals("Selected buffers should fill the arrays", buffers / 2, count);
             long page = -1;
             Arrays.sort(holders);
-            for (BufferHolder holder : holders) {
+            for (final BufferHolder holder : holders) {
                 assertTrue(holder.getPage() > page);
                 page = holder.getPage();
             }
@@ -99,9 +99,9 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
 
-        int total = 100;
+        final int total = 100;
         final int[] priorities = new int[total];
-        BufferHolder[] holders = new BufferHolder[total];
+        final BufferHolder[] holders = new BufferHolder[total];
         for (int i = 0; i < holders.length; i++) {
             holders[i] = new BufferHolder();
         }
@@ -110,35 +110,35 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         final SortedSet<Integer> sorted = new TreeSet<Integer>();
         int count = 0;
         for (int index = 0; index < 10000; index++) {
-            int r = random.nextInt(1000000000);
+            final int r = random.nextInt(1000000000);
             if (sorted.contains(r)) {
                 index--;
                 continue;
             }
             sorted.add(r);
-            Buffer buffer = pool.get(volume, 1, false, false);
-            Buffer copy = new Buffer(buffer);
+            final Buffer buffer = pool.get(volume, 1, false, false);
+            final Buffer copy = new Buffer(buffer);
             copy.setPageAddressAndVolume(index, volume);
             count = pool.addSelectedBufferByPriority(copy, r, priorities, holders, count);
             buffer.release();
         }
         assertEquals("Arrays should be full", total, count);
-        Integer[] sortedArray = sorted.toArray(new Integer[sorted.size()]);
+        final Integer[] sortedArray = sorted.toArray(new Integer[sorted.size()]);
 
         for (int i = 0; i < count; i++) {
-            int s = sortedArray[sortedArray.length - i - 1];
-            int r = priorities[i];
+            final int s = sortedArray[sortedArray.length - i - 1];
+            final int r = priorities[i];
             assertEquals("Priority order is wrong", s, r);
         }
         long page = -1;
         Arrays.sort(holders);
-        for (BufferHolder holder : holders) {
+        for (final BufferHolder holder : holders) {
             assertTrue(holder.getPage() > page);
             page = holder.getPage();
         }
 
         for (int i = 0; i < count; i++) {
-            BufferHolder holder = holders[i];
+            final BufferHolder holder = holders[i];
             for (int j = i + 1; j < count; j++) {
                 assertTrue("Scrambled holders", holder != holders[j]);
             }
@@ -150,13 +150,13 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         final long m = 100 * 1000 * 1000;
         final Volume volume = _persistit.getVolume("persistit");
         final BufferPool pool = volume.getPool();
-        Buffer buffer = pool.getBufferCopy(0);
+        final Buffer buffer = pool.getBufferCopy(0);
         buffer.claim(true);
         long currentTimestamp = 4 * m;
-        long checkpointTimestamp = 2 * m;
+        final long checkpointTimestamp = 2 * m;
         for (long timestamp = m; timestamp < m * 20; timestamp += m) {
             buffer.setDirtyAtTimestamp(timestamp);
-            int priority = pool.writePriority(buffer, 123456, checkpointTimestamp, currentTimestamp);
+            final int priority = pool.writePriority(buffer, 123456, checkpointTimestamp, currentTimestamp);
             System.out.printf("Timestamp %,15d Checkpoint %,15d Current %,15d Priority %,15d\n", timestamp,
                     checkpointTimestamp, currentTimestamp, priority);
             currentTimestamp += 10000000;

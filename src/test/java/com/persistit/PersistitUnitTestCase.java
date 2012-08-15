@@ -22,7 +22,6 @@ import java.util.Properties;
 import org.junit.After;
 import org.junit.Before;
 
-import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.UnitTestProperties;
 
@@ -31,9 +30,9 @@ public abstract class PersistitUnitTestCase {
     private final static long TEN_SECONDS = 10L * 1000L * 1000L * 1000L;
 
     protected final static String RED_FOX = "The quick red fox jumped over the lazy brown dog.";
-    
-    protected static String createString(int exactLength) {
-        StringBuilder sb = new StringBuilder(exactLength);
+
+    protected static String createString(final int exactLength) {
+        final StringBuilder sb = new StringBuilder(exactLength);
         // Simple 0..9a..z string
         for (int i = 0; i < 36; ++i) {
             sb.append(Character.forDigit(i, 36));
@@ -95,7 +94,7 @@ public abstract class PersistitUnitTestCase {
         boolean alive = false;
         final Map<Thread, StackTraceElement[]> map = Thread.getAllStackTraces();
         for (final Thread t : map.keySet()) {
-            String name = t.getName();
+            final String name = t.getName();
             for (final String p : PERSISTIT_THREAD_NAMES) {
                 if (name.contains(p)) {
                     alive = true;
@@ -107,7 +106,7 @@ public abstract class PersistitUnitTestCase {
     }
 
     protected void safeCrashAndRestoreProperties() throws PersistitException {
-        Properties properties = _persistit.getProperties();
+        final Properties properties = _persistit.getProperties();
         _persistit.flush();
         _persistit.crash();
         _persistit = new Persistit();
@@ -115,21 +114,21 @@ public abstract class PersistitUnitTestCase {
     }
 
     protected void crashWithoutFlushAndRestoreProperties() throws PersistitException {
-        Properties properties = _persistit.getProperties();
+        final Properties properties = _persistit.getProperties();
         _persistit.crash();
         _persistit = new Persistit();
         _persistit.initialize(properties);
     }
 
     public static boolean doesRefBecomeNull(final WeakReference<?> ref) throws InterruptedException {
-        long expires = System.nanoTime() + TEN_SECONDS;
+        final long expires = System.nanoTime() + TEN_SECONDS;
         while (ref.get() != null && System.nanoTime() < expires) {
             System.gc();
             Thread.sleep(10);
         }
         return ref.get() == null;
     }
-    
+
     protected void disableBackgroundCleanup() {
         _persistit.getCleanupManager().setPollInterval(-1);
         _persistit.getJournalManager().setWritePagePruningEnabled(false);

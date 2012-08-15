@@ -28,7 +28,7 @@ public class TreeNotFoundException extends PersistitException {
         super();
     }
 
-    public TreeNotFoundException(String msg) {
+    public TreeNotFoundException(final String msg) {
         super(msg);
     }
 }

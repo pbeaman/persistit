@@ -42,9 +42,9 @@ public interface TransactionRunnable {
      * {@link Exchange#fetch} and {@link Exchange#store} may also throw
      * <code>RollbackException</code>s when executed within a transaction; the
      * application logic implementing this method should generally not catch
-     * <code>PersistitException</code>, including
-     * <code>RollbackException</code>.  The the calling code in
-     * <code>Transaction</code> is designed to handle them.
+     * <code>PersistitException</code>, including <code>RollbackException</code>
+     * . The the calling code in <code>Transaction</code> is designed to handle
+     * them.
      * </p>
      * 
      * @throws PersistitException

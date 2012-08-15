@@ -116,6 +116,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         final Thread[] threadArray = new Thread[_threadCount];
         for (int index = 0; index < _threadCount; index++) {
             threadArray[index] = new Thread(new Runnable() {
+                @Override
                 public void run() {
                     runIt();
                 }
@@ -164,12 +165,12 @@ public class TransactionTest2 extends PersistitUnitTestCase {
 
         final long expires = System.currentTimeMillis() + TIMEOUT;
 
-        List<Thread> threads = new ArrayList<Thread>();
+        final List<Thread> threads = new ArrayList<Thread>();
         while (System.currentTimeMillis() < expires) {
             //
             // Remove any Thread instances that died (due to interrupt)
             //
-            for (Iterator<Thread> iter = threads.iterator(); iter.hasNext();) {
+            for (final Iterator<Thread> iter = threads.iterator(); iter.hasNext();) {
                 if (!iter.next().isAlive()) {
                     iter.remove();
                 }
@@ -178,7 +179,8 @@ public class TransactionTest2 extends PersistitUnitTestCase {
             // Top up the set of running threads
             //
             while (threads.size() < _threadCount) {
-                Thread thread = new Thread(new Runnable() {
+                final Thread thread = new Thread(new Runnable() {
+                    @Override
                     public void run() {
                         runIt();
                     }
@@ -187,7 +189,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 thread.start();
             }
 
-            Thread victim = threads.get(index % threads.size());
+            final Thread victim = threads.get(index % threads.size());
             victim.interrupt();
             Thread.sleep(50);
         }
@@ -211,8 +213,8 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         System.out.println("Retried transactions: " + _retriedTransactionCount);
 
         System.out.printf("\nCurrentCount=%,d  AbortedCount=%,d  "
-                + "LongRunningCount=%,d  FreeCount=%,d\natCache=%s\n", ti.getCurrentCount(), ti.getAbortedCount(), ti
-                .getLongRunningCount(), ti.getFreeCount(), ti.getActiveTransactionCache());
+                + "LongRunningCount=%,d  FreeCount=%,d\natCache=%s\n", ti.getCurrentCount(), ti.getAbortedCount(),
+                ti.getLongRunningCount(), ti.getFreeCount(), ti.getActiveTransactionCache());
 
         final int endingBalance = balance(accountEx);
         System.out.print("Ending balance is " + endingBalance + " which ");
@@ -221,17 +223,17 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         assertTrue("ATC has very old transaction",
                 ti.getActiveTransactionCeiling() - ti.getActiveTransactionFloor() < 10000);
     }
-    
+
     @Test(expected = IllegalStateException.class)
     public void illegalStateExceptionOnRollback() throws Exception {
-        Transaction txn = _persistit.getTransaction();
+        final Transaction txn = _persistit.getTransaction();
         txn.rollback();
         txn.begin();
     }
 
     @Test(expected = IllegalStateException.class)
     public void illegalStateExceptionOnCommit() throws Exception {
-        Transaction txn = _persistit.getTransaction();
+        final Transaction txn = _persistit.getTransaction();
         txn.commit();
         txn.begin();
     }
@@ -247,7 +249,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 // if (accountNo2 == accountNo1) accountNo2++;
                 final int accountNo2 = random.nextInt(_accounts);
 
-                int delta = random.nextInt(10000);
+                final int delta = random.nextInt(10000);
                 // final int delta = 1;
 
                 transfer(accountEx, accountNo1, accountNo2, delta);
@@ -260,7 +262,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
             }
         } catch (final PersistitInterruptedException exception) {
             // expected
-        } catch (PersistitIOException exception) {
+        } catch (final PersistitIOException exception) {
             if (InterruptedIOException.class.equals(exception.getCause().getClass())) {
                 // expected
             } else {

@@ -33,7 +33,7 @@ public class AppendableIOException extends RuntimeException {
 
     private static final long serialVersionUID = -2096632389635542578L;
 
-    public AppendableIOException(IOException ioe) {
+    public AppendableIOException(final IOException ioe) {
         super(ioe);
     }
 

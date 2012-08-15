@@ -19,17 +19,13 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Key;
-import com.persistit.Transaction;
-
 public class Bug877656Test extends PersistitUnitTestCase {
 
     @Test
     public void testForward() throws Exception {
-        Transaction txn = _persistit.getTransaction();
+        final Transaction txn = _persistit.getTransaction();
         txn.begin();
-        Exchange ex = _persistit.getExchange("persistit", "Bug877656Test", true);
+        final Exchange ex = _persistit.getExchange("persistit", "Bug877656Test", true);
         for (int i = 1; i < 10; i++) {
             ex.to(i).store();
         }
@@ -55,9 +51,9 @@ public class Bug877656Test extends PersistitUnitTestCase {
 
     @Test
     public void testReverse() throws Exception {
-        Transaction txn = _persistit.getTransaction();
+        final Transaction txn = _persistit.getTransaction();
         txn.begin();
-        Exchange ex = _persistit.getExchange("persistit", "Bug877656Test", true);
+        final Exchange ex = _persistit.getExchange("persistit", "Bug877656Test", true);
         for (int i = 1; i < 10; i++) {
             ex.to(i).store();
         }

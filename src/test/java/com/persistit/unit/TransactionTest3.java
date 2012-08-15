@@ -133,7 +133,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
             final boolean removed1 = ex.clear().append("test2").append("a").remove(Key.GTEQ);
             assertTrue(removed1);
 
-            boolean removed2 = ex.clear().append("test2").append("c").remove(Key.GTEQ);
+            final boolean removed2 = ex.clear().append("test2").append("c").remove(Key.GTEQ);
             assertTrue(!removed2);
 
             ex.clear().append("test2");
@@ -478,6 +478,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
         new TransactionTest3().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
         ex.removeAll();

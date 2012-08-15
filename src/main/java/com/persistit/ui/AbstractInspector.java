@@ -30,7 +30,7 @@ abstract class AbstractInspector extends JPanel {
     protected AdminUI _adminUI;
     protected InspectorPanel _host;
 
-    protected void setup(AdminUI ui, InspectorPanel host) {
+    protected void setup(final AdminUI ui, final InspectorPanel host) {
         _adminUI = ui;
         _host = host;
     }

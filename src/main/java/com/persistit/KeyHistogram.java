@@ -20,10 +20,10 @@ import java.util.List;
 
 /**
  * <p>
- * Accumulate and hold information about the distribution of {@link Key}
- * objects in a Persistit {@link Tree}. This class is used by the
- * {@link Exchange#computeHistogram(Key, Key, int, int, KeyFilter, int)} method to
- * accumulate and return the result of scanning all the keys at a fixed depth
+ * Accumulate and hold information about the distribution of {@link Key} objects
+ * in a Persistit {@link Tree}. This class is used by the
+ * {@link Exchange#computeHistogram(Key, Key, int, int, KeyFilter, int)} method
+ * to accumulate and return the result of scanning all the keys at a fixed depth
  * within a Tree.
  * <p>
  * </p>
@@ -89,10 +89,10 @@ public class KeyHistogram {
     private long _pageBytesInUse = 0;
 
     /**
-     * Element in a <code>KeyHistogram</code> that denotes the estimated number of keys
-     * in a histogram bucket. This class has two fields representing a key and a count.  The
-     * count indicates the estimated number of other keys less than this one in the
-     * tree level.
+     * Element in a <code>KeyHistogram</code> that denotes the estimated number
+     * of keys in a histogram bucket. This class has two fields representing a
+     * key and a count. The count indicates the estimated number of other keys
+     * less than this one in the tree level.
      */
     public static class KeyCount {
 
@@ -107,6 +107,7 @@ public class KeyHistogram {
 
         /**
          * Get the key bytes
+         * 
          * @return the bytes of the key
          */
         public byte[] getBytes() {
@@ -115,6 +116,7 @@ public class KeyHistogram {
 
         /**
          * Get the count
+         * 
          * @return the count
          */
         public int getCount() {

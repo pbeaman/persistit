@@ -38,8 +38,8 @@ public class ExchangeTest extends PersistitUnitTestCase {
 
     @Test
     public void testAppend() throws PersistitException {
-        Exchange ex = _persistit.getExchange("persistit", "tree", true);
-        String mockValue = "PADRAIG";
+        final Exchange ex = _persistit.getExchange("persistit", "tree", true);
+        final String mockValue = "PADRAIG";
 
         /* test boolean append */
         ex.clear().append(true);
@@ -50,7 +50,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(mockValue, ex.getValue().getString());
 
         /* test float append */
-        float floatKey = 5.545454f;
+        final float floatKey = 5.545454f;
         ex.clear().append(floatKey);
         ex.getValue().put(mockValue);
         ex.store();
@@ -59,7 +59,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(mockValue, ex.getValue().getString());
 
         /* test double append */
-        double doubleKey = 6.66;
+        final double doubleKey = 6.66;
         ex.clear().append(doubleKey);
         ex.getValue().put(mockValue);
         ex.store();
@@ -68,7 +68,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(mockValue, ex.getValue().getString());
 
         /* test int append */
-        int intKey = 6;
+        final int intKey = 6;
         ex.clear().append(intKey);
         ex.getValue().put(mockValue);
         ex.store();
@@ -77,7 +77,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(mockValue, ex.getValue().getString());
 
         /* test byte append */
-        byte oneByte = 1;
+        final byte oneByte = 1;
         ex.clear().append(oneByte);
         ex.getValue().put(mockValue);
         ex.store();
@@ -86,7 +86,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(mockValue, ex.getValue().getString());
 
         /* test short append */
-        short smallShort = 1234;
+        final short smallShort = 1234;
         ex.clear().append(smallShort);
         ex.getValue().put(mockValue);
         ex.store();
@@ -98,8 +98,8 @@ public class ExchangeTest extends PersistitUnitTestCase {
     @Test
     public void testStringAppend() throws PersistitException {
         int initialLength = 256;
-        String randomString = createString(initialLength);
-        Exchange ex = _persistit.getExchange("persistit", randomString, true);
+        final String randomString = createString(initialLength);
+        final Exchange ex = _persistit.getExchange("persistit", randomString, true);
 
         ex.clear().append(randomString);
         ex.getValue().put(randomString);
@@ -121,7 +121,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         /* now lets keep doubling value length for kicks */
         for (int i = 0; i < 12; i++) {
             initialLength *= 2;
-            String randomValue = createString(initialLength);
+            final String randomValue = createString(initialLength);
             ex.clear().append(randomKey);
             ex.getValue().put(randomValue);
             ex.store();
@@ -152,32 +152,32 @@ public class ExchangeTest extends PersistitUnitTestCase {
         try {
             ex.clear().append(randomKey);
             fail("ConversionException should have been thrown");
-        } catch (ConversionException expected) {
+        } catch (final ConversionException expected) {
         }
     }
 
     @Test
     public void testConstructors() throws PersistitException {
         try {
-            Exchange exchange = new Exchange(_persistit, "volume", "tree", true);
+            final Exchange exchange = new Exchange(_persistit, "volume", "tree", true);
             fail("NullPointerException should have been thrown for unknown Volume");
-        } catch (NullPointerException expected) {
+        } catch (final NullPointerException expected) {
         }
         try {
-            Volume nullVol = null;
-            Exchange ex = new Exchange(_persistit, nullVol, "whatever", true);
+            final Volume nullVol = null;
+            final Exchange ex = new Exchange(_persistit, nullVol, "whatever", true);
             fail("NullPointerException should have been thrown for null Volume");
-        } catch (NullPointerException expected) {
+        } catch (final NullPointerException expected) {
         }
     }
 
     @Test
     public void testTraversal() throws PersistitException {
-        Exchange ex = _persistit.getExchange("persistit", "gogo", true);
-        String mockValue = createString(256);
+        final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
+        final String mockValue = createString(256);
         /* insert 1000 records */
         for (int i = 0; i < 1000; i++) {
-            String key = createString(32);
+            final String key = createString(32);
             ex.clear().append(key);
             ex.getValue().put(mockValue);
             ex.store();
@@ -208,8 +208,8 @@ public class ExchangeTest extends PersistitUnitTestCase {
         }
         /* now use the traverse method with various directions */
         ex.clear().to(Key.BEFORE);
-        Key key = ex.getKey();
-        KeyFilter kf = new KeyFilter(key);
+        final Key key = ex.getKey();
+        final KeyFilter kf = new KeyFilter(key);
         /* this is mostly to test if we can trigger bad things */
         assertEquals(false, ex.traverse(Key.EQ, kf, 4));
         assertEquals(false, ex.traverse(Key.GT, kf, 4));
@@ -220,11 +220,11 @@ public class ExchangeTest extends PersistitUnitTestCase {
 
     @Test
     public void testKeyValues() throws PersistitException {
-        Exchange ex = _persistit.getExchange("persistit", "gogo", true);
-        String firstValue = new String("PADRAIG");
-        String secondValue = new String("SARAH");
-        String thirdValue = new String("TEENY");
-        String fourthValue = new String("NIMBUS");
+        final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
+        final String firstValue = new String("PADRAIG");
+        final String secondValue = new String("SARAH");
+        final String thirdValue = new String("TEENY");
+        final String fourthValue = new String("NIMBUS");
         ex.clear().append(-2);
         ex.getValue().put(firstValue);
         ex.store();
@@ -286,10 +286,10 @@ public class ExchangeTest extends PersistitUnitTestCase {
         testRemoveAndFetch(false);
         testRemoveAndFetch(true);
     }
-    
-    private void testRemoveAndFetch(boolean inTransaction) throws Exception {
-        Exchange ex = _persistit.getExchange("persistit", "gogo", true);
-        Transaction txn = ex.getTransaction();
+
+    private void testRemoveAndFetch(final boolean inTransaction) throws Exception {
+        final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
+        final Transaction txn = ex.getTransaction();
         ex.getValue().put(RED_FOX);
         for (int i = 1; i < 10000; i++) {
             if (inTransaction) {
@@ -314,13 +314,13 @@ public class ExchangeTest extends PersistitUnitTestCase {
             }
         }
     }
-    
+
     @Test
     public void testWrongThreadAssertion() throws Exception {
         boolean assertsEnabled = false;
         try {
             assert false;
-        } catch (AssertionError e) {
+        } catch (final AssertionError e) {
             assertsEnabled = true;
         }
         if (!assertsEnabled) {
@@ -329,12 +329,13 @@ public class ExchangeTest extends PersistitUnitTestCase {
             return;
         }
         final AtomicReference<Exchange> ref = new AtomicReference<Exchange>();
-        Thread thread = new Thread(new Runnable() {
+        final Thread thread = new Thread(new Runnable() {
+            @Override
             public void run() {
                 try {
                     final Exchange exchange = _persistit.getExchange("persistit", "gogo", true);
                     ref.set(exchange);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     // leave null ref
                 }
             }
@@ -354,7 +355,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
                     System.out.println("Testing " + m.getName());
                     m.invoke(exchange);
                     fail("Method " + m + " failed to throw an AssertionError");
-                } catch (InvocationTargetException e) {
+                } catch (final InvocationTargetException e) {
                     if (e.getCause() instanceof AssertionError) {
                         tested++;
                         // expected

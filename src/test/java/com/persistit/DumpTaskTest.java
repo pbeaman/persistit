@@ -41,7 +41,8 @@ public class DumpTaskTest extends PersistitUnitTestCase {
         final ByteBuffer bb = ByteBuffer.allocate(65536);
 
         for (long page = 1; page < 3; page++) {
-            Buffer buffer = _persistit.getBufferPool(16384).getBufferCopy(_persistit.getVolume("persistit"), page);
+            final Buffer buffer = _persistit.getBufferPool(16384)
+                    .getBufferCopy(_persistit.getVolume("persistit"), page);
             buffer.dump(bb, true, true, new HashSet<Volume>());
             bb.flip();
             assertEquals(IV.TYPE, IV.getType(bb));
@@ -51,9 +52,9 @@ public class DumpTaskTest extends PersistitUnitTestCase {
             assertEquals(PA.TYPE, PA.getType(bb));
             assertEquals(page, PA.getPageAddress(bb));
             Arrays.fill(buffer.getBytes(), (byte) 0);
-            int left = PA.getLeftSize(bb);
-            int recordSize = PA.getLength(bb);
-            int right = recordSize - left - PA.OVERHEAD;
+            final int left = PA.getLeftSize(bb);
+            final int recordSize = PA.getLength(bb);
+            final int right = recordSize - left - PA.OVERHEAD;
             System.arraycopy(bb.array(), bb.position() + PA.OVERHEAD, buffer.getBytes(), 0, left);
             System.arraycopy(bb.array(), bb.position() + PA.OVERHEAD + left, buffer.getBytes(), buffer.getBufferSize()
                     - right, right);
@@ -68,15 +69,15 @@ public class DumpTaskTest extends PersistitUnitTestCase {
         store1();
         final Volume volume = _persistit.getVolume("persistit");
         final Buffer buffer = _persistit.getBufferPool(16384).getBufferCopy(volume, 1);
-        CLI cli = new CLI(_persistit, null, null);
+        final CLI cli = new CLI(_persistit, null, null);
         final File file = File.createTempFile("DumpTaskTest", ".zip");
         file.deleteOnExit();
         cli.dump(file.getPath(), true, true, true);
 
         final ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(file)));
-        ZipEntry ze = zis.getNextEntry();
+        final ZipEntry ze = zis.getNextEntry();
         System.out.println(ze);
-        DataInputStream stream = new DataInputStream(new BufferedInputStream(zis));
+        final DataInputStream stream = new DataInputStream(new BufferedInputStream(zis));
 
     }
 

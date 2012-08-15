@@ -70,7 +70,7 @@ public abstract class AbstractSuite {
         String dataPath = ap.getStringValue("datapath");
         if (dataPath.endsWith("/") || dataPath.endsWith("\\")) {
             dataPath = dataPath.substring(0, dataPath.length() - 1);
-         }
+        }
         _logPath = _dataPath = dataPath;
         _duration = ap.getLongValue("duration");
         _progressLogInterval = ap.getLongValue("progress");
@@ -111,7 +111,7 @@ public abstract class AbstractSuite {
         }
     }
 
-    protected void add(AbstractStressTest test) {
+    protected void add(final AbstractStressTest test) {
         _tests.add(test);
     }
 
@@ -126,8 +126,8 @@ public abstract class AbstractSuite {
     protected void execute(final Persistit persistit) {
         try {
             int index = 0;
-            List<Thread> threads = new ArrayList<Thread>();
-            for (AbstractStressTest test : _tests) {
+            final List<Thread> threads = new ArrayList<Thread>();
+            for (final AbstractStressTest test : _tests) {
                 index++;
                 test.initialize(index);
                 test.setPersistit(persistit);
@@ -137,7 +137,7 @@ public abstract class AbstractSuite {
             final long start = System.nanoTime();
             final long end = start + (NS_PER_S * _duration);
 
-            for (Thread thread : threads) {
+            for (final Thread thread : threads) {
                 thread.start();
             }
 
@@ -147,20 +147,20 @@ public abstract class AbstractSuite {
                     break;
                 }
                 if (now > end && isUntilStopped()) {
-                    for (AbstractStressTest test : _tests) {
+                    for (final AbstractStressTest test : _tests) {
                         test.forceStop();
                     }
                 }
                 Thread.sleep(MS_PER_S);
             }
 
-            for (Thread thread : threads) {
+            for (final Thread thread : threads) {
                 thread.join(MS_PER_S);
             }
 
             boolean failed = false;
             long work = 0;
-            for (AbstractStressTest test : _tests) {
+            for (final AbstractStressTest test : _tests) {
                 if (test.isFailed()) {
                     failed = true;
                 }
@@ -174,7 +174,7 @@ public abstract class AbstractSuite {
                 saveOnFailure();
             }
             _failed |= failed;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new RuntimeException(e);
         }
 
@@ -187,7 +187,7 @@ public abstract class AbstractSuite {
         int stopped = 0;
         long work = 0;
 
-        for (AbstractStressTest test : tests) {
+        for (final AbstractStressTest test : tests) {
             if (test.isFinished()) {
                 ended++;
             } else {
@@ -242,7 +242,7 @@ public abstract class AbstractSuite {
 
     protected void deleteFiles(final String pattern) {
         if (pattern.endsWith("*")) {
-            File file = new File(pattern).getParentFile();
+            final File file = new File(pattern).getParentFile();
             if (file.isDirectory()) {
                 final File[] files = file.listFiles();
                 for (final File child : files) {
@@ -261,21 +261,21 @@ public abstract class AbstractSuite {
     }
 
     protected void saveOnFailure() throws IOException {
-        File dir = new File(_dataPath);
-        File moveTo = new File(dir, String.format("_failed_%s_%2$tY%2$tm%2$td%2$tH%2$tM%2$tS", getName(), System
-                .currentTimeMillis()));
+        final File dir = new File(_dataPath);
+        final File moveTo = new File(dir, String.format("_failed_%s_%2$tY%2$tm%2$td%2$tH%2$tM%2$tS", getName(),
+                System.currentTimeMillis()));
         moveTo.mkdirs();
 
         final File[] files = dir.listFiles();
         for (final File child : files) {
             if (!child.isDirectory()) {
-                File to = new File(moveTo, child.getName());
-                boolean moved = child.renameTo(to);
+                final File to = new File(moveTo, child.getName());
+                final boolean moved = child.renameTo(to);
                 System.out.printf("%s %s to %s\n", moved ? "moved" : "failed to move", child, to);
             }
         }
 
-        PrintWriter pw = new PrintWriter(new FileWriter(new File(moveTo, "results")));
+        final PrintWriter pw = new PrintWriter(new FileWriter(new File(moveTo, "results")));
         for (final AbstractStressTest test : _tests) {
             pw.printf("%s [%s] %s \n\n", test.getTestName(), test.getThreadName(), test.getResult());
         }
@@ -291,13 +291,13 @@ public abstract class AbstractSuite {
     }
 
     protected Configuration makeConfiguration(final int pageSize, final String mem, final CommitPolicy policy) {
-        Configuration c = new Configuration();
+        final Configuration c = new Configuration();
         c.setCommitPolicy(policy);
         c.setJmxEnabled(true);
         c.setJournalPath(substitute("$datapath$/persistit_journal"));
         c.setLogFile(substitute("$datapath$/persistit_$timestamp$.log"));
         c.setRmiPort(8081);
-        BufferPoolConfiguration bpc = c.getBufferPoolMap().get(pageSize);
+        final BufferPoolConfiguration bpc = c.getBufferPoolMap().get(pageSize);
         if (mem.contains(",")) {
             bpc.parseBufferMemory(pageSize, "buffer.memory." + pageSize, mem);
         } else {

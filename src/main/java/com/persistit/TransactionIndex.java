@@ -16,8 +16,9 @@
 package com.persistit;
 
 import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.TransactionStatus.PRIMORDIAL;
 import static com.persistit.TransactionStatus.TIMED_OUT;
-import static com.persistit.TransactionStatus.*;
+import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -130,18 +131,18 @@ class TransactionIndex implements TransactionIndexMXBean {
      * Lock held by a thread updating the ActiveTransactionCache to prevent a
      * race by another thread attempting also to update.
      */
-    private ReentrantLock _atCacheLock = new ReentrantLock();
+    private final ReentrantLock _atCacheLock = new ReentrantLock();
     /**
      * Reference to the more recently updated of two ActiveTransactionCache
      * instances.
      */
     private volatile ActiveTransactionCache _atCache;
 
-    private AtomicLong _deadlockCounter = new AtomicLong();
+    private final AtomicLong _deadlockCounter = new AtomicLong();
 
-    private AtomicLong _accumulatorSnapshotRetryCounter = new AtomicLong();
+    private final AtomicLong _accumulatorSnapshotRetryCounter = new AtomicLong();
 
-    private AtomicLong _accumulatorCheckpointRetryCounter = new AtomicLong();
+    private final AtomicLong _accumulatorCheckpointRetryCounter = new AtomicLong();
     /**
      * The system-wide timestamp allocator
      */
@@ -270,9 +271,9 @@ class TransactionIndex implements TransactionIndexMXBean {
         }
 
         private void add(final long ts) {
-            int index = _count;
+            final int index = _count;
             if (++_count >= _tsArray.length) {
-                long[] temp = new long[_count + INITIAL_ACTIVE_TRANSACTIONS_SIZE];
+                final long[] temp = new long[_count + INITIAL_ACTIVE_TRANSACTIONS_SIZE];
                 System.arraycopy(_tsArray, 0, temp, 0, _tsArray.length);
                 _tsArray = temp;
             }
@@ -291,7 +292,7 @@ class TransactionIndex implements TransactionIndexMXBean {
              * length of this array.
              */
             for (int index = 0; index < _count; index++) {
-                long ts = _tsArray[index];
+                final long ts = _tsArray[index];
                 if (ts > ts2) {
                     return false;
                 }
@@ -421,7 +422,7 @@ class TransactionIndex implements TransactionIndexMXBean {
              * committed). Otherwise return UNCOMITTED to prevent it from being
              * read.
              */
-            int stepv = vh2step(versionHandle);
+            final int stepv = vh2step(versionHandle);
             if (stepv <= step) {
                 return tsv;
             } else {
@@ -462,12 +463,12 @@ class TransactionIndex implements TransactionIndexMXBean {
         /*
          * Otherwise search the bucket and find the TransactionStatus for tsv.
          */
-        long commitTimestamp = tsv;
+        final long commitTimestamp = tsv;
         /*
          * There were members on at least one of the lists so we need to try to
          * find the corresponding TransactionStatus identified by tsv.
          */
-        TransactionStatus status = getStatus(tsv);
+        final TransactionStatus status = getStatus(tsv);
         /*
          * The result can be null in the event the TransactionStatus was freed.
          * It could only have been freed if its transaction committed at a tc
@@ -552,7 +553,7 @@ class TransactionIndex implements TransactionIndexMXBean {
             } else {
                 ts = _timestampAllocator.updateTimestamp();
             }
-            int index = hashIndex(ts);
+            final int index = hashIndex(ts);
             bucket = _hashTable[index];
             bucket.lock();
             try {
@@ -587,7 +588,7 @@ class TransactionIndex implements TransactionIndexMXBean {
                     bucket.unlock();
                 }
             }
-        } catch (InterruptedException ie) {
+        } catch (final InterruptedException ie) {
             status.abort();
             status.complete(0);
             throw ie;
@@ -639,7 +640,7 @@ class TransactionIndex implements TransactionIndexMXBean {
      * @return <code>true</code> if there exists a concurrent transaction that
      *         started between ts1 and ts2
      */
-    public boolean hasConcurrentTransaction(long ts1, long ts2) {
+    public boolean hasConcurrentTransaction(final long ts1, final long ts2) {
         return _atCache.hasConcurrentTransaction(ts1, ts2);
     }
 
@@ -685,7 +686,7 @@ class TransactionIndex implements TransactionIndexMXBean {
             return null;
         }
         final int hashIndex = hashIndex(tsv);
-        TransactionIndexBucket bucket = _hashTable[hashIndex];
+        final TransactionIndexBucket bucket = _hashTable[hashIndex];
         /*
          * First check whether there are any TransactionStatus instances in the
          * bucket. If not then the transaction that committed this value is not
@@ -938,7 +939,7 @@ class TransactionIndex implements TransactionIndexMXBean {
         final TransactionStatus status;
         final TransactionIndexBucket bucket;
         synchronized (this) {
-            int index = hashIndex(ts);
+            final int index = hashIndex(ts);
             bucket = _hashTable[index];
             bucket.lock();
             try {
@@ -961,7 +962,7 @@ class TransactionIndex implements TransactionIndexMXBean {
         Debug.suspend();
         _atCacheLock.lock();
         try {
-            ActiveTransactionCache alternate = _atCache == _atCache1 ? _atCache2 : _atCache1;
+            final ActiveTransactionCache alternate = _atCache == _atCache1 ? _atCache2 : _atCache1;
             alternate.recompute();
             _atCache = alternate;
         } finally {
@@ -1024,7 +1025,7 @@ class TransactionIndex implements TransactionIndexMXBean {
                 try {
                     result = accumulator
                             .applyValue(result, bucket.getAccumulatorSnapshot(accumulator, timestamp, step));
-                } catch (RetryException e) {
+                } catch (final RetryException e) {
                     again = true;
                 } finally {
                     bucket.unlock();
@@ -1055,9 +1056,9 @@ class TransactionIndex implements TransactionIndexMXBean {
      *            List of Accumulators that need to be check-pointed
      * @throws InterruptedException
      */
-    void checkpointAccumulatorSnapshots(long timestamp, final List<Accumulator> accumulators)
+    void checkpointAccumulatorSnapshots(final long timestamp, final List<Accumulator> accumulators)
             throws InterruptedException {
-        Map<Accumulator, Accumulator> lookupMap = new HashMap<Accumulator, Accumulator>();
+        final Map<Accumulator, Accumulator> lookupMap = new HashMap<Accumulator, Accumulator>();
         for (final Accumulator accumulator : accumulators) {
             lookupMap.put(accumulator, accumulator);
             accumulator.setCheckpointValueAndTimestamp(accumulator.getBaseValue(), Long.MIN_VALUE);
@@ -1077,7 +1078,7 @@ class TransactionIndex implements TransactionIndexMXBean {
                                 accumulator.applyValue(accumulator.getCheckpointValue(),
                                         accumulator.getCheckpointTemp()), timestamp);
                     }
-                } catch (RetryException e) {
+                } catch (final RetryException e) {
                     again = true;
                 } finally {
                     bucket.unlock();
@@ -1100,7 +1101,7 @@ class TransactionIndex implements TransactionIndexMXBean {
         final TransactionIndexBucket bucket = _hashTable[hashIndex];
         bucket.lock();
         try {
-            Delta delta = bucket.allocateDelta();
+            final Delta delta = bucket.allocateDelta();
             status.addDelta(delta);
             return delta;
         } finally {
@@ -1127,7 +1128,8 @@ class TransactionIndex implements TransactionIndexMXBean {
      * 
      * @return Delta that was created or modified.
      */
-    Delta addOrCombineDelta(TransactionStatus status, Accumulator accumulator, int step, long value) {
+    Delta addOrCombineDelta(final TransactionStatus status, final Accumulator accumulator, final int step,
+            final long value) {
         // Check current deltas, no lock as status is single txn/thread
         Delta delta = status.getDelta();
         while (delta != null) {
@@ -1248,10 +1250,10 @@ class TransactionIndex implements TransactionIndexMXBean {
      * @return
      */
     long[] oldestTransactions(final int max) {
-        long[] array = new long[Math.max(max, INITIAL_ACTIVE_TRANSACTIONS_SIZE)];
+        final long[] array = new long[Math.max(max, INITIAL_ACTIVE_TRANSACTIONS_SIZE)];
         int count = 0;
         for (int retry = 0; retry < 10; retry++) {
-            ActiveTransactionCache atCache = getActiveTransactionCache();
+            final ActiveTransactionCache atCache = getActiveTransactionCache();
             count = Math.min(max, atCache._count);
             System.arraycopy(atCache._tsArray, 0, array, 0, count);
             if (getActiveTransactionCache() == atCache) {
@@ -1262,7 +1264,7 @@ class TransactionIndex implements TransactionIndexMXBean {
         if (count == -1) {
             return null;
         }
-        long[] result = new long[count];
+        final long[] result = new long[count];
         System.arraycopy(array, 0, result, 0, count);
         return result;
     }
@@ -1289,7 +1291,7 @@ class TransactionIndex implements TransactionIndexMXBean {
     }
 
     ActiveTransactionCachePollTask close() {
-        ActiveTransactionCachePollTask task = _activeTransactionCachePollTask;
+        final ActiveTransactionCachePollTask task = _activeTransactionCachePollTask;
         if (task != null) {
             task.close();
             _activeTransactionCachePollTask = null;
@@ -1298,7 +1300,7 @@ class TransactionIndex implements TransactionIndexMXBean {
     }
 
     void crash() {
-        ActiveTransactionCachePollTask task = _activeTransactionCachePollTask;
+        final ActiveTransactionCachePollTask task = _activeTransactionCachePollTask;
         if (task != null) {
             task.crash();
             _activeTransactionCachePollTask = null;

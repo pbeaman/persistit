@@ -21,7 +21,6 @@ import java.util.TreeMap;
 
 import com.persistit.PersistitMap;
 import com.persistit.Value;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class PersistitMapStress1 extends StressBase {
@@ -43,8 +42,7 @@ public class PersistitMapStress1 extends StressBase {
     long _timeIter;
     long _timeRemove;
 
-    
-    public PersistitMapStress1(String argsString) {
+    public PersistitMapStress1(final String argsString) {
         super(argsString);
     }
 
@@ -116,8 +114,8 @@ public class PersistitMapStress1 extends StressBase {
                     }
                 }
                 if (_dm1.size() != _total && !isStopped()) {
-                    fail("PersistitMap.size()=" + _dm1.size() + " out of " + _total
-                            + " repetition=" + _repeat + " in thread=" + _threadIndex);
+                    fail("PersistitMap.size()=" + _dm1.size() + " out of " + _total + " repetition=" + _repeat
+                            + " in thread=" + _threadIndex);
                     break;
                 }
                 _timeWrite += (tt = ts()) - ts;
@@ -164,8 +162,8 @@ public class PersistitMapStress1 extends StressBase {
                     }
                 }
                 if (_count != _total && !isStopped()) {
-                    fail("Traverse count=" + _count + " out of " + _total + " repetition="
-                            + _repeat + " in thread=" + _threadIndex);
+                    fail("Traverse count=" + _count + " out of " + _total + " repetition=" + _repeat + " in thread="
+                            + _threadIndex);
                     break;
                 }
                 _timeIter += (tt = ts()) - ts;
@@ -206,8 +204,8 @@ public class PersistitMapStress1 extends StressBase {
                     }
                 }
                 if (_count != 0 && !isStopped()) {
-                    fail("Traverse count=" + _count + " when 0 were expected"
-                            + " repetition=" + _repeat + " in thread=" + _threadIndex);
+                    fail("Traverse count=" + _count + " when 0 were expected" + " repetition=" + _repeat
+                            + " in thread=" + _threadIndex);
                     break;
                 }
                 _timeRemove += (tt = ts()) - ts;
@@ -235,8 +233,8 @@ public class PersistitMapStress1 extends StressBase {
                     }
                 }
                 if (_dm1.size() != 0 && !isStopped()) {
-                    fail("PersistitMap.size()= " + _dm1.size() + " when 0 were expected"
-                            + " repetition=" + _repeat + " in thread=" + _threadIndex);
+                    fail("PersistitMap.size()= " + _dm1.size() + " when 0 were expected" + " repetition=" + _repeat
+                            + " in thread=" + _threadIndex);
                     break;
                 }
                 _timeRemove += (tt = ts()) - ts;

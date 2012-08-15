@@ -44,7 +44,7 @@ import com.persistit.Management;
 class InspectorPanel extends JPanel {
     protected AdminUI _adminUI;
 
-    private JTabbedPane _tabbedPane;
+    private final JTabbedPane _tabbedPane;
 
     private String _volumeName;
     private String _treeName;
@@ -55,13 +55,13 @@ class InspectorPanel extends JPanel {
 
     Map _menuMap = new HashMap();
 
-    InspectorPanel(AdminUI ui) {
+    InspectorPanel(final AdminUI ui) {
         _adminUI = ui;
         _tabbedPane = new JTabbedPane(SwingConstants.LEFT);
         setupTabbedPanes();
         _tabbedPane.addChangeListener(new ChangeListener() {
             @Override
-            public void stateChanged(ChangeEvent ce) {
+            public void stateChanged(final ChangeEvent ce) {
                 handleTabChanged();
             }
         });
@@ -73,36 +73,36 @@ class InspectorPanel extends JPanel {
 
     private void setupTabbedPanes() {
         for (int index = 0;; index++) {
-            String paneSpecification = _adminUI.getProperty("InspectorTabbedPane." + index);
+            final String paneSpecification = _adminUI.getProperty("InspectorTabbedPane." + index);
             if (paneSpecification == null || paneSpecification.startsWith(".")) {
                 break;
             }
-            StringTokenizer st = new StringTokenizer(paneSpecification, ":");
-            String className = st.nextToken();
-            String caption = st.nextToken();
+            final StringTokenizer st = new StringTokenizer(paneSpecification, ":");
+            final String className = st.nextToken();
+            final String caption = st.nextToken();
             String iconName = null;
             if (st.hasMoreTokens()) {
                 iconName = st.nextToken();
             }
             try {
-                Class cl = Class.forName(className);
-                AbstractInspector panel = (AbstractInspector) cl.newInstance();
+                final Class cl = Class.forName(className);
+                final AbstractInspector panel = (AbstractInspector) cl.newInstance();
                 panel.setup(_adminUI, this);
                 _tabbedPane.addTab(caption, panel);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 e.printStackTrace(); // TODO
                 _adminUI.showMessage(e, _adminUI.getProperty("SetupFailedMessage"), JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
-    void setLogicalRecord(String volumeName, String treeName, Management.LogicalRecord lr) {
+    void setLogicalRecord(final String volumeName, final String treeName, final Management.LogicalRecord lr) {
         _volumeName = volumeName;
         _treeName = treeName;
         _logicalRecord = lr;
     }
 
-    void setLogicalRecord(Management.LogicalRecord lr) {
+    void setLogicalRecord(final Management.LogicalRecord lr) {
         setLogicalRecord(_volumeName, _treeName, lr);
     }
 
@@ -122,13 +122,13 @@ class InspectorPanel extends JPanel {
         return _showValue;
     }
 
-    void setShowValue(boolean showValue) {
+    void setShowValue(final boolean showValue) {
         _showValue = showValue;
     }
 
-    protected synchronized void refresh(boolean reset) {
+    protected synchronized void refresh(final boolean reset) {
         // The fetch the updated Value for the current key.
-        Management.LogicalRecord lr = getLogicalRecord();
+        final Management.LogicalRecord lr = getLogicalRecord();
         if (lr == null || lr.getKeyState() == null) {
             nullData();
             return;
@@ -145,24 +145,24 @@ class InspectorPanel extends JPanel {
         Management.LogicalRecord _logicalRecord;
         Exception _exception;
 
-        Fetcher(Management.LogicalRecord lr) {
+        Fetcher(final Management.LogicalRecord lr) {
             _logicalRecord = lr;
         }
 
         @Override
         public void run() {
-            Management management = _adminUI.getManagement();
+            final Management management = _adminUI.getManagement();
             if (management == null)
                 return;
             try {
-                Management.LogicalRecord[] results = management.getLogicalRecordArray(getVolumeName(), getTreeName(),
-                        null, _logicalRecord.getKeyState(), Key.EQ, 1, Integer.MAX_VALUE, true
+                final Management.LogicalRecord[] results = management.getLogicalRecordArray(getVolumeName(),
+                        getTreeName(), null, _logicalRecord.getKeyState(), Key.EQ, 1, Integer.MAX_VALUE, true
 
                 );
                 if (results == null || results.length == 0) {
                     _logicalRecord = null;
                 } else {
-                    Management.LogicalRecord lr = results[0];
+                    final Management.LogicalRecord lr = results[0];
                     if (_logicalRecord != null && _logicalRecord.getKeyState().equals(lr.getKeyState())
                             && _logicalRecord.getValueState().equals(lr.getValueState())) {
                         return; // No need to do anything more.
@@ -180,43 +180,43 @@ class InspectorPanel extends JPanel {
                         refreshed();
                     }
                 });
-            } catch (RemoteException re) {
+            } catch (final RemoteException re) {
                 _exception = re;
             }
         }
     }
 
     private void handleTabChanged() {
-        int newTab = _tabbedPane.getSelectedIndex();
+        final int newTab = _tabbedPane.getSelectedIndex();
         if (newTab == _selectedTab)
             return;
         _selectedTab = newTab;
-        AbstractInspector inspector = newTab == -1 ? null : (AbstractInspector) _tabbedPane.getComponent(newTab);
+        final AbstractInspector inspector = newTab == -1 ? null : (AbstractInspector) _tabbedPane.getComponent(newTab);
         if (inspector != null) {
             inspector.refreshed();
         }
     }
 
     AbstractInspector getCurrentInspector() {
-        AbstractInspector inspector = _selectedTab == -1 ? null : (AbstractInspector) _tabbedPane
+        final AbstractInspector inspector = _selectedTab == -1 ? null : (AbstractInspector) _tabbedPane
                 .getComponent(_selectedTab);
         return inspector;
     }
 
     protected void waiting() {
-        AbstractInspector inspector = getCurrentInspector();
+        final AbstractInspector inspector = getCurrentInspector();
         if (inspector != null)
             inspector.waiting();
     }
 
     protected void refreshed() {
-        AbstractInspector inspector = getCurrentInspector();
+        final AbstractInspector inspector = getCurrentInspector();
         if (inspector != null)
             inspector.refreshed();
     }
 
     protected void nullData() {
-        AbstractInspector inspector = getCurrentInspector();
+        final AbstractInspector inspector = getCurrentInspector();
         if (inspector != null)
             inspector.nullData();
     }

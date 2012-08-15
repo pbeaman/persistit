@@ -31,19 +31,19 @@ public class FatalErrorExceptionTest extends PersistitUnitTestCase {
         ex.fetch();
         try {
             _persistit.fatal("Test", new NullPointerException("Test"));
-        } catch (FatalErrorException e) {
+        } catch (final FatalErrorException e) {
             // expected
         }
         try {
             ex.store();
             fail("Expected FatalErrorException");
-        } catch (FatalErrorException e) {
+        } catch (final FatalErrorException e) {
             // expected
         }
         try {
             ex.fetch();
             fail("Expected FatalErrorException");
-        } catch (FatalErrorException e) {
+        } catch (final FatalErrorException e) {
             // expected
         }
         _persistit.crash();

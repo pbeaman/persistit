@@ -19,10 +19,9 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-
 public class KeyHistogramTest extends PersistitUnitTestCase {
 
-    private String _volumeName = "persistit";
+    private final String _volumeName = "persistit";
 
     @Test
     public void testCull() throws Exception {
