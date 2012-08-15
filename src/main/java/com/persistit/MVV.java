@@ -340,8 +340,6 @@ class MVV {
                         end -= (next - to);
                         next = to;
                     }
-                } else if (curVersion < versionHandle) {
-
                 }
                 to = next;
             }

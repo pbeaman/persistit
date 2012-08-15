@@ -1768,8 +1768,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * time intervals in milliseconds.
      * 
      * @param flushedTimestamp
-     *            a timestamp take after the transaction buffer belonging to the
-     *            current transaction has been flushed.
+     *            a timestamp taken after the transaction buffer belonging to
+     *            the current transaction has been flushed.
      * @param leadTime
      *            time interval in milliseconds by which to anticipate I/O
      *            completion; the method will return as soon as the I/O
@@ -2604,8 +2604,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             // Detect first journal address holding a mapped page
             // required for recovery
             //
-            PageNode boundaryPageNode = null;
-            TransactionMapItem boundaryTransaction = null;
 
             for (final PageNode pageNode : _pageMap.values()) {
                 //
@@ -2615,7 +2613,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 for (PageNode pn = pageNode; pn != null; pn = pn.getPrevious()) {
                     if (pn.getJournalAddress() < recoveryBoundary) {
                         recoveryBoundary = pn.getJournalAddress();
-                        boundaryPageNode = pn;
                     }
                 }
             }
@@ -2628,7 +2625,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 final TransactionMapItem item = iterator.next();
                 if (item.getStartAddress() < recoveryBoundary) {
                     recoveryBoundary = item.getStartAddress();
-                    boundaryTransaction = item;
                 }
             }
 
