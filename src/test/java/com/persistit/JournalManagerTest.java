@@ -540,7 +540,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         long waitLoopsWithoutDelay  = jman.getWaitLoopsWithNoDelay();
         final Exchange exchange = _persistit.getExchange("persistit", "JournalManagerTest", true);
         final Transaction txn = exchange.getTransaction();
-        for (int count = 0; count < 100; count++) {
+        for (int count = 0; count < 1000; count++) {
             txn.begin();
             exchange.getValue().put(RED_FOX + count);
             exchange.to(count).store();
