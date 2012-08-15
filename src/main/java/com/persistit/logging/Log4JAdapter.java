@@ -44,7 +44,7 @@ public class Log4JAdapter implements PersistitLogger {
         LEVEL_MAP.put(PersistitLevel.ERROR, Level.ERROR);
     }
 
-    private Logger _logger;
+    private final Logger _logger;
 
     /**
      * Constructs a wrapped Log4J Logger.
@@ -53,7 +53,7 @@ public class Log4JAdapter implements PersistitLogger {
      *            A <code>Logger</code> to which Persistit log messages will be
      *            directed.
      */
-    public Log4JAdapter(Logger logger) {
+    public Log4JAdapter(final Logger logger) {
         _logger = logger;
     }
 
@@ -65,7 +65,7 @@ public class Log4JAdapter implements PersistitLogger {
      *            The <code>PersistitLevel</code>
      */
     @Override
-    public boolean isLoggable(PersistitLevel level) {
+    public boolean isLoggable(final PersistitLevel level) {
         return _logger.isEnabledFor(LEVEL_MAP.get(level));
     }
 
@@ -79,7 +79,7 @@ public class Log4JAdapter implements PersistitLogger {
      *            The message to write to the log.
      */
     @Override
-    public void log(PersistitLevel level, String message) {
+    public void log(final PersistitLevel level, final String message) {
         _logger.log(LEVEL_MAP.get(level), message);
     }
 
@@ -94,7 +94,6 @@ public class Log4JAdapter implements PersistitLogger {
         // Nothing to do - the log is created and destroyed by the embedding
         // application
     }
-    
 
     @Override
     public void flush() {

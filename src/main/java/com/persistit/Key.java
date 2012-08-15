@@ -900,10 +900,11 @@ public final class Key implements Comparable<Object> {
 
         boolean _after;
 
-        private EdgeValue(boolean after) {
+        private EdgeValue(final boolean after) {
             _after = after;
         }
 
+        @Override
         public String toString() {
             return _after ? "{after}" : "{before}";
         }
@@ -928,7 +929,7 @@ public final class Key implements Comparable<Object> {
      * @param key
      *            The <code>Key</code> to copy.
      */
-    public void copyTo(Key key) {
+    public void copyTo(final Key key) {
         if (key == this)
             return;
         if (key._maxSize < _maxSize) {
@@ -982,7 +983,7 @@ public final class Key implements Comparable<Object> {
      * @param source
      *            The <code>Key</code> to copy
      */
-    public Key(Key source) {
+    public Key(final Key source) {
         source.copyTo(this);
     }
 
@@ -1021,7 +1022,7 @@ public final class Key implements Comparable<Object> {
      * <code>Key</code>. This method is part of the <a
      * href="#_lowLevelAPI">Low-Level API</a>.
      */
-    public void setEncodedSize(int size) {
+    public void setEncodedSize(final int size) {
         notLeftOrRightGuard();
         if (size < 0 || size > _maxSize) {
             throw new IllegalArgumentException("Invalid size=" + size);
@@ -1060,7 +1061,7 @@ public final class Key implements Comparable<Object> {
      * @param index
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key setIndex(int index) {
+    public Key setIndex(final int index) {
         notLeftOrRightGuard();
         if (index < 0 || index > _size) {
             throw new IllegalArgumentException("index=" + index + " _size=" + _size);
@@ -1080,6 +1081,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @return The hash code
      */
+    @Override
     public int hashCode() {
         int hashCode = 0;
         for (int index = 0; index < _size; index++) {
@@ -1100,7 +1102,8 @@ public final class Key implements Comparable<Object> {
      * @return <code>true</code> if the target represents the same
      *         <code>Key</code> value
      */
-    public boolean equals(Object target) {
+    @Override
+    public boolean equals(final Object target) {
         if (target instanceof Key)
             return compareTo(target) == 0;
         else if (target instanceof KeyState) {
@@ -1116,21 +1119,22 @@ public final class Key implements Comparable<Object> {
      * 
      * @return The comparison result
      */
-    public int compareTo(Object target) {
-        Key key2 = (Key) target;
+    @Override
+    public int compareTo(final Object target) {
+        final Key key2 = (Key) target;
         if (key2 == this)
             return 0;
-        int size1 = this._size;
-        int size2 = key2.getEncodedSize();
+        final int size1 = this._size;
+        final int size2 = key2.getEncodedSize();
 
-        byte[] bytes1 = this._bytes;
-        byte[] bytes2 = key2.getEncodedBytes();
+        final byte[] bytes1 = this._bytes;
+        final byte[] bytes2 = key2.getEncodedBytes();
         int size = size1;
         if (size2 < size1)
             size = size2;
         for (int i = 0; i < size; i++) {
-            int b1 = bytes1[i] & 0xFF;
-            int b2 = bytes2[i] & 0xFF;
+            final int b1 = bytes1[i] & 0xFF;
+            final int b2 = bytes2[i] & 0xFF;
             if (b1 != b2)
                 return b1 - b2;
         }
@@ -1157,13 +1161,13 @@ public final class Key implements Comparable<Object> {
      *         smaller than, or 0 if this <code>Key</code>'s fragment is equal
      *         to the corresponding fragment of the supplied <code>Key</code>.
      */
-    public int compareKeyFragment(Key key, int fragmentStart, int fragmentSize) {
+    public int compareKeyFragment(final Key key, final int fragmentStart, final int fragmentSize) {
         if (key == this)
             return 0;
-        int size1 = this._size;
-        int size2 = key.getEncodedSize();
-        byte[] bytes1 = this.getEncodedBytes();
-        byte[] bytes2 = key.getEncodedBytes();
+        final int size1 = this._size;
+        final int size2 = key.getEncodedSize();
+        final byte[] bytes1 = this.getEncodedBytes();
+        final byte[] bytes2 = key.getEncodedBytes();
 
         int size = size1;
         if (size2 < size)
@@ -1172,8 +1176,8 @@ public final class Key implements Comparable<Object> {
             size = fragmentSize + fragmentStart;
         }
         for (int i = fragmentStart; i < size; i++) {
-            int b1 = bytes1[i] & 0xFF;
-            int b2 = bytes2[i] & 0xFF;
+            final int b1 = bytes1[i] & 0xFF;
+            final int b2 = bytes2[i] & 0xFF;
             if (b1 != b2)
                 return b1 - b2;
         }
@@ -1198,7 +1202,7 @@ public final class Key implements Comparable<Object> {
      *         byte in the corresponding position of the supplied
      *         <code>Key</code>.
      */
-    public int firstUniqueByteIndex(Key key) {
+    public int firstUniqueByteIndex(final Key key) {
         int end = _size;
         if (end > key._size) {
             end = key._size;
@@ -1222,7 +1226,7 @@ public final class Key implements Comparable<Object> {
      * @return The depth of the first segment of this key that differs from that
      *         of the supplied <code>Key</code>.
      */
-    public int firstUniqueSegmentDepth(Key key) {
+    public int firstUniqueSegmentDepth(final Key key) {
         int depth = 0;
         int end = _size;
         if (end > key._size) {
@@ -1253,7 +1257,7 @@ public final class Key implements Comparable<Object> {
         return this;
     }
 
-    void clear(boolean secure) {
+    void clear(final boolean secure) {
         if (secure) {
             Util.clearBytes(_bytes, 0, _bytes.length);
         }
@@ -1278,7 +1282,7 @@ public final class Key implements Comparable<Object> {
      *            The depth, as defined above.
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key setDepth(int depth) {
+    public Key setDepth(final int depth) {
         if (depth == 0) {
             return clear();
         }
@@ -1325,7 +1329,7 @@ public final class Key implements Comparable<Object> {
      *            The depth, as defined above.
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key indexTo(int depth) {
+    public Key indexTo(final int depth) {
         int index = 0;
         if (depth < 0) {
             index = -1;
@@ -1386,7 +1390,7 @@ public final class Key implements Comparable<Object> {
      *            The number of key segments to cut.
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key cut(int count) {
+    public Key cut(final int count) {
         int index = _size;
         for (int i = 0; i < count && index > 0; i++) {
             index = previousElementIndex(index);
@@ -1417,19 +1421,20 @@ public final class Key implements Comparable<Object> {
      * 
      * @return A displayable String
      */
+    @Override
     public String toString() {
         if (_size == 0) {
             return "{}";
         }
-        StringBuilder sb = new StringBuilder("{");
-        int index = _index;
+        final StringBuilder sb = new StringBuilder("{");
+        final int index = _index;
         _index = 0;
         byte save = 0;
 
         Nudged nudged = Nudged.NO;
         if (_size >= 2) {
-            byte z0 = _bytes[_size - 2];
-            byte z1 = _bytes[_size - 1];
+            final byte z0 = _bytes[_size - 2];
+            final byte z1 = _bytes[_size - 1];
             if (z0 == 0 && z1 == 0) {
                 nudged = Nudged.DOWN;
                 _size--;
@@ -1467,7 +1472,7 @@ public final class Key implements Comparable<Object> {
                 // no annotation
             }
             return sb.toString();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             return e + "(size=" + _size + ") " + Util.hexDump(_bytes, 0, _size);
         } finally {
             switch (nudged) {
@@ -1495,7 +1500,7 @@ public final class Key implements Comparable<Object> {
      *            The boolean value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key append(boolean v) {
+    public Key append(final boolean v) {
         testValidForAppend();
         int size = _size;
         _bytes[size++] = v ? (byte) TYPE_BOOLEAN_TRUE : (byte) TYPE_BOOLEAN_FALSE;
@@ -1585,7 +1590,7 @@ public final class Key implements Comparable<Object> {
      *            The byte value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key append(byte v) {
+    public Key append(final byte v) {
         testValidForAppend();
         int size = _size;
         if (v > 0) {
@@ -1610,7 +1615,7 @@ public final class Key implements Comparable<Object> {
      *            The short value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key append(short v) {
+    public Key append(final short v) {
         testValidForAppend();
         int size = _size;
         if (v >= 0) {
@@ -1660,7 +1665,7 @@ public final class Key implements Comparable<Object> {
      *            The char value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key append(char v) {
+    public Key append(final char v) {
         testValidForAppend();
         int size = _size;
         int scale = 3;
@@ -1691,9 +1696,9 @@ public final class Key implements Comparable<Object> {
      *            The int value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key append(int v) {
+    public Key append(final int v) {
         testValidForAppend();
-        int size = appendIntInternal(v);
+        final int size = appendIntInternal(v);
         // Close out the segment.
 
         return endSegment(size);
@@ -1707,7 +1712,7 @@ public final class Key implements Comparable<Object> {
      * @param offset
      * @return
      */
-    private int appendIntInternal(int v) {
+    private int appendIntInternal(final int v) {
         int size = _size;
         if (v >= 0) {
             final int scale;
@@ -1777,13 +1782,13 @@ public final class Key implements Comparable<Object> {
      *            The long value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key append(long v) {
+    public Key append(final long v) {
         testValidForAppend();
-        int size = appendLongInternal(v);
+        final int size = appendLongInternal(v);
         return endSegment(size);
     }
 
-    private int appendLongInternal(long v) {
+    private int appendLongInternal(final long v) {
         int size = _size;
         if (v >= 0) {
             int scale = 9;
@@ -1877,7 +1882,7 @@ public final class Key implements Comparable<Object> {
      *            The float value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key append(float v) {
+    public Key append(final float v) {
         testValidForAppend();
         int bits = Float.floatToIntBits(v);
         int size = _size;
@@ -1902,7 +1907,7 @@ public final class Key implements Comparable<Object> {
      *            The double value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key append(double v) {
+    public Key append(final double v) {
         testValidForAppend();
         long bits = Double.doubleToLongBits(v);
         int size = _size;
@@ -1935,7 +1940,7 @@ public final class Key implements Comparable<Object> {
      *             if the supplied object is not an implicitly supported type
      *             and does not have a {@link KeyCoder}.
      */
-    public Key append(Object object) {
+    public Key append(final Object object) {
         return append(object, null);
     }
 
@@ -1959,7 +1964,7 @@ public final class Key implements Comparable<Object> {
      *             if the supplied object is not an implicitly supported type
      *             and does not have a {@link KeyCoder}.
      */
-    public Key append(Object object, CoderContext context) {
+    public Key append(final Object object, final CoderContext context) {
         testValidForAppend();
         if (object == null) {
             return appendNull();
@@ -1969,7 +1974,7 @@ public final class Key implements Comparable<Object> {
             return appendAfter();
         }
 
-        Class<?> cl = object.getClass();
+        final Class<?> cl = object.getClass();
 
         if (CharSequence.class.isAssignableFrom(cl)) {
             return appendString((CharSequence) object, context);
@@ -2023,7 +2028,7 @@ public final class Key implements Comparable<Object> {
             return appendBigDecimal((BigDecimal) object);
         }
 
-        KeyCoder coder = _persistit.lookupKeyCoder(cl);
+        final KeyCoder coder = _persistit.lookupKeyCoder(cl);
         if (coder != null) {
             return appendByKeyCoder(object, cl, coder, context);
         }
@@ -2040,7 +2045,7 @@ public final class Key implements Comparable<Object> {
      *            The boolean value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key to(boolean v) {
+    public Key to(final boolean v) {
         cut();
         return append(v);
     }
@@ -2054,7 +2059,7 @@ public final class Key implements Comparable<Object> {
      *            The byte value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key to(byte v) {
+    public Key to(final byte v) {
         cut();
         return append(v);
     }
@@ -2068,7 +2073,7 @@ public final class Key implements Comparable<Object> {
      *            The short value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key to(short v) {
+    public Key to(final short v) {
         cut();
         return append(v);
     }
@@ -2082,7 +2087,7 @@ public final class Key implements Comparable<Object> {
      *            The char value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key to(char v) {
+    public Key to(final char v) {
         cut();
         return append(v);
     }
@@ -2096,7 +2101,7 @@ public final class Key implements Comparable<Object> {
      *            The int value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key to(int v) {
+    public Key to(final int v) {
         cut();
         return append(v);
     }
@@ -2110,7 +2115,7 @@ public final class Key implements Comparable<Object> {
      *            The long value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key to(long v) {
+    public Key to(final long v) {
         cut();
         return append(v);
     }
@@ -2124,7 +2129,7 @@ public final class Key implements Comparable<Object> {
      *            The float value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key to(float v) {
+    public Key to(final float v) {
         cut();
         return append(v);
     }
@@ -2138,7 +2143,7 @@ public final class Key implements Comparable<Object> {
      *            The double value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key to(double v) {
+    public Key to(final double v) {
         cut();
         return append(v);
     }
@@ -2154,7 +2159,7 @@ public final class Key implements Comparable<Object> {
      *            The Object value to append
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key to(Object v) {
+    public Key to(final Object v) {
         cut();
         return append(v);
     }
@@ -2168,7 +2173,7 @@ public final class Key implements Comparable<Object> {
      *             if the next key segment value is not a boolean.
      */
     public boolean decodeBoolean() {
-        int type = getTypeCode();
+        final int type = getTypeCode();
         boolean v;
         if (type == TYPE_BOOLEAN_FALSE) {
             v = false;
@@ -2189,7 +2194,7 @@ public final class Key implements Comparable<Object> {
      *             if the next key segment value is not a byte.
      */
     public byte decodeByte() {
-        int type = getTypeCode();
+        final int type = getTypeCode();
         if (type >= TYPE_BYTE && type <= TYPE_BYTE + (EWIDTH_BYTE * 2)) {
             return (byte) decodeInt();
         }
@@ -2205,7 +2210,7 @@ public final class Key implements Comparable<Object> {
      *             if the next key segment value is not a short.
      */
     public short decodeShort() {
-        int type = getTypeCode();
+        final int type = getTypeCode();
         if (type >= TYPE_BYTE && type <= TYPE_SHORT + (EWIDTH_SHORT * 2)) {
             return (short) decodeInt();
         }
@@ -2221,7 +2226,7 @@ public final class Key implements Comparable<Object> {
      *             if the next key segment value is not a char.
      */
     public char decodeChar() {
-        int type = getTypeCode();
+        final int type = getTypeCode();
         if (type >= TYPE_CHAR && type <= TYPE_CHAR + EWIDTH_CHAR) {
             return (char) decodeInt();
         }
@@ -2239,7 +2244,7 @@ public final class Key implements Comparable<Object> {
     public int decodeInt() {
         int index = _index;
         try {
-            int result = decodeIntInternal();
+            final int result = decodeIntInternal();
             index = decodeEnd(_index);
             return result;
         } finally {
@@ -2256,7 +2261,7 @@ public final class Key implements Comparable<Object> {
      *             if the next key segment value is not a int.
      */
     private int decodeIntInternal() {
-        int type = getTypeCode();
+        final int type = getTypeCode();
         int index = _index + 1;
         int result = 0;
         switch (type) {
@@ -2360,7 +2365,7 @@ public final class Key implements Comparable<Object> {
     public long decodeLong() {
         int index = _index;
         try {
-            long result = decodeLongInternal();
+            final long result = decodeLongInternal();
             index = decodeEnd(_index);
             return result;
         } finally {
@@ -2377,7 +2382,7 @@ public final class Key implements Comparable<Object> {
      *             if the next key segment value is not a int.
      */
     private long decodeLongInternal() {
-        int type = getTypeCode();
+        final int type = getTypeCode();
         int index = _index + 1;
         if (type >= TYPE_BYTE && type < TYPE_LONG)
             return decodeIntInternal();
@@ -2459,13 +2464,13 @@ public final class Key implements Comparable<Object> {
      */
     public float decodeFloat() {
         float result = 0.0F;
-        int type = getTypeCode();
+        final int type = getTypeCode();
         int index = _index + 1;
         if (type == TYPE_FLOAT) {
             int bits = 0;
             int shift = 32;
             for (;;) {
-                int b = (_bytes[index++]) & 0xFF;
+                final int b = (_bytes[index++]) & 0xFF;
                 if (b == 0)
                     break;
                 if (shift == 0) {
@@ -2504,7 +2509,7 @@ public final class Key implements Comparable<Object> {
      */
     public double decodeDouble() {
         double result = 0.0F;
-        int type = getTypeCode();
+        final int type = getTypeCode();
         int index = _index + 1;
         if (type == TYPE_FLOAT)
             return decodeFloat();
@@ -2512,7 +2517,7 @@ public final class Key implements Comparable<Object> {
             long bits = 0;
             int shift = 64;
             for (;;) {
-                long b = (_bytes[index++]) & 0xFF;
+                final long b = (_bytes[index++]) & 0xFF;
                 if (b == 0)
                     break;
                 if (shift == 0) {
@@ -2550,7 +2555,7 @@ public final class Key implements Comparable<Object> {
      *             if the next key segment value is not a String.
      */
     public String decodeString() {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         decodeString(false, sb);
         return sb.toString();
     }
@@ -2567,7 +2572,7 @@ public final class Key implements Comparable<Object> {
      * @throws ConversionException
      *             if the next key segment value is not a String.
      */
-    public Appendable decodeString(Appendable sb) {
+    public Appendable decodeString(final Appendable sb) {
         return decodeString(false, sb);
     }
 
@@ -2582,13 +2587,13 @@ public final class Key implements Comparable<Object> {
     public Date decodeDate() {
         int index = _index;
         try {
-            int type = getTypeCode();
+            final int type = getTypeCode();
             _index++;
             if (type != TYPE_DATE) {
                 throw new ConversionException("Invalid Date lead-in byte (" + type + ") at position " + _index
                         + " in key");
             }
-            Date result = new Date(decodeLongInternal());
+            final Date result = new Date(decodeLongInternal());
             index = decodeEnd(_index);
             return result;
         } finally {
@@ -2606,14 +2611,14 @@ public final class Key implements Comparable<Object> {
      */
     public BigInteger decodeBigInteger() {
         int index = _index;
-        int type = getTypeCode();
+        final int type = getTypeCode();
         if (type != TYPE_BIG_INTEGER) {
             throw new ConversionException("Invalid String lead-in byte (" + type + ") at position " + _index
                     + " in key");
         }
         _index++;
         try {
-            BigIntegerStruct bis = new BigIntegerStruct();
+            final BigIntegerStruct bis = new BigIntegerStruct();
             decodeBigInteger(bis);
             index = decodeEnd(_index);
             return bis._bigInteger;
@@ -2632,18 +2637,18 @@ public final class Key implements Comparable<Object> {
      */
     public BigDecimal decodeBigDecimal() {
         int index = _index;
-        int type = getTypeCode();
+        final int type = getTypeCode();
         if (type != TYPE_BIG_DECIMAL) {
             throw new ConversionException("Invalid String lead-in byte (" + type + ") at position " + _index
                     + " in key");
         }
         _index++;
         try {
-            BigIntegerStruct bis = new BigIntegerStruct();
+            final BigIntegerStruct bis = new BigIntegerStruct();
             decodeBigInteger(bis);
             index = decodeEnd(_index);
             BigDecimal result = new BigDecimal(bis._bigInteger, bis._scale);
-            int rescale = bis._scale - bis._zeroCount;
+            final int rescale = bis._scale - bis._zeroCount;
             if (bis._zeroCount > 0 && rescale > 0) {
                 result = result.setScale(rescale);
             }
@@ -2663,14 +2668,14 @@ public final class Key implements Comparable<Object> {
      */
     public byte[] decodeByteArray() {
         int index = _index;
-        int type = getTypeCode();
+        final int type = getTypeCode();
         try {
             if (type != TYPE_BYTE_ARRAY) {
                 throw new ConversionException("Invalid String lead-in byte (" + type + ") at position " + _index
                         + " in key");
             }
-            int size = unquoteNulls(index + 1, false);
-            byte[] result = new byte[size];
+            final int size = unquoteNulls(index + 1, false);
+            final byte[] result = new byte[size];
             System.arraycopy(_bytes, index + 1, result, 0, size);
             index += quoteNulls(index + 1, size, false) + 2;
             return result;
@@ -2713,7 +2718,7 @@ public final class Key implements Comparable<Object> {
      *         the <code>Key</code>, or <code>null</code> if the encoded value
      *         is null.
      */
-    public Object decode(Object target) {
+    public Object decode(final Object target) {
         return decode(target, null);
     }
 
@@ -2744,9 +2749,9 @@ public final class Key implements Comparable<Object> {
      *         the <code>Key</code>, or <code>null</code> if the encoded value
      *         is null.
      */
-    public Object decode(Object target, CoderContext context) {
-        int index = _index;
-        int type = getTypeCode();
+    public Object decode(final Object target, final CoderContext context) {
+        final int index = _index;
+        final int type = getTypeCode();
 
         if (type == TYPE_NULL) {
             return decodeNull();
@@ -2769,7 +2774,7 @@ public final class Key implements Comparable<Object> {
         }
 
         if (type >= TYPE_INT && type < TYPE_LONG) {
-            return Integer.valueOf((int) decodeInt());
+            return Integer.valueOf(decodeInt());
         }
 
         if (type >= TYPE_LONG && type < TYPE_FLOAT) {
@@ -2827,12 +2832,12 @@ public final class Key implements Comparable<Object> {
      *             if the encoded value is malformed.
      */
     public Class<?> decodeType() {
-        int type = getTypeCode();
+        final int type = getTypeCode();
 
         if (type >= TYPE_CODER_MIN && type <= TYPE_CODER_MAX) {
-            int index = _index;
+            final int index = _index;
             try {
-                int handle = decodeHandle();
+                final int handle = decodeHandle();
                 return _persistit.getClassIndex().lookupByHandle(handle).getDescribedClass();
             } finally {
                 _index = index;
@@ -2852,8 +2857,8 @@ public final class Key implements Comparable<Object> {
      * @throws ConversionException
      *             if the next key segment value is not a boolean.
      */
-    public String decodeDisplayable(boolean quoted) {
-        StringBuilder sb = new StringBuilder();
+    public String decodeDisplayable(final boolean quoted) {
+        final StringBuilder sb = new StringBuilder();
         decodeDisplayable(quoted, sb, null);
         return sb.toString();
     }
@@ -2876,11 +2881,11 @@ public final class Key implements Comparable<Object> {
      * @throws ConversionException
      *             if the next key segment value is not a boolean.
      */
-    public void decodeDisplayable(boolean quoted, Appendable sb, CoderContext context) {
+    public void decodeDisplayable(final boolean quoted, final Appendable sb, final CoderContext context) {
         if (_index >= _size)
             return;
 
-        int type = _bytes[_index] & 0xFF;
+        final int type = _bytes[_index] & 0xFF;
 
         // Handle special types.
         switch (type) {
@@ -2930,7 +2935,7 @@ public final class Key implements Comparable<Object> {
             return;
         }
 
-        Class<?> cl = CLASS_PER_TYPE[type];
+        final Class<?> cl = CLASS_PER_TYPE[type];
 
         if (cl == Byte.class) {
             Util.append(sb, PREFIX_BYTE);
@@ -3041,7 +3046,7 @@ public final class Key implements Comparable<Object> {
      *         <code>false</code> otherwise.
      */
     public boolean isNull() {
-        int type = getTypeCode();
+        final int type = getTypeCode();
         return type == TYPE_NULL;
     }
 
@@ -3118,7 +3123,7 @@ public final class Key implements Comparable<Object> {
         if (_size == 0 || _size > 1 && _bytes[_size - 1] == 0 || _inKeyCoder)
             return;
 
-        int b = _bytes[_size - 1] & 0xFF;
+        final int b = _bytes[_size - 1] & 0xFF;
         if (_size == 1) {
             if (b == TYPE_LEFT_EDGE) {
                 throw new IllegalArgumentException("append to LEFT_EDGE key");
@@ -3134,13 +3139,13 @@ public final class Key implements Comparable<Object> {
         }
     }
 
-    void testValidForStoreAndFetch(int bufferSize) throws InvalidKeyException {
+    void testValidForStoreAndFetch(final int bufferSize) throws InvalidKeyException {
         if (_size == 0) {
             throw new InvalidKeyException("Empty Key not permitted");
         } else if (_size > maxStorableKeySize(bufferSize)) {
             throw new InvalidKeyException("Key too long for buffer: " + _size);
         }
-        int b = _bytes[_size - 1] & 0xFF;
+        final int b = _bytes[_size - 1] & 0xFF;
         if (b == TYPE_BEFORE || b == TYPE_AFTER) {
             throw new InvalidKeyException("BEFORE key or AFTER key not permitted");
         } else if (b != 0) {
@@ -3154,7 +3159,7 @@ public final class Key implements Comparable<Object> {
         }
     }
 
-    static int maxStorableKeySize(int bufferSize) {
+    static int maxStorableKeySize(final int bufferSize) {
         if (bufferSize >= 8192) {
             return MAX_KEY_LENGTH;
         }
@@ -3240,10 +3245,10 @@ public final class Key implements Comparable<Object> {
      *            the String to encode and append to the key.
      * @return This <code>Key</code>, to permit method call chaining
      */
-    private Key appendString(CharSequence s, CoderContext context) {
+    private Key appendString(final CharSequence s, final CoderContext context) {
         notLeftOrRightGuard();
         testValidForAppend();
-        int strlen = s.length();
+        final int strlen = s.length();
         if (strlen > _maxSize) {
             throw new ConversionException("Requested size=" + strlen + " exceeds maximum size=" + _maxSize);
         }
@@ -3251,7 +3256,7 @@ public final class Key implements Comparable<Object> {
         _bytes[size++] = (byte) TYPE_STRING;
 
         for (int i = 0; i < strlen; i++) {
-            int c = s.charAt(i);
+            final int c = s.charAt(i);
             if (c <= 0x0001) {
                 _bytes[size++] = (byte) (0x01);
                 _bytes[size++] = (byte) (c + 0x0020);
@@ -3281,13 +3286,14 @@ public final class Key implements Comparable<Object> {
         return endSegment(size);
     }
 
-    private Key appendByKeyCoder(Object object, Class<?> cl, KeyCoder coder, CoderContext context) {
+    private Key appendByKeyCoder(final Object object, final Class<?> cl, final KeyCoder coder,
+            final CoderContext context) {
         int size = _size;
-        boolean saveInKeyCoder = _inKeyCoder;
+        final boolean saveInKeyCoder = _inKeyCoder;
         try {
-            int handle = _persistit.getClassIndex().lookupByClass(cl).getHandle();
+            final int handle = _persistit.getClassIndex().lookupByClass(cl).getHandle();
             _size += encodeHandle(handle);
-            int begin = _size;
+            final int begin = _size;
             _inKeyCoder = true;
             coder.appendKeySegment(this, object, context);
             quoteNulls(begin, _size - begin, coder.isZeroByteFree());
@@ -3300,7 +3306,7 @@ public final class Key implements Comparable<Object> {
         }
     }
 
-    private Object decodeByKeyCoder(Object target, CoderContext context) {
+    private Object decodeByKeyCoder(final Object target, final CoderContext context) {
         int index = _index;
         int size = _size;
         Class<?> clazz = Object.class;
@@ -3308,12 +3314,12 @@ public final class Key implements Comparable<Object> {
         boolean unquoted = false;
         boolean zeroByteFree = false;
         try {
-            int handle = decodeHandle();
+            final int handle = decodeHandle();
             clazz = _persistit.classForHandle(handle);
             if (clazz == null) {
                 throw new ConversionException("No class information for handle " + handle);
             }
-            KeyCoder coder = _persistit.lookupKeyCoder(clazz);
+            final KeyCoder coder = _persistit.lookupKeyCoder(clazz);
             if (coder == null) {
                 throw new ConversionException("No KeyCoder for class " + clazz.getName());
             }
@@ -3342,7 +3348,7 @@ public final class Key implements Comparable<Object> {
         }
     }
 
-    private void decodeDisplayableByKeyCoder(boolean quoted, Appendable sb, CoderContext context) {
+    private void decodeDisplayableByKeyCoder(final boolean quoted, final Appendable sb, final CoderContext context) {
         int index = _index;
         int size = _size;
         Class<?> clazz;
@@ -3350,7 +3356,7 @@ public final class Key implements Comparable<Object> {
         boolean unquoted = false;
         boolean zeroByteFree = false;
         try {
-            int handle = decodeHandle();
+            final int handle = decodeHandle();
             clazz = _persistit.classForHandle(handle);
             KeyCoder coder = null;
             if (clazz == null) {
@@ -3421,20 +3427,20 @@ public final class Key implements Comparable<Object> {
         return this;
     }
 
-    private Key appendDate(Date v) {
+    private Key appendDate(final Date v) {
         _bytes[_size++] = (byte) TYPE_DATE;
-        int size = appendLongInternal(v.getTime());
+        final int size = appendLongInternal(v.getTime());
         return endSegment(size);
     }
 
-    private Key appendBigInteger(BigInteger v) {
+    private Key appendBigInteger(final BigInteger v) {
         _bytes[_size++] = TYPE_BIG_INTEGER;
         appendBigInteger(v, 0);
         endSegment(_size);
         return this;
     }
 
-    private Key appendBigDecimal(BigDecimal v) {
+    private Key appendBigDecimal(final BigDecimal v) {
         _bytes[_size++] = TYPE_BIG_DECIMAL;
         appendBigInteger(v.unscaledValue(), v.scale());
         endSegment(_size);
@@ -3455,7 +3461,7 @@ public final class Key implements Comparable<Object> {
      *            Size of subarray
      * @return This <code>Key</code>, to permit method call chaining
      */
-    public Key appendByteArray(byte[] bytes, int offset, int size) {
+    public Key appendByteArray(final byte[] bytes, final int offset, final int size) {
         _bytes[_size++] = TYPE_BYTE_ARRAY;
         int keySize = _size;
         System.arraycopy(bytes, offset, _bytes, keySize, size);
@@ -3477,7 +3483,7 @@ public final class Key implements Comparable<Object> {
      * @param quoted
      * @param sb
      */
-    private Appendable decodeString(boolean quoted, Appendable sb) {
+    private Appendable decodeString(final boolean quoted, final Appendable sb) {
         int index = _index;
         int c1 = _bytes[index++] & 0xFF;
         if (c1 != TYPE_STRING) {
@@ -3489,7 +3495,7 @@ public final class Key implements Comparable<Object> {
             char c = 0;
             // Handle encoded NUL and SOH bytes
             if (c1 == 0x01) {
-                int c2 = _bytes[index++] & 0xFF;
+                final int c2 = _bytes[index++] & 0xFF;
                 if (c2 >= 0x0020 && c2 <= 0x0021) {
                     c = (char) (c2 - 0x0020);
                 } else {
@@ -3503,15 +3509,15 @@ public final class Key implements Comparable<Object> {
             }
 
             else if (c1 > 0xC0 && c1 <= 0xDF) {
-                int c2 = _bytes[index++] & 0xFF;
+                final int c2 = _bytes[index++] & 0xFF;
                 if (c2 >= 0x80 && c2 <= 0xBF) {
                     c = (char) (((c1 & 0x1F) << 6) | ((c2 & 0x3F) << 0));
                 } else {
                     throw new ConversionException("String decoding exception at position " + (index - 1));
                 }
             } else if (c1 >= 0xE0 && c1 <= 0xEF) {
-                int c2 = _bytes[index++] & 0xFF;
-                int c3 = _bytes[index++] & 0xFF;
+                final int c2 = _bytes[index++] & 0xFF;
+                final int c3 = _bytes[index++] & 0xFF;
                 if (c2 >= 0x80 && c2 <= 0xBF && c3 >= 0x80 && c3 <= 0xBF) {
                     c = (char) (((c1 & 0x0F) << 12) | ((c2 & 0x3F) << 6) | ((c3 & 0x3F) << 0));
                 }
@@ -3549,9 +3555,9 @@ public final class Key implements Comparable<Object> {
         return this;
     }
 
-    private int encodeHandle(int handle) {
-        
-        int v = handle - ClassIndex.HANDLE_BASE;
+    private int encodeHandle(final int handle) {
+
+        final int v = handle - ClassIndex.HANDLE_BASE;
         int size = _size;
 
         if (v < 0x00000007) {
@@ -3583,7 +3589,7 @@ public final class Key implements Comparable<Object> {
 
     private int decodeHandle() {
         int index = _index;
-        int base = _bytes[index++] & 0xFF;
+        final int base = _bytes[index++] & 0xFF;
 
         int result = base & 0x00000007;
         int v;
@@ -3632,7 +3638,7 @@ public final class Key implements Comparable<Object> {
         throw new ConversionException("Invalid KeyCoder handle at " + _index);
     }
 
-    private int decodeEnd(int index) {
+    private int decodeEnd(final int index) {
         if (_bytes[index] != 0) {
             throw new ConversionException("Invalid end byte at " + (index + 1));
         }
@@ -3640,7 +3646,7 @@ public final class Key implements Comparable<Object> {
     }
 
     private Object decodeNull() {
-        int type = _bytes[_index] & 0xFF;
+        final int type = _bytes[_index] & 0xFF;
         if (type != TYPE_NULL)
             throw new ConversionException("Expected null type");
         _index = decodeEnd(_index + 1);
@@ -3648,7 +3654,7 @@ public final class Key implements Comparable<Object> {
     }
 
     private Object decodeBeforeAfter() {
-        int type = _bytes[_index] & 0xFF;
+        final int type = _bytes[_index] & 0xFF;
         EdgeValue v = null;
         if (type == TYPE_BEFORE) {
             v = BEFORE;
@@ -3672,9 +3678,9 @@ public final class Key implements Comparable<Object> {
      *            Length of raw segment, in bytes.
      * @return Length of the quoted segment
      */
-    private int quoteNulls(int index, int size, boolean zeroByteFree) {
+    private int quoteNulls(final int index, int size, final boolean zeroByteFree) {
         for (int i = index; i < index + size; i++) {
-            int c = _bytes[i] & 0xFF;
+            final int c = _bytes[i] & 0xFF;
             if (zeroByteFree) {
                 if (c == 0) {
                     throw new ConversionException("NUL found in encoded Key");
@@ -3701,7 +3707,7 @@ public final class Key implements Comparable<Object> {
      * @param index
      * @return The unquoted length of the array.
      */
-    private int unquoteNulls(int index, boolean zeroByteFree) {
+    private int unquoteNulls(final int index, final boolean zeroByteFree) {
         for (int i = index; i < _size; i++) {
             int c = _bytes[i] & 0xFF;
             if (c == 0) {
@@ -3744,17 +3750,17 @@ public final class Key implements Comparable<Object> {
         int _zeroCount = 0;
     }
 
-    private void appendBigInteger(BigInteger bigInt, int scale) {
-        int signum = bigInt.signum();
+    private void appendBigInteger(BigInteger bigInt, final int scale) {
+        final int signum = bigInt.signum();
         if (signum == 0) {
             _bytes[_size++] = 0x40;
             return;
         }
-        boolean neg = signum < 0;
+        final boolean neg = signum < 0;
         //
         // Estimated number of ints needed for buffering the BCD result
         //
-        int length = bigInt.bitLength();
+        final int length = bigInt.bitLength();
         //
         // Estimated number of bits left in bigInt
         //
@@ -3765,8 +3771,8 @@ public final class Key implements Comparable<Object> {
         // each int will hold a decimal digit, and therefore will hold slightly
         // more than 3 bits worth of information.
         //
-        int iLength = (bigInt.bitLength() / 24) + 1;
-        int[] buffer = new int[iLength];
+        final int iLength = (bigInt.bitLength() / 24) + 1;
+        final int[] buffer = new int[iLength];
         int index = iLength - 1;
         int digitCount = 0;
         int zeroCount = 0;
@@ -3779,7 +3785,7 @@ public final class Key implements Comparable<Object> {
         // First step is to scrape the bits out.
         //
         while (rLength > 0) {
-            BigInteger remainder = bigInt.remainder(BIG_INT_DIVISOR);
+            final BigInteger remainder = bigInt.remainder(BIG_INT_DIVISOR);
             long lowBits = remainder.longValue();
             if (neg)
                 lowBits = -lowBits;
@@ -3787,8 +3793,8 @@ public final class Key implements Comparable<Object> {
                 if (index < 0)
                     break;
                 for (int k = 0; k < 4; k++) {
-                    int hundred = (int) (lowBits % 100);
-                    int bcd = (hundred / 10) * 16 + (hundred % 10);
+                    final int hundred = (int) (lowBits % 100);
+                    final int bcd = (hundred / 10) * 16 + (hundred % 10);
                     buffer[index] |= bcd << (k * 8);
                     lowBits /= 100;
                     if (hundred > 0) {
@@ -3822,7 +3828,7 @@ public final class Key implements Comparable<Object> {
         //
         if (low4) {
             for (int i = index; i < iLength; i++) {
-                int low = i + 1 == iLength ? 0 : buffer[i + 1];
+                final int low = i + 1 == iLength ? 0 : buffer[i + 1];
                 buffer[i] = buffer[i] << 4 | ((low >>> 28) & 0xF);
             }
             zeroCount++;
@@ -3866,7 +3872,7 @@ public final class Key implements Comparable<Object> {
 
         index = iLength - ((digitCount + 7) / 8);
         for (int k = index; k < iLength; k++) {
-            int word = buffer[k];
+            final int word = buffer[k];
             for (; (shift -= 8) >= 0;) {
                 byte b = (byte) (word >>> shift);
                 if (neg)
@@ -3890,9 +3896,9 @@ public final class Key implements Comparable<Object> {
             _bytes[_size++] = (byte) 0xFF;
     }
 
-    private void decodeBigInteger(BigIntegerStruct bis) {
-        int start = _index;
-        int signum = (_bytes[_index++] & 0xFF) - 0x40;
+    private void decodeBigInteger(final BigIntegerStruct bis) {
+        final int start = _index;
+        final int signum = (_bytes[_index++] & 0xFF) - 0x40;
         if (signum < -1 || signum > 1) {
             throw new ConversionException("Invalid BigInteger signum at offset " + (start));
         }
@@ -3901,7 +3907,7 @@ public final class Key implements Comparable<Object> {
             bis._scale = 0;
             return;
         }
-        boolean neg = signum < 0;
+        final boolean neg = signum < 0;
         //
         // Decode the exponent
         //
@@ -3965,15 +3971,15 @@ public final class Key implements Comparable<Object> {
                         throw new ConversionException("Invalid BigInteger encoding at index " + (_index - 1));
                     }
                     if (chunk == 1) {
-                        int digit = (b >>> 4) & 0x0F;
+                        final int digit = (b >>> 4) & 0x0F;
                         lowBits = lowBits * 10 + digit;
                         lastDigit = b & 0x0F;
                         lastDigitZero = (digit == 0);
                         leftOverDigit = true;
                         chunk--;
                     } else {
-                        int digit0 = (b & 0x0F);
-                        int digit1 = ((b >>> 4) & 0x0F);
+                        final int digit0 = (b & 0x0F);
+                        final int digit1 = ((b >>> 4) & 0x0F);
                         lowBits = lowBits * 100L + digit1 * 10L + digit0;
                         chunk -= 2;
                         lastDigitZero = (digit0 == 0);

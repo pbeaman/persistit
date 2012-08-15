@@ -61,11 +61,11 @@ public class TestShim {
         return persistit.getCleanupManager();
     }
 
-    public static void closeTransaction(Transaction t) throws PersistitException {
+    public static void closeTransaction(final Transaction t) throws PersistitException {
         t.close();
     }
 
-    public static FileChannel getVolumeChannel(Volume volume) throws PersistitException {
+    public static FileChannel getVolumeChannel(final Volume volume) throws PersistitException {
         return volume.getStorage().getChannel();
     }
 
@@ -140,8 +140,9 @@ public class TestShim {
         return CLI.parseTask(persistit, line);
     }
 
-    public static int storeVersion(byte[] target, int targetOffset, int targetLength, int targetLimit,
-            long versionHandle, byte[] source, int sourceOffset, int sourceLength) {
+    public static int storeVersion(final byte[] target, final int targetOffset, final int targetLength,
+            final int targetLimit, final long versionHandle, final byte[] source, final int sourceOffset,
+            final int sourceLength) {
         return MVV.storeVersion(target, targetOffset, targetLength, targetLimit, versionHandle, source, sourceOffset,
                 sourceLength);
     }
@@ -154,7 +155,7 @@ public class TestShim {
         persistit.getClassIndex().clearAllEntries();
     }
 
-    public static ByteBuffer getTransactionBuffer(Transaction txn) {
+    public static ByteBuffer getTransactionBuffer(final Transaction txn) {
         return txn.getTransactionBuffer();
     }
 }

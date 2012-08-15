@@ -26,12 +26,12 @@ public class TaskStatusStateRenderer extends AbstractCustomTableCellRenderer {
     private AdminUI _adminUI;
 
     @Override
-    public void setup(AdminUI ui, Class baseClass, String columnSpec) {
+    public void setup(final AdminUI ui, final Class baseClass, final String columnSpec) {
         _adminUI = ui;
     }
 
     @Override
-    public void setValue(Object value) {
+    public void setValue(final Object value) {
         String text = "?";
         if (value instanceof Integer) {
             text = _adminUI.getTaskStateString(((Integer) value).intValue());

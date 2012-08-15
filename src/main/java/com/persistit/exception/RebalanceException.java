@@ -30,8 +30,7 @@ public class RebalanceException extends PersistitException {
     public RebalanceException() {
     }
 
-    public RebalanceException(String msg) {
+    public RebalanceException(final String msg) {
         super(msg);
     }
 }
-

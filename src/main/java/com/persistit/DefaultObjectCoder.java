@@ -152,7 +152,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
     private HashMap _secondaryKeyTupleMap;
     private ArrayList _secondaryKeyTupleList;
 
-    private DefaultObjectCoder(Persistit persistit, Class clientClass, Builder valueBuilder) {
+    private DefaultObjectCoder(final Persistit persistit, final Class clientClass, final Builder valueBuilder) {
         super(persistit, clientClass, valueBuilder);
     }
 
@@ -190,14 +190,14 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
      * 
      * @throws IntrospectionException
      */
-    public synchronized static void registerObjectCoderFromBean(Persistit persistit, Class clientClass,
-            String[] keyPropertyNames) throws IntrospectionException {
-        BeanInfo beanInfo = Introspector.getBeanInfo(clientClass);
-        PropertyDescriptor[] descriptors = beanInfo.getPropertyDescriptors();
-        boolean isKeyProperty[] = new boolean[descriptors.length];
+    public synchronized static void registerObjectCoderFromBean(final Persistit persistit, final Class clientClass,
+            final String[] keyPropertyNames) throws IntrospectionException {
+        final BeanInfo beanInfo = Introspector.getBeanInfo(clientClass);
+        final PropertyDescriptor[] descriptors = beanInfo.getPropertyDescriptors();
+        final boolean isKeyProperty[] = new boolean[descriptors.length];
 
         for (int index = 0; index < keyPropertyNames.length; index++) {
-            String name = keyPropertyNames[index];
+            final String name = keyPropertyNames[index];
             boolean found = false;
 
             for (int j = 0; !found && j < descriptors.length; j++) {
@@ -213,16 +213,16 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
         }
 
         int count = 0;
-        String[] valuePropertyNames = new String[descriptors.length - keyPropertyNames.length];
+        final String[] valuePropertyNames = new String[descriptors.length - keyPropertyNames.length];
         for (int j = 0; j < descriptors.length; j++) {
             if (!isKeyProperty[j]) {
                 valuePropertyNames[count] = descriptors[j].getName();
                 count++;
             }
         }
-        Builder valueBuilder = new Builder("value", valuePropertyNames, clientClass);
+        final Builder valueBuilder = new Builder("value", valuePropertyNames, clientClass);
 
-        DefaultObjectCoder coder = new DefaultObjectCoder(persistit, clientClass, valueBuilder);
+        final DefaultObjectCoder coder = new DefaultObjectCoder(persistit, clientClass, valueBuilder);
 
         CoderManager cm = null;
         cm = persistit.getCoderManager();
@@ -312,13 +312,13 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
      *            Array of names of properties that constitute the value of
      *            stored instances of the <code>clientClass</code>.
      */
-    public synchronized static void registerObjectCoder(Persistit persistit, Class clientClass,
-            String[] keyAccessorNames, String[] valueAccessorNames) {
-        Builder keyBuilder = new Builder("primaryKey", keyAccessorNames, clientClass);
+    public synchronized static void registerObjectCoder(final Persistit persistit, final Class clientClass,
+            final String[] keyAccessorNames, final String[] valueAccessorNames) {
+        final Builder keyBuilder = new Builder("primaryKey", keyAccessorNames, clientClass);
 
-        Builder valueBuilder = new Builder("value", valueAccessorNames, clientClass);
+        final Builder valueBuilder = new Builder("value", valueAccessorNames, clientClass);
 
-        DefaultObjectCoder coder = new DefaultObjectCoder(persistit, clientClass, valueBuilder);
+        final DefaultObjectCoder coder = new DefaultObjectCoder(persistit, clientClass, valueBuilder);
 
         coder._keyBuilder = keyBuilder;
 
@@ -351,13 +351,13 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
      *            The property and/or field names
      * @return The newly constructed Builder
      */
-    public synchronized Builder addSecondaryIndexBuilder(String name, String[] keyAccessorNames) {
-        Builder builder = new Builder(name, keyAccessorNames, getClientClass());
+    public synchronized Builder addSecondaryIndexBuilder(final String name, final String[] keyAccessorNames) {
+        final Builder builder = new Builder(name, keyAccessorNames, getClientClass());
         if (_secondaryKeyTupleMap == null) {
             _secondaryKeyTupleMap = new HashMap();
             _secondaryKeyTupleList = new ArrayList();
         }
-        Builder oldBuilder = (Builder) _secondaryKeyTupleMap.put(name, builder);
+        final Builder oldBuilder = (Builder) _secondaryKeyTupleMap.put(name, builder);
         if (oldBuilder != null)
             _secondaryKeyTupleList.remove(oldBuilder);
         _secondaryKeyTupleList.add(builder);
@@ -372,10 +372,10 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
      * @return The Builder that was removed, or <code>null</code> if there was
      *         none.
      */
-    public synchronized Builder removeSecondaryIndexBuilder(String name) {
+    public synchronized Builder removeSecondaryIndexBuilder(final String name) {
         if (_secondaryKeyTupleMap == null)
             return null;
-        Builder builder = (Builder) _secondaryKeyTupleMap.get(name);
+        final Builder builder = (Builder) _secondaryKeyTupleMap.get(name);
         if (builder != null) {
             _secondaryKeyTupleList.remove(builder);
             _secondaryKeyTupleMap.remove(name);
@@ -389,7 +389,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
      * 
      * @return The Builder
      */
-    public synchronized Builder getSecondaryIndexBuilder(int index) {
+    public synchronized Builder getSecondaryIndexBuilder(final int index) {
         if (_secondaryKeyTupleList != null && index >= 0 && index < _secondaryKeyTupleList.size()) {
             return (Builder) _secondaryKeyTupleList.get(index);
         }
@@ -402,7 +402,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
      * @return The Builder, or <code>null</code> if there is no secondary index
      *         with the specified name.
      */
-    public synchronized Builder getSecondaryIndexBuilder(String name) {
+    public synchronized Builder getSecondaryIndexBuilder(final String name) {
         if (_secondaryKeyTupleMap == null)
             return null;
         return (Builder) _secondaryKeyTupleMap.get(name);
@@ -431,32 +431,33 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
         return _keyBuilder;
     }
 
-
     @Override
-    public void appendKeySegment(Key key, Object object, CoderContext context) throws ConversionException {
+    public void appendKeySegment(final Key key, final Object object, final CoderContext context)
+            throws ConversionException {
         Accessor accessor = null;
         checkKeyAccessors();
-        Builder keyBuilder = getKeyBuilder(context);
+        final Builder keyBuilder = getKeyBuilder(context);
         try {
-            int count = keyBuilder.getSize();
+            final int count = keyBuilder.getSize();
             for (int index = 0; index < count; index++) {
                 accessor = keyBuilder.getAccessor(index);
                 accessor.toKey(object, key);
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new ConversionException("Encoding " + accessor.toString() + " for " + getClientClass(), e);
         }
     }
 
     @Override
-    public Object decodeKeySegment(Key key, Class clazz, CoderContext context) throws ConversionException {
+    public Object decodeKeySegment(final Key key, final Class clazz, final CoderContext context)
+            throws ConversionException {
         if (clazz != getClientClass())
             throw new ClassCastException("Client class " + getClientClass().getName()
                     + " does not match requested class " + clazz.getName());
         Object instance;
         try {
             instance = getClientClass().newInstance();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new ConversionException("Unable to instantiate an instance of " + getClientClass(), e);
 
         }
@@ -464,7 +465,6 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
 
         return readResolve(instance);
     }
-    
 
     @Override
     public boolean isZeroByteFree() {
@@ -502,31 +502,32 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
      * @throws ConversionException
      */
     @Override
-    public void renderKeySegment(Key key, Object target, Class clazz, CoderContext context) throws ConversionException {
+    public void renderKeySegment(final Key key, final Object target, final Class clazz, final CoderContext context)
+            throws ConversionException {
         if (clazz != getClientClass())
             throw new ClassCastException("Client class " + getClientClass().getName()
                     + " does not match requested class " + clazz.getName());
 
         checkKeyAccessors();
-        Builder keyBuilder = getKeyBuilder(context);
-        int count = keyBuilder.getSize();
+        final Builder keyBuilder = getKeyBuilder(context);
+        final int count = keyBuilder.getSize();
         Accessor accessor = null;
         try {
             for (int index = 0; index < count; index++) {
                 accessor = _keyBuilder.getAccessor(index);
                 accessor.fromKey(target, key);
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new ConversionException("Decoding " + accessor.toString() + " for " + getClientClass(), e);
         }
     }
 
-    private Builder getKeyBuilder(CoderContext context) {
+    private Builder getKeyBuilder(final CoderContext context) {
         if (context == null || context == _keyBuilder)
             return _keyBuilder;
 
         if (_secondaryKeyTupleList != null) {
-            int count = getSecondaryIndexBuilderCount();
+            final int count = getSecondaryIndexBuilderCount();
             for (int index = 0; index < count; index++) {
                 if (context == _secondaryKeyTupleList.get(index)) {
                     return (Builder) context;
@@ -553,7 +554,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
      */
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         sb.append("DefaultObjectCoder(");
         sb.append(getClientClass().getName());
         sb.append(",");

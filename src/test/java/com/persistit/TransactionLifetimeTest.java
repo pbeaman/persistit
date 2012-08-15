@@ -57,6 +57,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
     private static final String KEY_PREFIX = "key_";
     private static final String VALUE_PREFIX = "value_";
 
+    @Override
     public final void setUp() throws Exception {
         final long FIVE_MIN_NANOS = 1000000000L * 60 * 5;
         _persistit.getCheckpointManager().setCheckpointIntervalNanos(FIVE_MIN_NANOS);
@@ -230,7 +231,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
     }
 
     private static class Node {
-        public Node(String description) {
+        public Node(final String description) {
             _description = description;
         }
 
@@ -249,8 +250,8 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
     private static final Node CHECKPOINT = new Node("CHECKPOINT");
     private static final Node RESTART = new Node("RESTART");
 
-    private static int storeMoreThanTxnBuffer(Exchange ex, int writeCount) throws PersistitException {
-        ByteBuffer txnBuffer = ex.getTransaction().getTransactionBuffer();
+    private static int storeMoreThanTxnBuffer(final Exchange ex, int writeCount) throws PersistitException {
+        final ByteBuffer txnBuffer = ex.getTransaction().getTransactionBuffer();
         for (;;) {
             final int prevPos = txnBuffer.position();
             ex.clear().append(KEY_PREFIX + writeCount);
@@ -264,11 +265,11 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         return writeCount;
     }
 
-    private void checkKeys(boolean shouldExist, int writeCount) throws PersistitException {
+    private void checkKeys(final boolean shouldExist, final int writeCount) throws PersistitException {
         Exchange ex = null;
         try {
             ex = _persistit.getExchange(VOLUME_NAME, TREE_NAME, false);
-        } catch (TreeNotFoundException e) {
+        } catch (final TreeNotFoundException e) {
             if (shouldExist && writeCount > 0) {
                 fail("Keys expected but tree does not exist: " + e);
             } else {
@@ -286,7 +287,8 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         }
     }
 
-    private void checkTransaction(String desc, long ts, Boolean statusExists, Boolean liveMapExists) {
+    private void checkTransaction(final String desc, final long ts, final Boolean statusExists,
+            final Boolean liveMapExists) {
         if (statusExists != null) {
             _persistit.getTransactionIndex().cleanup();
             final TransactionStatus status = _persistit.getTransactionIndex().getStatus(ts);
@@ -300,7 +302,8 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         }
     }
 
-    private void doTest(boolean expectedInIndex, boolean expectedInLiveMap, Node... nodes) throws PersistitException {
+    private void doTest(final boolean expectedInIndex, final boolean expectedInLiveMap, final Node... nodes)
+            throws PersistitException {
         Exchange ex = _persistit.getExchange(VOLUME_NAME, TREE_NAME, true);
         Transaction txn = ex.getTransaction();
 
@@ -315,7 +318,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         txn.begin();
         final long ts = txn.getStartTimestamp();
         try {
-            for (Node curNode : nodes) {
+            for (final Node curNode : nodes) {
                 stateDescription += "," + curNode;
 
                 if (curNode == ABORT) {
@@ -341,7 +344,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
                     writeCount = storeMoreThanTxnBuffer(ex, writeCount);
                     currentInLiveMap = true;
                 } else if (curNode == CHECKPOINT) {
-                    CheckpointManager.Checkpoint cp = _persistit.checkpoint();
+                    final CheckpointManager.Checkpoint cp = _persistit.checkpoint();
                     assertEquals("Checkpoint successfully written", true, cp != null);
                     currentInLiveMap = (!committed && writeCount > 0) || (aborted && writeCount == 0);
                 } else if (curNode == RESTART) {

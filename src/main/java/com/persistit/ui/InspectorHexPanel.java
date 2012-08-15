@@ -34,13 +34,13 @@ class InspectorHexPanel extends AbstractInspector {
     private JTextArea _textArea;
 
     @Override
-    protected void setup(AdminUI ui, InspectorPanel host) {
+    protected void setup(final AdminUI ui, final InspectorPanel host) {
         super.setup(ui, host);
         setLayout(new BorderLayout());
         _textArea = new JTextArea();
         _textArea.setEditable(false);
         _textArea.setFont(_adminUI.getFixedFont());
-        JScrollPane scrollPane = new JScrollPane(_textArea, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+        final JScrollPane scrollPane = new JScrollPane(_textArea, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setPreferredSize(new Dimension(500, 100));
         scrollPane.setBorder(null);
@@ -49,7 +49,7 @@ class InspectorHexPanel extends AbstractInspector {
 
     @Override
     protected void refreshed() {
-        Management.LogicalRecord lr = _host.getLogicalRecord();
+        final Management.LogicalRecord lr = _host.getLogicalRecord();
         if (lr == null) {
             nullData();
         } else if (_host.isShowValue()) {
@@ -73,7 +73,7 @@ class InspectorHexPanel extends AbstractInspector {
         // No default button
     }
 
-    public void actionPerformed(AdminUI.AdminAction action, ActionEvent ae) {
+    public void actionPerformed(final AdminUI.AdminAction action, final ActionEvent ae) {
         // no actions.
     }
 

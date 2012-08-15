@@ -43,7 +43,7 @@ public class TestResult {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder(_passed ? "PASSED" : "FAILED");
+        final StringBuilder sb = new StringBuilder(_passed ? "PASSED" : "FAILED");
         if (_throwable != null) {
             sb.append(" [" + _threadName + "]");
             sb.append(": ");

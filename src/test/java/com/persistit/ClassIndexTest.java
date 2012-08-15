@@ -37,8 +37,8 @@ import com.persistit.util.Util;
 public class ClassIndexTest extends PersistitUnitTestCase {
 
     /**
-     * Arbitrary constant chosen to be found exactly once in the MockSerailizableObject
-     * class file. 
+     * Arbitrary constant chosen to be found exactly once in the
+     * MockSerailizableObject class file.
      */
     final static long SUID_CONSTANT = 0xF3E1D4C1B5A99286L;
     private final static String MOCK_SERIALIZABLE_CLASS_NAME = "MockSerializableObject";
@@ -71,7 +71,7 @@ public class ClassIndexTest extends PersistitUnitTestCase {
     public void oneClassInfo() throws Exception {
         final ClassIndex cx = _persistit.getClassIndex();
         cx.registerClass(this.getClass());
-        ClassInfo ci = cx.lookupByClass(this.getClass());
+        final ClassInfo ci = cx.lookupByClass(this.getClass());
         assertEquals(this.getClass().getName(), ci.getName());
         assertTrue(ci.getHandle() > 0);
     }
@@ -80,11 +80,11 @@ public class ClassIndexTest extends PersistitUnitTestCase {
     public void manyClassInfo() throws Exception {
         _maxHandle = 0;
         final ClassIndex cx = _persistit.getClassIndex();
-        Class<?> clazz = Persistit.class;
+        final Class<?> clazz = Persistit.class;
         test2a(cx, clazz);
 
-        assertEquals("Cache misses should match map size", map.size(), cx.getCacheMisses()
-                - cx.getDiscardedDuplicates());
+        assertEquals("Cache misses should match map size", map.size(),
+                cx.getCacheMisses() - cx.getDiscardedDuplicates());
 
         for (int handle = 0; handle < _maxHandle + 10; handle++) {
             assertTrue(equals(map.get(handle), cx.lookupByHandle(handle)));
@@ -95,7 +95,7 @@ public class ClassIndexTest extends PersistitUnitTestCase {
             assertTrue(equals(map.get(handle), cy.lookupByHandle(handle)));
         }
         for (int handle = 0; handle < _maxHandle + 10; handle++) {
-            ClassInfo ci = map.get(handle);
+            final ClassInfo ci = map.get(handle);
             if (ci != null) {
                 assertEquals(ci, cy.lookupByClass(ci.getDescribedClass()));
             }
@@ -103,7 +103,7 @@ public class ClassIndexTest extends PersistitUnitTestCase {
 
         final ClassIndex cz = new ClassIndex(_persistit);
         for (int handle = 0; handle < _maxHandle + 10; handle++) {
-            ClassInfo ci = map.get(handle);
+            final ClassInfo ci = map.get(handle);
             if (ci != null) {
                 assertEquals(ci, cz.lookupByClass(ci.getDescribedClass()));
             }
@@ -119,6 +119,7 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         for (int i = 0; i < threadCount; i++) {
             final int index = i;
             threads[i] = new Thread(new Runnable() {
+                @Override
                 public void run() {
                     final Transaction transaction = _persistit.getTransaction();
                     for (int k = 0; k < 10; k++) {
@@ -134,7 +135,7 @@ public class ClassIndexTest extends PersistitUnitTestCase {
                             } finally {
                                 transaction.end();
                             }
-                        } catch (Exception e) {
+                        } catch (final Exception e) {
                             e.printStackTrace();
                         }
                     }
@@ -159,8 +160,8 @@ public class ClassIndexTest extends PersistitUnitTestCase {
          * safely discarded and the following adjusts the cache miss count by
          * the number so discarded.
          */
-        assertEquals("Cache misses should match map size", map.size(), cx.getCacheMisses()
-                - cx.getDiscardedDuplicates());
+        assertEquals("Cache misses should match map size", map.size(),
+                cx.getCacheMisses() - cx.getDiscardedDuplicates());
 
         for (int handle = 0; handle < _maxHandle + 10; handle++) {
             assertTrue(equals(map.get(handle), cx.lookupByHandle(handle)));
@@ -171,7 +172,7 @@ public class ClassIndexTest extends PersistitUnitTestCase {
     @Test
     public void rollback() throws Exception {
         Exchange ex = _persistit.getExchange("persistit", "ClassIndexTest", true);
-        Transaction txn = ex.getTransaction();
+        final Transaction txn = ex.getTransaction();
         txn.begin();
         try {
 
@@ -200,24 +201,24 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.initialize(config);
         ex = _persistit.getExchange("persistit", "ClassIndexTest", false);
-        Object b = ex.to("B").fetch().getValue().get();
-        Object a = ex.to("A").fetch().getValue().get();
+        final Object b = ex.to("B").fetch().getValue().get();
+        final Object a = ex.to("A").fetch().getValue().get();
         assertTrue("Incorrect class", a instanceof A);
         assertTrue("Incorrect class", b instanceof B);
     }
 
     @Test
     public void knownNull() throws Exception {
-        ClassIndex cx = _persistit.getClassIndex();
+        final ClassIndex cx = _persistit.getClassIndex();
         final ClassInfo ci = cx.lookupByHandle(12345);
         assertEquals("Should return cached known null", ci, cx.lookupByHandle(12345));
     }
 
     @Test
     public void multipleVersions() throws Exception {
-        ClassIndex cx = _persistit.getClassIndex();
+        final ClassIndex cx = _persistit.getClassIndex();
         cx.clearAllEntries();
-        int count = 10;
+        final int count = 10;
         final Class<?>[] classes = new Class<?>[count];
         for (int i = 0; i < count; i++) {
             classes[i] = makeAClass(i);
@@ -225,15 +226,15 @@ public class ClassIndexTest extends PersistitUnitTestCase {
             cx.lookupByClass(classes[i]);
         }
         assertEquals("Each version should be unique", count, cx.getCacheMisses());
-        Set<Integer> handles = new HashSet<Integer>();
+        final Set<Integer> handles = new HashSet<Integer>();
         for (int i = 0; i < count; i++) {
-            ClassInfo ci = cx.lookupByClass(classes[i]);
-            int handle = ci.getHandle();
+            final ClassInfo ci = cx.lookupByClass(classes[i]);
+            final int handle = ci.getHandle();
             assertTrue("Handles must be unique", handles.add(handle));
         }
         assertEquals("Each version should be in cache", count, cx.getCacheMisses());
         for (final Integer handle : handles) {
-            ClassInfo ci = cx.lookupByHandle(handle);
+            final ClassInfo ci = cx.lookupByHandle(handle);
             assertEquals("Lookup by handle and class must match", ci, cx.lookupByClass(ci.getDescribedClass()));
         }
     }
@@ -252,13 +253,13 @@ public class ClassIndexTest extends PersistitUnitTestCase {
         if (clazz.isPrimitive()) {
             return;
         }
-        ClassInfo ci = cx.lookupByClass(clazz);
-        ClassInfo copy = map.get(ci.getHandle());
+        final ClassInfo ci = cx.lookupByClass(clazz);
+        final ClassInfo copy = map.get(ci.getHandle());
         if (ci.getHandle() > _maxHandle) {
             assertNull(copy);
             map.put(ci.getHandle(), ci);
             _maxHandle = ci.getHandle();
-            Field[] fields = clazz.getDeclaredFields();
+            final Field[] fields = clazz.getDeclaredFields();
             for (final Field field : fields) {
                 if (cx.size() < 1000) {
                     test2a(cx, field.getType());
@@ -270,19 +271,20 @@ public class ClassIndexTest extends PersistitUnitTestCase {
     }
 
     private static Class<?> makeAClass(final long suid) throws Exception {
-        InputStream is = ClassIndexTest.class.getClassLoader().getResourceAsStream(
+        final InputStream is = ClassIndexTest.class.getClassLoader().getResourceAsStream(
                 "com/persistit/" + MOCK_SERIALIZABLE_CLASS_NAME + "_classBytes");
         final byte[] bytes = new byte[10000];
         final int length = is.read(bytes);
         replaceSuid(bytes, suid);
-        ClassLoader cl = new ClassLoader(ClassIndexTest.class.getClassLoader()) {
+        final ClassLoader cl = new ClassLoader(ClassIndexTest.class.getClassLoader()) {
+            @Override
             public Class<?> loadClass(final String name) {
                 if (name.contains(MOCK_SERIALIZABLE_CLASS_NAME)) {
                     return defineClass(name, bytes, 0, length);
                 } else {
                     try {
                         return ClassIndexTest.class.getClassLoader().loadClass(name);
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         throw new RuntimeException(e);
                     }
                 }

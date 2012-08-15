@@ -35,7 +35,7 @@ import java.io.PrintWriter;
 public class DefaultPersistitLogger implements PersistitLogger {
 
     private volatile PrintWriter _logWriter;
-    private String _logFileName;
+    private final String _logFileName;
     private PersistitLevel _level = PersistitLevel.INFO;
 
     /**
@@ -54,20 +54,20 @@ public class DefaultPersistitLogger implements PersistitLogger {
      * @param fileName
      *            Log file path name
      */
-    public DefaultPersistitLogger(String fileName) {
+    public DefaultPersistitLogger(final String fileName) {
         _logFileName = fileName;
     }
 
     public void setLevel(final String levelName) {
         try {
             setLevel(PersistitLevel.valueOf(levelName));
-        } catch (EnumConstantNotPresentException e) {
+        } catch (final EnumConstantNotPresentException e) {
             log(PersistitLevel.WARNING, "No such log level " + levelName);
             setLevel(PersistitLevel.INFO);
         }
     }
 
-    public void setLevel(PersistitLevel level) {
+    public void setLevel(final PersistitLevel level) {
         _level = level;
     }
 
@@ -86,7 +86,7 @@ public class DefaultPersistitLogger implements PersistitLogger {
      *            The message to write
      */
     @Override
-    public void log(PersistitLevel level, String message) {
+    public void log(final PersistitLevel level, final String message) {
         final PrintWriter logWriter = _logWriter;
         if (logWriter == null && level.compareTo(PersistitLevel.WARNING) >= 0
                 || level.compareTo(PersistitLevel.WARNING) >= 0) {
@@ -107,6 +107,7 @@ public class DefaultPersistitLogger implements PersistitLogger {
      * Prepares this logger to received messages. This implementation, opens the
      * file for writing.
      */
+    @Override
     public void open() throws Exception {
         if (_logWriter != null) {
             throw new IllegalStateException("Log already open");
@@ -121,6 +122,7 @@ public class DefaultPersistitLogger implements PersistitLogger {
      * 
      * @throws InterruptedException
      */
+    @Override
     public void close() throws InterruptedException {
         flush();
         final PrintWriter logWriter = _logWriter;
@@ -140,6 +142,7 @@ public class DefaultPersistitLogger implements PersistitLogger {
      * the likelihood that the log file will be useful in case the application
      * exits abruptly.
      */
+    @Override
     public void flush() {
         final PrintWriter logWriter = _logWriter;
         if (logWriter != null) {

@@ -28,11 +28,11 @@ public class TransactionFailedException extends PersistitException {
         super();
     }
 
-    public TransactionFailedException(String msg) {
+    public TransactionFailedException(final String msg) {
         super(msg);
     }
 
-    public TransactionFailedException(Throwable t) {
+    public TransactionFailedException(final Throwable t) {
         super(t);
     }
 

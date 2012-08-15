@@ -28,7 +28,7 @@ public class RecoveryMissingVolumesException extends PersistitException {
         super();
     }
 
-    public RecoveryMissingVolumesException(String msg) {
+    public RecoveryMissingVolumesException(final String msg) {
         super(msg);
     }
 

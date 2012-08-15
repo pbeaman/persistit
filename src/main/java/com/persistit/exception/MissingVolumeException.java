@@ -33,7 +33,7 @@ public class MissingVolumeException extends CorruptJournalException {
         super(msg);
         _volumeName = volumeName;
     }
-    
+
     public String getVolumeName() {
         return _volumeName;
     }

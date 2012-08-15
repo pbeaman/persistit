@@ -43,7 +43,8 @@ import com.persistit.util.ArgParser;
  * 
  * <dl>
  * <dt>tests=testname,test*pattern</dt>
- * <dd>Comma-separated list of test class names; allows "*" and "?" as wildcards</dd>
+ * <dd>Comma-separated list of test class names; allows "*" and "?" as wildcards
+ * </dd>
  * <dt>duration=nnn</dt>
  * <dd>Duration of the entire run, in seconds. This number is divided by the
  * number of classes to determine the duration of each suite</dd>
@@ -84,12 +85,12 @@ public class StressRunner {
 
     public static void main(final String[] args) throws Exception {
 
-        ArgParser ap = new ArgParser(StressRunner.class.getSimpleName(), args, ARGS_TEMPLATE);
+        final ArgParser ap = new ArgParser(StressRunner.class.getSimpleName(), args, ARGS_TEMPLATE);
 
-        List<Class<? extends AbstractSuite>> classes = new ArrayList<Class<? extends AbstractSuite>>();
+        final List<Class<? extends AbstractSuite>> classes = new ArrayList<Class<? extends AbstractSuite>>();
         for (final String s : ap.getStringValue("tests").split(",")) {
-            String regex = s.replace("*", ".*").replace("?", ".");
-            Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
+            final String regex = s.replace("*", ".*").replace("?", ".");
+            final Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
             for (final Class<? extends AbstractSuite> cl : _classes) {
                 if (pattern.matcher(cl.getSimpleName()).matches()) {
                     classes.add(cl);
@@ -101,23 +102,23 @@ public class StressRunner {
             System.exit(1);
         }
 
-        int duration = ap.getIntValue("duration") / classes.size();
-        PrintWriter pw = new PrintWriter(new FileWriter(ap.getStringValue("report")));
+        final int duration = ap.getIntValue("duration") / classes.size();
+        final PrintWriter pw = new PrintWriter(new FileWriter(ap.getStringValue("report")));
         int failed = 0;
 
         for (final Class<? extends AbstractSuite> clazz : classes) {
-            List<String> suiteArgs = ap.getUnparsedList();
+            final List<String> suiteArgs = ap.getUnparsedList();
             if (ap.isSpecified("duration")) {
                 suiteArgs.add(DURATION_PARAM + duration);
             }
-            AbstractSuite suite = clazz.getConstructor(args.getClass()).newInstance(
+            final AbstractSuite suite = clazz.getConstructor(args.getClass()).newInstance(
                     new Object[] { suiteArgs.toArray(new String[suiteArgs.size()]) });
 
-            System.out.printf("\nStart %s at %s\n--------------------------------------------------------\n", suite
-                    .getName(), now());
+            System.out.printf("\nStart %s at %s\n--------------------------------------------------------\n",
+                    suite.getName(), now());
             suite.runTest();
-            System.out.printf("\n--------------------------------------------------------\n  End %s at %s\n", suite
-                    .getName(), now());
+            System.out.printf("\n--------------------------------------------------------\n  End %s at %s\n",
+                    suite.getName(), now());
             pw.printf("%s,%s,%d\n", suite.getName(), suite.isFailed() ? "FAILED" : "PASSED", suite.getRate());
             pw.flush();
             if (suite.isFailed()) {

@@ -45,7 +45,7 @@ class InspectorObjectPanel extends AbstractInspector {
     private JTextArea _textArea;
 
     @Override
-    protected void setup(AdminUI ui, InspectorPanel host) {
+    protected void setup(final AdminUI ui, final InspectorPanel host) {
         super.setup(ui, host);
         _treeModel = new DefaultTreeModel(null);
         _tree = new JTree(_treeModel);
@@ -71,7 +71,7 @@ class InspectorObjectPanel extends AbstractInspector {
 
         _tree.getSelectionModel().addTreeSelectionListener(new TreeSelectionListener() {
             @Override
-            public void valueChanged(TreeSelectionEvent tse) {
+            public void valueChanged(final TreeSelectionEvent tse) {
                 final ValueInspectorTreeNode node = (ValueInspectorTreeNode) tse.getPath().getLastPathComponent();
                 if (node != null && tse.isAddedPath()) {
                     if (node.getEvalString() == null && textScrollPane.getHeight() != 0) {
@@ -95,37 +95,38 @@ class InspectorObjectPanel extends AbstractInspector {
 
     @Override
     protected void refreshed() {
-        Management management = _adminUI.getManagement();
-        Management.LogicalRecord lr = _host.getLogicalRecord();
+        final Management management = _adminUI.getManagement();
+        final Management.LogicalRecord lr = _host.getLogicalRecord();
         if (management == null || lr == null) {
             nullMessage();
         } else if (_host.isShowValue()) {
-            ValueState valueState = lr.getValueState();
+            final ValueState valueState = lr.getValueState();
             try {
-                Object[] results = management.decodeValueObjects(valueState, null);
-                ValueInspectorTreeNode root = new ValueInspectorTreeNode(null, results, "Value", Object[].class);
+                final Object[] results = management.decodeValueObjects(valueState, null);
+                final ValueInspectorTreeNode root = new ValueInspectorTreeNode(null, results, "Value", Object[].class);
                 _treeModel.setRoot(root);
                 _textArea.setText(null);
 
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 _host.setLogicalRecord(null);
                 _adminUI.postException(e);
             }
         } else {
-            KeyState keyState = lr.getKeyState();
+            final KeyState keyState = lr.getKeyState();
             try {
-                Object[] results = management.decodeKeyObjects(keyState, null);
+                final Object[] results = management.decodeKeyObjects(keyState, null);
 
-                ValueInspectorTreeNode root = new ValueInspectorTreeNode(null, results, "KeySegments", Object[].class);
+                final ValueInspectorTreeNode root = new ValueInspectorTreeNode(null, results, "KeySegments",
+                        Object[].class);
                 _treeModel.setRoot(root);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 _host.setLogicalRecord(null);
                 _adminUI.postException(e);
             }
         }
     }
 
-    private Object getObject(ValueState vs) {
+    private Object getObject(final ValueState vs) {
         return null;
     }
 
@@ -144,11 +145,11 @@ class InspectorObjectPanel extends AbstractInspector {
         }
 
         @Override
-        protected Class loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        protected Class loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
             if (!name.startsWith("com.persistit")) {
                 return super.loadClass(name, resolve);
             } else {
-                Class clazz = findClass(name);
+                final Class clazz = findClass(name);
                 if (resolve)
                     resolveClass(clazz);
                 return clazz;
@@ -156,13 +157,13 @@ class InspectorObjectPanel extends AbstractInspector {
         }
 
         @Override
-        protected Class findClass(String name) throws ClassNotFoundException {
+        protected Class findClass(final String name) throws ClassNotFoundException {
             Class clazz = null;
             if (_adminUI.getManagement() != null) {
                 try {
                     System.out.println("RemoteClassLoader is attempting to load class " + name);
                     clazz = _adminUI.getManagement().getRemoteClass(name);
-                } catch (RemoteException re) {
+                } catch (final RemoteException re) {
                     _adminUI.postException(re);
                 }
             }

@@ -29,7 +29,7 @@ public class VolumeAlreadyExistsException extends PersistitException {
         super();
     }
 
-    public VolumeAlreadyExistsException(String msg) {
+    public VolumeAlreadyExistsException(final String msg) {
         super(msg);
     }
 }

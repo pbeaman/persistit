@@ -28,7 +28,7 @@ public class CorruptImportStreamException extends PersistitException {
         super();
     }
 
-    public CorruptImportStreamException(String msg) {
+    public CorruptImportStreamException(final String msg) {
         super(msg);
     }
 

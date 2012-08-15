@@ -153,7 +153,7 @@ public class MVCCPruneTest extends MVCCTestBase {
             store(ex1, KEY, VALUE_TRX1);
             assertEquals("value from trx1 store", VALUE_TRX1, fetch(ex1, KEY));
             trx1.rollback();
-        } catch (RollbackException e) {
+        } catch (final RollbackException e) {
             // Expected
         } finally {
             trx1.end();
@@ -237,11 +237,11 @@ public class MVCCPruneTest extends MVCCTestBase {
 
         assertEquals("had split before inserting max number of keys", true, hadSplit);
 
-        Value ex1Value = ex1.getValue();
+        final Value ex1Value = ex1.getValue();
         ex1.ignoreMVCCFetch(true);
         ex1.clear().append(Key.BEFORE);
         while (ex1.next()) {
-            boolean isMVV = MVV.isArrayMVV(ex1Value.getEncodedBytes(), 0, ex1Value.getEncodedSize());
+            final boolean isMVV = MVV.isArrayMVV(ex1Value.getEncodedBytes(), 0, ex1Value.getEncodedSize());
             assertEquals("last key is MVV", ex1.getKey().decodeString().equals(curKey), isMVV);
         }
         ex1.ignoreMVCCFetch(false);
@@ -265,13 +265,13 @@ public class MVCCPruneTest extends MVCCTestBase {
                 trx1.end();
             }
         }
-        int VERSIONS_NOW_REMOVED_BY_PRUNING_BEFORE_STORE = 2;
+        final int VERSIONS_NOW_REMOVED_BY_PRUNING_BEFORE_STORE = 2;
         assertEquals("stored versions", VERSIONS.length + 1 - VERSIONS_NOW_REMOVED_BY_PRUNING_BEFORE_STORE,
                 storedVersionCount(ex2, KEY));
 
         trx1.begin();
         try {
-            String value = VALUE + "_final";
+            final String value = VALUE + "_final";
             store(ex1, KEY, value);
             assertEquals("trx value fetched before pre-prune pre-commit", value, fetch(ex1, KEY));
 
@@ -304,7 +304,7 @@ public class MVCCPruneTest extends MVCCTestBase {
             }
         }
 
-        int VERSIONS_NOW_REMOVED_BY_PRUNING_BEFORE_STORE = 5;
+        final int VERSIONS_NOW_REMOVED_BY_PRUNING_BEFORE_STORE = 5;
 
         assertEquals("stored versions pre-prune", VERSIONS.length - VERSIONS_NOW_REMOVED_BY_PRUNING_BEFORE_STORE,
                 storedVersionCount(ex2, KEY));
@@ -400,12 +400,12 @@ public class MVCCPruneTest extends MVCCTestBase {
 
         int count = 0;
         ex1.clear().append(Key.BEFORE);
-        while(ex1.traverse(Key.GT, true, 100)) {
+        while (ex1.traverse(Key.GT, true, 100)) {
             ++count;
         }
         assertEquals("Traversed count", 1, count);
         ex1.clear();
-        boolean hasChildren = ex1.hasChildren();
+        final boolean hasChildren = ex1.hasChildren();
         assertEquals("Has children", true, hasChildren);
     }
 
@@ -413,7 +413,7 @@ public class MVCCPruneTest extends MVCCTestBase {
     // Test helper methods
     //
 
-    private void prune(Exchange ex, Object k) throws PersistitException {
+    private void prune(final Exchange ex, final Object k) throws PersistitException {
         _persistit.getTransactionIndex().cleanup();
         ex.clear().append(k);
         ex.prune();
@@ -427,7 +427,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
 
         @Override
-        public void sawVersion(long version, int offset, int valueLength) throws PersistitException {
+        public void sawVersion(final long version, final int offset, final int valueLength) throws PersistitException {
             _versions.add(version);
         }
 
@@ -436,14 +436,14 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
     }
 
-    private int storedVersionCount(Exchange ex, Object k1) throws PersistitException {
+    private int storedVersionCount(final Exchange ex, final Object k1) throws PersistitException {
         ex.ignoreMVCCFetch(true);
         try {
             ex.clear().append(k1);
             ex.fetch();
 
-            VersionInfoVisitor visitor = new VersionInfoVisitor();
-            Value value = ex.getValue();
+            final VersionInfoVisitor visitor = new VersionInfoVisitor();
+            final Value value = ex.getValue();
             MVV.visitAllVersions(visitor, value.getEncodedBytes(), 0, value.getEncodedSize());
 
             ex.clear().getValue().clear();
@@ -453,7 +453,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
     }
 
-    private void storePrimordial(Exchange ex, Object k, Object v) throws PersistitException {
+    private void storePrimordial(final Exchange ex, final Object k, final Object v) throws PersistitException {
         if (trx1.isActive()) {
             throw new IllegalStateException("Can only store primordial when outside transaction");
         }

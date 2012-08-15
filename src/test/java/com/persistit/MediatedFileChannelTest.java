@@ -37,7 +37,7 @@ public class MediatedFileChannelTest {
     public void testFcMethods() throws Exception {
         final File file = File.createTempFile("bug882219", null);
         file.deleteOnExit();
-        MediatedFileChannel fc = new MediatedFileChannel(file, "rw");
+        final MediatedFileChannel fc = new MediatedFileChannel(file, "rw");
 
         assertEquals(0, fc.size());
         final ByteBuffer bb = ByteBuffer.allocate(65536);
@@ -57,7 +57,7 @@ public class MediatedFileChannelTest {
         try {
             assertEquals(30000, fc.read(bb, 0));
             fail("Should have thrown an exception");
-        } catch (ClosedChannelException e) {
+        } catch (final ClosedChannelException e) {
             // expected
         }
     }
@@ -66,11 +66,12 @@ public class MediatedFileChannelTest {
     public void testAsynchronousInterrupts() throws Exception {
         final File file = File.createTempFile("bug882219", null);
         file.deleteOnExit();
-        MediatedFileChannel fc = new MediatedFileChannel(file, "rw");
+        final MediatedFileChannel fc = new MediatedFileChannel(file, "rw");
         final Thread foregroundThread = Thread.currentThread();
 
-        Timer timer = new Timer("Interrupter");
+        final Timer timer = new Timer("Interrupter");
         timer.schedule(new TimerTask() {
+            @Override
             public void run() {
                 foregroundThread.interrupt();
             }
@@ -92,12 +93,12 @@ public class MediatedFileChannelTest {
                     bb.position(0);
                     fc.force(true);
                     count++;
-                } catch (InterruptedIOException e) {
+                } catch (final InterruptedIOException e) {
                     // ignore -- expected
                     interrupts++;
                     // need to clear the interrupted status
                     Thread.interrupted();
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     e.printStackTrace();
                     errors++;
                 }

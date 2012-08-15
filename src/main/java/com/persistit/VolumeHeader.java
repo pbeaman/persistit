@@ -285,15 +285,15 @@ class VolumeHeader {
      * @throws CorruptVolumeException
      * @throws PersistitIOException
      */
-    public static boolean verifyVolumeHeader(final VolumeSpecification specification, final long systemTimestamp) throws CorruptVolumeException,
-            InvalidVolumeSpecificationException, PersistitIOException {
+    public static boolean verifyVolumeHeader(final VolumeSpecification specification, final long systemTimestamp)
+            throws CorruptVolumeException, InvalidVolumeSpecificationException, PersistitIOException {
         try {
             final File file = new File(specification.getPath());
             if (file.exists()) {
                 if (file.isFile()) {
                     final FileInputStream stream = new FileInputStream(file);
                     final byte[] bytes = new byte[SIZE];
-                    int readSize = stream.read(bytes);
+                    final int readSize = stream.read(bytes);
                     if (readSize < SIZE) {
                         throw new CorruptVolumeException("Volume file " + file + " too short: " + readSize);
                     }
@@ -305,21 +305,21 @@ class VolumeHeader {
                         throw new CorruptVolumeException("Invalid signature");
                     }
 
-                    int version = getVersion(bytes);
+                    final int version = getVersion(bytes);
                     if (version < MIN_SUPPORTED_VERSION || version > MAX_SUPPORTED_VERSION) {
                         throw new CorruptVolumeException("Version " + version
                                 + " is not supported by Persistit version " + Persistit.version());
                     }
-                    int pageSize = getPageSize(bytes);
-                    long nextAvailablePage = getNextAvailablePage(bytes);
-                    long id = getId(bytes);
-                    long totalPages = file.length() / pageSize;
+                    final int pageSize = getPageSize(bytes);
+                    final long nextAvailablePage = getNextAvailablePage(bytes);
+                    final long id = getId(bytes);
+                    final long totalPages = file.length() / pageSize;
                     if (totalPages < nextAvailablePage) {
                         throw new CorruptVolumeException(String.format("Volume has been truncated: "
-                                + "minimum required/actual lengths=%,d/%,d bytes", nextAvailablePage * pageSize, file
-                                .length()));
+                                + "minimum required/actual lengths=%,d/%,d bytes", nextAvailablePage * pageSize,
+                                file.length()));
                     }
-                    long globalTimestamp = getGlobalTimestamp(bytes);
+                    final long globalTimestamp = getGlobalTimestamp(bytes);
                     if (globalTimestamp > systemTimestamp) {
                         throw new CorruptVolumeException("Volume " + file + " has a global timestamp greater than "
                                 + "system timestamp: " + globalTimestamp + " > " + systemTimestamp);
@@ -334,7 +334,7 @@ class VolumeHeader {
             } else {
                 return false;
             }
-        } catch (IOException ioe) {
+        } catch (final IOException ioe) {
             throw new PersistitIOException(ioe);
         }
     }

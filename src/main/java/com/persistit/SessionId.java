@@ -42,7 +42,7 @@ public class SessionId {
 
     private final int _id = counter.getAndIncrement();
 
-    private AtomicReference<Thread> _owner = new AtomicReference<Thread>();
+    private final AtomicReference<Thread> _owner = new AtomicReference<Thread>();
 
     SessionId() {
         assign();

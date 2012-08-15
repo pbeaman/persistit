@@ -29,11 +29,11 @@ public class RollbackException extends RuntimeException {
         super();
     }
 
-    public RollbackException(String msg) {
+    public RollbackException(final String msg) {
         super(msg);
     }
 
-    public RollbackException(Throwable t) {
+    public RollbackException(final Throwable t) {
         super(t);
     }
 }

@@ -16,7 +16,6 @@
 package com.persistit.util;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -45,7 +44,7 @@ public class ArgParser {
     private final long[] _longArgs;
     private final boolean[] _specified;
     private boolean _usageOnly;
-    private List<String> _unparsed = new ArrayList<String>();
+    private final List<String> _unparsed = new ArrayList<String>();
 
     /**
      * <p>
@@ -95,14 +94,14 @@ public class ArgParser {
      * </dl>
      * </p>
      */
-    public ArgParser(String progName, String[] args, String[] template) {
+    public ArgParser(final String progName, final String[] args, final String[] template) {
         _progName = progName;
         _template = template;
         _strArgs = new String[template.length];
         _longArgs = new long[template.length];
         _specified = new boolean[template.length];
 
-        StringBuilder flags = new StringBuilder();
+        final StringBuilder flags = new StringBuilder();
 
         String flagsTemplate = "";
         for (int i = 0; i < template.length; i++) {
@@ -114,7 +113,7 @@ public class ArgParser {
         }
 
         for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
+            final String arg = args[i];
             if (arg.startsWith("-")) {
                 for (int j = 1; j < arg.length(); j++) {
                     final char ch = arg.charAt(j);
@@ -127,12 +126,12 @@ public class ArgParser {
                     }
                 }
             } else {
-                String fieldName = piece(args[i], '=', 0);
-                int position = lookupName(fieldName);
+                final String fieldName = piece(args[i], '=', 0);
+                final int position = lookupName(fieldName);
                 if (position < 0) {
                     _unparsed.add(args[i]);
                 } else {
-                    String argValue = arg.substring(fieldName.length() + 1);
+                    final String argValue = arg.substring(fieldName.length() + 1);
                     _specified[position] = true;
                     doField(argValue, position);
                 }
@@ -146,7 +145,7 @@ public class ArgParser {
     public String toString() {
         final StringBuilder sb = new StringBuilder();
         for (int i = 0; i < _template.length; i++) {
-            String t = _template[i];
+            final String t = _template[i];
             if (t.startsWith("_flag|")) {
                 sb.append("  flag -");
                 sb.append(piece(t, '|', 1));
@@ -215,7 +214,7 @@ public class ArgParser {
      * @return <i>true</i> if the command line arguments contain the specified
      *         flag.
      */
-    public boolean isFlag(int ch) {
+    public boolean isFlag(final int ch) {
         return _flags.indexOf(ch) >= 0;
     }
 
@@ -237,7 +236,7 @@ public class ArgParser {
      * @return the boolean value for the specified template item
      */
     public boolean booleanValue(final int index) {
-        String t = _template[index];
+        final String t = _template[index];
         if (t.startsWith("_flag|")) {
             return isFlag(t.charAt(6));
         } else {
@@ -252,7 +251,7 @@ public class ArgParser {
      * @return The corresponding command line argument, or <i>null</i> if the
      *         command line does not name this item.
      */
-    public String getStringValue(String fieldName) {
+    public String getStringValue(final String fieldName) {
         return _strArgs[lookupName(fieldName)];
     }
 
@@ -263,7 +262,7 @@ public class ArgParser {
      * @return The corresponding command line argument, or <i>null</i> if the
      *         command line does not name this item.
      */
-    public int getIntValue(String fieldName) {
+    public int getIntValue(final String fieldName) {
         return (int) _longArgs[lookupName(fieldName)];
     }
 
@@ -274,7 +273,7 @@ public class ArgParser {
      * @param index
      * @return the int value for the specified template item
      */
-    public int intValue(int index) {
+    public int intValue(final int index) {
         return (int) _longArgs[index];
     }
 
@@ -285,7 +284,7 @@ public class ArgParser {
      * @return The corresponding command line argument, or <i>null</i> if the
      *         command line does not name this item.
      */
-    public long getLongValue(String fieldName) {
+    public long getLongValue(final String fieldName) {
         return _longArgs[lookupName(fieldName)];
     }
 
@@ -318,12 +317,12 @@ public class ArgParser {
      * @param fieldName
      * @return <code>true</code> if the field contains its default value
      */
-    public boolean isSpecified(String fieldName) {
+    public boolean isSpecified(final String fieldName) {
         return _specified[lookupName(fieldName)];
     }
 
-    private int lookupName(String name) {
-        String fieldName1 = name + '|';
+    private int lookupName(final String name) {
+        final String fieldName1 = name + '|';
         for (int i = 0; i < _template.length; i++) {
             if (_template[i].startsWith(fieldName1))
                 return i;
@@ -331,25 +330,25 @@ public class ArgParser {
         return -1;
     }
 
-    private void doField(String arg, int position) {
-        String type = piece(_template[position], '|', 1);
-        String t = piece(type, ':', 0);
+    private void doField(String arg, final int position) {
+        final String type = piece(_template[position], '|', 1);
+        final String t = piece(type, ':', 0);
         if (arg == null) {
             arg = piece(type, ':', 1);
         }
         if ("int".equals(t)) {
-            long lo = longVal(piece(type, ':', 2), 0);
-            long hi = longVal(piece(type, ':', 3), Integer.MAX_VALUE);
-            long argInt = longVal(arg, Long.MIN_VALUE);
+            final long lo = longVal(piece(type, ':', 2), 0);
+            final long hi = longVal(piece(type, ':', 3), Integer.MAX_VALUE);
+            final long argInt = longVal(arg, Long.MIN_VALUE);
             if (_specified[position]
                     && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi || argInt > Integer.MAX_VALUE)) {
                 throw new IllegalArgumentException("Invalid argument " + piece(_template[position], '|', 0) + "=" + arg);
             }
             _longArgs[position] = argInt;
         } else if ("long".equals(t)) {
-            long lo = longVal(piece(type, ':', 2), 0);
-            long hi = longVal(piece(type, ':', 3), Long.MAX_VALUE);
-            long argInt = longVal(arg, Long.MIN_VALUE);
+            final long lo = longVal(piece(type, ':', 2), 0);
+            final long hi = longVal(piece(type, ':', 3), Long.MAX_VALUE);
+            final long argInt = longVal(arg, Long.MIN_VALUE);
             if (_specified[position] && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi)) {
                 throw new IllegalArgumentException("Invalid argument " + piece(_template[position], '|', 0) + "=" + arg);
             }
@@ -359,24 +358,24 @@ public class ArgParser {
         }
     }
 
-    private long longVal(String s, long dflt) {
+    private long longVal(final String s, final long dflt) {
         if (s.length() == 0)
             return dflt;
         try {
             return Long.parseLong(s.replace(",", ""));
-        } catch (NumberFormatException e) {
+        } catch (final NumberFormatException e) {
             throw new IllegalArgumentException(s + " is not a number");
         }
     }
 
-    private void tab(StringBuilder sb, int count) {
-        int last = sb.lastIndexOf(Util.NEW_LINE);
+    private void tab(final StringBuilder sb, final int count) {
+        final int last = sb.lastIndexOf(Util.NEW_LINE);
         while (sb.length() - last + 1 < count) {
             sb.append(' ');
         }
     }
 
-    private String piece(String str, char delimiter, int count) {
+    private String piece(final String str, final char delimiter, final int count) {
         int p = -1;
         int q = -1;
         for (int i = 0; i <= count; i++) {

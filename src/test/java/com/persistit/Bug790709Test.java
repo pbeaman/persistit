@@ -20,8 +20,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.persistit.Buffer;
-import com.persistit.Exchange;
 import com.persistit.unit.PersistitUnitTestCase;
 
 /**
@@ -57,7 +55,7 @@ public class Bug790709Test extends PersistitUnitTestCase {
      */
     @Test
     public void testRebalancePages1() throws Exception {
-        Exchange ex = _persistit.getExchange("persistit", "Bug790709Test", true);
+        final Exchange ex = _persistit.getExchange("persistit", "Bug790709Test", true);
         final int maxKeys = ex.getVolume().getPool().getMaxKeys();
         //
         // Create maxKeys keys in each of two pages. (There are
@@ -103,7 +101,7 @@ public class Bug790709Test extends PersistitUnitTestCase {
      */
     @Test
     public void testRebalancePages2() throws Exception {
-        Exchange ex = _persistit.getExchange("persistit", "Bug790709Test", true);
+        final Exchange ex = _persistit.getExchange("persistit", "Bug790709Test", true);
         final int maxKeys = ex.getVolume().getPool().getMaxKeys();
         //
         // Create maxKeys keys in each of two pages. (There are

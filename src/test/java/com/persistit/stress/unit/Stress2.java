@@ -31,7 +31,7 @@ public class Stress2 extends StressBase {
     int _seed;
     String _opflags;
 
-    public Stress2(String argsString) {
+    public Stress2(final String argsString) {
         super(argsString);
     }
 
@@ -121,8 +121,7 @@ public class Stress2 extends StressBase {
                         _exs.fetch(value2);
                         final int size2 = value2.getEncodedSize();
                         if (size2 != size1) {
-                            fail("Value is size " + size2 + ", should be " + size1 + " key="
-                                    + _ex.getKey());
+                            fail("Value is size " + size2 + ", should be " + size1 + " key=" + _ex.getKey());
                         }
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -147,7 +146,7 @@ public class Stress2 extends StressBase {
                             count1++;
                         }
                         addWork(1);
-                        
+
                         _exs.cut();
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -169,8 +168,8 @@ public class Stress2 extends StressBase {
                     }
                 }
                 if (count1 != count2 && !isStopped()) {
-                    fail("Traverse count is " + count1 + " but should be " + count2
-                            + " on repetition=" + _repeat + " in thread=" + _threadIndex);
+                    fail("Traverse count is " + count1 + " but should be " + count2 + " on repetition=" + _repeat
+                            + " in thread=" + _threadIndex);
 
                     break;
                 }

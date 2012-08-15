@@ -29,7 +29,7 @@ public class PersistitClosedException extends PersistitException {
         super();
     }
 
-    public PersistitClosedException(String msg) {
+    public PersistitClosedException(final String msg) {
         super(msg);
     }
 

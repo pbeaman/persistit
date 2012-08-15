@@ -54,7 +54,7 @@ public abstract class Stress4Base extends StressBase {
 
     private Exception _mostRecentException;
 
-    public Stress4Base(String argsString) {
+    public Stress4Base(final String argsString) {
         super(argsString);
     }
 

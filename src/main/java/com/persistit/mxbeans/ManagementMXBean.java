@@ -101,16 +101,17 @@ public interface ManagementMXBean {
     long getRollbackCount() throws RemoteException;
 
     /**
-     * Return an array of information of all volumes that Persistit
-     * knows about, or null if there are none.
-     *
+     * Return an array of information of all volumes that Persistit knows about,
+     * or null if there are none.
+     * 
      * @return array of volumes
      * @throws RemoteException
      */
     Management.VolumeInfo[] getVolumes() throws RemoteException;
 
     /**
-     * @param max Maximum number of transactions to report on.
+     * @param max
+     *            Maximum number of transactions to report on.
      * @return Report on the <code>max</code> longest-running transactions.
      * @throws RemoteException
      */
@@ -120,11 +121,13 @@ public interface ManagementMXBean {
      * @return the name of the current default <code>CommitPolicy<code>
      */
     String getDefaultCommitPolicy() throws RemoteException;
-    
+
     /**
-     * Modify the current default <code>CommitPolicy</code>.  The
-     * policy name must be one of "hard", "group" or "commit".
-     * @param policyName name of the <code>CommitPolicy</code> to set.
+     * Modify the current default <code>CommitPolicy</code>. The policy name
+     * must be one of "hard", "group" or "commit".
+     * 
+     * @param policyName
+     *            name of the <code>CommitPolicy</code> to set.
      */
     void setDefaultCommitPolicy(String policyName) throws RemoteException;
 
@@ -210,8 +213,9 @@ public interface ManagementMXBean {
 
     /**
      * Query information about a specific volume from it's name.
-     *
-     * @param volumeName name of the volume to lookup
+     * 
+     * @param volumeName
+     *            name of the volume to lookup
      * @return information about the volume, or null if none found
      * @throws RemoteException
      */

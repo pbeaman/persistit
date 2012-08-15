@@ -21,7 +21,7 @@ import com.persistit.stress.TestResult;
 public class ConfirmEmptyVolume extends AbstractStressTest {
 
     Volume[] _volumes;
-    
+
     public ConfirmEmptyVolume(final String argsString) {
         super(argsString);
     }

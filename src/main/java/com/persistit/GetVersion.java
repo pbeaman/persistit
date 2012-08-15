@@ -21,10 +21,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 /**
- * Access the build version string from a resource included in the persistit jar file.
- * The static {@link #main} method writes the version string out to System.out.
+ * Access the build version string from a resource included in the persistit jar
+ * file. The static {@link #main} method writes the version string out to
+ * System.out.
+ * 
  * @author peter
- *
+ * 
  */
 public class GetVersion {
 
@@ -32,10 +34,11 @@ public class GetVersion {
 
     /**
      * Write the build version string to {@link System#out}
+     * 
      * @param a
      * @throws Exception
      */
-    public static void main(String[] a) throws Exception {
+    public static void main(final String[] a) throws Exception {
         System.out.println(getVersionString());
     }
 
@@ -45,19 +48,19 @@ public class GetVersion {
     public static String getVersionString() {
         try {
             return new GetVersion("persistit_version").toString();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             return "UNKNOWN: " + e;
         }
     }
 
-    private GetVersion(String jarResource) throws IOException {
+    private GetVersion(final String jarResource) throws IOException {
         InputStream in = null;
         BufferedReader reader = null;
         try {
             in = GetVersion.class.getResourceAsStream(jarResource);
             reader = new BufferedReader(new InputStreamReader(in));
             _version = reader.readLine();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw e;
         } finally {
             if (reader != null) {

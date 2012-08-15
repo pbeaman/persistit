@@ -24,21 +24,22 @@ import java.io.ObjectStreamClass;
  */
 
 class ClassInfo {
-    private Class<?> _class;
-    private long _suid;
-    private int _handle;
-    private ObjectStreamClass _osc;
+    private final Class<?> _class;
+    private final long _suid;
+    private final int _handle;
+    private final ObjectStreamClass _osc;
 
-    ClassInfo(Class<?> cl, long suid, int handle, ObjectStreamClass osc) {
+    ClassInfo(final Class<?> cl, final long suid, final int handle, final ObjectStreamClass osc) {
         _class = cl;
         _suid = suid;
         _handle = handle;
         _osc = osc;
     }
 
+    @Override
     public boolean equals(final Object object) {
         if (object instanceof ClassInfo) {
-            ClassInfo ci = (ClassInfo) object;
+            final ClassInfo ci = (ClassInfo) object;
             if (equals(_class, ci._class) && _handle == ci._handle && _suid == ci._suid) {
                 return true;
             }
@@ -46,6 +47,7 @@ class ClassInfo {
         return false;
     }
 
+    @Override
     public int hashCode() {
         return _class.hashCode() ^ _handle ^ (int) _suid;
     }
@@ -86,9 +88,8 @@ class ClassInfo {
     public ObjectStreamClass getClassDescriptor() {
         return _osc;
     }
-    
-    private boolean equals(Class<?> a, Class<?> b) {
+
+    private boolean equals(final Class<?> a, final Class<?> b) {
         return a == null ? b == null : a.equals(b);
     }
 }
-

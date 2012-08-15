@@ -43,7 +43,7 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
         private final long _systemTime;
 
         private volatile boolean _completed = false;
-        
+
         Checkpoint(final long timestamp, final long systemTime) {
             _timestamp = timestamp;
             _systemTime = systemTime;
@@ -72,8 +72,8 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
 
         @Override
         public String toString() {
-            return String.format("Checkpoint %,d%s @ %s", _timestamp, isCompleted() ? "c" : "u", SDF.format(new Date(
-                    _systemTime)));
+            return String.format("Checkpoint %,d%s @ %s", _timestamp, isCompleted() ? "c" : "u",
+                    SDF.format(new Date(_systemTime)));
         }
 
         @Override
@@ -81,7 +81,7 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
             if (!(object instanceof Checkpoint)) {
                 return false;
             }
-            Checkpoint cp = (Checkpoint) object;
+            final Checkpoint cp = (Checkpoint) object;
             return cp._systemTime == _systemTime && cp._timestamp == _timestamp;
         }
     }
@@ -92,9 +92,9 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
      * Default interval in nanoseconds between checkpoints - two minutes.
      */
     private final static long DEFAULT_CHECKPOINT_INTERVAL = 120;
-    
+
     private final static long MINIMUM_CHECKPOINT_INTERVAL = 10;
-    
+
     private final static long MAXIMUM_CHECKPOINT_INTERVAL = 1800;
 
     private final static Checkpoint UNAVALABLE_CHECKPOINT = new Checkpoint(0, 0);
@@ -110,13 +110,12 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
     private final static long FLUSH_CHECKPOINT_INTERVAL = 5000;
 
     private volatile Checkpoint _currentCheckpoint = new Checkpoint(0, 0, true);
-    
-    private List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
+    private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
-    private AtomicBoolean _closed = new AtomicBoolean();
+    private final AtomicBoolean _closed = new AtomicBoolean();
 
-    private AtomicBoolean _fastClose = new AtomicBoolean();
+    private final AtomicBoolean _fastClose = new AtomicBoolean();
 
     CheckpointManager(final Persistit persistit) {
         super(persistit);
@@ -139,12 +138,12 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
     Checkpoint getCurrentCheckpoint() {
         return _currentCheckpoint;
     }
-    
+
     long getCheckpointIntervalNanos() {
         return _checkpointIntervalNanos;
     }
 
-    void setCheckpointIntervalNanos(long interval) {
+    void setCheckpointIntervalNanos(final long interval) {
         _checkpointIntervalNanos = interval;
     }
 
@@ -159,19 +158,19 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
     }
 
     @Override
-    public void setCheckpointInterval(long interval) {
+    public void setCheckpointInterval(final long interval) {
         Util.rangeCheck(interval, MINIMUM_CHECKPOINT_INTERVAL, MAXIMUM_CHECKPOINT_INTERVAL);
         _checkpointIntervalNanos = interval * NS_PER_S;
     }
-    
+
     @Override
-    public synchronized  int getOutstandingCheckpointCount() {
+    public synchronized int getOutstandingCheckpointCount() {
         return _outstandingCheckpoints.size();
     }
-    
+
     @Override
     public synchronized String outstandingCheckpointReport() {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         for (final Checkpoint cp : _outstandingCheckpoints) {
             sb.append(cp);
             sb.append(Util.NEW_LINE);
@@ -180,7 +179,7 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
     }
 
     Checkpoint checkpoint() throws PersistitException {
-        Checkpoint checkpoint = createCheckpoint();
+        final Checkpoint checkpoint = createCheckpoint();
         _persistit.flushBuffers(checkpoint.getTimestamp());
 
         while (true) {
@@ -239,14 +238,14 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
         final SessionId saveSessionId = _persistit.getSessionId();
         try {
             _persistit.setSessionId(_checkpointTxnSessionId);
-            Transaction txn = _persistit.getTransaction();
+            final Transaction txn = _persistit.getTransaction();
 
             _lastCheckpointNanos = System.nanoTime();
 
             txn.beginCheckpoint();
             try {
                 _persistit.flushTransactions(txn.getStartTimestamp());
-                List<Accumulator> accumulators = _persistit.getCheckpointAccumulators();
+                final List<Accumulator> accumulators = _persistit.getCheckpointAccumulators();
                 _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp(), accumulators);
                 Accumulator.saveAccumulatorCheckpointValues(accumulators);
                 txn.commit(CommitPolicy.HARD);
@@ -254,7 +253,7 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
                 _outstandingCheckpoints.add(_currentCheckpoint);
                 _persistit.getLogBase().checkpointProposed.log(_currentCheckpoint);
                 return _currentCheckpoint;
-            } catch (InterruptedException ie) {
+            } catch (final InterruptedException ie) {
                 throw new PersistitInterruptedException(ie);
             } finally {
                 txn.end();
@@ -272,9 +271,9 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
     void pollFlushCheckpoint() {
         final long earliestDirtyTimestamp = _persistit.earliestDirtyTimestamp();
         Checkpoint checkpoint = null;
-        synchronized(this) {
+        synchronized (this) {
             while (!_outstandingCheckpoints.isEmpty()) {
-                Checkpoint cp = _outstandingCheckpoints.get(0);
+                final Checkpoint cp = _outstandingCheckpoints.get(0);
                 if (cp.getTimestamp() <= earliestDirtyTimestamp) {
                     checkpoint = cp;
                     _outstandingCheckpoints.remove(0);
@@ -286,7 +285,7 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
         if (checkpoint != null) {
             try {
                 _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 _persistit.getLogBase().exception.log(e);
             }
         }

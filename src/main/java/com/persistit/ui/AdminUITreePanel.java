@@ -51,7 +51,7 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
     private ManagementTableModel _treeInfoArrayModel;
     private ManagementSlidingTableModel _logicalRecordArrayModel;
 
-    private Map _menuMap = new TreeMap();
+    private final Map _menuMap = new TreeMap();
 
     private boolean _refreshing;
 
@@ -72,7 +72,7 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
     private JButton _displayButton;
 
     @Override
-    protected void setup(AdminUI ui) throws NoSuchMethodException, RemoteException {
+    protected void setup(final AdminUI ui) throws NoSuchMethodException, RemoteException {
         _adminUI = ui;
         _volumePanel = new JPanel(new BorderLayout());
         _treePanel = new JPanel(new BorderLayout());
@@ -94,10 +94,11 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
 
         _volumeList.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
             @Override
-            public void valueChanged(ListSelectionEvent lse) {
-                int index = _volumeList.getSelectedIndex();
+            public void valueChanged(final ListSelectionEvent lse) {
+                final int index = _volumeList.getSelectedIndex();
                 if (!lse.getValueIsAdjusting() && !_refreshing && index >= 0) {
-                    Management.VolumeInfo[] array = (Management.VolumeInfo[]) _volumeInfoArrayModel.getInfoArray();
+                    final Management.VolumeInfo[] array = (Management.VolumeInfo[]) _volumeInfoArrayModel
+                            .getInfoArray();
                     if (array != null && index < array.length) {
                         selectVolume(array[index]);
                     } else {
@@ -110,11 +111,11 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
 
         _treeTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
             @Override
-            public void valueChanged(ListSelectionEvent lse) {
-                int index = _treeTable.getSelectedRow();
+            public void valueChanged(final ListSelectionEvent lse) {
+                final int index = _treeTable.getSelectedRow();
                 if (!lse.getValueIsAdjusting() && !_refreshing && index >= 0) {
                     boolean changed;
-                    Management.TreeInfo[] array = (Management.TreeInfo[]) _treeInfoArrayModel.getInfoArray();
+                    final Management.TreeInfo[] array = (Management.TreeInfo[]) _treeInfoArrayModel.getInfoArray();
                     if (array != null && index < array.length) {
                         changed = selectTree(array[index]);
                     } else {
@@ -139,7 +140,7 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
             // when we are deleting rows.
             //
             @Override
-            public void repaint(Rectangle drawRect) {
+            public void repaint(final Rectangle drawRect) {
                 if (!_logicalRecordArrayModel.isDeletingRows()) {
                     super.repaint(drawRect);
                 }
@@ -153,27 +154,27 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
         _dataTable.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
         _logicalRecordArrayModel.formatColumns(_dataTable, null);
 
-        JScrollPane volumeScrollPane = new JScrollPane(_volumeList);
+        final JScrollPane volumeScrollPane = new JScrollPane(_volumeList);
         volumeScrollPane.setBorder(null);
         _volumePanel.setBorder(_adminUI.createTitledBorder("TreePanel.volumes"));
         _volumePanel.add(volumeScrollPane, BorderLayout.CENTER);
 
-        JScrollPane treeScrollPane = new JScrollPane(_treeTable);
+        final JScrollPane treeScrollPane = new JScrollPane(_treeTable);
         treeScrollPane.setBorder(null);
         _treePanel.setBorder(_adminUI.createTitledBorder("TreePanel.trees"));
         _treePanel.add(treeScrollPane, BorderLayout.CENTER);
 
-        JScrollPane dataScrollPane = new JScrollPane(_dataTable);
+        final JScrollPane dataScrollPane = new JScrollPane(_dataTable);
         dataScrollPane.setBorder(null);
         _dataPanel.setBorder(_adminUI.createTitledBorder("TreePanel.data"));
         _dataPanel.add(dataScrollPane, BorderLayout.CENTER);
 
         _inspectorPanel.setBorder(_adminUI.createTitledBorder("TreePanel.inspector"));
 
-        JSplitPane topSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        final JSplitPane topSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         topSplitPane.setResizeWeight(TOP_SPLITPANE_RESIZE_WEIGHT);
 
-        JSplitPane bottomSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        final JSplitPane bottomSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         bottomSplitPane.setResizeWeight(BOTTOM_SPLITPANE_RESIZE_WEIGHT);
         bottomSplitPane.setOneTouchExpandable(true);
 
@@ -181,11 +182,11 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
         topSplitPane.add(_treePanel);
         bottomSplitPane.add(_dataPanel);
         bottomSplitPane.add(_inspectorPanel);
-        JPanel topPanel = new JPanel(new BorderLayout());
+        final JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.add(topSplitPane, BorderLayout.CENTER);
         topPanel.add(createDataSelectorPanel(), BorderLayout.SOUTH);
 
-        JSplitPane mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        final JSplitPane mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         mainSplitPane.setResizeWeight(MAIN_SPLITPANE_RESIZE_WEIGHT);
 
         mainSplitPane.add(topPanel);
@@ -202,7 +203,7 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
     }
 
     JPanel createDataSelectorPanel() {
-        JPanel panel = new JPanel(new BorderLayout(3, 3));
+        final JPanel panel = new JPanel(new BorderLayout(3, 3));
         panel.setBorder(BorderFactory.createEmptyBorder(3, 3, 3, 3));
 
         _displayAction = _adminUI.createAction(this, _adminUI.getProperty("TreePanel.display"));
@@ -211,8 +212,8 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
         _displayAction.addButton(_displayButton);
 
         _filterTextField = new JTextField();
-        JLabel label = new JLabel(_adminUI.getProperty("TreePanel.filterCaption"));
-        JPanel filterPanel = new JPanel(new BorderLayout());
+        final JLabel label = new JLabel(_adminUI.getProperty("TreePanel.filterCaption"));
+        final JPanel filterPanel = new JPanel(new BorderLayout());
         filterPanel.add(label, BorderLayout.WEST);
         filterPanel.add(_filterTextField, BorderLayout.CENTER);
         label.setFont(_adminUI.getBoldFont());
@@ -220,19 +221,19 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
         panel.add(_displayButton, BorderLayout.WEST);
         panel.add(filterPanel, BorderLayout.CENTER);
 
-        JMenuItem displayMenuItem = new JMenuItem(_displayAction);
-        JMenuItem[] menus = new JMenuItem[] { displayMenuItem };
+        final JMenuItem displayMenuItem = new JMenuItem(_displayAction);
+        final JMenuItem[] menus = new JMenuItem[] { displayMenuItem };
         _menuMap.put("VIEW.1", menus);
         _menuMap.put("VIEW.2", _adminUI.createMenuArray(_adminUI, "TreePanelMenu", "VIEW"));
 
-        ListSelectionListener listener = new ListSelectionListener() {
+        final ListSelectionListener listener = new ListSelectionListener() {
             @Override
-            public void valueChanged(ListSelectionEvent evt) {
-                int row = _dataTable.getSelectedRow();
-                int column = _dataTable.getSelectedColumn();
+            public void valueChanged(final ListSelectionEvent evt) {
+                final int row = _dataTable.getSelectedRow();
+                final int column = _dataTable.getSelectedColumn();
                 if (row >= 0 && column >= 0) {
-                    Management.LogicalRecord lr = (Management.LogicalRecord) _logicalRecordArrayModel.getValueAt(row,
-                            -1);
+                    final Management.LogicalRecord lr = (Management.LogicalRecord) _logicalRecordArrayModel.getValueAt(
+                            row, -1);
                     // null if "Waiting..."
                     if (lr != null) {
                         _inspectorPanel.setLogicalRecord(_selectedVolumeName, _selectedTreeName, lr);
@@ -252,8 +253,8 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
     }
 
     @Override
-    public void actionPerformed(AdminUI.AdminAction action, ActionEvent ae) {
-        String name = action.getName();
+    public void actionPerformed(final AdminUI.AdminAction action, final ActionEvent ae) {
+        final String name = action.getName();
         if ("DISPLAY".equals(name)) {
             _dataTable.scrollRectToVisible(new Rectangle(0, 0));
 
@@ -261,8 +262,8 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
         }
     }
 
-    private void selectVolume(Management.VolumeInfo volumeInfo) {
-        String newName = volumeInfo == null ? null : volumeInfo.getPath();
+    private void selectVolume(final Management.VolumeInfo volumeInfo) {
+        final String newName = volumeInfo == null ? null : volumeInfo.getPath();
         if (!equals(newName, _selectedVolumeName)) {
             _logicalRecordArrayModel.setInfoArray(null);
             _selectedTreeName = null;
@@ -270,8 +271,8 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
         }
     }
 
-    private boolean selectTree(Management.TreeInfo treeInfo) {
-        String newName = treeInfo == null ? null : treeInfo.getName();
+    private boolean selectTree(final Management.TreeInfo treeInfo) {
+        final String newName = treeInfo == null ? null : treeInfo.getName();
         if (!equals(newName, _selectedTreeName)) {
             _logicalRecordArrayModel.setInfoArray(null);
             _selectedTreeName = newName;
@@ -281,7 +282,7 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
         }
     }
 
-    private boolean equals(Object a, Object b) {
+    private boolean equals(final Object a, final Object b) {
         if (a == null)
             return b == null;
         else
@@ -289,14 +290,14 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
     }
 
     @Override
-    protected void refresh(boolean reset) {
+    protected void refresh(final boolean reset) {
         synchronized (this) {
             if (_refreshing)
                 return;
             _refreshing = true;
         }
         try {
-            Management management = _adminUI.getManagement();
+            final Management management = _adminUI.getManagement();
             if (reset) {
                 _selectedTreeName = null;
                 _selectedVolumeName = null;
@@ -325,7 +326,7 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
             _displayAction.setEnabled(_selectedVolumeName != null && _selectedTreeName != null);
 
             _inspectorPanel.refresh(reset);
-        } catch (RemoteException re) {
+        } catch (final RemoteException re) {
             _adminUI.postException(re);
         } finally {
             synchronized (this) {

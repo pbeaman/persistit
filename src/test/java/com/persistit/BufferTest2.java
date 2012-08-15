@@ -72,7 +72,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         ex.getKey().clear().append(Key.AFTER);
         for (int p = b1.getKeyBlockEnd(); p > 0; p -= KEYBLOCK_LENGTH) {
             ex.getKey().copyTo(ex.getAuxiliaryKey1());
-            int result = b1.previousKey(ex.getKey(), p);
+            final int result = b1.previousKey(ex.getKey(), p);
             if (p > b1.getKeyBlockStart()) {
                 assertTrue("Key is out of sequence", ex.getKey().compareTo(ex.getAuxiliaryKey1()) < 0);
                 assertEquals("Wrong result from previousKey", result & P_MASK, p - KEYBLOCK_LENGTH);
@@ -97,12 +97,12 @@ public class BufferTest2 extends PersistitUnitTestCase {
 
         for (int c = b1.getKeyCount() - 1; c > 0; c -= 7) {
             setUpDeepKey(ex, 'a', c, 0);
-            int foundAt = b1.findKey(ex.getKey());
+            final int foundAt = b1.findKey(ex.getKey());
             b1.removeKeys(foundAt, foundAt, ex.getAuxiliaryKey1());
         }
 
-        boolean splitRight = b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 4, ex.getAuxiliaryKey1(), ex
-                .getAuxiliaryKey2(), JoinPolicy.RIGHT_BIAS);
+        final boolean splitRight = b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 4,
+                ex.getAuxiliaryKey1(), ex.getAuxiliaryKey2(), JoinPolicy.RIGHT_BIAS);
 
         assertTrue("Should have re-split", splitRight);
         assertTrue("Verify failed", b1.verify(null, null) == null);
@@ -115,12 +115,12 @@ public class BufferTest2 extends PersistitUnitTestCase {
 
         for (int c = b1.getKeyCount() + 1; c < b1.getKeyCount() + b2.getKeyCount(); c += 19) {
             setUpDeepKey(ex, 'a', c, 0);
-            int foundAt = b2.findKey(ex.getKey());
+            final int foundAt = b2.findKey(ex.getKey());
             b2.removeKeys(foundAt, foundAt, ex.getAuxiliaryKey1());
         }
 
-        boolean splitRight = b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 4, ex.getAuxiliaryKey1(), ex
-                .getAuxiliaryKey2(), JoinPolicy.RIGHT_BIAS);
+        final boolean splitRight = b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 4,
+                ex.getAuxiliaryKey1(), ex.getAuxiliaryKey2(), JoinPolicy.RIGHT_BIAS);
 
         assertTrue("Should have re-split", splitRight);
         assertTrue("Verify failed", b1.verify(null, null) == null);
@@ -133,12 +133,12 @@ public class BufferTest2 extends PersistitUnitTestCase {
 
         for (int c = b1.getKeyCount() - 1; c > 0; c -= 7) {
             setUpDeepKey(ex, 'a', c, 0);
-            int foundAt = b1.findKey(ex.getKey());
+            final int foundAt = b1.findKey(ex.getKey());
             b1.removeKeys(foundAt, foundAt, ex.getAuxiliaryKey1());
         }
 
-        boolean splitLeft = b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 4, ex.getAuxiliaryKey1(), ex
-                .getAuxiliaryKey2(), JoinPolicy.LEFT_BIAS);
+        final boolean splitLeft = b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 4,
+                ex.getAuxiliaryKey1(), ex.getAuxiliaryKey2(), JoinPolicy.LEFT_BIAS);
 
         assertTrue("Should have re-split", splitLeft);
         assertTrue("Verify failed", b1.verify(null, null) == null);
@@ -151,12 +151,12 @@ public class BufferTest2 extends PersistitUnitTestCase {
 
         for (int c = b1.getKeyCount() - 1; c > 0; c -= 7) {
             setUpDeepKey(ex, 'a', c, 0);
-            int foundAt = b1.findKey(ex.getKey());
+            final int foundAt = b1.findKey(ex.getKey());
             b1.removeKeys(foundAt, foundAt, ex.getAuxiliaryKey1());
         }
 
-        boolean splitEven = b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 4, ex.getAuxiliaryKey1(), ex
-                .getAuxiliaryKey2(), JoinPolicy.EVEN_BIAS);
+        final boolean splitEven = b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 4,
+                ex.getAuxiliaryKey1(), ex.getAuxiliaryKey2(), JoinPolicy.EVEN_BIAS);
 
         assertTrue("Should have split", splitEven);
         assertTrue("Verify failed", b1.verify(null, null) == null);
@@ -169,12 +169,12 @@ public class BufferTest2 extends PersistitUnitTestCase {
 
         for (int c = b1.getKeyCount() - 1; c > 0; c -= 7) {
             setUpDeepKey(ex, 'a', c, 0);
-            int foundAt = b1.findKey(ex.getKey());
+            final int foundAt = b1.findKey(ex.getKey());
             b1.removeKeys(foundAt, foundAt, ex.getAuxiliaryKey1());
         }
 
-        boolean splitEven = b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 232, ex.getAuxiliaryKey1(), ex
-                .getAuxiliaryKey2(), JoinPolicy.EVEN_BIAS);
+        final boolean splitEven = b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 232,
+                ex.getAuxiliaryKey1(), ex.getAuxiliaryKey2(), JoinPolicy.EVEN_BIAS);
 
         assertTrue("Should have split", splitEven);
         assertTrue("Verify failed", b1.verify(null, null) == null);
@@ -197,10 +197,10 @@ public class BufferTest2 extends PersistitUnitTestCase {
             /*
              * Now attempt to join the two pages while removing the edge key
              */
-            b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 4, ex.getAuxiliaryKey1(), ex
-                    .getAuxiliaryKey2(), JoinPolicy.EVEN_BIAS);
+            b1.join(b2, b1.getKeyBlockEnd() - 4, b2.getKeyBlockStart() + 4, ex.getAuxiliaryKey1(),
+                    ex.getAuxiliaryKey2(), JoinPolicy.EVEN_BIAS);
             fail("RebalanceException not thrown");
-        } catch (RebalanceException e) {
+        } catch (final RebalanceException e) {
             // expected
         }
 
@@ -244,9 +244,9 @@ public class BufferTest2 extends PersistitUnitTestCase {
          */
         setUpValue(true, RED_FOX.length());
         ex.to(String.format("%6d", a / 2 + 1));
-        int foundAt1 = b1.findKey(ex.getKey());
+        final int foundAt1 = b1.findKey(ex.getKey());
         assertTrue("Expect FIXUP_REQUIRED flag", (foundAt1 & FIXUP_MASK) != 0);
-        int splitAt1 = b1.split(b2, ex.getKey(), vw, foundAt1, ex.getAuxiliaryKey1(), Exchange.Sequence.NONE,
+        final int splitAt1 = b1.split(b2, ex.getKey(), vw, foundAt1, ex.getAuxiliaryKey1(), Exchange.Sequence.NONE,
                 SplitPolicy.EVEN_BIAS);
         assertTrue("Split failed", splitAt1 != -1);
         assertTrue("Verify failed", b1.verify(null, null) == null);
@@ -272,10 +272,10 @@ public class BufferTest2 extends PersistitUnitTestCase {
         assertTrue("Expected empty value to fit at end of buffer", b1.putValue(ex.getKey(), vw) != -1);
         setUpValue(true, RED_FOX.length());
         ex.to(String.format("%6dz", a / 2));
-        int foundAt2 = b1.findKey(ex.getKey());
+        final int foundAt2 = b1.findKey(ex.getKey());
         assertTrue("Expect EXACT flag", (foundAt2 & Buffer.EXACT_MASK) != 0);
         setUpValue(true, RED_FOX.length() * 2);
-        int splitAt2 = b1.split(b2, ex.getKey(), vw, foundAt2, ex.getAuxiliaryKey1(), Exchange.Sequence.NONE,
+        final int splitAt2 = b1.split(b2, ex.getKey(), vw, foundAt2, ex.getAuxiliaryKey1(), Exchange.Sequence.NONE,
                 SplitPolicy.EVEN_BIAS);
         assertTrue("Split failed", splitAt2 != -1);
         assertTrue("Verify failed", b1.verify(null, null) == null);
@@ -301,10 +301,10 @@ public class BufferTest2 extends PersistitUnitTestCase {
         assertTrue("Expected empty value to fit at end of buffer", b1.putValue(ex.getKey(), vw) != -1);
         setUpValue(true, RED_FOX.length());
         ex.to(String.format("%6dz", a - 2));
-        int foundAt3 = b1.findKey(ex.getKey());
+        final int foundAt3 = b1.findKey(ex.getKey());
         assertTrue("Expect EXACT flag", (foundAt3 & Buffer.EXACT_MASK) != 0);
         setUpValue(true, RED_FOX.length() * 2);
-        int splitAt3 = b1.split(b2, ex.getKey(), vw, foundAt3, ex.getAuxiliaryKey1(), Exchange.Sequence.NONE,
+        final int splitAt3 = b1.split(b2, ex.getKey(), vw, foundAt3, ex.getAuxiliaryKey1(), Exchange.Sequence.NONE,
                 SplitPolicy.RIGHT_BIAS);
         assertTrue("Split failed", splitAt3 != -1);
         assertTrue("Verify failed", b1.verify(null, null) == null);
@@ -319,7 +319,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         setUpDeepKey(112);
         int foundAt2 = b1.findKey(ex.getKey());
         if ((foundAt1 & Buffer.P_MASK) > (foundAt2 & Buffer.P_MASK)) {
-            int t = foundAt1;
+            final int t = foundAt1;
             foundAt1 = foundAt2;
             foundAt2 = t;
         }
@@ -344,14 +344,14 @@ public class BufferTest2 extends PersistitUnitTestCase {
         setUpShallowKey(a / 2);
         ex.getKey().getEncodedBytes()[6] = 0x7F;
         ex.getKey().setEncodedSize(7);
-        int foundAt = b1.findKey(ex.getKey());
-        int splitAt = b1.split(b2, ex.getKey(), vw, foundAt, ex.getAuxiliaryKey1(), Exchange.Sequence.NONE,
+        final int foundAt = b1.findKey(ex.getKey());
+        final int splitAt = b1.split(b2, ex.getKey(), vw, foundAt, ex.getAuxiliaryKey1(), Exchange.Sequence.NONE,
                 SplitPolicy.EVEN_BIAS);
 
         assertTrue("Split failed", splitAt != -1);
         assertTrue("Verify failed", b1.verify(null, null) == null);
         assertTrue("Verify failed", b2.verify(null, null) == null);
-        
+
         for (int b = 1; b < a; b++) {
             setUpShallowKey(b);
             if (b <= a / 2) {
@@ -361,15 +361,16 @@ public class BufferTest2 extends PersistitUnitTestCase {
             }
             assertTrue("Value should be defined", ex.getValue().isDefined());
         }
-        
+
         setUpShallowKey(a / 2);
         ex.getKey().getEncodedBytes()[6] = 0x7F;
         ex.getKey().setEncodedSize(7);
-        int foundAt1 = b1.findKey(ex.getKey());
+        final int foundAt1 = b1.findKey(ex.getKey());
         int foundAt2 = b2.findKey(ex.getKey());
         assertTrue("Should have found exact match", (foundAt2 & EXACT_MASK) > 0);
         foundAt2 = b2.nextKeyBlock(foundAt2);
-        boolean rebalanced = b1.join(b2, foundAt1, foundAt2, ex.getKey(), ex.getAuxiliaryKey1(), JoinPolicy.EVEN_BIAS);
+        final boolean rebalanced = b1.join(b2, foundAt1, foundAt2, ex.getKey(), ex.getAuxiliaryKey1(),
+                JoinPolicy.EVEN_BIAS);
         assertTrue("Should have joined pages", !rebalanced);
         assertTrue("Verify failed", b1.verify(null, null) == null);
         assertTrue("Verify failed", b2.verify(null, null) == null);
@@ -388,7 +389,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         }
     }
 
-    private void setUpPrettyFullBuffers(final int type, final int valueLength, boolean discontinuous)
+    private void setUpPrettyFullBuffers(final int type, final int valueLength, final boolean discontinuous)
             throws PersistitException {
         b1.init(type);
         b2.init(type);
@@ -440,7 +441,7 @@ public class BufferTest2 extends PersistitUnitTestCase {
         setUpDeepKey(ex, "abcdefg".charAt(a % 7), (a % (2000 / 13)) * 13, 0);
     }
 
-    private void setUpDeepKey(Exchange ex, char fill, int n, long pointer) {
+    private void setUpDeepKey(final Exchange ex, final char fill, final int n, final long pointer) {
         ex.getKey().clear().append(keyString(fill, n, n - 4, 4, n)).append(1);
         ex.getValue().setPointerValue(pointer);
     }
@@ -449,8 +450,8 @@ public class BufferTest2 extends PersistitUnitTestCase {
         setUpShallowKey(ex, a, 0);
     }
 
-    private void setUpShallowKey(Exchange ex, int value, long pointer) {
-        byte[] bytes = ex.getKey().clear().getEncodedBytes();
+    private void setUpShallowKey(final Exchange ex, final int value, final long pointer) {
+        final byte[] bytes = ex.getKey().clear().getEncodedBytes();
         Arrays.fill(bytes, (byte) 0);
         /*
          * Convert int to little-endian form so that byte 0 varies fastest. 7
@@ -465,8 +466,8 @@ public class BufferTest2 extends PersistitUnitTestCase {
         ex.getValue().setPointerValue(pointer);
     }
 
-    String keyString(char fill, int length, int prefix, int width, int k) {
-        StringBuilder sb = new StringBuilder();
+    String keyString(final char fill, final int length, final int prefix, final int width, final int k) {
+        final StringBuilder sb = new StringBuilder();
         for (int i = 0; i < prefix && i < length; i++) {
             sb.append(fill);
         }

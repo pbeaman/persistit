@@ -40,9 +40,9 @@ public class ValueState implements Serializable {
      * @param value
      *            The <code>Value</code> from which the state is copied.
      */
-    public ValueState(Value value) {
+    public ValueState(final Value value) {
         _longRecordMode = value.isLongRecordMode();
-        int length = value.getEncodedSize();
+        final int length = value.getEncodedSize();
         _bytes = new byte[length];
         System.arraycopy(value.getEncodedBytes(), 0, _bytes, 0, length);
     }
@@ -62,7 +62,7 @@ public class ValueState implements Serializable {
      * @param truncateSize
      *            Size at which the the copied encoded byte array is truncated.
      */
-    public ValueState(Value value, int truncateSize) {
+    public ValueState(final Value value, final int truncateSize) {
         _longRecordMode = value.isLongRecordMode();
         int length = value.getEncodedSize();
         if (length > truncateSize)
@@ -78,7 +78,7 @@ public class ValueState implements Serializable {
      * @param value
      *            The <code>Value</code> to which content should be copied.
      */
-    public void copyTo(Value value) {
+    public void copyTo(final Value value) {
         if (value.getMaximumSize() < _bytes.length) {
             throw new IllegalArgumentException("Too small");
         }
@@ -118,19 +118,19 @@ public class ValueState implements Serializable {
      *         represents an identical object or primitive value.
      */
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj instanceof Value) {
-            Value value = (Value) obj;
+            final Value value = (Value) obj;
             if (value.getEncodedSize() != _bytes.length)
                 return false;
-            byte[] valueBytes = value.getEncodedBytes();
+            final byte[] valueBytes = value.getEncodedBytes();
             for (int i = 0; i < _bytes.length; i++) {
                 if (valueBytes[i] != _bytes[i])
                     return false;
             }
             return true;
         } else if (obj instanceof ValueState) {
-            ValueState valueState = (ValueState) obj;
+            final ValueState valueState = (ValueState) obj;
             if (valueState._bytes.length != _bytes.length)
                 return false;
             for (int i = 0; i < _bytes.length; i++) {

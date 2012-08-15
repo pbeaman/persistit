@@ -116,7 +116,7 @@ public class ThreadSequencer implements SequencerConstants {
         for (final String alreadyRegistered : LOCATIONS) {
             assert !alreadyRegistered.equals(locationName) : "Location name " + locationName + " is already in use";
         }
-        int value = LOCATIONS.size();
+        final int value = LOCATIONS.size();
         assert value < MAX_LOCATIONS : "Too many ThreadSequence locations";
         LOCATIONS.add(locationName);
         return value;
@@ -175,7 +175,7 @@ public class ThreadSequencer implements SequencerConstants {
         return ENABLED_SEQUENCER.rawHistoryCopy();
     }
 
-    public static void appendHistoryElement(StringBuilder sb, int location) {
+    public static void appendHistoryElement(final StringBuilder sb, int location) {
         if (location < MAX_LOCATIONS) {
             sb.append('+');
             sb.append(LOCATIONS.get(location));
@@ -185,10 +185,10 @@ public class ThreadSequencer implements SequencerConstants {
         }
     }
 
-    public static String describeHistory(int[] history) {
-        StringBuilder sb = new StringBuilder();
+    public static String describeHistory(final int[] history) {
+        final StringBuilder sb = new StringBuilder();
         if (history != null) {
-            for (Integer location : history) {
+            for (final Integer location : history) {
                 if (sb.length() > 0) {
                     sb.append(',');
                 }
@@ -198,14 +198,14 @@ public class ThreadSequencer implements SequencerConstants {
         return sb.toString();
     }
 
-    public static String describePartialOrdering(int[]... args) {
-        StringBuilder builder = new StringBuilder();
+    public static String describePartialOrdering(final int[]... args) {
+        final StringBuilder builder = new StringBuilder();
         for (int i = 0; i < args.length; ++i) {
             if (i != 0) {
                 builder.append(',');
             }
             builder.append('{');
-            for (int location : args[i]) {
+            for (final int location : args[i]) {
                 appendHistoryElement(builder, location);
             }
             builder.append('}');
@@ -261,15 +261,15 @@ public class ThreadSequencer implements SequencerConstants {
      * @return <code>true</code> if the history fulfilled the required
      *         orderings.
      */
-    public static boolean historyMeetsPartialOrdering(int[] history, int[]... partialOrderings) {
+    public static boolean historyMeetsPartialOrdering(final int[] history, final int[]... partialOrderings) {
         /*
          * Sort each subset and equivalent ranges in the actual history. Then a
          * simple element wise comparison.
          */
         int offset = 0;
-        for (int[] subset : partialOrderings) {
+        for (final int[] subset : partialOrderings) {
             Arrays.sort(subset);
-            int nextOffset = offset + subset.length;
+            final int nextOffset = offset + subset.length;
             if (nextOffset > history.length) {
                 return false;
             }
@@ -284,11 +284,11 @@ public class ThreadSequencer implements SequencerConstants {
         return true;
     }
 
-    public static int[] array(int... args) {
+    public static int[] array(final int... args) {
         return args;
     }
 
-    public static int out(int location) {
+    public static int out(final int location) {
         return Integer.MAX_VALUE - location;
     }
 
@@ -338,7 +338,7 @@ public class ThreadSequencer implements SequencerConstants {
     private static class DisabledSequencer implements Sequencer {
 
         @Override
-        public void sequence(int location) {
+        public void sequence(final int location) {
         }
 
         @Override
@@ -346,7 +346,7 @@ public class ThreadSequencer implements SequencerConstants {
         }
 
         @Override
-        public void addSchedule(long await, long release) {
+        public void addSchedule(final long await, final long release) {
         }
     }
 
@@ -355,7 +355,7 @@ public class ThreadSequencer implements SequencerConstants {
         private final Semaphore[] _semaphores = new Semaphore[MAX_LOCATIONS];
         private long _waiting = 0;
         private long _enabled = 0;
-        private int[] _waitingCount = new int[MAX_LOCATIONS];
+        private final int[] _waitingCount = new int[MAX_LOCATIONS];
         private List<Integer> _history;
 
         {
@@ -365,7 +365,7 @@ public class ThreadSequencer implements SequencerConstants {
         }
 
         @Override
-        public void sequence(int location) {
+        public void sequence(final int location) {
             assert location >= 0 && location < MAX_LOCATIONS : "Location must be between 0 and 63, inclusive";
             Semaphore semaphore = null;
 
@@ -379,7 +379,7 @@ public class ThreadSequencer implements SequencerConstants {
                 semaphore = _semaphores[location];
                 long release = 0;
                 for (int index = 0; index < _schedule.size(); index += 2) {
-                    long await = _schedule.get(index);
+                    final long await = _schedule.get(index);
                     if ((_waiting & await) == await) {
                         release = _schedule.get(index + 1);
                         break;
@@ -402,7 +402,7 @@ public class ThreadSequencer implements SequencerConstants {
             if (semaphore != null) {
                 try {
                     semaphore.acquire();
-                } catch (InterruptedException e) {
+                } catch (final InterruptedException e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -430,9 +430,9 @@ public class ThreadSequencer implements SequencerConstants {
         }
 
         @Override
-        public synchronized void addSchedule(long await, long release) {
+        public synchronized void addSchedule(final long await, final long release) {
             for (int index = 0; index < _schedule.size(); index += 2) {
-                long current = _schedule.get(index);
+                final long current = _schedule.get(index);
                 assert (current & await) != current : "Schedules may not overlap";
                 assert (current & await) != await : "Schedules may not overlap";
                 assert (await & release) != 0 : "No thread is released";
@@ -449,7 +449,7 @@ public class ThreadSequencer implements SequencerConstants {
         public synchronized String history() {
             String desc = "";
             if (_history != null) {
-                int[] copy = rawHistoryCopy();
+                final int[] copy = rawHistoryCopy();
                 desc = describeHistory(copy);
                 _history.clear();
             }

@@ -23,7 +23,7 @@ package com.persistit.exception;
 public class CorruptValueException extends PersistitException {
     private static final long serialVersionUID = -5397911019132612370L;
 
-    public CorruptValueException(String msg) {
+    public CorruptValueException(final String msg) {
         super(msg);
     }
 }

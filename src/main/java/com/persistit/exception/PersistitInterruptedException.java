@@ -31,10 +31,9 @@ package com.persistit.exception;
 public class PersistitInterruptedException extends PersistitException {
     private static final long serialVersionUID = 9108205596568958490L;
 
-    public PersistitInterruptedException(InterruptedException ioe) {
+    public PersistitInterruptedException(final InterruptedException ioe) {
         super(ioe);
         Thread.currentThread().interrupt();
     }
 
 }
-

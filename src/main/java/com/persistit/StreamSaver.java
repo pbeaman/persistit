@@ -155,11 +155,11 @@ public class StreamSaver extends Task {
     }
 
     @Cmd("save")
-    static StreamSaver createTask(@Arg("file|string:|Save to file") String file,
-            @Arg("trees|string:*|Tree selector - specify Volumes/Trees/Keys to save") String treeSelectorString,
-            @Arg("_flag|v|verbose") boolean verbose,
-            @Arg("_flag|r|Use regular expressions in tree selector") boolean regex) throws Exception {
-        StreamSaver task = new StreamSaver();
+    static StreamSaver createTask(@Arg("file|string:|Save to file") final String file,
+            @Arg("trees|string:*|Tree selector - specify Volumes/Trees/Keys to save") final String treeSelectorString,
+            @Arg("_flag|v|verbose") final boolean verbose,
+            @Arg("_flag|r|Use regular expressions in tree selector") final boolean regex) throws Exception {
+        final StreamSaver task = new StreamSaver();
         task._filePath = file;
         task._treeSelector = TreeSelector.parseSelector(treeSelectorString, regex, '\\');
         task.setMessageLogVerbosity(verbose ? LOG_VERBOSE : LOG_NORMAL);
@@ -189,7 +189,7 @@ public class StreamSaver extends Task {
      *            The buffer size
      * @throws FileNotFoundException
      */
-    public StreamSaver(final Persistit persistit, final File file, int bufferSize) throws FileNotFoundException {
+    public StreamSaver(final Persistit persistit, final File file, final int bufferSize) throws FileNotFoundException {
         this(persistit, new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file), bufferSize)));
     }
 
@@ -203,7 +203,8 @@ public class StreamSaver extends Task {
      *            The buffer size
      * @throws FileNotFoundException
      */
-    public StreamSaver(final Persistit persistit, final String pathName, int bufferSize) throws FileNotFoundException {
+    public StreamSaver(final Persistit persistit, final String pathName, final int bufferSize)
+            throws FileNotFoundException {
         this(persistit, new DataOutputStream(new BufferedOutputStream(new FileOutputStream(pathName), bufferSize)));
     }
 
@@ -226,7 +227,7 @@ public class StreamSaver extends Task {
      * @param count
      *            The cycle count
      */
-    public void setCycleCount(int count) {
+    public void setCycleCount(final int count) {
         _cycleCount = count;
     }
 
@@ -262,7 +263,7 @@ public class StreamSaver extends Task {
      *            The <code>Exchange</code>
      * @throws IOException
      */
-    protected void writeData(Exchange exchange) throws IOException {
+    protected void writeData(final Exchange exchange) throws IOException {
         if (_lastVolume != exchange.getVolume()) {
             writeVolumeInfo(exchange);
         }
@@ -286,8 +287,8 @@ public class StreamSaver extends Task {
      *            The <code>Value</code>
      * @throws IOException
      */
-    protected void writeData(Key key, Value value) throws IOException {
-        int elisionCount = key.firstUniqueByteIndex(_lastKey);
+    protected void writeData(final Key key, final Value value) throws IOException {
+        final int elisionCount = key.firstUniqueByteIndex(_lastKey);
         _dos.writeChar(RECORD_TYPE_DATA);
         _dos.writeShort(key.getEncodedSize());
         _dos.writeShort(elisionCount);
@@ -313,7 +314,7 @@ public class StreamSaver extends Task {
      * 
      * @throws IOException
      */
-    protected void writeRecordCount(long dataRecordCount, long otherRecordCount) throws IOException {
+    protected void writeRecordCount(final long dataRecordCount, final long otherRecordCount) throws IOException {
         _dos.writeChar(RECORD_TYPE_FILL);
         _dos.writeChar(RECORD_TYPE_FILL);
         _dos.writeChar(RECORD_TYPE_FILL);
@@ -334,7 +335,7 @@ public class StreamSaver extends Task {
      *            The <code>Exchange</code>
      * @throws IOException
      */
-    protected void writeVolumeInfo(Exchange exchange) throws IOException {
+    protected void writeVolumeInfo(final Exchange exchange) throws IOException {
         writeVolumeInfo(exchange.getVolume());
         _lastVolume = exchange.getVolume();
     }
@@ -348,7 +349,7 @@ public class StreamSaver extends Task {
      * @param exchange
      * @throws IOException
      */
-    protected void writeTreeInfo(Exchange exchange) throws IOException {
+    protected void writeTreeInfo(final Exchange exchange) throws IOException {
         writeTreeInfo(exchange.getTree());
         _lastTree = exchange.getTree();
     }
@@ -363,7 +364,7 @@ public class StreamSaver extends Task {
      *            The <code>Volume</code>
      * @throws IOException
      */
-    protected void writeVolumeInfo(Volume volume) throws IOException {
+    protected void writeVolumeInfo(final Volume volume) throws IOException {
         _dos.writeChar(RECORD_TYPE_VOLUME_ID);
         _dos.writeLong(volume.getId());
         _dos.writeLong(volume.getSpecification().getInitialPages());
@@ -386,7 +387,7 @@ public class StreamSaver extends Task {
      *            The <code>Tree</code>
      * @throws IOException
      */
-    protected void writeTreeInfo(Tree tree) throws IOException {
+    protected void writeTreeInfo(final Tree tree) throws IOException {
         _dos.writeChar(RECORD_TYPE_TREE_ID);
         _dos.writeUTF(tree.getName());
         _lastTree = tree;
@@ -410,7 +411,7 @@ public class StreamSaver extends Task {
      *            The comment string
      * @throws IOException
      */
-    protected void writeComment(String comment) throws IOException {
+    protected void writeComment(final String comment) throws IOException {
         _dos.writeChar(RECORD_TYPE_COMMENT);
         _dos.writeUTF(Util.NEW_LINE + "//" + comment + "//");
     }
@@ -423,7 +424,7 @@ public class StreamSaver extends Task {
      *            The </code>Exception</code>
      * @throws IOException
      */
-    protected void writeException(Exception exception) throws IOException {
+    protected void writeException(final Exception exception) throws IOException {
         _dos.writeChar(RECORD_TYPE_EXCEPTION);
         _dos.writeUTF(exception.toString());
     }
@@ -441,7 +442,7 @@ public class StreamSaver extends Task {
      * @throws PersistitException
      * @throws IOException
      */
-    public void save(Exchange exchange, KeyFilter filter) throws PersistitException, IOException {
+    public void save(final Exchange exchange, final KeyFilter filter) throws PersistitException, IOException {
         postMessage("Saving Tree " + exchange.getTree().getName() + " in volume " + exchange.getVolume().getPath()
                 + (filter == null ? "" : " using KeyFilter: " + filter.toString()), LOG_VERBOSE);
 
@@ -451,7 +452,7 @@ public class StreamSaver extends Task {
             _dos.writeChar(RECORD_TYPE_KEY_FILTER);
             _dos.writeUTF(filter.toString());
         }
-        Key key = exchange.getKey();
+        final Key key = exchange.getKey();
         key.clear().append(Key.BEFORE);
         while (exchange.traverse(Key.GT, filter, Integer.MAX_VALUE) & !_stop) {
             writeData(exchange);
@@ -474,8 +475,9 @@ public class StreamSaver extends Task {
      * @throws PersistitException
      * @throws IOException
      */
-    public void saveTrees(String volumeName, String[] selectedTreeNames) throws PersistitException, IOException {
-        Volume volume = _persistit.getVolume(volumeName);
+    public void saveTrees(final String volumeName, final String[] selectedTreeNames) throws PersistitException,
+            IOException {
+        final Volume volume = _persistit.getVolume(volumeName);
         if (volume != null)
             saveTrees(volume, selectedTreeNames);
     }
@@ -490,8 +492,8 @@ public class StreamSaver extends Task {
      * @throws PersistitException
      * @throws IOException
      */
-    public void saveTrees(Volume volume, String[] selectedTreeNames) throws PersistitException, IOException {
-        String[] treeNames = volume.getTreeNames();
+    public void saveTrees(final Volume volume, final String[] selectedTreeNames) throws PersistitException, IOException {
+        final String[] treeNames = volume.getTreeNames();
         writeComment("Volume " + volume.getPath());
         for (int index = 0; index < treeNames.length & !_stop; index++) {
             boolean selected = true;
@@ -507,9 +509,9 @@ public class StreamSaver extends Task {
             } else {
                 writeComment("Tree " + treeNames[index]);
                 try {
-                    Exchange exchange = _persistit.getExchange(volume, treeNames[index], false);
+                    final Exchange exchange = _persistit.getExchange(volume, treeNames[index], false);
                     save(exchange, null);
-                } catch (PersistitException exception) {
+                } catch (final PersistitException exception) {
                     _lastException = exception;
                     writeException(exception);
                 }
@@ -534,9 +536,9 @@ public class StreamSaver extends Task {
                     final Tree t = tree.getVolume().getTree(treeName, false);
                     try {
                         writeComment("Tree " + treeName + " in " + tree.getVolume().getPath());
-                        Exchange exchange = new Exchange(t);
+                        final Exchange exchange = new Exchange(t);
                         save(exchange, null);
-                    } catch (PersistitException exception) {
+                    } catch (final PersistitException exception) {
                         _lastException = exception;
                         writeException(exception);
                     }
@@ -544,9 +546,9 @@ public class StreamSaver extends Task {
             } else {
                 try {
                     writeComment("Tree " + tree.getName() + " in " + tree.getVolume().getPath());
-                    Exchange exchange = new Exchange(tree);
+                    final Exchange exchange = new Exchange(tree);
                     save(exchange, treeSelector.keyFilter(tree.getVolume().getName(), tree.getName()));
-                } catch (PersistitException exception) {
+                } catch (final PersistitException exception) {
                     _lastException = exception;
                     writeException(exception);
                 }

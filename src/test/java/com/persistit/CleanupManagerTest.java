@@ -38,18 +38,18 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
     private class CleanupMockAction implements CleanupAction {
         final int _sequence;
 
-        CleanupMockAction(int sequence) {
+        CleanupMockAction(final int sequence) {
             _sequence = sequence;
         }
 
         @Override
-        public int compareTo(CleanupAction action) {
+        public int compareTo(final CleanupAction action) {
             return _sequence - ((CleanupMockAction) action)._sequence;
 
         }
 
         @Override
-        public void performAction(Persistit persistit) throws PersistitException {
+        public void performAction(final Persistit persistit) throws PersistitException {
             assertEquals(_last + 1, _sequence);
             _last = _sequence;
             _counter++;

@@ -24,7 +24,6 @@ import com.persistit.Key;
 import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.RollbackException;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress3txn extends StressBase {
@@ -45,7 +44,7 @@ public class Stress3txn extends StressBase {
     int _size;
     String _opflags;
 
-    public Stress3txn(String argsString) {
+    public Stress3txn(final String argsString) {
         super(argsString);
     }
 
@@ -274,9 +273,8 @@ public class Stress3txn extends StressBase {
                                     addWork(1);
 
                                     if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
-                                        fail("Expected filename <" + s
-                                                + "> was not found - key=" + ex1.getKey() + " keyInteger=" + keyInteger
-                                                + " at counter=" + _count);
+                                        fail("Expected filename <" + s + "> was not found - key=" + ex1.getKey()
+                                                + " keyInteger=" + keyInteger + " at counter=" + _count);
                                         break;
                                     }
                                     final long atomic = ex1.getValue().getLong();

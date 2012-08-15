@@ -27,7 +27,7 @@ public class StartStop extends AbstractSuite {
         return StartStop.class.getSimpleName();
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         new StartStop(args).runTest();
     }
 
@@ -35,10 +35,11 @@ public class StartStop extends AbstractSuite {
         super(name(), args);
     }
 
+    @Override
     public void runTest() throws Exception {
-        long end = System.nanoTime() + getDuration() * NS_PER_S;
+        final long end = System.nanoTime() + getDuration() * NS_PER_S;
         int cycle = 0;
-        boolean untilStopped = takeUntilStopped();
+        final boolean untilStopped = takeUntilStopped();
 
         while (cycle++ == 0 || untilStopped && System.nanoTime() < end) {
 
@@ -86,9 +87,10 @@ public class StartStop extends AbstractSuite {
         }
 
     }
-    
+
     static void confirmIntegrity(final Persistit persistit) throws Exception {
-        IntegrityCheck icheck = IntegrityCheck.icheck("persistit:*", false, false, false, false, false, false, false);
+        final IntegrityCheck icheck = IntegrityCheck.icheck("persistit:*", false, false, false, false, false, false,
+                false);
         icheck.setPersistit(persistit);
         icheck.setMessageWriter(null);
         icheck.run();

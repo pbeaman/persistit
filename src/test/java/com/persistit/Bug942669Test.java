@@ -85,8 +85,8 @@ public class Bug942669Test extends PersistitUnitTestCase {
         /*
          * Create a journal with an uncommitted transaction
          */
-        Exchange ex = _persistit.getExchange("persistit", "test", true);
-        Transaction txn = ex.getTransaction();
+        final Exchange ex = _persistit.getExchange("persistit", "test", true);
+        final Transaction txn = ex.getTransaction();
         txn.begin();
         ex.getValue().put(RED_FOX);
         for (int k = 1; k < 10; k++) {
@@ -96,7 +96,7 @@ public class Bug942669Test extends PersistitUnitTestCase {
         txn.commit();
         txn.end();
         _persistit.crash();
-        Properties properties = _persistit.getProperties();
+        final Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
 
         enableSequencer(true);
@@ -123,9 +123,9 @@ public class Bug942669Test extends PersistitUnitTestCase {
         /*
          * Create a journal with an uncommitted transaction
          */
-        Exchange ex = _persistit.getExchange("persistit", "test", true);
+        final Exchange ex = _persistit.getExchange("persistit", "test", true);
         _persistit.flush();
-        Transaction txn = ex.getTransaction();
+        final Transaction txn = ex.getTransaction();
         txn.begin();
         ex.getValue().put(RED_FOX);
         for (int k = 1; k < 10; k++) {
@@ -149,7 +149,7 @@ public class Bug942669Test extends PersistitUnitTestCase {
 
         _persistit.close();
 
-        Properties properties = _persistit.getProperties();
+        final Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(properties);
         _persistit.copyBackPages();

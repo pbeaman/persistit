@@ -24,7 +24,7 @@ package com.persistit.exception;
 public class InvalidPageAddressException extends PersistitException {
     private static final long serialVersionUID = -2586054997298158793L;
 
-    public InvalidPageAddressException(String msg) {
+    public InvalidPageAddressException(final String msg) {
         super(msg);
     }
 

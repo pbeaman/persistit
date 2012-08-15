@@ -38,27 +38,27 @@ import javax.swing.text.PlainDocument;
  * @version 1.0
  */
 public class TaskSetupPanel extends Box {
-    private AdminUI _adminUI;
-    private String _commandName;
-    private String _taskName;
-    private List<ParameterComponent> _generalParameterDescriptors = new ArrayList<ParameterComponent>();
-    private List<ParameterComponent> _taskSpecificParameterDescriptors = new ArrayList<ParameterComponent>();
-    private String _yesMessage;
-    private String _noMessage;
+    private final AdminUI _adminUI;
+    private final String _commandName;
+    private final String _taskName;
+    private final List<ParameterComponent> _generalParameterDescriptors = new ArrayList<ParameterComponent>();
+    private final List<ParameterComponent> _taskSpecificParameterDescriptors = new ArrayList<ParameterComponent>();
+    private final String _yesMessage;
+    private final String _noMessage;
 
-    public TaskSetupPanel(AdminUI ui, String taskSpecification) throws Exception {
+    public TaskSetupPanel(final AdminUI ui, final String taskSpecification) throws Exception {
         super(BoxLayout.Y_AXIS);
         _adminUI = ui;
         _yesMessage = ui.getProperty("YesMessage");
         _noMessage = ui.getProperty("NoMessage");
 
-        String generalParameters = ui.getProperty("TaskDescriptor.General");
+        final String generalParameters = ui.getProperty("TaskDescriptor.General");
         StringTokenizer st;
 
         st = new StringTokenizer(generalParameters, ",");
         while (st.hasMoreTokens()) {
-            String parameterSpec = st.nextToken();
-            ParameterComponent pd = taskParameterDescription(parameterSpec);
+            final String parameterSpec = st.nextToken();
+            final ParameterComponent pd = taskParameterDescription(parameterSpec);
             _generalParameterDescriptors.add(pd);
         }
 
@@ -67,8 +67,8 @@ public class TaskSetupPanel extends Box {
         _commandName = st.nextToken();
 
         while (st.hasMoreTokens()) {
-            String parameterSpec = st.nextToken();
-            ParameterComponent pd = taskParameterDescription(parameterSpec);
+            final String parameterSpec = st.nextToken();
+            final ParameterComponent pd = taskParameterDescription(parameterSpec);
             _taskSpecificParameterDescriptors.add(pd);
         }
 
@@ -76,20 +76,20 @@ public class TaskSetupPanel extends Box {
         setOwnerString(_adminUI.getHostName());
     }
 
-    ParameterComponent taskParameterDescription(String parameterSpec) {
-        StringTokenizer st2 = new StringTokenizer(parameterSpec, ":");
-        String name = st2.nextToken();
-        String type = st2.nextToken();
-        String caption = st2.nextToken();
-        JLabel label = new JLabel(caption);
+    ParameterComponent taskParameterDescription(final String parameterSpec) {
+        final StringTokenizer st2 = new StringTokenizer(parameterSpec, ":");
+        final String name = st2.nextToken();
+        final String type = st2.nextToken();
+        final String caption = st2.nextToken();
+        final JLabel label = new JLabel(caption);
         label.setFont(_adminUI.getBoldFont());
         label.setForeground(_adminUI.getPersistitAccentColor());
-        JPanel labelPanel = offsetPanel(0);
+        final JPanel labelPanel = offsetPanel(0);
         labelPanel.add(label);
         labelPanel.add(Box.createHorizontalGlue());
         add(labelPanel);
 
-        JPanel panel = offsetPanel(10);
+        final JPanel panel = offsetPanel(10);
 
         if ("STRING".equals(type) || "LINE".equals(type)) {
             int columns = 50;
@@ -100,7 +100,7 @@ public class TaskSetupPanel extends Box {
             if (st2.hasMoreElements()) {
                 dflt = st2.nextToken();
             }
-            JTextField textField = new JTextField(dflt, columns);
+            final JTextField textField = new JTextField(dflt, columns);
             panel.add(textField);
             panel.add(Box.createHorizontalGlue());
             add(panel);
@@ -108,7 +108,7 @@ public class TaskSetupPanel extends Box {
         }
 
         if ("TREES".equals(type)) {
-            TreeAndVolumeSelector tavSelector = new TreeAndVolumeSelector();
+            final TreeAndVolumeSelector tavSelector = new TreeAndVolumeSelector();
             tavSelector.setup(_adminUI);
             panel.add(tavSelector);
             add(panel);
@@ -117,9 +117,9 @@ public class TaskSetupPanel extends Box {
         }
 
         if ("BOOLEAN".equals(type)) {
-            JRadioButton yesButton = new JRadioButton(_yesMessage);
-            JRadioButton noButton = new JRadioButton(_noMessage);
-            ButtonGroup group = new ButtonGroup();
+            final JRadioButton yesButton = new JRadioButton(_yesMessage);
+            final JRadioButton noButton = new JRadioButton(_noMessage);
+            final ButtonGroup group = new ButtonGroup();
             group.add(yesButton);
             group.add(noButton);
             String dflt = "false";
@@ -142,10 +142,11 @@ public class TaskSetupPanel extends Box {
             if (st2.hasMoreTokens()) {
                 dflt = st2.nextToken();
             }
-            JTextField textField = new JTextField(10);
+            final JTextField textField = new JTextField(10);
             textField.setDocument(new PlainDocument() {
                 @Override
-                public void insertString(int offs, String str, AttributeSet a) throws BadLocationException {
+                public void insertString(final int offs, final String str, final AttributeSet a)
+                        throws BadLocationException {
                     boolean okay = true;
                     for (int index = 0; index < str.length() && okay; index++) {
                         if (!Character.isDigit(str.charAt(index)))
@@ -166,8 +167,8 @@ public class TaskSetupPanel extends Box {
 
     }
 
-    JPanel offsetPanel(int size) {
-        JPanel panel = new JPanel();
+    JPanel offsetPanel(final int size) {
+        final JPanel panel = new JPanel();
         panel.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 2));
         if (size > 0)
             panel.add(Box.createHorizontalStrut(size));
@@ -179,13 +180,13 @@ public class TaskSetupPanel extends Box {
         String _type;
         JComponent _component;
 
-        ParameterComponent(String name, String type, JComponent component) {
+        ParameterComponent(final String name, final String type, final JComponent component) {
             _name = name;
             _type = type;
             _component = component;
         }
 
-        void setStringValue(String s) {
+        void setStringValue(final String s) {
             if ("STRING".equals(_type) || "INTEGER".equals(_type) || "LINE".equals(_type)) {
                 ((JTextField) _component).setText(s);
             }
@@ -221,9 +222,9 @@ public class TaskSetupPanel extends Box {
         }
     }
 
-    void refresh(boolean reset) throws RemoteException {
+    void refresh(final boolean reset) throws RemoteException {
         for (int index = 0; index < _taskSpecificParameterDescriptors.size(); index++) {
-            ParameterComponent pc = _taskSpecificParameterDescriptors.get(index);
+            final ParameterComponent pc = _taskSpecificParameterDescriptors.get(index);
             if (pc._component instanceof AdminPanel) {
                 ((AdminPanel) pc._component).refresh(reset);
             }
@@ -239,12 +240,12 @@ public class TaskSetupPanel extends Box {
     }
 
     String getCommandLine() {
-        StringBuilder sb = new StringBuilder(_commandName);
+        final StringBuilder sb = new StringBuilder(_commandName);
         for (final ParameterComponent pc : _taskSpecificParameterDescriptors) {
             sb.append(' ');
             if ("BOOLEAN".equals(pc._type)) {
-                String flag = pc._name;
-                boolean invert = flag.endsWith("~");
+                final String flag = pc._name;
+                final boolean invert = flag.endsWith("~");
                 if (invert ^ pc.getBooleanValue()) {
                     sb.append("-");
                     sb.append(flag.charAt(0));
@@ -266,41 +267,41 @@ public class TaskSetupPanel extends Box {
     }
 
     String[] argStrings() {
-        String[] results = new String[_taskSpecificParameterDescriptors.size()];
+        final String[] results = new String[_taskSpecificParameterDescriptors.size()];
         for (int index = 0; index < results.length; index++) {
-            ParameterComponent pc = _taskSpecificParameterDescriptors.get(index);
+            final ParameterComponent pc = _taskSpecificParameterDescriptors.get(index);
             results[index] = pc.getStringValue();
         }
         return results;
     }
 
     String getDescriptionString() {
-        ParameterComponent pc = _generalParameterDescriptors.get(0);
+        final ParameterComponent pc = _generalParameterDescriptors.get(0);
         return pc.getStringValue();
     }
 
-    void setDescriptionString(String description) {
-        ParameterComponent pc = _generalParameterDescriptors.get(0);
+    void setDescriptionString(final String description) {
+        final ParameterComponent pc = _generalParameterDescriptors.get(0);
         pc.setStringValue(description);
     }
 
     String getOwnerString() {
-        ParameterComponent pc = _generalParameterDescriptors.get(1);
+        final ParameterComponent pc = _generalParameterDescriptors.get(1);
         return pc.getStringValue();
     }
 
-    void setOwnerString(String owner) {
-        ParameterComponent pc = _generalParameterDescriptors.get(1);
+    void setOwnerString(final String owner) {
+        final ParameterComponent pc = _generalParameterDescriptors.get(1);
         pc.setStringValue(owner);
     }
 
     boolean isVerboseEnabled() {
-        ParameterComponent pc = _generalParameterDescriptors.get(2);
+        final ParameterComponent pc = _generalParameterDescriptors.get(2);
         return pc.getBooleanValue();
     }
 
     long getExpirationTime() {
-        ParameterComponent pc = _generalParameterDescriptors.get(3);
+        final ParameterComponent pc = _generalParameterDescriptors.get(3);
         return pc.getIntValue() * 1000L;
     }
 }

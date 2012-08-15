@@ -19,15 +19,13 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Key;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class Bug870352Test extends PersistitUnitTestCase {
 
     @Test
     public void testBug() throws Exception {
-        Exchange ex = _persistit.getExchange("persistit", "Bug870352Test", true);
+        final Exchange ex = _persistit.getExchange("persistit", "Bug870352Test", true);
         ex.clear().append(null).append(null).append(null).append((long) 2007).store();
         ex.clear().append(null).append(null).append((long) 5).append((long) 2006).store();
         ex.clear().append(null).append((long) 4).append(null).append((long) 2005).store();

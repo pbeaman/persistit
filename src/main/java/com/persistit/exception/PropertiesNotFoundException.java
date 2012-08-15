@@ -29,8 +29,7 @@ public class PropertiesNotFoundException extends PersistitException {
         super();
     }
 
-    public PropertiesNotFoundException(String msg) {
+    public PropertiesNotFoundException(final String msg) {
         super(msg);
     }
 }
-

@@ -46,15 +46,15 @@ class ValueInspectorTreeNode implements TreeNode {
     private static WeakHashMap _fieldArrayMap = new WeakHashMap();
 
     private String _displayable;
-    private String _fieldName;
-    private Object _object;
+    private final String _fieldName;
+    private final Object _object;
     private String _toString;
-    private ValueInspectorTreeNode _parent;
+    private final ValueInspectorTreeNode _parent;
     private int _index = -1;
-    private Class _type;
-    private ValueInspectorTreeNode[] _children;
+    private final Class _type;
+    private final ValueInspectorTreeNode[] _children;
 
-    ValueInspectorTreeNode(ValueInspectorTreeNode parent, Object object, String name, Class type) {
+    ValueInspectorTreeNode(final ValueInspectorTreeNode parent, final Object object, final String name, final Class type) {
         _parent = parent;
         _object = object;
         _type = type;
@@ -75,13 +75,14 @@ class ValueInspectorTreeNode implements TreeNode {
         _children = new ValueInspectorTreeNode[childCount];
     }
 
-    ValueInspectorTreeNode(ValueInspectorTreeNode parent, Object object, String name, Class type, int index) {
+    ValueInspectorTreeNode(final ValueInspectorTreeNode parent, final Object object, final String name,
+            final Class type, final int index) {
         this(parent, object, name, type);
         _index = index;
     }
 
-    String displayable(String fieldName, Class type, Object object, int arrayIndex) {
-        StringBuilder sb = new StringBuilder();
+    String displayable(final String fieldName, final Class type, final Object object, final int arrayIndex) {
+        final StringBuilder sb = new StringBuilder();
 
         if (arrayIndex >= 0) {
             sb.append('[');
@@ -185,16 +186,16 @@ class ValueInspectorTreeNode implements TreeNode {
         return count;
     }
 
-    String componentTypeName(Class type) {
+    String componentTypeName(final Class type) {
         if (type.isArray()) {
             return componentTypeName(type.getComponentType());
         }
         return type.getName();
     }
 
-    static int arrayLength(Class type, Object object) {
+    static int arrayLength(final Class type, final Object object) {
         if (type.isArray()) {
-            Class elementType = type.getComponentType();
+            final Class elementType = type.getComponentType();
             if (elementType.isPrimitive()) {
                 if (elementType == boolean.class) {
                     return ((boolean[]) object).length;
@@ -240,7 +241,7 @@ class ValueInspectorTreeNode implements TreeNode {
     }
 
     @Override
-    public TreeNode getChildAt(int childIndex) {
+    public TreeNode getChildAt(final int childIndex) {
         if (_object == null || _type.isPrimitive())
             return null;
         if (_children[childIndex] == null) {
@@ -259,10 +260,10 @@ class ValueInspectorTreeNode implements TreeNode {
     }
 
     @Override
-    public int getIndex(TreeNode node) {
+    public int getIndex(final TreeNode node) {
         if (_parent == null)
             return -1;
-        ValueInspectorTreeNode[] siblings = _parent._children;
+        final ValueInspectorTreeNode[] siblings = _parent._children;
         for (int index = 0; index < siblings.length; index++) {
             if (node == siblings[index])
                 return index;
@@ -292,18 +293,18 @@ class ValueInspectorTreeNode implements TreeNode {
         return _toString;
     }
 
-    void evalString(Runnable runnable) {
+    void evalString(final Runnable runnable) {
         new ToStringRunner(_object, runnable).start();
     }
 
-    private static String evalString(Object object) {
+    private static String evalString(final Object object) {
         if (object == null)
             return "null";
         if (object.getClass().isArray()) {
-            StringBuilder sb = new StringBuilder();
-            Class elementType = object.getClass().getComponentType();
-            boolean primitive = elementType.isPrimitive();
-            int size = arrayLength(object.getClass(), object);
+            final StringBuilder sb = new StringBuilder();
+            final Class elementType = object.getClass().getComponentType();
+            final boolean primitive = elementType.isPrimitive();
+            final int size = arrayLength(object.getClass(), object);
             sb.append("{");
             for (int index = 0; index < size; index++) {
                 if (index > 0)
@@ -335,7 +336,7 @@ class ValueInspectorTreeNode implements TreeNode {
             return sb.toString();
         }
         if (object instanceof String) {
-            StringBuilder sb = new StringBuilder();
+            final StringBuilder sb = new StringBuilder();
             sb.append('\"');
             Util.appendQuotedString(sb, object.toString(), 0, Integer.MAX_VALUE);
             sb.append('\"');
@@ -343,7 +344,7 @@ class ValueInspectorTreeNode implements TreeNode {
         } else {
             try {
                 return object.toString();
-            } catch (Throwable t) {
+            } catch (final Throwable t) {
                 return t + " while invoking " + object.getClass().getName() + ".toString()";
             }
         }
@@ -352,26 +353,26 @@ class ValueInspectorTreeNode implements TreeNode {
     private ValueInspectorTreeNode getFieldValue(int index) {
         if (_type.getSuperclass() != null && _type.getSuperclass() != Object.class) {
             if (index == 0) {
-                return new ValueInspectorTreeNode(this, _object, _type.getSuperclass().toString(), _type
-                        .getSuperclass());
+                return new ValueInspectorTreeNode(this, _object, _type.getSuperclass().toString(),
+                        _type.getSuperclass());
             } else {
                 index--;
             }
         }
         Object childValue = null;
-        Field field = getFields(_type)[index];
+        final Field field = getFields(_type)[index];
         try {
             childValue = field.get(_object);
-        } catch (IllegalAccessException iae) {
+        } catch (final IllegalAccessException iae) {
             childValue = "{{" + iae.toString() + "}}";
         }
         return _children[index] = new ValueInspectorTreeNode(this, childValue, field.getName(), field.getType());
         // childValue.getClass());
     }
 
-    private ValueInspectorTreeNode getArrayChild(int index) {
+    private ValueInspectorTreeNode getArrayChild(final int index) {
         Object element;
-        Class elementType = _type.getComponentType();
+        final Class elementType = _type.getComponentType();
         if (elementType.isPrimitive()) {
             if (elementType == boolean.class) {
                 element = ((boolean[]) _object)[index] ? Boolean.TRUE : Boolean.FALSE;
@@ -395,18 +396,18 @@ class ValueInspectorTreeNode implements TreeNode {
             element = ((Object[]) _object)[index];
         }
 
-        Class type = elementType.isPrimitive() || element == null ? elementType : element.getClass();
+        final Class type = elementType.isPrimitive() || element == null ? elementType : element.getClass();
 
         return new ValueInspectorTreeNode(this, element, "[" + index + "]", type, index);
     }
 
-    private Field[] getFields(Class type) {
+    private Field[] getFields(final Class type) {
         Field[] array = (Field[]) _fieldArrayMap.get(type.getName());
         if (array == null) {
             array = type.getDeclaredFields();
-            ArrayList selected = new ArrayList();
+            final ArrayList selected = new ArrayList();
             for (int index = 0; index < array.length; index++) {
-                Field field = array[index];
+                final Field field = array[index];
                 if (!Modifier.isStatic(field.getModifiers())) {
                     selected.add(field);
                 }
@@ -421,11 +422,11 @@ class ValueInspectorTreeNode implements TreeNode {
 
     private class FieldComparator implements Comparator {
         @Override
-        public int compare(Object a, Object b) {
-            Field fieldA = (Field) a;
-            Field fieldB = (Field) b;
-            String nameA = fieldA.getName();
-            String nameB = fieldB.getName();
+        public int compare(final Object a, final Object b) {
+            final Field fieldA = (Field) a;
+            final Field fieldB = (Field) b;
+            final String nameA = fieldA.getName();
+            final String nameB = fieldB.getName();
             return (nameA.compareTo(nameB));
         }
     }
@@ -445,11 +446,11 @@ class ValueInspectorTreeNode implements TreeNode {
     }
 
     private class ToStringRunner extends Thread {
-        private Object _object;
-        private Runnable _runnable;
+        private final Object _object;
+        private final Runnable _runnable;
         private boolean _done;
 
-        ToStringRunner(Object object, Runnable runnable) {
+        ToStringRunner(final Object object, final Runnable runnable) {
             _object = object;
             _runnable = runnable;
         }
@@ -458,7 +459,7 @@ class ValueInspectorTreeNode implements TreeNode {
         public void run() {
             try {
                 _toString = null;
-                Timer timer = new Timer();
+                final Timer timer = new Timer();
 
                 timer.schedule(new TimerTask() {
                     @Override

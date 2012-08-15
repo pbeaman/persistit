@@ -15,9 +15,9 @@
 
 package com.persistit;
 
-import com.persistit.exception.InvalidKeyException;
-
 import java.util.Arrays;
+
+import com.persistit.exception.InvalidKeyException;
 
 /**
  * Represents the end of a key range to be removed. Used in Transactions.
@@ -26,29 +26,29 @@ import java.util.Arrays;
  * @version 1.1
  */
 class AntiValue {
-    private int _elisionCount;
-    private byte[] _bytes;
+    private final int _elisionCount;
+    private final byte[] _bytes;
 
-    AntiValue(int ec, byte[] bytes) {
+    AntiValue(final int ec, final byte[] bytes) {
         _elisionCount = ec;
         _bytes = bytes;
     }
 
-    static void putAntiValue(Value value, Key key1, Key key2) {
-        int elisionCount = key1.firstUniqueByteIndex(key2);
-        int size = key2.getEncodedSize() - elisionCount;
-        byte[] bytes = new byte[size];
+    static void putAntiValue(final Value value, final Key key1, final Key key2) {
+        final int elisionCount = key1.firstUniqueByteIndex(key2);
+        final int size = key2.getEncodedSize() - elisionCount;
+        final byte[] bytes = new byte[size];
         System.arraycopy(key2.getEncodedBytes(), elisionCount, bytes, 0, size);
         value.putAntiValue((short) elisionCount, bytes);
     }
 
-    static void fixUpKeys(Exchange exchange, int elisionCount, byte[] bytes, int offset, int length)
-            throws InvalidKeyException {
-        Key spareKey1 = exchange.getAuxiliaryKey1();
-        Key spareKey2 = exchange.getAuxiliaryKey2();
+    static void fixUpKeys(final Exchange exchange, final int elisionCount, final byte[] bytes, final int offset,
+            final int length) throws InvalidKeyException {
+        final Key spareKey1 = exchange.getAuxiliaryKey1();
+        final Key spareKey2 = exchange.getAuxiliaryKey2();
         spareKey1.copyTo(spareKey2);
-        byte[] baseBytes = spareKey2.getEncodedBytes();
-        int baseSize = spareKey2.getEncodedSize();
+        final byte[] baseBytes = spareKey2.getEncodedBytes();
+        final int baseSize = spareKey2.getEncodedSize();
         if (baseSize < elisionCount || elisionCount + length > Key.MAX_KEY_LENGTH) {
             throw new InvalidKeyException("Key encoding in transaction is invalid");
         }

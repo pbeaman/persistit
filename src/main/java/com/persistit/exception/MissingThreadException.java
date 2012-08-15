@@ -28,7 +28,7 @@ public class MissingThreadException extends PersistitException {
         super();
     }
 
-    public MissingThreadException(String msg) {
+    public MissingThreadException(final String msg) {
         super(msg);
     }
 

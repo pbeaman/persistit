@@ -460,9 +460,9 @@ public class Transaction {
          * higher than with the HARD policy.
          */
         GROUP;
-        
+
         static CommitPolicy forName(final String policyName) {
-            for (CommitPolicy policy : values()) {
+            for (final CommitPolicy policy : values()) {
                 if (policy.name().equalsIgnoreCase(policyName)) {
                     return policy;
                 }
@@ -515,7 +515,7 @@ public class Transaction {
          * The background rollback cleanup should be stopped before calling this
          * method so the following check is deterministic.
          */
-        TransactionStatus status = _persistit.getTransactionIndex().getStatus(_startTimestamp);
+        final TransactionStatus status = _persistit.getTransactionIndex().getStatus(_startTimestamp);
         if (status != null && status.getMvvCount() > 0) {
             flushTransactionBuffer(false);
         }
@@ -593,8 +593,8 @@ public class Transaction {
             flushTransactionBuffer(false);
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
-            } catch (InterruptedException e) {
-            	_rollbackCompleted = true;
+            } catch (final InterruptedException e) {
+                _rollbackCompleted = true;
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
@@ -620,8 +620,8 @@ public class Transaction {
             flushTransactionBuffer(false);
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
-            } catch (InterruptedException e) {
-            	_rollbackCompleted = true;
+            } catch (final InterruptedException e) {
+                _rollbackCompleted = true;
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
@@ -719,7 +719,7 @@ public class Transaction {
                  * Necessary to enable rollback pruning
                  */
                 flushTransactionBuffer(false);
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 _persistit.getLogBase().exception.log(e);
             } finally {
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
@@ -783,7 +783,7 @@ public class Transaction {
      * boolean value. This method is obsolete and will be removed shortly.
      */
     @Deprecated
-    public void commit(boolean toDisk) throws PersistitException {
+    public void commit(final boolean toDisk) throws PersistitException {
         commit(toDisk ? CommitPolicy.HARD : CommitPolicy.SOFT);
     }
 
@@ -835,7 +835,7 @@ public class Transaction {
      *             thread after this transaction began waiting for durability
      * 
      */
-    public void commit(CommitPolicy policy) throws PersistitException {
+    public void commit(final CommitPolicy policy) throws PersistitException {
         checkActive();
 
         if (_commitCompleted) {
@@ -862,7 +862,7 @@ public class Transaction {
                         policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
                 committed = true;
             } finally {
-            	
+
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
                         committed ? _commitTimestamp : TransactionStatus.ABORTED);
                 _commitCompleted = committed;
@@ -911,7 +911,7 @@ public class Transaction {
      * 
      * @throws PersistitException
      */
-    public int run(TransactionRunnable runnable) throws PersistitException {
+    public int run(final TransactionRunnable runnable) throws PersistitException {
         return run(runnable, 0, 0, _persistit.getDefaultTransactionCommitPolicy());
     }
 
@@ -959,12 +959,12 @@ public class Transaction {
      *             performed by other threads.
      */
 
-    public int run(TransactionRunnable runnable, int retryCount, long retryDelay, boolean toDisk)
+    public int run(final TransactionRunnable runnable, final int retryCount, final long retryDelay, final boolean toDisk)
             throws PersistitException {
         return run(runnable, retryCount, retryDelay, toDisk ? CommitPolicy.HARD : CommitPolicy.SOFT);
     }
 
-    public int run(TransactionRunnable runnable, int retryCount, long retryDelay, CommitPolicy toDisk)
+    public int run(final TransactionRunnable runnable, int retryCount, final long retryDelay, final CommitPolicy toDisk)
             throws PersistitException {
         if (retryCount < 0)
             throw new IllegalArgumentException();
@@ -974,7 +974,7 @@ public class Transaction {
                 runnable.runTransaction();
                 commit(toDisk);
                 return count;
-            } catch (RollbackException re) {
+            } catch (final RollbackException re) {
                 if (retryCount <= 0 || _nestedDepth > 1) {
                     throw re;
                 }
@@ -983,7 +983,7 @@ public class Transaction {
                 if (retryDelay > 0) {
                     try {
                         Util.sleep(retryDelay);
-                    } catch (PersistitInterruptedException ie) {
+                    } catch (final PersistitInterruptedException ie) {
                         throw re;
                     }
                 }
@@ -1098,7 +1098,7 @@ public class Transaction {
      * @param value
      * @throws PersistitException
      */
-    void store(Exchange exchange, Key key, Value value) throws PersistitException {
+    void store(final Exchange exchange, final Key key, final Value value) throws PersistitException {
         if (_nestedDepth > 0) {
             checkPendingRollback();
             writeStoreRecordToJournal(treeHandle(exchange.getTree()), key, value);
@@ -1113,7 +1113,7 @@ public class Transaction {
      * @param key2
      * @throws PersistitException
      */
-    void remove(Exchange exchange, Key key1, Key key2) throws PersistitException {
+    void remove(final Exchange exchange, final Key key1, final Key key2) throws PersistitException {
         if (_nestedDepth > 0) {
             checkPendingRollback();
             writeDeleteRecordToJournal(treeHandle(exchange.getTree()), key1, key2);
@@ -1126,7 +1126,7 @@ public class Transaction {
      * @param exchange
      * @throws PersistitException
      */
-    void removeTree(Exchange exchange) throws PersistitException {
+    void removeTree(final Exchange exchange) throws PersistitException {
         if (_nestedDepth > 0) {
             checkPendingRollback();
             writeDeleteTreeToJournal(treeHandle(exchange.getTree()));
@@ -1145,7 +1145,7 @@ public class Transaction {
 
     synchronized void flushTransactionBuffer(final boolean chain) throws PersistitException {
         if (_buffer.position() > 0 || _previousJournalAddress != 0) {
-            long previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
+            final long previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, _commitTimestamp, _previousJournalAddress);
             _buffer.clear();
             if (chain) {
@@ -1181,8 +1181,8 @@ public class Transaction {
 
     synchronized void writeDeleteRecordToJournal(final int treeHandle, final Key key1, final Key key2)
             throws PersistitException {
-        int elisionCount = key2.firstUniqueByteIndex(key1);
-        int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
+        final int elisionCount = key2.firstUniqueByteIndex(key1);
+        final int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
         prepare(recordSize);
 
         DR.putLength(_buffer, recordSize);
@@ -1251,10 +1251,10 @@ public class Transaction {
      *            New step index value.
      * @return Previous step value.
      */
-    public int setStep(int step) {
+    public int setStep(final int step) {
         checkPendingRollback();
         checkStepRange(step);
-        int previous = _step;
+        final int previous = _step;
         _step = step;
         return previous;
     }
@@ -1284,7 +1284,7 @@ public class Transaction {
         return setStep(_step + 1);
     }
 
-    private void checkStepRange(int newStep) {
+    private void checkStepRange(final int newStep) {
         if (newStep < 0) {
             throw new IllegalStateException(this + " cannot have a step of " + newStep + ", less than 0");
         }
@@ -1293,7 +1293,7 @@ public class Transaction {
                     + MAXIMUM_STEP);
         }
     }
-    
+
     private int treeHandle(final Tree tree) {
         final int treeHandle = tree.getHandle();
         assert treeHandle != 0 : "Undefined tree handle in " + tree;

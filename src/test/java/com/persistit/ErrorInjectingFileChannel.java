@@ -44,6 +44,7 @@ class ErrorInjectingFileChannel extends FileChannel implements TestChannelInject
     volatile String _injectedIOExceptionFlags;
     volatile long _injectedDiskFullLimit = Long.MAX_VALUE;
 
+    @Override
     public void setChannel(final FileChannel channel) {
         _channel = channel;
     }
@@ -108,13 +109,13 @@ class ErrorInjectingFileChannel extends FileChannel implements TestChannelInject
      * --------------------------------
      */
     @Override
-    public void force(boolean metaData) throws IOException {
+    public void force(final boolean metaData) throws IOException {
         injectFailure('f');
         _channel.force(metaData);
     }
 
     @Override
-    public int read(ByteBuffer byteBuffer, long position) throws IOException {
+    public int read(final ByteBuffer byteBuffer, final long position) throws IOException {
         injectFailure('r');
         return _channel.read(byteBuffer, position);
     }
@@ -126,25 +127,25 @@ class ErrorInjectingFileChannel extends FileChannel implements TestChannelInject
     }
 
     @Override
-    public FileChannel truncate(long size) throws IOException {
+    public FileChannel truncate(final long size) throws IOException {
         injectFailure('t');
         return _channel.truncate(size);
     }
 
     @Override
-    public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
+    public synchronized FileLock tryLock(final long position, final long size, final boolean shared) throws IOException {
         injectFailure('l');
         return _channel.tryLock(position, size, shared);
     }
 
     @Override
-    public int write(ByteBuffer byteBuffer, long position) throws IOException {
+    public int write(final ByteBuffer byteBuffer, final long position) throws IOException {
         injectFailure('w');
         if (byteBuffer.remaining() == 1) {
             injectFailure('e');
         }
         final long capacity = Math.max(0L, _injectedDiskFullLimit - position);
-        final int delta = (int) Math.max(0L, (long) byteBuffer.remaining() - capacity);
+        final int delta = (int) Math.max(0L, byteBuffer.remaining() - capacity);
         byteBuffer.limit(byteBuffer.limit() - delta);
         final int written = _channel.write(byteBuffer, position);
         byteBuffer.limit(byteBuffer.limit() + delta);
@@ -171,12 +172,12 @@ class ErrorInjectingFileChannel extends FileChannel implements TestChannelInject
      * --------------------------------
      */
     @Override
-    public FileLock lock(long position, long size, boolean shared) throws IOException {
+    public FileLock lock(final long position, final long size, final boolean shared) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public MappedByteBuffer map(MapMode arg0, long arg1, long arg2) throws IOException {
+    public MappedByteBuffer map(final MapMode arg0, final long arg1, final long arg2) throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -186,37 +187,37 @@ class ErrorInjectingFileChannel extends FileChannel implements TestChannelInject
     }
 
     @Override
-    public FileChannel position(long arg0) throws IOException {
+    public FileChannel position(final long arg0) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public int read(ByteBuffer byteBuffer) throws IOException {
+    public int read(final ByteBuffer byteBuffer) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long read(ByteBuffer[] arg0, int arg1, int arg2) throws IOException {
+    public long read(final ByteBuffer[] arg0, final int arg1, final int arg2) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long transferFrom(ReadableByteChannel arg0, long arg1, long arg2) throws IOException {
+    public long transferFrom(final ReadableByteChannel arg0, final long arg1, final long arg2) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long transferTo(long arg0, long arg1, WritableByteChannel arg2) throws IOException {
+    public long transferTo(final long arg0, final long arg1, final WritableByteChannel arg2) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public int write(ByteBuffer byteBuffer) throws IOException {
+    public int write(final ByteBuffer byteBuffer) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public long write(ByteBuffer[] arg0, int arg1, int arg2) throws IOException {
+    public long write(final ByteBuffer[] arg0, final int arg1, final int arg2) throws IOException {
         throw new UnsupportedOperationException();
     }
 

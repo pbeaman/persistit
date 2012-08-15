@@ -24,10 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
-import com.persistit.Accumulator;
-import com.persistit.Exchange;
-import com.persistit.Persistit;
-import com.persistit.Transaction;
 import com.persistit.exception.RollbackException;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -80,12 +76,13 @@ public class Bug911849Test extends PersistitUnitTestCase {
             _persistit = new Persistit();
             _persistit.initialize(props);
             final Exchange exchange = _persistit.getExchange("persistit", "AccumulatorRecoveryTest", false);
-            Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM, ROW_COUNT_ACCUMULATOR_INDEX);
+            final Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
+                    ROW_COUNT_ACCUMULATOR_INDEX);
             assertEquals(counter.get(), rowCount.getLiveValue());
         }
     }
 
-    private void accumulateRows(int max) throws Exception {
+    private void accumulateRows(final int max) throws Exception {
         final Exchange exchange = _persistit.getExchange("persistit", "AccumulatorRecoveryTest", true);
         final Transaction txn = _persistit.getTransaction();
         int count = 0;
@@ -94,7 +91,7 @@ public class Bug911849Test extends PersistitUnitTestCase {
             int retryCount = 0;
             txn.begin();
             try {
-                Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
+                final Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
                         ROW_COUNT_ACCUMULATOR_INDEX);
                 rowCount.update(1, txn);
                 txn.commit();
@@ -102,11 +99,11 @@ public class Bug911849Test extends PersistitUnitTestCase {
                 if ((count % 10) == 0) {
                     Thread.sleep(1);
                 }
-            } catch (RollbackException re) {
+            } catch (final RollbackException re) {
                 retryCount++;
                 assertTrue(retryCount < 5);
                 System.out.println("(Acceptable) rollback in " + Thread.currentThread().getName());
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 exception = e;
                 throw e;
             } finally {

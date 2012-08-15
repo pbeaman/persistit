@@ -24,11 +24,11 @@ import com.persistit.exception.PersistitException;
 import com.persistit.util.Util;
 
 public class MVCCPruneBufferTest extends MVCCTestBase {
-    
+
     @Test
     public void testPrunePrimordialAntiValues() throws PersistitException {
         trx1.begin();
-      
+
         ex1.getValue().put(RED_FOX);
         for (int i = 0; i < 5000; i++) {
             ex1.to(i).store();
@@ -37,11 +37,11 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
             ex1.to(i).remove();
         }
         ex1.to(2500);
-        Buffer buffer1 = ex1.fetchBufferCopy(0);
-        int mvvCount = buffer1.getMvvCount();
+        final Buffer buffer1 = ex1.fetchBufferCopy(0);
+        final int mvvCount = buffer1.getMvvCount();
         assertTrue(mvvCount > 0);
-        int available = buffer1.getAvailableSize();
-        int keys = buffer1.getKeyCount();
+        final int available = buffer1.getAvailableSize();
+        final int keys = buffer1.getKeyCount();
         buffer1.claim(true);
         buffer1.pruneMvvValues(null, true);
         assertEquals(keys, buffer1.getKeyCount());
@@ -72,11 +72,11 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         }
         ex1.removeAll();
         ex1.to(2500);
-        Buffer buffer1 = ex1.fetchBufferCopy(0);
-        int mvvCount = buffer1.getMvvCount();
+        final Buffer buffer1 = ex1.fetchBufferCopy(0);
+        final int mvvCount = buffer1.getMvvCount();
         assertTrue(mvvCount > 0);
-        int available = buffer1.getAvailableSize();
-        int keys = buffer1.getKeyCount();
+        final int available = buffer1.getAvailableSize();
+        final int keys = buffer1.getKeyCount();
         buffer1.claim(true);
         buffer1.pruneMvvValues(null, true);
         buffer1.release();
@@ -128,7 +128,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
                 buffer.release();
             }
         }
-        
+
         assertTrue(cm.getAcceptedCount() > 0);
         cm.poll();
         assertEquals("Should have performed all actions", cm.getAcceptedCount(), cm.getPerformedCount());
@@ -141,7 +141,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
         assertEquals(0, antiValueCount3);
     }
-    
+
     @Test
     public void testPruneLongRecordsSimple() throws Exception {
         _persistit.getCleanupManager().setPollInterval(-1);
@@ -158,11 +158,12 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     public void testPruneLongRecordsWithRollback() throws Exception {
         _persistit.getCleanupManager().setPollInterval(-1);
         /*
-         * Start a concurrent transaction to prevent pruning during the store operations.
+         * Start a concurrent transaction to prevent pruning during the store
+         * operations.
          */
         final Exchange ex0 = createUniqueExchange();
         ex0.getTransaction().begin();
-        
+
         trx2.begin();
         storeLongMVV(ex2, "x");
         trx2.commit();
@@ -178,7 +179,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         ex1.prune();
         assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
     }
-    
+
     @Test
     public void induceBug1006576() throws Exception {
         _persistit.getCleanupManager().setPollInterval(-1);
@@ -190,7 +191,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         _persistit.getTransactionIndex().cleanup();
         ex1.prune();
         assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
-        
+
         trx1.begin();
         storeLongMVV(ex1, "x");
         trx1.commit();
@@ -205,20 +206,20 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         _persistit.getCleanupManager().setPollInterval(-1);
         trx1.begin();
         storeLongMVV(ex1, "x");
-        
+
         trx2.begin();
         storeLongMVV(ex2, "y");
-        
+
         trx1.commit();
         trx2.rollback();
 
         trx1.end();
         trx2.end();
-        
+
         _persistit.getTransactionIndex().cleanup();
         ex1.prune();
         assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
-        
+
     }
 
     @Test
@@ -229,8 +230,9 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
             Thread.sleep(50);
             final int myCycle = cycle;
             threads[cycle] = new Thread(new Runnable() {
+                @Override
                 public void run() {
-                    Transaction txn = _persistit.getTransaction();
+                    final Transaction txn = _persistit.getTransaction();
                     try {
                         txn.begin();
                         switch (myCycle % 3) {
@@ -249,7 +251,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
                         } else {
                             txn.commit();
                         }
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         e.printStackTrace();
                     } finally {
                         txn.end();
@@ -273,14 +275,14 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
                     if ((cycle % 10) == 0) {
                         System.out.println("cycle " + cycle);
                     }
-                    Transaction txn = _persistit.getTransaction();
+                    final Transaction txn = _persistit.getTransaction();
                     try {
                         txn.begin();
                         storeNewVersion(cycle);
                         Util.sleep(10);
                         txn.rollback();
                         System.gc();
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         e.printStackTrace();
                     } finally {
                         txn.end();
@@ -296,8 +298,8 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     }
 
     private void storeNewVersion(final int cycle) throws Exception {
-        final Exchange exchange = _persistit.getExchange(TEST_VOLUME_NAME, String.format("%s%04d", TEST_TREE_NAME,
-                cycle), true);
+        final Exchange exchange = _persistit.getExchange(TEST_VOLUME_NAME,
+                String.format("%s%04d", TEST_TREE_NAME, cycle), true);
         exchange.getValue().put(String.format("%s%04d", RED_FOX, cycle));
         for (int i = 1; i <= 100; i++) {
             exchange.to(i).store();
@@ -322,14 +324,14 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         }
         return count;
     }
-    
+
     public static void main(final String[] args) throws Exception {
         int repeat = 100;
         if (args.length > 0) {
             repeat = Integer.parseInt(args[0]);
         }
-        for (int i = 1; i <=repeat; i++) {
-            MVCCPruneBufferTest test = new MVCCPruneBufferTest();
+        for (int i = 1; i <= repeat; i++) {
+            final MVCCPruneBufferTest test = new MVCCPruneBufferTest();
             System.out.println("Cycle " + i);
             test.setUp();
             test.testPruneCleanup();

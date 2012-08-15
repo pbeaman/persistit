@@ -51,9 +51,9 @@ import com.persistit.exception.ConversionException;
  * @version 1.1
  */
 public final class SerialValueCoder implements ValueCoder {
-    private ObjectStreamClass _classDescriptor;
+    private final ObjectStreamClass _classDescriptor;
 
-    public SerialValueCoder(Class<?> clazz) {
+    public SerialValueCoder(final Class<?> clazz) {
         _classDescriptor = ObjectStreamClass.lookup(clazz);
         if (_classDescriptor == null) {
             throw new ConversionException("Not Serializable: " + clazz.getName());
@@ -92,13 +92,13 @@ public final class SerialValueCoder implements ValueCoder {
      * @throws ConversionException
      */
     @Override
-    public Object get(Value value, Class<?> clazz, CoderContext context) {
+    public Object get(final Value value, final Class<?> clazz, final CoderContext context) {
         try {
-            ObjectInputStream stream = value.oldValueInputStream(_classDescriptor);
-            Object object = stream.readObject();
+            final ObjectInputStream stream = value.oldValueInputStream(_classDescriptor);
+            final Object object = stream.readObject();
             stream.close();
             return object;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new ConversionException(e);
         }
     }
@@ -138,12 +138,12 @@ public final class SerialValueCoder implements ValueCoder {
      *            parameter is always ignored.
      */
     @Override
-    public void put(Value value, Object object, CoderContext context) {
+    public void put(final Value value, final Object object, final CoderContext context) {
         try {
-            ObjectOutputStream stream = value.oldValueOutputStream(_classDescriptor);
+            final ObjectOutputStream stream = value.oldValueOutputStream(_classDescriptor);
             stream.writeObject(object);
             stream.close();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new ConversionException(e);
         }
     }
