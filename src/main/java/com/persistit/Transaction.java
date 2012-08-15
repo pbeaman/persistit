@@ -854,11 +854,13 @@ public class Transaction {
             sequence(COMMIT_FLUSH_A);
             _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
             sequence(COMMIT_FLUSH_C);
-            long flushedTimetimestamp = -1;
+            long flushedTimetimestamp = 0;
             boolean committed = false;
             try {
-                flushTransactionBuffer(false);
-                flushedTimetimestamp = _persistit.getTimestampAllocator().getCurrentTimestamp();
+
+                if (flushTransactionBuffer(false)) {
+                    flushedTimetimestamp = _persistit.getTimestampAllocator().getCurrentTimestamp();
+                }
                 committed = true;
             } finally {
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
@@ -868,9 +870,11 @@ public class Transaction {
             }
 
             _persistit.getJournalManager().throttle();
-            _persistit.getJournalManager().waitForDurability(flushedTimetimestamp, 
-                    policy == CommitPolicy.SOFT ? _persistit.getTransactionCommitLeadTime() : 0,
-                    policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
+            if (flushedTimetimestamp != 0) {
+                _persistit.getJournalManager().waitForDurability(flushedTimetimestamp,
+                        policy == CommitPolicy.SOFT ? _persistit.getTransactionCommitLeadTime() : 0,
+                        policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
+            }
         }
     }
 
@@ -1146,17 +1150,20 @@ public class Transaction {
         }
     }
 
-    synchronized void flushTransactionBuffer(final boolean chain) throws PersistitException {
+    synchronized boolean flushTransactionBuffer(final boolean chain) throws PersistitException {
+        boolean didWrite = false;
         if (_buffer.position() > 0 || _previousJournalAddress != 0) {
             long previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, _commitTimestamp, _previousJournalAddress);
             _buffer.clear();
+            didWrite = true;
             if (chain) {
                 _previousJournalAddress = previousJournalAddress;
             } else {
                 _previousJournalAddress = 0;
             }
         }
+        return didWrite;
     }
 
     synchronized void flushOnCheckpoint(final long timestamp) throws PersistitException {

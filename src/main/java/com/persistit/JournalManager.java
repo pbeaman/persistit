@@ -572,7 +572,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * @throws PersistitInterruptedException
      */
     public void throttle() throws PersistitInterruptedException {
-        int urgency = _persistit.getJournalManager().urgency();
+        int urgency = urgency();
         if (!_appendOnly.get()) {
             if (urgency == URGENT) {
                 Util.sleep(URGENT_COMMIT_DELAY);
@@ -2289,7 +2289,13 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     kick();
                     if (delay <= 0) {
                         didWait = true;
-                        Util.spinSleep();
+                        try {
+                            if (_lock.readLock().tryLock(NS_PER_MS, TimeUnit.NANOSECONDS)) {
+                                _lock.readLock().unlock();
+                            }
+                        } catch (InterruptedException e) {
+                            throw new PersistitInterruptedException(e);
+                        }
                     }
                 } else {
                     /*
