@@ -43,6 +43,7 @@ import org.junit.Test;
 
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
+import com.persistit.Transaction.CommitPolicy;
 import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
@@ -533,6 +534,24 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 .getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);
         assertTrue("Should have failed updates during recovery", _persistit.getRecoveryManager().getPlayer()
                 .getIgnoredUpdates() > 0);
+    }
+    
+    @Test
+    public void waitForDurabilitySoaksCPU() throws Exception {
+        _persistit.setDefaultTransactionCommitPolicy(CommitPolicy.HARD);
+        final JournalManager jman = _persistit.getJournalManager();
+        long waitLoopsWithoutDelay  = jman.getWaitLoopsWithNoDelay();
+        final Exchange exchange = _persistit.getExchange("persistit", "JournalManagerTest", true);
+        final Transaction txn = exchange.getTransaction();
+        for (int count = 0; count < 100; count++) {
+            txn.begin();
+            exchange.getValue().put(RED_FOX + count);
+            exchange.to(count).store();
+            txn.commit();
+            txn.end();
+        }
+        waitLoopsWithoutDelay = jman.getWaitLoopsWithNoDelay() - waitLoopsWithoutDelay;
+        assertEquals("Wait loops without delay", 0, waitLoopsWithoutDelay);
     }
 
     private List<PageNode> testCleanupPageListSource(final int size) {

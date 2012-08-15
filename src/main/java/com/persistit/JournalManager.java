@@ -215,6 +215,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private boolean _allowHandlesForTempVolumesAndTrees;
 
+    private AtomicLong _waitLoopsWithNoDelay = new AtomicLong();
+
     /**
      * <p>
      * Initialize the new journal. This method takes its information from the
@@ -2254,6 +2256,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 }
 
                 long remainingSleepNanos;
+                boolean didWait = false;
                 if (estimatedRemainingIoNanos == -1) {
                     remainingSleepNanos = Math.max(0, _flushInterval - (now - endTime));
                 } else {
@@ -2281,21 +2284,32 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     long delay = stallTime * NS_PER_MS - estimatedNanosToFinish;
                     if (delay > 0) {
                         Util.sleep(delay / NS_PER_MS);
+                        didWait = true;
                     }
                     kick();
+                    if (delay <= 0) {
+                        didWait = true;
+                        Util.spinSleep();
+                    }
                 } else {
                     /*
                      * Otherwise, wait until the I/O is about half done and then
                      * retry.
                      */
-                    long delay = (estimatedNanosToFinish - leadTime * NS_PER_MS) / 2;
+                    long delay = ((estimatedNanosToFinish - leadTime * NS_PER_MS) / 2) + NS_PER_MS;
                     try {
-                        if (delay > 0 && _lock.readLock().tryLock(delay, TimeUnit.NANOSECONDS)) {
-                            _lock.readLock().unlock();
+                        if (delay > 0) {
+                            didWait = true;
+                            if (_lock.readLock().tryLock(delay, TimeUnit.NANOSECONDS)) {
+                                _lock.readLock().unlock();
+                            }
                         }
                     } catch (InterruptedException e) {
                         throw new PersistitInterruptedException(e);
                     }
+                }
+                if (!didWait) {
+                    _waitLoopsWithNoDelay.incrementAndGet();
                 }
             }
             if (_lastExceptionTimestamp > flushedTimestamp) {
@@ -2946,5 +2960,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     public SortedMap<Integer, TreeDescriptor> queryTreeMap() {
         return new TreeMap<Integer, TreeDescriptor>(_handleToTreeMap);
+    }
+
+    long getWaitLoopsWithNoDelay() {
+        return _waitLoopsWithNoDelay.get();
     }
 }
