@@ -205,8 +205,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private volatile int _copiesPerCycle = DEFAULT_COPIES_PER_CYCLE;
 
-    private volatile int _pageListSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
-
     private volatile long _copierTimestampLimit = Long.MAX_VALUE;
 
     private volatile long _earliestCommittedTimestamp = Long.MAX_VALUE;
@@ -1004,6 +1002,14 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         // writing this record.
         //
         force();
+        //
+        // Make sure all copied pages have been flushed to disk.
+        //
+        for (final Volume vol : _volumeToHandleMap.keySet()) {
+            if (vol.isOpened()) {
+                vol.getStorage().force();
+            }
+        }
         //
         // Prepare room for CP.OVERHEAD bytes in the journal. If doing so
         // started a new journal file then there's no need to write another
@@ -2492,8 +2498,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         Volume volume = null;
         int handle = -1;
 
-        final HashSet<Volume> volumes = new HashSet<Volume>();
-
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
             if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
                 list.clear();
@@ -2549,15 +2553,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 throw ioe;
             }
 
-            volumes.add(volume);
             _copiedPageCount++;
             _persistit.getIOMeter().chargeCopyPageToVolume(volume, pageAddress, volume.getPageSize(),
                     pageNode.getJournalAddress(), urgency());
         }
 
-        for (final Volume vol : volumes) {
-            vol.getStorage().force();
-        }
     }
 
     private void cleanupForCopy(final List<PageNode> list) throws PersistitException {
@@ -2787,7 +2787,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
         @Override
         public void store(final long address, final long timestamp, final Exchange exchange) throws PersistitException {
-            final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
             exchange.prune();
         }
 
@@ -2855,6 +2854,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     /**
      * Extend ArrayList to export the removeRange method.
      */
+    @SuppressWarnings("serial")
     static class RangeRemovingArrayList<T> extends ArrayList<T> {
         @Override
         public void removeRange(final int fromIndex, final int toIndex) {

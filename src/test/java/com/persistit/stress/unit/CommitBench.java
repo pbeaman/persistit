@@ -15,9 +15,13 @@
 
 package com.persistit.stress.unit;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 import com.persistit.Exchange;
 import com.persistit.PersistitUnitTestCase;
@@ -38,6 +42,9 @@ import com.persistit.util.ArgParser;
  * 
  */
 public class CommitBench extends PersistitUnitTestCase {
+
+    final static Pattern PATH_PATTERN = Pattern.compile("(.+)\\.(\\d{12})");
+
     /*
      * Want about 1000 pages worth of data (no evictions). Each record is about
      * 50 bytes, so 1000 * 16384 * 60% / 50 ~= 200000.
@@ -47,19 +54,56 @@ public class CommitBench extends PersistitUnitTestCase {
     private final int RECORDS_PER_TXN = 10;
     private final String[] ARG_TEMPLATE = new String[] { "threads|int:1:1:1000|Number of threads",
             "duration|int:10:10:86400|Duration of test in seconds",
-            "policy|String:HARD|Commit policy: SOFT, HARD or GROUP", };
+            "policy|String:HARD|Commit policy: SOFT, HARD or GROUP", "datapath|String|Datapath property",
+            "_flag|P|Reuse journal file" };
 
     volatile long stopTime;
+    final ArgParser ap;
     AtomicInteger commitCount = new AtomicInteger();
     AtomicInteger rollbackCount = new AtomicInteger();
 
-    @Override
-    protected Properties getProperties(final boolean cleanup) {
-        return UnitTestProperties.getBiggerProperties(cleanup);
+    CommitBench(final String[] args) {
+        ap = new ArgParser("CommitBench", args, ARG_TEMPLATE).strict();
     }
 
-    public void bench(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser("CommitBench", args, ARG_TEMPLATE).strict();
+    @Override
+    protected Properties getProperties(final boolean cleanup) {
+        final Properties p = UnitTestProperties.getBiggerProperties(false);
+        if (ap.isSpecified("datapath")) {
+            p.setProperty("datapath", ap.getStringValue("datapath"));
+        }
+        /*
+         * Custom data directory cleanup - leaving the journal file behind if
+         */
+        final String path = p.getProperty("datapath");
+        final File dir = new File(path);
+        assert dir.isDirectory() : "Data path does not specify a directory: " + path;
+        final File[] files = dir.listFiles();
+        for (final File file : files) {
+            if (ap.isFlag('P') && PATH_PATTERN.matcher(file.getName()).matches()) {
+                try {
+                    /*
+                     * Damage the file so that there's no keystone checkpoint
+                     */
+                    RandomAccessFile raf = new RandomAccessFile(file, "rws");
+                    raf.seek(0);
+                    raf.write(new byte[256]);
+                    raf.close();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                if (file.isDirectory()) {
+                    UnitTestProperties.cleanUpDirectory(file);
+                } else {
+                    file.delete();
+                }
+            }
+        }
+        return p;
+    }
+
+    public void bench() throws Exception {
         final int threadCount = ap.getIntValue("threads");
         final int duration = ap.getIntValue("duration");
         final String policy = ap.getStringValue("policy");
@@ -138,10 +182,10 @@ public class CommitBench extends PersistitUnitTestCase {
     }
 
     public static void main(final String[] args) throws Exception {
-        final CommitBench bench = new CommitBench();
+        final CommitBench bench = new CommitBench(args);
         try {
             bench.setUp();
-            bench.bench(args);
+            bench.bench();
         } finally {
             bench.tearDown();
         }
