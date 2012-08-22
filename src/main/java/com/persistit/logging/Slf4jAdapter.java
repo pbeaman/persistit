@@ -38,7 +38,7 @@ public class Slf4jAdapter implements PersistitLogger {
      *            A <code>Logger</code> to which Persistit log messages will be
      *            directed.
      */
-    public Slf4jAdapter(Logger logger) {
+    public Slf4jAdapter(final Logger logger) {
         _logger = logger;
     }
 
@@ -50,7 +50,7 @@ public class Slf4jAdapter implements PersistitLogger {
      *            The <code>level</code>
      */
     @Override
-    public boolean isLoggable(PersistitLevel level) {
+    public boolean isLoggable(final PersistitLevel level) {
         switch (level) {
         case NONE:
             return false;
@@ -79,7 +79,7 @@ public class Slf4jAdapter implements PersistitLogger {
      *            The message to write to the log.
      */
     @Override
-    public void log(PersistitLevel level, String message) {
+    public void log(final PersistitLevel level, final String message) {
         switch (level) {
         case NONE:
             break;

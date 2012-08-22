@@ -109,4 +109,3 @@ public interface TransactionIndexMXBean {
     public abstract int getDroppedCount();
 
 }
-

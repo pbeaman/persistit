@@ -29,15 +29,15 @@ public class PersistitException extends Exception {
         super();
     }
 
-    protected PersistitException(String msg) {
+    protected PersistitException(final String msg) {
         super(msg);
     }
 
-    public PersistitException(Throwable t) {
+    public PersistitException(final Throwable t) {
         super(t);
     }
 
-    public PersistitException(String msg, Throwable t) {
+    public PersistitException(final String msg, final Throwable t) {
         super(msg, t);
     }
 }

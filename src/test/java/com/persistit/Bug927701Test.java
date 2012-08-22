@@ -75,7 +75,7 @@ public class Bug927701Test extends PersistitUnitTestCase {
         /*
          * 2. Write part of a transaction, then abort.
          */
-        long journalAddress = jman.getCurrentAddress();
+        final long journalAddress = jman.getCurrentAddress();
         final Transaction abortingTxn = _persistit.getTransaction();
         abortingTxn.begin();
         final Exchange exchange = _persistit.getExchange("persistit", "Bug927701Test", false);
@@ -112,8 +112,8 @@ public class Bug927701Test extends PersistitUnitTestCase {
                 break;
             }
             assertTrue(wait > 0);
-            System.out.printf("Cur=%,d base=%,d lvc=%,d\n", jman.getCurrentAddress(), jman.getBaseAddress(), jman
-                    .getLastValidCheckpointBaseAddress());
+            System.out.printf("Cur=%,d base=%,d lvc=%,d\n", jman.getCurrentAddress(), jman.getBaseAddress(),
+                    jman.getLastValidCheckpointBaseAddress());
             Thread.sleep(1000);
         }
 

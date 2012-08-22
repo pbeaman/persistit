@@ -31,7 +31,7 @@ public class MixtureTxn2 extends AbstractSuite {
         return MixtureTxn2.class.getSimpleName();
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         new MixtureTxn2(args).runTest();
     }
 
@@ -39,6 +39,7 @@ public class MixtureTxn2 extends AbstractSuite {
         super(name(), args);
     }
 
+    @Override
     public void runTest() throws Exception {
 
         deleteFiles(substitute("$datapath$/persistit*"));

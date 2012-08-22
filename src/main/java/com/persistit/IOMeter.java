@@ -73,16 +73,16 @@ class IOMeter implements IOMeterMXBean {
 
     private long _quiescentIOthreshold = DEFAULT_QUIESCENT_IO_THRESHOLD;
 
-    private AtomicReference<DataOutputStream> _logStream = new AtomicReference<DataOutputStream>();
+    private final AtomicReference<DataOutputStream> _logStream = new AtomicReference<DataOutputStream>();
 
     private String _logFileName;
 
-    private Counter[][] _counters = new Counter[ITEM_COUNT][BUCKETS];
+    private final Counter[][] _counters = new Counter[ITEM_COUNT][BUCKETS];
 
-    private long[] _clockTimes = new long[BUCKETS];
+    private final long[] _clockTimes = new long[BUCKETS];
 
-    private AtomicLong[] _totalCounts = new AtomicLong[ITEM_COUNT];
-    private AtomicLong[] _totalSums = new AtomicLong[ITEM_COUNT];
+    private final AtomicLong[] _totalCounts = new AtomicLong[ITEM_COUNT];
+    private final AtomicLong[] _totalSums = new AtomicLong[ITEM_COUNT];
 
     volatile int _currentBucket;
 
@@ -95,7 +95,7 @@ class IOMeter implements IOMeterMXBean {
             _sum.set(0);
         }
 
-        void charge(long size) {
+        void charge(final long size) {
             _count.incrementAndGet();
             _sum.addAndGet(size);
         }
@@ -108,6 +108,7 @@ class IOMeter implements IOMeterMXBean {
             return _count.get();
         }
 
+        @Override
         public String toString() {
             return String.format("(%d:%d)", _count.get(), _sum.get());
         }
@@ -158,7 +159,7 @@ class IOMeter implements IOMeterMXBean {
      *            the quiescentIOthreshold to set
      */
     @Override
-    public synchronized void setQuiescentIOthreshold(long quiescentIO) {
+    public synchronized void setQuiescentIOthreshold(final long quiescentIO) {
         _quiescentIOthreshold = quiescentIO;
     }
 
@@ -167,9 +168,9 @@ class IOMeter implements IOMeterMXBean {
      */
     @Override
     public synchronized long getIoRate() {
-        int bucket = _currentBucket;
-        int previousBucket = (bucket + BUCKETS - 1) % BUCKETS;
-        long interval = _clockTimes[bucket] - _clockTimes[previousBucket];
+        final int bucket = _currentBucket;
+        final int previousBucket = (bucket + BUCKETS - 1) % BUCKETS;
+        final long interval = _clockTimes[bucket] - _clockTimes[previousBucket];
         if (interval < SECOND) {
             return 0;
         }
@@ -199,12 +200,13 @@ class IOMeter implements IOMeterMXBean {
         return _logFileName;
     }
 
-    private void charge(final int size, int item) {
-        int bucket = _currentBucket;
+    private void charge(final int size, final int item) {
+        final int bucket = _currentBucket;
         _counters[item][bucket].charge(size);
     }
 
-    private void log(int type, final Volume volume, long pageAddress, int size, long journalAddress, int bufferIndex) {
+    private void log(final int type, final Volume volume, final long pageAddress, final int size,
+            final long journalAddress, final int bufferIndex) {
         final DataOutputStream os = _logStream.get();
         if (os != null) {
             synchronized (os) {
@@ -216,7 +218,7 @@ class IOMeter implements IOMeterMXBean {
                     os.writeInt(size);
                     os.writeLong(journalAddress);
                     os.writeInt(bufferIndex);
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     // ignore
                 }
             }
@@ -228,7 +230,7 @@ class IOMeter implements IOMeterMXBean {
         int _count;
         int _op;
 
-        Event(long time, int count, int op) {
+        Event(final long time, final int count, final int op) {
             _time = time;
             _count = count;
             _op = op;
@@ -240,9 +242,9 @@ class IOMeter implements IOMeterMXBean {
         }
     }
 
-    private void dump(final DataInputStream is, int count, boolean analyzePages) throws IOException {
+    private void dump(final DataInputStream is, final int count, final boolean analyzePages) throws IOException {
         long start = 0;
-        Map<Long, List<Event>> events = new HashMap<Long, List<Event>>();
+        final Map<Long, List<Event>> events = new HashMap<Long, List<Event>>();
         for (int index = 0; index < count; index++) {
             try {
                 final int op = is.read();
@@ -265,13 +267,13 @@ class IOMeter implements IOMeterMXBean {
                 if (analyzePages
                         && (op == WRITE_PAGE_TO_JOURNAL || op == READ_PAGE_FROM_JOURNAL || op == READ_PAGE_FROM_VOLUME
                                 || op == COPY_PAGE_TO_VOLUME || op == EVICT_PAGE_FROM_POOL)) {
-                    long handle = (volumeHandle << 48) + pageAddress;
+                    final long handle = (volumeHandle << 48) + pageAddress;
                     List<Event> list = events.get(handle);
                     if (list == null) {
                         list = new ArrayList<Event>(2);
                         events.put(handle, list);
                     }
-                    for (Event e : list) {
+                    for (final Event e : list) {
                         System.out.printf("  %-35s", e.describe(time, index));
                     }
                     while (list.size() >= 2) {
@@ -282,7 +284,7 @@ class IOMeter implements IOMeterMXBean {
 
                 System.out.println();
 
-            } catch (EOFException e) {
+            } catch (final EOFException e) {
                 break;
                 // normal end of processing
             }
@@ -295,19 +297,20 @@ class IOMeter implements IOMeterMXBean {
         log(COPY_PAGE_TO_VOLUME, volume, pageAddress, size, journalAddress, 0);
     }
 
-    public void chargeReadPageFromVolume(final Volume volume, final long pageAddress, final int size, int bufferIndex) {
+    public void chargeReadPageFromVolume(final Volume volume, final long pageAddress, final int size,
+            final int bufferIndex) {
         log(READ_PAGE_FROM_VOLUME, volume, pageAddress, size, -1, bufferIndex);
         charge(size, READ_PAGE_FROM_VOLUME);
     }
 
     public void chargeReadPageFromJournal(final Volume volume, final long pageAddress, final int size,
-            final long journalAddress, int bufferIndex) {
+            final long journalAddress, final int bufferIndex) {
         log(READ_PAGE_FROM_JOURNAL, volume, pageAddress, size, journalAddress, bufferIndex);
         charge(size, READ_PAGE_FROM_JOURNAL);
     }
 
     public void chargeWritePageToJournal(final Volume volume, final long pageAddress, final int size,
-            final long journalAddress, final int urgency, int bufferIndex) {
+            final long journalAddress, final int urgency, final int bufferIndex) {
         log(WRITE_PAGE_TO_JOURNAL, volume, pageAddress, size, journalAddress, bufferIndex);
         charge(size, WRITE_PAGE_TO_JOURNAL);
     }
@@ -322,7 +325,8 @@ class IOMeter implements IOMeterMXBean {
         charge(size, WRITE_OTHER_TO_JOURNAL);
     }
 
-    public void chargeEvictPageFromPool(final Volume volume, final long pageAddress, final int size, int bufferIndex) {
+    public void chargeEvictPageFromPool(final Volume volume, final long pageAddress, final int size,
+            final int bufferIndex) {
         log(EVICT_PAGE_FROM_POOL, volume, pageAddress, size, 0, bufferIndex);
     }
 
@@ -331,7 +335,7 @@ class IOMeter implements IOMeterMXBean {
         charge(size, FLUSH_JOURNAL);
     }
 
-    public void chargeGetPage(final Volume volume, final long pageAddress, final int size, int bufferIndex) {
+    public void chargeGetPage(final Volume volume, final long pageAddress, final int size, final int bufferIndex) {
         log(GET_PAGE, volume, pageAddress, size, 0, bufferIndex);
     }
 
@@ -388,12 +392,12 @@ class IOMeter implements IOMeterMXBean {
      * @return
      */
     synchronized long recentCharge() {
-        long now = System.nanoTime();
+        final long now = System.nanoTime();
         long then = 0;
-        int current = _currentBucket;
+        final int current = _currentBucket;
         long charge = 0;
         for (int b = current + BUCKETS; b > current; b--) {
-            int bucket = b % BUCKETS;
+            final int bucket = b % BUCKETS;
             if (_clockTimes[bucket] < now - RECENT) {
                 break;
             }
@@ -427,7 +431,7 @@ class IOMeter implements IOMeterMXBean {
         if (fileName == null) {
             ap.usage();
         } else {
-            IOMeter ioMeter = new IOMeter();
+            final IOMeter ioMeter = new IOMeter();
             final DataInputStream is = new DataInputStream(new BufferedInputStream(new FileInputStream(fileName)));
             is.skip(skip * DUMP_RECORD_LENGTH);
             ioMeter.dump(is, count == 0 ? Integer.MAX_VALUE : count, ap.isFlag('a'));

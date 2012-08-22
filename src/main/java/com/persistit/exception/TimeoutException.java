@@ -27,8 +27,7 @@ public class TimeoutException extends PersistitException {
         super();
     }
 
-    public TimeoutException(String msg) {
+    public TimeoutException(final String msg) {
         super(msg);
     }
 }
-

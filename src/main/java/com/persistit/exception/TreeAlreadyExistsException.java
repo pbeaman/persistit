@@ -30,7 +30,7 @@ public class TreeAlreadyExistsException extends IOException {
         super();
     }
 
-    public TreeAlreadyExistsException(String msg) {
+    public TreeAlreadyExistsException(final String msg) {
         super(msg);
     }
 }

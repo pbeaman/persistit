@@ -40,7 +40,7 @@ import com.persistit.exception.MissingVolumeException;
 import com.persistit.exception.PersistitException;
 
 class TransactionPlayer {
-    
+
     private final AtomicLong appliedUpdates = new AtomicLong();
     private final AtomicLong ignoredUpdates = new AtomicLong();
     private final AtomicLong failedUpdates = new AtomicLong();
@@ -116,10 +116,10 @@ class TransactionPlayer {
         }
 
         listener.startTransaction(address, startTimestamp, commitTimestamp);
-        applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp,
-                commitTimestamp, listener);
+        applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp, commitTimestamp,
+                listener);
 
-        for (Long continuation : chainedAddress) {
+        for (final Long continuation : chainedAddress) {
             address = continuation.longValue();
             _support.read(address, TX.OVERHEAD);
             recordSize = TX.getLength(_support.getReadBuffer());
@@ -129,8 +129,8 @@ class TransactionPlayer {
                         + " has invalid length " + recordSize + " or type " + type);
             }
             _support.read(address, recordSize);
-            applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp,
-                    commitTimestamp, listener);
+            applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp, commitTimestamp,
+                    listener);
         }
         listener.endTransaction(address, startTimestamp);
 
@@ -208,8 +208,8 @@ class TransactionPlayer {
                     System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD + key1Size, key2.getEncodedBytes(),
                             elisionCount, key2Size);
                     key2.setEncodedSize(key2Size + elisionCount);
-                    listener.removeKeyRange(address, startTimestamp, exchange, exchange.getAuxiliaryKey1(), exchange
-                            .getAuxiliaryKey2());
+                    listener.removeKeyRange(address, startTimestamp, exchange, exchange.getAuxiliaryKey1(),
+                            exchange.getAuxiliaryKey2());
                     appliedUpdates.incrementAndGet();
                     releaseExchange(exchange);
                     break;
@@ -225,16 +225,16 @@ class TransactionPlayer {
 
                 case D0.TYPE: {
                     final Exchange exchange = getExchange(D0.getTreeHandle(bb), address, startTimestamp);
-                    listener.delta(address, startTimestamp, exchange.getTree(), D0.getIndex(bb), D0
-                            .getAccumulatorTypeOrdinal(bb), 1);
+                    listener.delta(address, startTimestamp, exchange.getTree(), D0.getIndex(bb),
+                            D0.getAccumulatorTypeOrdinal(bb), 1);
                     appliedUpdates.incrementAndGet();
                     break;
                 }
 
                 case D1.TYPE: {
                     final Exchange exchange = getExchange(D1.getTreeHandle(bb), address, startTimestamp);
-                    listener.delta(address, startTimestamp, exchange.getTree(), D1.getIndex(bb), D1
-                            .getAccumulatorTypeOrdinal(bb), D1.getValue(bb));
+                    listener.delta(address, startTimestamp, exchange.getTree(), D1.getIndex(bb),
+                            D1.getAccumulatorTypeOrdinal(bb), D1.getValue(bb));
                     appliedUpdates.incrementAndGet();
                     break;
                 }
@@ -245,7 +245,7 @@ class TransactionPlayer {
                             + addressToString(address));
                 }
                 }
-            } catch (MissingVolumeException mve) {
+            } catch (final MissingVolumeException mve) {
                 final Persistit db = _support.getPersistit();
                 if (db.getJournalManager().isIgnoreMissingVolumes()) {
                     /*
@@ -279,7 +279,7 @@ class TransactionPlayer {
             throw new CorruptJournalException("Tree handle " + treeHandle + " is undefined at "
                     + addressToString(from, timestamp));
         }
-        Volume volumeRef = _support.handleToVolume(td.getVolumeHandle());
+        final Volume volumeRef = _support.handleToVolume(td.getVolumeHandle());
         Volume volume;
         if (volumeRef == null) {
             throw new CorruptJournalException("Volume handle " + td.getVolumeHandle() + " is undefined at "
@@ -307,15 +307,15 @@ class TransactionPlayer {
     private void releaseExchange(final Exchange exchange) {
         _support.getPersistit().releaseExchange(exchange);
     }
-    
+
     long getAppliedUpdates() {
         return appliedUpdates.get();
     }
-    
+
     long getIgnoredUpdates() {
         return ignoredUpdates.get();
     }
-    
+
     long getFailedUpdates() {
         return failedUpdates.get();
     }

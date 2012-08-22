@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.persistit.Exchange;
 import com.persistit.Transaction;
 import com.persistit.exception.RollbackException;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 /**
@@ -86,8 +85,8 @@ public class StressRecovery extends StressBase {
 
         long incrementAndGet() {
             for (;;) {
-                long current = _bits.get();
-                long next = (current >>> 1) ^ (-(current & 1) & 0xD800000000000000L);
+                final long current = _bits.get();
+                final long next = (current >>> 1) ^ (-(current & 1) & 0xD800000000000000L);
                 if (_bits.compareAndSet(current, next)) {
                     return next & Long.MAX_VALUE;
                 }
@@ -116,7 +115,7 @@ public class StressRecovery extends StressBase {
         void verifyTransaction(final long ticketId) throws Exception;
     }
 
-    public StressRecovery(String argsString) {
+    public StressRecovery(final String argsString) {
         super(argsString);
     }
 
@@ -167,12 +166,12 @@ public class StressRecovery extends StressBase {
             final TransactionType tt = registry.get((int) (ticketId % registry.size()));
             final long start = System.nanoTime();
             try {
-                long commitTs = tt.performTransaction(ticketId);
+                final long commitTs = tt.performTransaction(ticketId);
                 addWork(1);
 
                 final long now = System.nanoTime();
                 emit(ticketId, start - zero, now - start, commitTs);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 emit(ticketId, start - zero, -1, -1);
                 e.printStackTrace();
             }
@@ -215,19 +214,19 @@ public class StressRecovery extends StressBase {
                 start = Long.parseLong(s[1]);
                 elapsed = Long.parseLong(s[2]);
                 last = Math.max(last, start + elapsed);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 System.out.println(e + " while reading line " + _count + " of " + _verifyPath + ": " + line);
             }
             if (elapsed >= 0) {
                 try {
-                    TransactionType tt = registry.get((int) (ticketId % registry.size()));
+                    final TransactionType tt = registry.get((int) (ticketId % registry.size()));
                     tt.verifyTransaction(ticketId);
                     addWork(1);
 
                     if (start + elapsed > firstFault) {
                         successAfterFailureCount++;
                     }
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     firstFault = Math.min(firstFault, start + elapsed);
                     firstFaultTicket = ticketId;
                     faults++;
@@ -237,7 +236,7 @@ public class StressRecovery extends StressBase {
 
         if (faults > 0) {
             if (last - firstFault < _maxLatency) {
-                String msg = String
+                final String msg = String
                         .format("There were %,d faults. Last one occurred %,dms before crash: "
                                 + "PASS because acceptable latency setting is %,dms First-failed ticketId=%,d laterSuccess=%,d.",
                                 faults, (last - firstFault) / 1000000l, _maxLatency / 1000000l, firstFaultTicket,
@@ -245,9 +244,9 @@ public class StressRecovery extends StressBase {
                 System.out.println(msg);
                 pass(msg);
             } else {
-                fail(String.format(
-                                "There were %,d faults. Last one occurred %,dms before crash: "
-                                        + "FAIL because acceptable latency setting is %,dms First-failed ticketId=%,d laterSuccess=%,d.",
+                fail(String
+                        .format("There were %,d faults. Last one occurred %,dms before crash: "
+                                + "FAIL because acceptable latency setting is %,dms First-failed ticketId=%,d laterSuccess=%,d.",
                                 faults, (last - firstFault) / 1000000l, _maxLatency / 1000000l, firstFaultTicket,
                                 successAfterFailureCount));
             }
@@ -271,8 +270,8 @@ public class StressRecovery extends StressBase {
         private static final int SCALE = 10000;
 
         @Override
-        public long performTransaction(long ticketId) throws Exception {
-            Transaction txn = getPersistit().getTransaction();
+        public long performTransaction(final long ticketId) throws Exception {
+            final Transaction txn = getPersistit().getTransaction();
             for (;;) {
                 txn.begin();
                 try {
@@ -281,7 +280,7 @@ public class StressRecovery extends StressBase {
                     _exs.store();
                     txn.commit();
                     break;
-                } catch (RollbackException e) {
+                } catch (final RollbackException e) {
                     continue;
                 } finally {
                     txn.end();
@@ -291,7 +290,7 @@ public class StressRecovery extends StressBase {
         }
 
         @Override
-        public void verifyTransaction(long ticketId) throws Exception {
+        public void verifyTransaction(final long ticketId) throws Exception {
             _exs.clear().append(ticketId % SCALE).append(ticketId / SCALE);
             _exs.fetch();
             check(ticketId, _exs, "ticket " + ticketId + " value");
@@ -304,13 +303,13 @@ public class StressRecovery extends StressBase {
                 "aid", "some", "party" };
 
         @Override
-        public long performTransaction(long ticketId) throws Exception {
+        public long performTransaction(final long ticketId) throws Exception {
             final StringBuilder sb = new StringBuilder(String.format("%,15d", ticketId));
             final int size = (int) ((ticketId * 17) % 876);
             for (int i = 0; i < size; i++) {
                 sb.append('-');
             }
-            Transaction txn = getPersistit().getTransaction();
+            final Transaction txn = getPersistit().getTransaction();
             for (;;) {
                 txn.begin();
                 try {
@@ -342,7 +341,7 @@ public class StressRecovery extends StressBase {
 
                     txn.commit();
                     break;
-                } catch (RollbackException e) {
+                } catch (final RollbackException e) {
                     continue;
                 } finally {
                     txn.end();
@@ -352,7 +351,7 @@ public class StressRecovery extends StressBase {
         }
 
         @Override
-        public void verifyTransaction(long ticketId) throws Exception {
+        public void verifyTransaction(final long ticketId) throws Exception {
 
             long t = ticketId;
             _exs.clear();

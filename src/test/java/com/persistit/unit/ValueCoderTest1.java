@@ -151,7 +151,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         }
     }
 
-    private void debug(boolean condition) {
+    private void debug(final boolean condition) {
         if (!condition) {
             return;
         }

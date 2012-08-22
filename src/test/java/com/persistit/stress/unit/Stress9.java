@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress9 extends StressBase {
@@ -37,9 +36,10 @@ public class Stress9 extends StressBase {
 
     ArrayList _testValue = new ArrayList();
 
-    public Stress9(String argsString) {
+    public Stress9(final String argsString) {
         super(argsString);
     }
+
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -134,8 +134,7 @@ public class Stress9 extends StressBase {
 
                         final int size2 = value2.getEncodedSize();
                         if (size2 != size1) {
-                            fail("Value is size " + size2 + ", should be " + size1 + " key="
-                                    + _ex.getKey());
+                            fail("Value is size " + size2 + ", should be " + size1 + " key=" + _ex.getKey());
                         }
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -182,8 +181,8 @@ public class Stress9 extends StressBase {
                     }
                 }
                 if (count1 != count2 && !isStopped()) {
-                    fail("Traverse count is " + count1 + " but should be " + count2
-                            + " on repetition=" + _repeat + " in thread=" + _threadIndex);
+                    fail("Traverse count is " + count1 + " but should be " + count2 + " on repetition=" + _repeat
+                            + " in thread=" + _threadIndex);
                     break;
                 }
             }

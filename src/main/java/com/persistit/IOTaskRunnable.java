@@ -66,7 +66,7 @@ abstract class IOTaskRunnable implements Runnable {
         return _pollInterval;
     }
 
-    public synchronized void setPollInterval(long pollInterval) {
+    public synchronized void setPollInterval(final long pollInterval) {
         _pollInterval = pollInterval;
         kick();
     }
@@ -79,7 +79,7 @@ abstract class IOTaskRunnable implements Runnable {
         return _exceptionCount;
     }
 
-    synchronized boolean lastException(Exception exception) {
+    synchronized boolean lastException(final Exception exception) {
         _exceptionCount++;
         if (_lastException == null || exception == null || !_lastException.getClass().equals(exception.getClass())) {
             _lastException = exception;
@@ -118,7 +118,7 @@ abstract class IOTaskRunnable implements Runnable {
             thread.stop();
             try {
                 thread.join(THREAD_DEATH_WAIT_INTERVAL);
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -133,13 +133,13 @@ abstract class IOTaskRunnable implements Runnable {
             }
             try {
                 runTask();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 if (lastException(e)) {
                     _persistit.getLogBase().exception.log(e);
                 }
             }
 
-            long lastCycleTime = System.currentTimeMillis();
+            final long lastCycleTime = System.currentTimeMillis();
             synchronized (this) {
                 if (shouldStop()) {
                     _stopped = true;
@@ -148,20 +148,20 @@ abstract class IOTaskRunnable implements Runnable {
                 }
 
                 while (!shouldStop()) {
-                    long pollInterval = pollInterval();
+                    final long pollInterval = pollInterval();
                     if (_notified && pollInterval >= 0) {
                         break;
                     }
-                    long waitTime = pollInterval < 0 ? Persistit.SHORT_DELAY : lastCycleTime + pollInterval
+                    final long waitTime = pollInterval < 0 ? Persistit.SHORT_DELAY : lastCycleTime + pollInterval
                             - System.currentTimeMillis();
-                    
+
                     if (waitTime <= 0) {
                         break;
                     }
-                    
+
                     try {
                         wait(waitTime);
-                    } catch (InterruptedException ie) {
+                    } catch (final InterruptedException ie) {
                         _persistit.getLogBase().exception.log(ie);
                         break;
                     }
@@ -170,7 +170,7 @@ abstract class IOTaskRunnable implements Runnable {
         }
         try {
             _persistit.closeSession();
-        } catch (PersistitException e) {
+        } catch (final PersistitException e) {
             _persistit.getLogBase().exception.log(e);
         }
     }

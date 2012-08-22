@@ -97,10 +97,10 @@ public abstract class Accumulator {
     final static Comparator<Accumulator> SORT_COMPARATOR = new Comparator<Accumulator>() {
 
         @Override
-        public int compare(Accumulator a, Accumulator b) {
+        public int compare(final Accumulator a, final Accumulator b) {
             final String treeNameA = a.getTree() == null ? "" : a.getTree().getName();
             final String treeNameB = b.getTree() == null ? "" : b.getTree().getName();
-            int compare = treeNameA.compareTo(treeNameB);
+            final int compare = treeNameA.compareTo(treeNameB);
             if (compare != 0) {
                 return compare;
             } else {
@@ -144,7 +144,7 @@ public abstract class Accumulator {
      * longer present in live TransactionStatus objects. This array has one
      * element per TransactionIndexBucket.
      */
-    private long[] _bucketValues;
+    private final long[] _bucketValues;
 
     /*
      * Object held on the accumulators list in {@link Persistit}. An
@@ -374,7 +374,7 @@ public abstract class Accumulator {
         }
 
         Accumulator takeCheckpointRef() {
-            Accumulator result = _checkpointRef;
+            final Accumulator result = _checkpointRef;
             _checkpointRef = null;
             return result;
         }
@@ -551,7 +551,7 @@ public abstract class Accumulator {
     long getSnapshotValue(final long timestamp, final int step) throws PersistitInterruptedException {
         try {
             return _transactionIndex.getAccumulatorSnapshot(this, timestamp, step, _baseValue);
-        } catch (InterruptedException ie) {
+        } catch (final InterruptedException ie) {
             throw new PersistitInterruptedException(ie);
         }
     }
@@ -588,6 +588,7 @@ public abstract class Accumulator {
     /**
      * Update the Accumulator by contributing a value. The contribution is
      * immediately accumulated into the live value, and it is also posted with a
+     * 
      * @{link {@link Delta} instance to the supplied {@link Transaction}.
      * 
      * @param value
@@ -636,8 +637,8 @@ public abstract class Accumulator {
      *         values for this <code>Accumulator</code>.
      */
     public String toString() {
-        return String.format("Accumulator(tree=%s index=%d type=%s base=%,d live=%,d)", _tree == null ? "null" : _tree
-                .getName(), _index, getType(), _baseValue, _liveValue.get());
+        return String.format("Accumulator(tree=%s index=%d type=%s base=%,d live=%,d)",
+                _tree == null ? "null" : _tree.getName(), _index, getType(), _baseValue, _liveValue.get());
     }
 
     void store(final Value value) {
@@ -649,8 +650,8 @@ public abstract class Accumulator {
 
     static AccumulatorState getAccumulatorState(final Tree tree, final int index) throws PersistitException {
         final Exchange exchange = tree.getVolume().getStructure().directoryExchange();
-        exchange.clear().append(VolumeStructure.DIRECTORY_TREE_NAME).append(VolumeStructure.TREE_ACCUMULATOR).append(
-                tree.getName()).append(index).fetch();
+        exchange.clear().append(VolumeStructure.DIRECTORY_TREE_NAME).append(VolumeStructure.TREE_ACCUMULATOR)
+                .append(tree.getName()).append(index).fetch();
         if (exchange.getValue().isDefined()) {
             return (AccumulatorState) exchange.getValue().get();
         } else {

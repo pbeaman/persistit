@@ -108,11 +108,11 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
 
     JTable _volumeTable;
     ManagementTableModel _volumeInfoArrayModel;
-    private Map _menuMap = new HashMap();
+    private final Map _menuMap = new HashMap();
     private String _selectedVolumeName;
 
     @Override
-    protected void setup(AdminUI ui) throws NoSuchMethodException, RemoteException {
+    protected void setup(final AdminUI ui) throws NoSuchMethodException, RemoteException {
         _adminUI = ui;
         setLayout(new BorderLayout());
         _summaryPanel = new JPanel(new GridBagLayout());
@@ -120,7 +120,7 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
         _recoveryPanel = new JPanel(new GridBagLayout());
         _volumeTablePanel = new JPanel(new BorderLayout());
 
-        GridBagConstraints gbc = new GridBagConstraints();
+        final GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 1, 1, 5);
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -244,10 +244,11 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
 
         volumeTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
             @Override
-            public void valueChanged(ListSelectionEvent lse) {
-                int index = volumeTable.getSelectedRow();
+            public void valueChanged(final ListSelectionEvent lse) {
+                final int index = volumeTable.getSelectedRow();
                 if (!lse.getValueIsAdjusting() && index >= 0) {
-                    Management.VolumeInfo[] array = (Management.VolumeInfo[]) _volumeInfoArrayModel.getInfoArray();
+                    final Management.VolumeInfo[] array = (Management.VolumeInfo[]) _volumeInfoArrayModel
+                            .getInfoArray();
                     if (array != null && index < array.length) {
                         _selectedVolumeName = array[index].getPath();
                     } else {
@@ -258,13 +259,13 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
             }
         });
 
-        JScrollPane volumeScrollPane = new JScrollPane(volumeTable);
+        final JScrollPane volumeScrollPane = new JScrollPane(volumeTable);
 
-        JPanel volumePanel = new JPanel(new BorderLayout());
+        final JPanel volumePanel = new JPanel(new BorderLayout());
         volumePanel.setBorder(_adminUI.createTitledBorder("SummaryPanel.volumes"));
         volumePanel.add(volumeScrollPane, BorderLayout.CENTER);
 
-        JSplitPane splitter1 = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        final JSplitPane splitter1 = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitter1.add(volumePanel);
 
         _volumeTablePanel.add(splitter1, BorderLayout.CENTER);
@@ -280,7 +281,7 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
 
         _recoveryPanel.setBorder(_adminUI.createTitledBorder("RecoveryPanel.recovery_status"));
 
-        JPanel panel = new JPanel(new GridBagLayout());
+        final JPanel panel = new JPanel(new GridBagLayout());
         gbc.fill = GridBagConstraints.HORIZONTAL;
         panel.add(_summaryPanel, gbc);
         gbc.gridy++;
@@ -295,16 +296,16 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
     }
 
     @Override
-    public void actionPerformed(AdminUI.AdminAction action, ActionEvent ae) {
+    public void actionPerformed(final AdminUI.AdminAction action, final ActionEvent ae) {
         //
         // Currently no actions created by this panel
         //
     }
 
     @Override
-    protected void refresh(boolean reset) {
+    protected void refresh(final boolean reset) {
         try {
-            Management management = _adminUI.getManagement();
+            final Management management = _adminUI.getManagement();
             if (management == null) {
                 _version.setText("");
                 _copyright.setText("");
@@ -367,8 +368,8 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 _frozenShutdown.setForeground(management.isShutdownSuspended() ? Color.red : _normalForegroundColor);
 
                 final Management.JournalInfo jinfo = management.getJournalInfo();
-                _journalCurLocation.setText(_adminUI.formatFileLocation(jinfo.getCurrentJournalFile(), jinfo
-                        .getCurrentJournalAddress()));
+                _journalCurLocation.setText(_adminUI.formatFileLocation(jinfo.getCurrentJournalFile(),
+                        jinfo.getCurrentJournalAddress()));
                 _journalBlockSize.setText(_adminUI.formatLong(jinfo.getBlockSize()));
 
                 _journalBaseAddress.setText(_adminUI.formatLong(jinfo.getBaseAddress()));
@@ -382,8 +383,8 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                     _journalValidCkptTime.setText(_adminUI.formatDate(jinfo.getLastValidCheckpointSystemTime()));
                     _journalValidCkptAgo.setText(_adminUI.formatLong(jinfo.getLastValidCheckpointAge()));
                     _journalValidCkptTimestamp.setText(_adminUI.formatLong(jinfo.getLastValidCheckpointTimestamp()));
-                    _journalValidCkptLocation.setText(_adminUI.formatFileLocation(jinfo
-                            .getLastValidCheckpointJournalFile(), jinfo.getLastValidCheckpointJournalAddress()));
+                    _journalValidCkptLocation.setText(_adminUI.formatFileLocation(
+                            jinfo.getLastValidCheckpointJournalFile(), jinfo.getLastValidCheckpointJournalAddress()));
                 }
 
                 _journalAppendOnly.setText(jinfo.isAppendOnly() ? _enabledCaption : _disabledCaption);
@@ -401,8 +402,8 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 _recoveryEndAddress.setText(_adminUI.formatLong(rinfo.getRecoveryEndAddress()));
                 _recoveryException.setText(rinfo.getRecoveryEndedException() == null ? "none" : rinfo
                         .getRecoveryEndedException());
-                _recoveryKeystone.setText(_adminUI.formatFileLocation(rinfo.getKeystoneJournalFile(), rinfo
-                        .getKeystoneJournalAddress()));
+                _recoveryKeystone.setText(_adminUI.formatFileLocation(rinfo.getKeystoneJournalFile(),
+                        rinfo.getKeystoneJournalAddress()));
                 _recoveryUncommitted.setText(_adminUI.formatInteger(rinfo.getUncommittedTransactions()));
 
                 final Management.BufferPoolInfo[] bpia = management.getBufferPoolInfoArray();
@@ -419,7 +420,7 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                     creates += bpia[index].getNewCount();
                 }
 
-                Management.VolumeInfo[] via = management.getVolumeInfoArray();
+                final Management.VolumeInfo[] via = management.getVolumeInfoArray();
 
                 if (_selectedVolumeName == null && via.length > 0) {
                     _selectedVolumeName = via[0].getPath();
@@ -437,13 +438,13 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                         / (double) (misses + hits + creates)) : "n/a");
                 _volumeInfoArrayModel.setInfoArray(via);
 
-                Management.TransactionInfo transactionInfo = management.getTransactionInfo();
+                final Management.TransactionInfo transactionInfo = management.getTransactionInfo();
                 _commits.setText(_adminUI.formatLong(transactionInfo.getCommitCount()));
                 _rollbacks.setText(_adminUI.formatLong(transactionInfo.getRollbackCount()));
                 _rollbacksSinceLastCommit.setText(_adminUI.formatLong(transactionInfo.getRollbackSinceCommitCount()));
 
             }
-        } catch (RemoteException re) {
+        } catch (final RemoteException re) {
             _adminUI.postException(re);
         }
     }

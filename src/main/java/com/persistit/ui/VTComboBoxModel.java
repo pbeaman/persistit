@@ -27,20 +27,20 @@ import com.persistit.Management.VolumeInfo;
 
 class VTComboBoxModel extends AbstractListModel implements ComboBoxModel {
 
-    private VTComboBoxModel _parent;
+    private final VTComboBoxModel _parent;
 
-    private List _cachedList = new ArrayList();
+    private final List _cachedList = new ArrayList();
     private Object _selectedItem;
     private long _validTime;
-    private Management _management;
+    private final Management _management;
 
-    public VTComboBoxModel(VTComboBoxModel vtcmb, Management management) {
+    public VTComboBoxModel(final VTComboBoxModel vtcmb, final Management management) {
         _parent = vtcmb;
         _management = management;
     }
 
     @Override
-    public Object getElementAt(int index) {
+    public Object getElementAt(final int index) {
         populateList();
         if (index >= 0 && index < _cachedList.size()) {
             return _cachedList.get(index);
@@ -55,7 +55,7 @@ class VTComboBoxModel extends AbstractListModel implements ComboBoxModel {
     }
 
     @Override
-    public void setSelectedItem(Object item) {
+    public void setSelectedItem(final Object item) {
         _selectedItem = item;
     }
 
@@ -65,33 +65,32 @@ class VTComboBoxModel extends AbstractListModel implements ComboBoxModel {
     }
 
     private void populateList() {
-        long now = System.currentTimeMillis();
+        final long now = System.currentTimeMillis();
         if (now - _validTime < 1000)
             return;
         _validTime = now;
         _cachedList.clear();
         try {
             if (_parent == null) {
-                VolumeInfo[] volumes = _management.getVolumeInfoArray();
+                final VolumeInfo[] volumes = _management.getVolumeInfoArray();
                 for (int index = 0; index < volumes.length; index++) {
                     _cachedList.add(volumes[index].getPath());
                 }
             } else {
-                String volumeName = (String) _parent.getSelectedItem();
+                final String volumeName = (String) _parent.getSelectedItem();
                 if (volumeName == null)
                     return;
-                TreeInfo[] trees = _management.getTreeInfoArray(volumeName);
+                final TreeInfo[] trees = _management.getTreeInfoArray(volumeName);
                 for (int index = 0; index < trees.length; index++) {
                     _cachedList.add(trees[index].getName());
                 }
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             handleException(e);
         }
     }
 
-    private void handleException(Exception e) {
+    private void handleException(final Exception e) {
         e.printStackTrace();
     }
 }
-

@@ -37,9 +37,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Persistit;
-import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
@@ -51,6 +48,7 @@ public class Bug947182Test extends PersistitUnitTestCase {
     private static final int B = WRITE_WRITE_STORE_B;
     private static final int C = WRITE_WRITE_STORE_C;
 
+    @Override
     public void tearDown() throws Exception {
         disableSequencer();
         super.tearDown();
@@ -98,12 +96,12 @@ public class Bug947182Test extends PersistitUnitTestCase {
         final Semaphore firstStore = new Semaphore(0);
         final ConcurrentLinkedQueue<Throwable> throwableList = new ConcurrentLinkedQueue<Throwable>();
 
-        Thread thread1 = new Thread(new Runnable() {
+        final Thread thread1 = new Thread(new Runnable() {
             @Override
             public void run() {
                 Exchange ex = null;
                 try {
-                    Transaction txn = _persistit.getTransaction();
+                    final Transaction txn = _persistit.getTransaction();
                     ex = getExchange(_persistit);
                     txn.begin();
                     try {
@@ -131,7 +129,7 @@ public class Bug947182Test extends PersistitUnitTestCase {
                     }
 
                     sequence(WRITE_WRITE_STORE_C);
-                } catch (Throwable t) {
+                } catch (final Throwable t) {
                     throwableList.add(t);
                 } finally {
                     if (ex != null) {
@@ -141,7 +139,7 @@ public class Bug947182Test extends PersistitUnitTestCase {
             }
         });
 
-        Thread thread2 = new Thread(new Runnable() {
+        final Thread thread2 = new Thread(new Runnable() {
             @Override
             public void run() {
                 Exchange ex = null;
@@ -149,7 +147,7 @@ public class Bug947182Test extends PersistitUnitTestCase {
                     if (!firstStore.tryAcquire(5, TimeUnit.SECONDS)) {
                         throw new Exception("Timed out waiting for first store to complete");
                     }
-                    Transaction txn = _persistit.getTransaction();
+                    final Transaction txn = _persistit.getTransaction();
                     ex = getExchange(_persistit);
                     txn.begin();
                     try {
@@ -160,7 +158,7 @@ public class Bug947182Test extends PersistitUnitTestCase {
                         txn.end();
                         _persistit.releaseExchange(ex);
                     }
-                } catch (Throwable t) {
+                } catch (final Throwable t) {
                     throwableList.add(t);
                 } finally {
                     _persistit.releaseExchange(ex);
@@ -184,13 +182,13 @@ public class Bug947182Test extends PersistitUnitTestCase {
         }
     }
 
-    private static Exchange getExchange(Persistit persistit) throws PersistitException {
+    private static Exchange getExchange(final Persistit persistit) throws PersistitException {
         return persistit.getExchange(UnitTestProperties.VOLUME_NAME, TREE_NAME, true);
     }
 
-    private static void storeLongMVV(Exchange ex) throws PersistitException {
+    private static void storeLongMVV(final Exchange ex) throws PersistitException {
         final int size = ex.maxValueSize(ex.getKey().getEncodedSize()) - 1;
-        StringBuilder builder = new StringBuilder(size);
+        final StringBuilder builder = new StringBuilder(size);
         while (builder.length() < size) {
             builder.append("0123456789");
         }

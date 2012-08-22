@@ -30,8 +30,7 @@ public class TaskEndedException extends RuntimeException {
         super();
     }
 
-    public TaskEndedException(String msg) {
+    public TaskEndedException(final String msg) {
         super(msg);
     }
 }
-

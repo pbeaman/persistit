@@ -62,6 +62,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
             _stuff = s;
         }
 
+        @Override
         public boolean equals(final Object o) {
             return ((S) o)._stuff.equals(_stuff);
         }
@@ -449,6 +450,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         new PersistitMapTest().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
         test2();
@@ -473,7 +475,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         return sb.toString();
     }
 
-    private void debug(boolean condition) {
+    private void debug(final boolean condition) {
         if (!condition) {
             return;
         }

@@ -19,7 +19,7 @@ import com.persistit.exception.PersistitException;
 
 public class Stress4a extends Stress4Base {
 
-    public Stress4a(String argsString) {
+    public Stress4a(final String argsString) {
         super(argsString);
     }
 

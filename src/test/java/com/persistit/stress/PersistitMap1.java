@@ -25,7 +25,7 @@ public class PersistitMap1 extends AbstractSuite {
         return PersistitMap1.class.getSimpleName();
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         new PersistitMap1(args).runTest();
     }
 
@@ -33,6 +33,7 @@ public class PersistitMap1 extends AbstractSuite {
         super(name(), args);
     }
 
+    @Override
     public void runTest() throws Exception {
 
         deleteFiles(substitute("$datapath$/persistit*"));

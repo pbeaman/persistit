@@ -30,7 +30,7 @@ public class TruncateVolumeException extends PersistitException {
         super();
     }
 
-    public TruncateVolumeException(String msg) {
+    public TruncateVolumeException(final String msg) {
         super(msg);
     }
 }

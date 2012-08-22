@@ -22,10 +22,6 @@ import java.util.Properties;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Key;
-import com.persistit.Persistit;
-import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
 
 /**

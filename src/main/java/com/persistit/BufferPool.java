@@ -26,8 +26,8 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -158,7 +158,7 @@ public class BufferPool {
     /**
      * Count of newly created pages
      */
-    private AtomicLong _newCounter = new AtomicLong();
+    private final AtomicLong _newCounter = new AtomicLong();
 
     /**
      * Count of valid buffers evicted to make room for another page.
@@ -198,7 +198,7 @@ public class BufferPool {
      * Timestamp to which all dirty pages should be written. PAGE_WRITER writes
      * any page with a lower update timestamp regardless of urgency.
      */
-    private AtomicLong _flushTimestamp = new AtomicLong();
+    private final AtomicLong _flushTimestamp = new AtomicLong();
 
     /**
      * Polling interval for PageWriter
@@ -233,7 +233,7 @@ public class BufferPool {
      * @param size
      *            The size (in bytes) of each buffer
      */
-    BufferPool(int count, int size, Persistit persistit) {
+    BufferPool(final int count, final int size, final Persistit persistit) {
         _persistit = persistit;
         if (count < MINIMUM_POOL_COUNT) {
             throw new IllegalArgumentException("Buffer pool count too small: " + count);
@@ -273,11 +273,11 @@ public class BufferPool {
         byte[] reserve = new byte[1024 * 1024];
         try {
             for (int index = 0; index < _bufferCount; index++) {
-                Buffer buffer = new Buffer(size, index, this, _persistit);
+                final Buffer buffer = new Buffer(size, index, this, _persistit);
                 _buffers[index] = buffer;
                 buffers++;
             }
-        } catch (OutOfMemoryError e) {
+        } catch (final OutOfMemoryError e) {
             //
             // Note: written this way to try to avoid another OOME.
             // Do not use String.format here.
@@ -297,8 +297,8 @@ public class BufferPool {
         _cacher = new PageCacher();
     }
 
-    void warmupBufferPool(String pathName, String fname) throws PersistitException {
-        File file = new File(pathName, fname + ".log");
+    void warmupBufferPool(final String pathName, final String fname) throws PersistitException {
+        final File file = new File(pathName, fname + ".log");
         _defaultLogPath = file.getAbsolutePath();
         final JournalManager jman = _persistit.getJournalManager();
 
@@ -306,16 +306,16 @@ public class BufferPool {
             if (!file.exists()) {
                 file.createNewFile();
             }
-            List<PageNode> pageNodes = new ArrayList<PageNode>();
-            HashMap<String, Volume> volumeMap = new HashMap<String, Volume>();
-            BufferedReader reader = new BufferedReader(new FileReader(file));
+            final List<PageNode> pageNodes = new ArrayList<PageNode>();
+            final HashMap<String, Volume> volumeMap = new HashMap<String, Volume>();
+            final BufferedReader reader = new BufferedReader(new FileReader(file));
             String currLine;
             while ((currLine = reader.readLine()) != null) {
-                String[] info = currLine.split(" ");
+                final String[] info = currLine.split(" ");
                 if (info.length == 2) {
-                    Volume vol = _persistit.getVolume(info[1]);
+                    final Volume vol = _persistit.getVolume(info[1]);
                     if (vol != null) {
-                        long page = Long.parseLong(info[0]);
+                        final long page = Long.parseLong(info[0]);
                         PageNode pn = jman.lookupUpPageNode(page, vol);
                         if (pn == null) {
                             pn = new PageNode(vol.getHandle(), page);
@@ -327,16 +327,15 @@ public class BufferPool {
             }
             Collections.sort(pageNodes, PageNode.READ_COMPARATOR);
             for (final PageNode pn : pageNodes) {
-                Volume vol = jman.lookupVolumeHandle(pn.getVolumeHandle());
-                Buffer buff = get(volumeMap.get(vol.getName()),
-                        pn.getPageAddress(), false, true);
+                final Volume vol = jman.lookupVolumeHandle(pn.getVolumeHandle());
+                final Buffer buff = get(volumeMap.get(vol.getName()), pn.getPageAddress(), false, true);
                 buff.release();
             }
 
             reader.close();
             _cacherPollInterval = _persistit.getConfiguration().getBufferInventoryPollingInterval();
             _cacher.start();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new PersistitException(e);
         }
     }
@@ -374,14 +373,14 @@ public class BufferPool {
         return _flushTimestamp.get() != 0;
     }
 
-    int hashIndex(Volume vol, long page) {
+    int hashIndex(final Volume vol, final long page) {
         return (int) (((page ^ vol.hashCode()) & Integer.MAX_VALUE) % _hashTable.length);
     }
 
-    int countInUse(Volume vol, boolean writer) {
+    int countInUse(final Volume vol, final boolean writer) {
         int count = 0;
         for (int i = 0; i < _bufferCount; i++) {
-            Buffer buffer = _buffers[i];
+            final Buffer buffer = _buffers[i];
             if ((vol == null || buffer.getVolume() == vol)
                     && ((buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0 && (!writer || (buffer.getStatus() & SharedResource.WRITER_MASK) != 0))) {
                 count++;
@@ -390,7 +389,7 @@ public class BufferPool {
         return count;
     }
 
-    void populateBufferPoolInfo(ManagementImpl.BufferPoolInfo info) {
+    void populateBufferPoolInfo(final ManagementImpl.BufferPoolInfo info) {
         info.bufferCount = _bufferCount;
         info.bufferSize = _bufferSize;
         info.missCount = _missCounter.get();
@@ -406,8 +405,8 @@ public class BufferPool {
         int writerClaimedPages = 0;
 
         for (int index = 0; index < _bufferCount; index++) {
-            Buffer buffer = _buffers[index];
-            int status = buffer.getStatus();
+            final Buffer buffer = _buffers[index];
+            final int status = buffer.getStatus();
             if ((status & SharedResource.VALID_MASK) != 0)
                 validPages++;
             if ((status & SharedResource.WRITER_MASK) != 0)
@@ -423,12 +422,13 @@ public class BufferPool {
         info.updateAcquisitonTime();
     }
 
-    int populateInfo(ManagementImpl.BufferInfo[] array, int traveralType, int includeMask, int excludeMask) {
+    int populateInfo(final ManagementImpl.BufferInfo[] array, final int traveralType, final int includeMask,
+            final int excludeMask) {
         int index = 0;
         switch (traveralType) {
         case 0:
             for (int i = 0; i < _bufferCount; i++) {
-                Buffer buffer = _buffers[i];
+                final Buffer buffer = _buffers[i];
                 if (selected(buffer, includeMask, excludeMask)) {
                     populateInfo1(array, index, buffer);
                     index++;
@@ -443,7 +443,7 @@ public class BufferPool {
         return index;
     }
 
-    private static void populateInfo1(ManagementImpl.BufferInfo[] array, int index, Buffer buffer) {
+    private static void populateInfo1(final ManagementImpl.BufferInfo[] array, final int index, final Buffer buffer) {
         if (index < array.length) {
             if (array[index] == null)
                 array[index] = new ManagementImpl.BufferInfo();
@@ -452,22 +452,22 @@ public class BufferPool {
     }
 
     protected void populateWarmupFile() throws PersistitException {
-        File file = new File(_defaultLogPath);
+        final File file = new File(_defaultLogPath);
 
         try {
-            BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+            final BufferedWriter writer = new BufferedWriter(new FileWriter(file));
             for (int i = 0; i < _buffers.length; ++i) {
-                Buffer b = _buffers[i];
+                final Buffer b = _buffers[i];
                 if (b != null && b.isValid() && !b.isDirty()) {
-                    long page = b.getPageAddress();
-                    Volume volume = b.getVolume();
-                    long page2 = b.getPageAddress();
-                    Volume volume2 = b.getVolume();
+                    final long page = b.getPageAddress();
+                    final Volume volume = b.getVolume();
+                    final long page2 = b.getPageAddress();
+                    final Volume volume2 = b.getVolume();
 
                     // Check if buffer has changed while reading
                     if (page == page2 && volume == volume2 && volume != null) {
-                        String addr = Long.toString(page);
-                        String vol = volume.getName();
+                        final String addr = Long.toString(page);
+                        final String vol = volume.getName();
                         writer.append(addr + " " + vol);
                         writer.newLine();
                         writer.flush();
@@ -475,12 +475,12 @@ public class BufferPool {
                 }
             }
             writer.close();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new PersistitException(e);
         }
     }
 
-    private boolean selected(Buffer buffer, int includeMask, int excludeMask) {
+    private boolean selected(final Buffer buffer, final int includeMask, final int excludeMask) {
         return ((includeMask == 0) || (buffer.getStatus() & includeMask) != 0)
                 && (buffer.getStatus() & excludeMask) == 0;
     }
@@ -622,7 +622,7 @@ public class BufferPool {
      *            The volume
      * @throws PersistitInterruptedException
      */
-    boolean invalidate(Volume volume) throws PersistitInterruptedException {
+    boolean invalidate(final Volume volume) throws PersistitInterruptedException {
         final float ratio = (float) volume.getStorage().getNextAvailablePage() / (float) _bufferCount;
         if (ratio < SMALL_VOLUME_RATIO) {
             return invalidateSmallVolume(volume);
@@ -635,7 +635,7 @@ public class BufferPool {
         boolean result = true;
         int markedAvailable = 0;
         for (long page = 1; page < volume.getStorage().getNextAvailablePage(); page++) {
-            int hashIndex = hashIndex(volume, page);
+            final int hashIndex = hashIndex(volume, page);
             _hashLocks[hashIndex % HASH_LOCKS].lock();
             try {
                 for (Buffer buffer = _hashTable[hashIndex]; buffer != null; buffer = buffer.getNext()) {
@@ -653,9 +653,9 @@ public class BufferPool {
                                 buffer.release();
                             }
                             if (invalidated) {
-                                int q = buffer.getIndex() / 64;
-                                int p = buffer.getIndex() % 64;
-                                long bits = _availablePagesBits.get(q);
+                                final int q = buffer.getIndex() / 64;
+                                final int p = buffer.getIndex() % 64;
+                                final long bits = _availablePagesBits.get(q);
                                 if (_availablePagesBits.compareAndSet(q, bits, bits | (1L << p))) {
                                     markedAvailable++;
                                 }
@@ -680,7 +680,7 @@ public class BufferPool {
         boolean result = true;
         int markedAvailable = 0;
         for (int index = 0; index < _bufferCount; index++) {
-            Buffer buffer = _buffers[index];
+            final Buffer buffer = _buffers[index];
             if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
                 if (buffer.claim(true, 0)) {
                     // re-check after claim
@@ -694,9 +694,9 @@ public class BufferPool {
                         buffer.release();
                     }
                     if (invalidated) {
-                        int q = buffer.getIndex() / 64;
-                        int p = buffer.getIndex() % 64;
-                        long bits = _availablePagesBits.get(q);
+                        final int q = buffer.getIndex() / 64;
+                        final int p = buffer.getIndex() % 64;
+                        final long bits = _availablePagesBits.get(q);
                         if (_availablePagesBits.compareAndSet(q, bits, bits | (1L << p))) {
                             markedAvailable++;
                         }
@@ -712,29 +712,33 @@ public class BufferPool {
         return result;
     }
 
-    private void invalidate(Buffer buffer) {
+    private void invalidate(final Buffer buffer) {
         Debug.$assert0.t(buffer.isValid() && buffer.isMine());
 
         while (!detach(buffer)) {
             //
-            // Spin until detach succeeds. Note: this method must not throw an Exception
-            // because it is called in at at critical time when cleanup must be done.
-            // It is not possible to lock the hash bucket here due to possible deadlock.
-            // However, the likelihood of a lengthy live-lock is infinitesimal so polling
+            // Spin until detach succeeds. Note: this method must not throw an
+            // Exception
+            // because it is called in at at critical time when cleanup must be
+            // done.
+            // It is not possible to lock the hash bucket here due to possible
+            // deadlock.
+            // However, the likelihood of a lengthy live-lock is infinitesimal
+            // so polling
             // is acceptable.
             //
-        	try {
-        		Thread.sleep(1);
-        	} catch (InterruptedException ie) {
-        		// ignore
-        	}
+            try {
+                Thread.sleep(1);
+            } catch (final InterruptedException ie) {
+                // ignore
+            }
         }
         buffer.clearValid();
         buffer.clearDirty();
         buffer.setPageAddressAndVolume(0, null);
     }
 
-    private boolean detach(Buffer buffer) {
+    private boolean detach(final Buffer buffer) {
         final int hash = hashIndex(buffer.getVolume(), buffer.getPageAddress());
         if (!_hashLocks[hash % HASH_LOCKS].tryLock()) {
             return false;
@@ -779,8 +783,9 @@ public class BufferPool {
      * @return Buffer The Buffer describing the buffer containing the page.
      * @throws InUseException
      */
-    Buffer get(Volume vol, long page, boolean writer, boolean wantRead) throws PersistitException {
-        int hash = hashIndex(vol, page);
+    Buffer get(final Volume vol, final long page, final boolean writer, final boolean wantRead)
+            throws PersistitException {
+        final int hash = hashIndex(vol, page);
         Buffer buffer = null;
 
         for (;;) {
@@ -927,10 +932,10 @@ public class BufferPool {
      * @throws RetryException
      * @throws IOException
      */
-    public Buffer getBufferCopy(Volume vol, long page) throws InvalidPageAddressException,
+    public Buffer getBufferCopy(final Volume vol, final long page) throws InvalidPageAddressException,
             InvalidPageStructureException, VolumeClosedException, InUseException, PersistitIOException,
             PersistitInterruptedException {
-        int hash = hashIndex(vol, page);
+        final int hash = hashIndex(vol, page);
         Buffer buffer = null;
         _hashLocks[hash % HASH_LOCKS].lock();
         try {
@@ -957,7 +962,7 @@ public class BufferPool {
         // Didn't find it in the pool, so we'll read a copy.
         //
         buffer = new Buffer(_bufferSize, -1, this, _persistit);
-        boolean acquired = buffer.claim(true);
+        final boolean acquired = buffer.claim(true);
         assert acquired : "buffer not unavailable";
         buffer.load(vol, page);
         buffer.setValid();
@@ -991,7 +996,7 @@ public class BufferPool {
         // since no valid page will need to be evicted.
         //
         if (_availablePages.get()) {
-            int start = (_clock.get() / 64) * 64;
+            final int start = (_clock.get() / 64) * 64;
             for (int q = start;;) {
                 q += 64;
                 if (q >= _bufferCount) {
@@ -1030,12 +1035,12 @@ public class BufferPool {
         // Look for a page to evict.
         //
         for (int retry = 0; retry < _bufferCount * 2;) {
-            int clock = _clock.get();
+            final int clock = _clock.get();
             assert clock < _bufferCount;
             if (!_clock.compareAndSet(clock, (clock + 1) % _bufferCount)) {
                 continue;
             }
-            Buffer buffer = _buffers[clock];
+            final Buffer buffer = _buffers[clock];
             if (buffer.isTouched()) {
                 buffer.clearTouched();
             } else {
@@ -1104,7 +1109,7 @@ public class BufferPool {
 
     void setFlushTimestamp(final long timestamp) {
         while (true) {
-            long current = _flushTimestamp.get();
+            final long current = _flushTimestamp.get();
             if (timestamp > current) {
                 if (_flushTimestamp.compareAndSet(current, timestamp)) {
                     break;
@@ -1122,7 +1127,7 @@ public class BufferPool {
      *         polling cycle
      */
     boolean shouldWritePages() {
-        int cleanCount = _bufferCount - _dirtyPageCount.get();
+        final int cleanCount = _bufferCount - _dirtyPageCount.get();
         if (getEarliestDirtyTimestamp() < _flushTimestamp.get()) {
             return true;
         }
@@ -1139,7 +1144,7 @@ public class BufferPool {
     }
 
     void writeDirtyBuffers(final int[] priorities, final BufferHolder[] selectedBuffers) throws PersistitException {
-        int count = selectDirtyBuffers(priorities, selectedBuffers);
+        final int count = selectDirtyBuffers(priorities, selectedBuffers);
         if (count > 0) {
             Arrays.sort(selectedBuffers, 0, count);
             for (int index = 0; index < count; index++) {
@@ -1167,7 +1172,7 @@ public class BufferPool {
         final long currentTimestamp = _persistit.getCurrentTimestamp();
 
         long earliestDirtyTimestamp = currentTimestamp;
-        long flushTimestamp = _flushTimestamp.get();
+        final long flushTimestamp = _flushTimestamp.get();
 
         boolean flushed = true;
         for (int index = clock; index < clock + _bufferCount; index++) {
@@ -1242,9 +1247,9 @@ public class BufferPool {
                 while (where > 0 && priorities[where - 1] < priority) {
                     where--;
                 }
-                int move = count - where;
+                final int move = count - where;
                 if (move > 0) {
-                    BufferHolder lastHolder = holders[count];
+                    final BufferHolder lastHolder = holders[count];
                     System.arraycopy(priorities, where, priorities, where + 1, move);
                     System.arraycopy(holders, where, holders, where + 1, move);
                     holders[where] = lastHolder;
@@ -1264,8 +1269,8 @@ public class BufferPool {
      * 
      * @return priority
      */
-    int writePriority(final Buffer buffer, int clock, long checkpointTimestamp, final long currentTimestamp) {
-        int status = buffer.getStatus();
+    int writePriority(final Buffer buffer, final int clock, final long checkpointTimestamp, final long currentTimestamp) {
+        final int status = buffer.getStatus();
         if ((status & Buffer.VALID_MASK) == 0 || (status & Buffer.DIRTY_MASK) == 0) {
             // ineligible
             return 0;
@@ -1360,7 +1365,7 @@ public class BufferPool {
          *         address order.
          */
         @Override
-        public int compareTo(BufferHolder buffer) {
+        public int compareTo(final BufferHolder buffer) {
             return _volumeId > buffer._volumeId ? 1 : _volumeId < buffer._volumeId ? -1 : _page > buffer._page ? 1
                     : _page < buffer._page ? -1 : 0;
 
@@ -1391,7 +1396,7 @@ public class BufferPool {
 
         @Override
         public void runTask() throws PersistitException {
-            int size = _pageWriterTrancheSize;
+            final int size = _pageWriterTrancheSize;
             if (size != _priorities.length) {
                 _priorities = new int[size];
                 _selectedBuffers = new BufferHolder[size];
@@ -1455,7 +1460,7 @@ public class BufferPool {
      * @param detail
      * @return toString value for buffer at index <code>i</code>.
      */
-    String toString(int i, boolean detail) {
+    String toString(final int i, final boolean detail) {
         if (detail) {
             return _buffers[i].toStringDetail();
         } else {

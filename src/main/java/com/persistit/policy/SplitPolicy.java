@@ -121,8 +121,9 @@ public abstract class SplitPolicy {
     private static class Left extends SplitPolicy {
 
         @Override
-        public int splitFit(Buffer buffer, int kbOffset, int insertAt, boolean replace, int leftSize, int rightSize,
-                int currentSize, int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+        public int splitFit(final Buffer buffer, final int kbOffset, final int insertAt, final boolean replace,
+                final int leftSize, final int rightSize, final int currentSize, final int virtualSize,
+                final int capacity, final int splitInfo, final Sequence sequence) {
             //
             // This implementation maximizes the number of bytes in the left
             // sibling.
@@ -140,8 +141,9 @@ public abstract class SplitPolicy {
 
     private static class Right extends SplitPolicy {
         @Override
-        public int splitFit(Buffer buffer, int kbOffset, int insertAt, boolean replace, int leftSize, int rightSize,
-                int currentSize, int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+        public int splitFit(final Buffer buffer, final int kbOffset, final int insertAt, final boolean replace,
+                final int leftSize, final int rightSize, final int currentSize, final int virtualSize,
+                final int capacity, final int splitInfo, final Sequence sequence) {
             //
             // This implementation maximizes the number of bytes
             // moved to the right sibling.
@@ -160,8 +162,9 @@ public abstract class SplitPolicy {
     private static class Left90 extends SplitPolicy {
 
         @Override
-        public int splitFit(Buffer buffer, int kbOffset, int insertAt, boolean replace, int leftSize, int rightSize,
-                int currentSize, int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+        public int splitFit(final Buffer buffer, final int kbOffset, final int insertAt, final boolean replace,
+                final int leftSize, final int rightSize, final int currentSize, final int virtualSize,
+                final int capacity, final int splitInfo, final Sequence sequence) {
             //
             // This implementation maximizes the number of bytes in the left
             // sibling.
@@ -179,8 +182,9 @@ public abstract class SplitPolicy {
 
     private static class Right90 extends SplitPolicy {
         @Override
-        public int splitFit(Buffer buffer, int kbOffset, int insertAt, boolean replace, int leftSize, int rightSize,
-                int currentSize, int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+        public int splitFit(final Buffer buffer, final int kbOffset, final int insertAt, final boolean replace,
+                final int leftSize, final int rightSize, final int currentSize, final int virtualSize,
+                final int capacity, final int splitInfo, final Sequence sequence) {
             //
             // This implementation maximizes the number of bytes
             // moved to the right sibling.
@@ -198,8 +202,9 @@ public abstract class SplitPolicy {
 
     private static class Even extends SplitPolicy {
         @Override
-        public int splitFit(Buffer buffer, int kbOffset, int insertAt, boolean replace, int leftSize, int rightSize,
-                int currentSize, int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+        public int splitFit(final Buffer buffer, final int kbOffset, final int insertAt, final boolean replace,
+                final int leftSize, final int rightSize, final int currentSize, final int virtualSize,
+                final int capacity, final int splitInfo, final Sequence sequence) {
             //
             // This implementation minimizes the difference -- i.e., attempts
             // to split the page into equally sized siblings.
@@ -221,8 +226,9 @@ public abstract class SplitPolicy {
 
     private static class Nice extends SplitPolicy {
         @Override
-        public int splitFit(Buffer buffer, int kbOffset, int insertAt, boolean replace, int leftSize, int rightSize,
-                int currentSize, int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+        public int splitFit(final Buffer buffer, final int kbOffset, final int insertAt, final boolean replace,
+                final int leftSize, final int rightSize, final int currentSize, final int virtualSize,
+                final int capacity, final int splitInfo, final Sequence sequence) {
             //
             // This implementation optimizes toward a 66/34 split - i.e.,
             // biases toward splitting 66% of the records into the
@@ -246,8 +252,9 @@ public abstract class SplitPolicy {
 
     private static class Pack extends SplitPolicy {
         @Override
-        public int splitFit(Buffer buffer, int kbOffset, int insertAt, boolean replace, int leftSize, int rightSize,
-                int currentSize, int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+        public int splitFit(final Buffer buffer, final int kbOffset, final int insertAt, final boolean replace,
+                final int leftSize, final int rightSize, final int currentSize, final int virtualSize,
+                final int capacity, final int splitInfo, final Sequence sequence) {
 
             //
             // This policy is identical to Nice except when the split is caused
@@ -269,14 +276,14 @@ public abstract class SplitPolicy {
 
             if (!replace) {
                 if (sequence == Sequence.FORWARD) {
-                    int shoulder = (int) (capacity * PACK_SHOULDER);
-                    int keyOffsetCost = Math.abs(insertAt - kbOffset);
+                    final int shoulder = (int) (capacity * PACK_SHOULDER);
+                    final int keyOffsetCost = Math.abs(insertAt - kbOffset);
                     if (leftSize < shoulder && rightSize < shoulder) {
                         return capacity * 2 - keyOffsetCost;
                     } // otherwise revert to NICE
                 } else if (sequence == Sequence.REVERSE) {
-                    int shoulder = (int) (capacity * PACK_SHOULDER);
-                    int keyOffsetCost = Math.abs(insertAt - kbOffset + KEYBLOCK_LENGTH);
+                    final int shoulder = (int) (capacity * PACK_SHOULDER);
+                    final int keyOffsetCost = Math.abs(insertAt - kbOffset + KEYBLOCK_LENGTH);
                     if (leftSize < shoulder && rightSize < shoulder) {
                         return capacity * 2 - keyOffsetCost;
                     } // otherwise revert to NICE

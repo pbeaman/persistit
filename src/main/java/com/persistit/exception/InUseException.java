@@ -25,7 +25,7 @@ package com.persistit.exception;
 public class InUseException extends PersistitException {
     private static final long serialVersionUID = -4898002482348605103L;
 
-    public InUseException(String msg) {
+    public InUseException(final String msg) {
         super(msg);
     }
 }

@@ -21,7 +21,6 @@ import java.util.Properties;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -54,7 +53,7 @@ public class Bug706132Test extends PersistitUnitTestCase {
     @Test
     public void test1() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "bug70612", true);
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         ex.removeAll();
         ex.setSplitPolicy(SplitPolicy.LEFT_BIAS);
         sb.setLength(100);
@@ -86,7 +85,7 @@ public class Bug706132Test extends PersistitUnitTestCase {
     @Test
     public void test2() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "bug70612", true);
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         ex.removeAll();
         ex.setSplitPolicy(SplitPolicy.LEFT_BIAS);
         sb.setLength(100);

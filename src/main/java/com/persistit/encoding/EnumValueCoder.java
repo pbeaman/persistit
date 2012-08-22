@@ -52,8 +52,8 @@ public class EnumValueCoder implements ValueCoder {
      *            <code>null</code>.
      */
     @Override
-    public void put(Value value, Object object, CoderContext context) throws ConversionException {
-        String name = ((Enum) object).name();
+    public void put(final Value value, final Object object, final CoderContext context) throws ConversionException {
+        final String name = ((Enum) object).name();
         value.put(name);
     }
 
@@ -83,8 +83,8 @@ public class EnumValueCoder implements ValueCoder {
      * @throws ConversionException
      */
     @Override
-    public Object get(Value value, Class clazz, CoderContext context) throws ConversionException {
-        String name = value.getString();
+    public Object get(final Value value, Class clazz, final CoderContext context) throws ConversionException {
+        final String name = value.getString();
         while (clazz.getSuperclass() != Enum.class) {
             clazz = clazz.getSuperclass();
         }

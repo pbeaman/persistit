@@ -28,7 +28,7 @@ public class MissingKeySegmentException extends RuntimeException {
         super();
     }
 
-    public MissingKeySegmentException(String msg) {
+    public MissingKeySegmentException(final String msg) {
         super(msg);
     }
 }

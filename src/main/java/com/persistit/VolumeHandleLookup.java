@@ -15,9 +15,7 @@
 
 package com.persistit;
 
-
 interface VolumeHandleLookup {
 
     Volume lookupVolumeHandle(final int handle);
 }
-

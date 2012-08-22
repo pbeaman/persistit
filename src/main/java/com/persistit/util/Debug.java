@@ -43,6 +43,7 @@ public class Debug {
     }
 
     private static class Null implements Dbg {
+        @Override
         public void t(final boolean b) {
         }
     }
@@ -54,6 +55,7 @@ public class Debug {
             _name = name;
         }
 
+        @Override
         public void t(final boolean b) {
             if (!b) {
                 logDebugMessage(_name);
@@ -87,12 +89,12 @@ public class Debug {
         return System.currentTimeMillis();
     }
 
-    private static void logDebugMessage(String msg) {
-        RuntimeException exception = new RuntimeException();
+    private static void logDebugMessage(final String msg) {
+        final RuntimeException exception = new RuntimeException();
         exception.fillInStackTrace();
-        String s = asString(exception).replace('\r', ' ');
-        StringTokenizer st = new StringTokenizer(s, "\n");
-        StringBuilder sb = new StringBuilder(msg);
+        final String s = asString(exception).replace('\r', ' ');
+        final StringTokenizer st = new StringTokenizer(s, "\n");
+        final StringBuilder sb = new StringBuilder(msg);
         sb.append(Util.NEW_LINE);
         while (st.hasMoreTokens()) {
             sb.append("    ");
@@ -101,20 +103,20 @@ public class Debug {
         }
         System.err.println("Debug " + sb.toString());
     }
-    
-    public static String trace(int from, int to) {
+
+    public static String trace(final int from, final int to) {
         return " " + Thread.currentThread().getName() + " {" + Debug.callStack(from + 2, to + 2) + "}";
     }
-    
+
     public static String callStack(final int from, final int to) {
-        RuntimeException exception = new RuntimeException();
+        final RuntimeException exception = new RuntimeException();
         exception.fillInStackTrace();
-        StackTraceElement[] elements = exception.getStackTrace();
-        int a = Math.max(0, from);
-        int b = Math.min(to, elements.length);
-        StringBuilder sb = new StringBuilder();
+        final StackTraceElement[] elements = exception.getStackTrace();
+        final int a = Math.max(0, from);
+        final int b = Math.min(to, elements.length);
+        final StringBuilder sb = new StringBuilder();
         for (int index = b; index >= a; index--) {
-            StackTraceElement t = exception.getStackTrace()[index];
+            final StackTraceElement t = exception.getStackTrace()[index];
             if (index != b) {
                 sb.append("->");
             }
@@ -134,7 +136,7 @@ public class Debug {
      * 
      * @param b
      */
-    synchronized static void setSuspended(boolean b) {
+    synchronized static void setSuspended(final boolean b) {
         if (b) {
             _suspendedCount++;
             _brokenThreads.add(Thread.currentThread());
@@ -176,15 +178,15 @@ public class Debug {
                     time = elapsedTime();
                 try {
                     Thread.sleep(1000);
-                } catch (InterruptedException ie) {
+                } catch (final InterruptedException ie) {
                 }
             }
         }
         return true;
     }
 
-    public static String asString(Throwable t) {
-        StringWriter sw = new StringWriter();
+    public static String asString(final Throwable t) {
+        final StringWriter sw = new StringWriter();
         t.printStackTrace(new PrintWriter(sw));
         return sw.toString();
     }
@@ -202,7 +204,7 @@ public class Debug {
             try {
                 Thread.sleep(millis);
                 PAUSES.incrementAndGet();
-            } catch (InterruptedException ie) {
+            } catch (final InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
         }

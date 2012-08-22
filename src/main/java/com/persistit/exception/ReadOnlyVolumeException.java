@@ -28,7 +28,7 @@ public class ReadOnlyVolumeException extends PersistitException {
         super();
     }
 
-    public ReadOnlyVolumeException(String msg) {
+    public ReadOnlyVolumeException(final String msg) {
         super(msg);
     }
 }

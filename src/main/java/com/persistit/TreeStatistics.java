@@ -171,13 +171,13 @@ public class TreeStatistics {
      *            at which serialization starts in byte array
      * @return length of serialized statistics
      */
-    int store(final byte[] bytes, int index) {
+    int store(final byte[] bytes, final int index) {
         long bits = 0;
         int offset = index + 8;
         int field = 0;
-        for (AtomicLong a : _statsArray) {
+        for (final AtomicLong a : _statsArray) {
             if (a != null) {
-                long v = a.get();
+                final long v = a.get();
                 bits |= 1 << field;
                 Util.putLong(bytes, offset, v);
                 offset += 8;
@@ -201,9 +201,9 @@ public class TreeStatistics {
     int load(final byte[] bytes, final int index, final int length) {
         int offset = index + 8;
         final int end = index + length;
-        long bits = Util.getLong(bytes, index);
+        final long bits = Util.getLong(bytes, index);
         for (int field = 0; field < 64; field++) {
-            AtomicLong a = field < _statsArray.length ? _statsArray[field] : null;
+            final AtomicLong a = field < _statsArray.length ? _statsArray[field] : null;
             if ((bits & (1 << field)) != 0) {
                 if (a != null) {
                     checkEnd(offset + 8, end);
@@ -215,7 +215,7 @@ public class TreeStatistics {
         return length;
     }
 
-    private void checkEnd(int index, int end) {
+    private void checkEnd(final int index, final int end) {
         if (index > end) {
             throw new IllegalStateException("TreeStatistics record is too short at offset " + index);
         }

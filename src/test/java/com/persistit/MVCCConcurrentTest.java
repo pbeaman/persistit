@@ -17,12 +17,12 @@ package com.persistit;
 
 import static com.persistit.unit.ConcurrentUtil.createThread;
 import static com.persistit.unit.ConcurrentUtil.startAndJoinAssertSuccess;
-import static com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
 
 public class MVCCConcurrentTest extends MVCCTestBase {
     private final String KEY1 = "key1";
@@ -32,13 +32,13 @@ public class MVCCConcurrentTest extends MVCCTestBase {
         final int NUM_OPS = 1000;
         final String LONG_STR = createString(ex1.getVolume().getPageSize() * 50);
 
-        Thread readThread = createThread("READ_THREAD", new ThrowingRunnable() {
+        final Thread readThread = createThread("READ_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
-                Exchange ex = getNewExchange();
+                final Exchange ex = getNewExchange();
                 for (int i = 0; i < NUM_OPS; ++i) {
                     fetch(ex, KEY1, false);
-                    Value value = ex.getValue();
+                    final Value value = ex.getValue();
                     if (value.isDefined()) {
                         assertEquals("iteration i " + i, LONG_STR, value.getString());
                     }
@@ -47,10 +47,10 @@ public class MVCCConcurrentTest extends MVCCTestBase {
             }
         });
 
-        Thread writeThread = createThread("WRITE_THREAD", new ThrowingRunnable() {
+        final Thread writeThread = createThread("WRITE_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
-                Exchange ex = getNewExchange();
+                final Exchange ex = getNewExchange();
                 for (int i = 0; i < NUM_OPS; ++i) {
                     store(ex, i, i);
                 }
@@ -58,10 +58,10 @@ public class MVCCConcurrentTest extends MVCCTestBase {
             }
         });
 
-        Thread removeThread = createThread("REMOVE_THREAD", new ThrowingRunnable() {
+        final Thread removeThread = createThread("REMOVE_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
-                Exchange ex = getNewExchange();
+                final Exchange ex = getNewExchange();
                 int j = 0;
                 for (int i = 0; i < NUM_OPS; ++i, ++j) {
                     if (j == 0) {
@@ -85,4 +85,3 @@ public class MVCCConcurrentTest extends MVCCTestBase {
         return _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
     }
 }
-

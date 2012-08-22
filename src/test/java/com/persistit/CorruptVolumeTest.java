@@ -27,11 +27,11 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 public class CorruptVolumeTest extends PersistitUnitTestCase {
 
-    private String _volumeName = "persistit";
+    private final String _volumeName = "persistit";
 
     @Test
     public void testCorruptVolume() throws PersistitException {
-        Exchange exchange = _persistit.getExchange(_volumeName, "CorruptVolumeTest", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "CorruptVolumeTest", true);
         // store some records
         exchange.getValue().put("CorruptVolumeTest");
         for (int i = 0; i < 10000; i++) {
@@ -46,7 +46,7 @@ public class CorruptVolumeTest extends PersistitUnitTestCase {
         try {
             exchange.to(9000).fetch();
             fail("Should have gotten a CorruptVolumeException");
-        } catch (CorruptVolumeException e) {
+        } catch (final CorruptVolumeException e) {
             System.out.println(e.getMessage());
             e.printStackTrace();
         }

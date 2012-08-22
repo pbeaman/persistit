@@ -16,8 +16,6 @@
 package com.persistit.mxbeans;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 import javax.management.MXBean;
 

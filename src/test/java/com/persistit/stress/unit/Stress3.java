@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress3 extends StressBase {
@@ -45,7 +44,7 @@ public class Stress3 extends StressBase {
     int _size;
     String _opflags;
 
-    public Stress3(String argsString) {
+    public Stress3(final String argsString) {
         super(argsString);
     }
 
@@ -203,7 +202,6 @@ public class Stress3 extends StressBase {
                         ex2.clear().append("byCounter").append(atomic).fetch(value2);
                         addWork(1);
 
-
                         if (!value2.isDefined() || value2.isNull()) {
                             throw new RuntimeException("Expected value for byCounter " + atomic
                                     + " was not found - key=" + ex2.getKey());
@@ -274,8 +272,8 @@ public class Stress3 extends StressBase {
                             addWork(1);
 
                             if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
-                                fail("Expected filename <" + s + "> was not found - key="
-                                        + ex1.getKey() + " keyInteger=" + keyInteger + " at counter=" + _count);
+                                fail("Expected filename <" + s + "> was not found - key=" + ex1.getKey()
+                                        + " keyInteger=" + keyInteger + " at counter=" + _count);
                                 break;
                             }
                             final long atomic = ex1.getValue().getLong();

@@ -68,7 +68,7 @@ public class TreeState {
      * @param value
      */
     int load(final byte[] bytes, final int index, final int length) {
-        int nameLength = length < 20 ? -1 : Util.getShort(bytes, index + 18);
+        final int nameLength = length < 20 ? -1 : Util.getShort(bytes, index + 18);
         if (nameLength < 1 || nameLength + 20 > length) {
             throw new IllegalStateException("Invalid tree record is too short for tree " + _name + ": " + length);
         }
@@ -76,8 +76,8 @@ public class TreeState {
         _rootPageAddr = Util.getLong(bytes, index);
         _changeCount = Util.getLong(bytes, index + 8);
         _depth = Util.getShort(bytes, index + 16);
-        int at = index + 20 + nameLength;
-        int slen = length - (20 + nameLength);
+        final int at = index + 20 + nameLength;
+        final int slen = length - (20 + nameLength);
         if (slen > 8) {
             _treeStatistics.load(bytes, at, slen);
         }

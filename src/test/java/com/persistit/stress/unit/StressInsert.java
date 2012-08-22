@@ -19,7 +19,6 @@ import java.util.Random;
 
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class StressInsert extends StressBase {
@@ -33,7 +32,7 @@ public class StressInsert extends StressBase {
     String _opflags;
     Random _random = new Random();
 
-    public StressInsert(String argsString) {
+    public StressInsert(final String argsString) {
         super(argsString);
     }
 
@@ -124,8 +123,8 @@ public class StressInsert extends StressBase {
                     }
                 }
                 if (_count != _total && !isStopped()) {
-                    fail("Traverse count=" + _count + " out of " + _total + " repetition="
-                            + _repeat + " in thread=" + _threadIndex);
+                    fail("Traverse count=" + _count + " out of " + _total + " repetition=" + _repeat + " in thread="
+                            + _threadIndex);
                     break;
                 }
             }

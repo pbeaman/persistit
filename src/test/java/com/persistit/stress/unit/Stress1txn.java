@@ -24,7 +24,6 @@ import com.persistit.util.ArgParser;
 
 public class Stress1txn extends StressBase {
 
-
     private final static String[] ARGS_TEMPLATE = { "op|String:wrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions", "count|int:10000:0:1000000000|Number of nodes to populate",
             "size|int:30:1:5000000|Size of each data value", "splay|int:1:1:1000|Splay", };
@@ -33,7 +32,7 @@ public class Stress1txn extends StressBase {
     int _splay;
     String _opflags;
 
-    public Stress1txn(String argsString) {
+    public Stress1txn(final String argsString) {
         super(argsString);
     }
 
@@ -135,8 +134,8 @@ public class Stress1txn extends StressBase {
                         }
                     }
                     if (_count != _total && !isStopped()) {
-                        fail("Traverse count=" + _count + " out of " + _total
-                                + " repetition=" + _repeat + " in thread=" + _threadIndex);
+                        fail("Traverse count=" + _count + " out of " + _total + " repetition=" + _repeat
+                                + " in thread=" + _threadIndex);
                         break;
                     }
                     txn.commit();

@@ -19,12 +19,11 @@ import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress5 extends StressBase {
 
-    public Stress5(String argsString) {
+    public Stress5(final String argsString) {
         super(argsString);
     }
 

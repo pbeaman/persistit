@@ -50,7 +50,8 @@ public class ThreadSequencerTest {
 
         final StringBuilder sb = new StringBuilder();
 
-        Runnable r1 = new Runnable() {
+        final Runnable r1 = new Runnable() {
+            @Override
             public void run() {
                 Debug.debugPause(0.2f, 10);
                 sequence(C);
@@ -62,7 +63,8 @@ public class ThreadSequencerTest {
             }
         };
 
-        Runnable r2 = new Runnable() {
+        final Runnable r2 = new Runnable() {
+            @Override
             public void run() {
                 Debug.debugPause(0.2f, 10);
                 sequence(B);
@@ -77,8 +79,8 @@ public class ThreadSequencerTest {
 
         for (int count = 0; count < 10; count++) {
             sb.setLength(0);
-            Thread t1 = new Thread(r1);
-            Thread t2 = new Thread(r2);
+            final Thread t1 = new Thread(r1);
+            final Thread t2 = new Thread(r2);
             t1.setDaemon(true);
             t2.setDaemon(true);
 
@@ -96,7 +98,7 @@ public class ThreadSequencerTest {
             assertTrue(!t1.isAlive());
             assertTrue(!t2.isAlive());
             assertEquals("ABCDE", sb.toString());
-            String history = sequencerHistory();
+            final String history = sequencerHistory();
             /*
              * The history varies, and testing for validity is complicated; The
              * ABCDE test confirms correct execution order

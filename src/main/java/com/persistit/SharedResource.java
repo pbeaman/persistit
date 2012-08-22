@@ -94,7 +94,7 @@ class SharedResource {
         private static final long serialVersionUID = 1L;
 
         @Override
-        protected boolean tryAcquire(int arg) {
+        protected boolean tryAcquire(final int arg) {
             assert arg == 1;
             //
             // Implement non-strict fairness doctrine, as suggested in
@@ -106,7 +106,7 @@ class SharedResource {
                 if (queuedThread != null && queuedThread != thisThread && getExclusiveOwnerThread() != thisThread) {
                     return false;
                 }
-                int state = getState();
+                final int state = getState();
                 if (!isAvailable(state)) {
                     return false;
                 } else if (compareAndSetState(state, (state | WRITER_MASK) + 1)) {
@@ -118,7 +118,7 @@ class SharedResource {
         }
 
         @Override
-        protected int tryAcquireShared(int arg) {
+        protected int tryAcquireShared(final int arg) {
             assert arg == 1;
             //
             // Implement non-strict fairness doctrine, as suggested in
@@ -130,7 +130,7 @@ class SharedResource {
                 if (queuedThread != null && queuedThread != thisThread && getExclusiveOwnerThread() != thisThread) {
                     return -1;
                 }
-                int state = getState();
+                final int state = getState();
                 if (!isAvailableShared(state)) {
                     return -1;
                 } else if (compareAndSetState(state, state + 1)) {
@@ -151,7 +151,7 @@ class SharedResource {
          */
         private boolean tryUpgrade() {
             for (;;) {
-                int state = getState();
+                final int state = getState();
                 final Thread thisThread = Thread.currentThread();
                 if ((state & CLAIMED_MASK) != 1 || ((state & WRITER_MASK) != 0)
                         && getExclusiveOwnerThread() != thisThread) {
@@ -165,12 +165,12 @@ class SharedResource {
         }
 
         @Override
-        protected boolean tryRelease(int arg) {
+        protected boolean tryRelease(final int arg) {
             return (releaseState(arg) & WRITER_MASK) == 0;
         }
 
         @Override
-        protected boolean tryReleaseShared(int arg) {
+        protected boolean tryReleaseShared(final int arg) {
             return (releaseState(arg) & WRITER_MASK) == 0;
         }
 
@@ -192,9 +192,9 @@ class SharedResource {
         private int releaseState(final int count) {
             assert count == 0 || count == 1;
             for (;;) {
-                int state = getState();
+                final int state = getState();
                 if ((state & CLAIMED_MASK) == 1) {
-                    int newState = (state - count) & ~WRITER_MASK;
+                    final int newState = (state - count) & ~WRITER_MASK;
                     // Do this first so that another thread setting
                     // a writer claim does not lose it's copy.
                     setExclusiveOwnerThread(null);
@@ -205,7 +205,7 @@ class SharedResource {
                     if (count == 0) {
                         return state;
                     }
-                    int newState = state - 1;
+                    final int newState = state - 1;
                     if (compareAndSetState(state, newState)) {
                         return newState;
                     }
@@ -265,7 +265,7 @@ class SharedResource {
         this._persistit = persistit;
     }
 
-    public boolean isAvailable(boolean writer) {
+    public boolean isAvailable(final boolean writer) {
         return writer ? _sync.isAvailable(_sync.state()) : _sync.isAvailableShared(_sync.state());
     }
 
@@ -298,11 +298,11 @@ class SharedResource {
         return (_sync.writerThread() == Thread.currentThread());
     }
 
-    boolean claim(boolean writer) throws PersistitInterruptedException {
+    boolean claim(final boolean writer) throws PersistitInterruptedException {
         return claim(writer, DEFAULT_MAX_WAIT_TIME);
     }
 
-    boolean claim(boolean writer, long timeout) throws PersistitInterruptedException {
+    boolean claim(final boolean writer, final long timeout) throws PersistitInterruptedException {
         if (timeout == 0) {
             if (writer) {
                 return _sync.tryAcquire(1);
@@ -320,7 +320,7 @@ class SharedResource {
                         return true;
                     }
                 }
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 throw new PersistitInterruptedException(e);
             }
             return false;
@@ -412,8 +412,8 @@ class SharedResource {
     }
 
     public String getStatusDisplayString() {
-        Thread writerThread = _sync.writerThread();
-        int state = _sync.state();
+        final Thread writerThread = _sync.writerThread();
+        final int state = _sync.state();
         if (writerThread == null) {
             return getStatusCode(state);
         } else {
@@ -421,7 +421,7 @@ class SharedResource {
         }
     }
 
-    public static String getStatusCode(int state) {
+    public static String getStatusCode(final int state) {
         // Common cases so we don't have to construct new StringBuilders
         switch (state) {
         case 0:
@@ -439,7 +439,7 @@ class SharedResource {
         case VALID_MASK | WRITER_MASK | DIRTY_MASK | 1:
             return "vdwr1";
         default:
-            StringBuilder sb = new StringBuilder(8);
+            final StringBuilder sb = new StringBuilder(8);
 
             if ((state & VALID_MASK) != 0) { // TODO chars
                 sb.append("v");

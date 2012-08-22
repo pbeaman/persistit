@@ -28,9 +28,9 @@ import com.persistit.util.Util;
 /**
  * Abstract superclass of classes that perform long-running utility operations,
  * such as export, import and integrity check. Concrete classes should
- * frequently call the {@link #poll()} method to allow users to stop, suspend or view
- * progress and should post all progress messages to the message
- * log by calling {@link #postMessage(String, int)}.
+ * frequently call the {@link #poll()} method to allow users to stop, suspend or
+ * view progress and should post all progress messages to the message log by
+ * calling {@link #postMessage(String, int)}.
  * 
  * @author peter
  * @version 1.0
@@ -200,7 +200,7 @@ public abstract class Task implements Runnable {
      * should call poll().
      */
     protected void poll() {
-        long now = System.currentTimeMillis();
+        final long now = System.currentTimeMillis();
         if (_startTime == 0)
             _startTime = now;
         if (_expirationTime == 0)
@@ -223,7 +223,7 @@ public abstract class Task implements Runnable {
                 _state = STATE_SUSPENDED;
                 try {
                     Util.sleep(Persistit.SHORT_DELAY);
-                } catch (PersistitInterruptedException ie) {
+                } catch (final PersistitInterruptedException ie) {
                     throw new TaskEndedException("Interrupted");
                 }
             }
@@ -240,25 +240,25 @@ public abstract class Task implements Runnable {
      *            The list of Volume/Tree pairs, specified as a String
      * @return Array of Trees specified by the list.
      */
-    protected Tree[] parseTreeList(String specification) throws PersistitException {
-        List<Tree> list = new ArrayList<Tree>();
-        StringBuilder sb = new StringBuilder();
+    protected Tree[] parseTreeList(final String specification) throws PersistitException {
+        final List<Tree> list = new ArrayList<Tree>();
+        final StringBuilder sb = new StringBuilder();
         Volume volume = null;
-        int end = specification.length();
+        final int end = specification.length();
         for (int index = 0; index <= end; index++) {
-            int c = index < end ? specification.charAt(index) : -1;
+            final int c = index < end ? specification.charAt(index) : -1;
             if (c == '\\') {
                 if (index++ < specification.length()) {
                     sb.append(specification.charAt(index));
                 }
             } else if (c == ';' || c == ',' || c == -1) {
-                String name = sb.toString();
+                final String name = sb.toString();
                 sb.setLength(0);
                 if (volume == null) {
                     volume = _persistit.getVolume(name);
                     list.add(volume.getDirectoryTree());
                 } else {
-                    Tree tree = volume.getTree(name, false);
+                    final Tree tree = volume.getTree(name, false);
                     if (tree != null) {
                         list.add(tree);
                     }
@@ -269,7 +269,7 @@ public abstract class Task implements Runnable {
                 sb.append((char) c);
         }
 
-        Tree[] result = list.toArray(new Tree[list.size()]);
+        final Tree[] result = list.toArray(new Tree[list.size()]);
         return result;
     }
 
@@ -299,7 +299,8 @@ public abstract class Task implements Runnable {
      *            retained in the message log.
      * @throws Exception
      */
-    public void setup(long taskId, String description, String owner, long maxTime, int verbosity) throws Exception {
+    public void setup(final long taskId, final String description, final String owner, final long maxTime,
+            final int verbosity) throws Exception {
         _taskId = taskId;
         _description = description;
         _owner = owner;
@@ -356,8 +357,8 @@ public abstract class Task implements Runnable {
      * @param maxTime
      *            The time, in milliseconds
      */
-    public void setMaximumTime(long maxTime) {
-        long now = now();
+    public void setMaximumTime(final long maxTime) {
+        final long now = now();
         _expirationTime = now + maxTime;
         if (_expirationTime < now)
             _expirationTime = Long.MAX_VALUE;
@@ -370,7 +371,7 @@ public abstract class Task implements Runnable {
      * @param verbosity
      *            Verbosity
      */
-    public void setMessageLogVerbosity(int verbosity) {
+    public void setMessageLogVerbosity(final int verbosity) {
         _messageLogVerbosity = verbosity;
     }
 
@@ -389,7 +390,7 @@ public abstract class Task implements Runnable {
      * @param pw
      *            The <code>PrintWriter</code>
      */
-    public void setMessageWriter(PrintWriter pw) {
+    public void setMessageWriter(final PrintWriter pw) {
         _messageWriter = pw;
     }
 
@@ -446,7 +447,7 @@ public abstract class Task implements Runnable {
      *            the level of the message is below the current verbosity
      *            threshhold set through {@link #setMessageLogVerbosity(int)}.
      */
-    protected void postMessage(String message, int level) {
+    protected void postMessage(final String message, final int level) {
         if (level <= _messageLogVerbosity) {
             synchronized (_messageLog) {
                 if (_messageLog.size() >= _maxMessageLogSize) {
@@ -462,7 +463,7 @@ public abstract class Task implements Runnable {
         }
     }
 
-    protected void endMessage(int level) {
+    protected void endMessage(final int level) {
         if (level <= _messageLogVerbosity && _messageWriter != null) {
             _messageWriter.println();
         }
@@ -478,12 +479,12 @@ public abstract class Task implements Runnable {
      *            the level of the message is below the current verbosity
      *            threshold set through {@link #setMessageLogVerbosity(int)}.
      */
-    protected void appendMessage(String fragment, int level) {
+    protected void appendMessage(final String fragment, final int level) {
         if (level <= _messageLogVerbosity) {
             synchronized (_messageLog) {
-                int index = _messageLog.size() - 1;
+                final int index = _messageLog.size() - 1;
                 if (index >= 0) {
-                    String s = _messageLog.get(index) + fragment;
+                    final String s = _messageLog.get(index) + fragment;
                     _messageLog.set(index, s);
                 }
             }
@@ -520,7 +521,7 @@ public abstract class Task implements Runnable {
             int size = _messageLog.size() - from;
             if (size < 0)
                 size = 0;
-            String[] results = new String[size];
+            final String[] results = new String[size];
             for (int index = 0; index < size; index++) {
                 results[index] = _messageLog.get(index + from);
             }
@@ -558,7 +559,7 @@ public abstract class Task implements Runnable {
             _state = STATE_RUNNING;
             runTask();
             _state = STATE_DONE;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             _lastException = e;
             if (e instanceof TaskEndedException) {
                 _state = STATE_ENDED;
@@ -579,7 +580,7 @@ public abstract class Task implements Runnable {
      * @param clearMessages
      *            <code>true</code> to cull the messages being returned
      */
-    public void populateTaskStatus(Management.TaskStatus ts, boolean details, boolean clearMessages) {
+    public void populateTaskStatus(final Management.TaskStatus ts, final boolean details, final boolean clearMessages) {
         ts.taskId = _taskId;
         ts.state = _state;
         ts.stateName = STATE_NAMES[_state];

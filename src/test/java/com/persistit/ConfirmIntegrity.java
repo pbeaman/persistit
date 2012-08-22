@@ -28,7 +28,6 @@ public class ConfirmIntegrity extends AbstractStressTest {
         super(argsString);
     }
 
-
     @Override
     public void setUp() throws Exception {
         if (_args.length == 0) {

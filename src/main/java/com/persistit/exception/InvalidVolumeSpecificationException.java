@@ -28,7 +28,7 @@ public class InvalidVolumeSpecificationException extends IllegalArgumentExceptio
         super();
     }
 
-    public InvalidVolumeSpecificationException(String msg) {
+    public InvalidVolumeSpecificationException(final String msg) {
         super(msg);
     }
 

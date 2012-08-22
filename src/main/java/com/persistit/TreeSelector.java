@@ -73,7 +73,7 @@ public class TreeSelector {
 
         @Override
         public String toString() {
-            StringBuilder sb = new StringBuilder();
+            final StringBuilder sb = new StringBuilder();
             sb.append(_vpattern);
             if (_tpattern != null) {
                 sb.append(COLON);
@@ -106,17 +106,17 @@ public class TreeSelector {
      */
 
     public static TreeSelector parseSelector(final String spec, final boolean regex, final char quote) {
-        TreeSelector treeSelector = new TreeSelector();
+        final TreeSelector treeSelector = new TreeSelector();
         if ("*".equals(spec)) {
             return treeSelector;
         }
         Selector s = new Selector();
         State state = State.V;
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         boolean quoted = false;
-        int size = spec.length() + 1;
+        final int size = spec.length() + 1;
         for (int index = 0; index < size; index++) {
-            char c = index + 1 < size ? spec.charAt(index) : (char) 0;
+            final char c = index + 1 < size ? spec.charAt(index) : (char) 0;
             if (quoted) {
                 sb.append(c);
                 quoted = false;
@@ -270,7 +270,7 @@ public class TreeSelector {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         for (final Selector ts : _terms) {
             if (sb.length() > 0) {
                 sb.append(COMMA);

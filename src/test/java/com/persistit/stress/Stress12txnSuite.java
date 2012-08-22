@@ -25,7 +25,7 @@ public class Stress12txnSuite extends AbstractSuite {
         return Stress12txnSuite.class.getSimpleName();
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         new Stress12txnSuite(args).runTest();
     }
 
@@ -33,6 +33,7 @@ public class Stress12txnSuite extends AbstractSuite {
         super(name(), args);
     }
 
+    @Override
     public void runTest() throws Exception {
 
         deleteFiles(substitute("$datapath$/persistit*"));

@@ -15,11 +15,11 @@
 
 package com.persistit.unit;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
 
 public class ConcurrentUtil {
     public static abstract class ThrowingRunnable {
@@ -32,7 +32,7 @@ public class ConcurrentUtil {
             public void run() {
                 try {
                     runnable.run();
-                } catch (Throwable e) {
+                } catch (final Throwable e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -43,37 +43,39 @@ public class ConcurrentUtil {
      * Start and join on all given threads. Wait on each thread, individually,
      * for <code>timeout</code> milliseconds. The {@link Thread#join(long)}
      * method is used for this (<code>0</code> means indefinite).
-     *
-     * @param timeout How long to join on each thread for.
-     * @param threads Threads to start and join.
-     *
+     * 
+     * @param timeout
+     *            How long to join on each thread for.
+     * @param threads
+     *            Threads to start and join.
+     * 
      * @return A map with an entry for each thread that had an unhandled
-     * exception or did not complete in the allotted time. This map will be
-     * empty if all threads completed successfully.
+     *         exception or did not complete in the allotted time. This map will
+     *         be empty if all threads completed successfully.
      */
-    public static Map<Thread,Throwable> startAndJoin(long timeout, Thread... threads) {
-        final Map<Thread,Throwable> throwableMap = Collections.synchronizedMap(new HashMap<Thread,Throwable>());
+    public static Map<Thread, Throwable> startAndJoin(final long timeout, final Thread... threads) {
+        final Map<Thread, Throwable> throwableMap = Collections.synchronizedMap(new HashMap<Thread, Throwable>());
 
-        Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
+        final Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
             @Override
-            public void uncaughtException(Thread t, Throwable e) {
+            public void uncaughtException(final Thread t, final Throwable e) {
                 throwableMap.put(t, e);
             }
         };
 
-        for (Thread t : threads) {
+        for (final Thread t : threads) {
             t.setUncaughtExceptionHandler(handler);
             t.start();
         }
 
-        for (Thread t : threads) {
+        for (final Thread t : threads) {
             Throwable error = null;
             try {
                 t.join(timeout);
                 if (t.isAlive()) {
                     error = new AssertionError("Thread did not complete in timeout: " + timeout);
                 }
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 error = e;
             }
 
@@ -89,16 +91,18 @@ public class ConcurrentUtil {
      * Call {@link #startAndJoin(long, Thread...)} with the given parameters.
      * Additionally, assert that no thread had any unhandled exceptions or
      * timeouts.
-     *
-     * @param timeout How long to join on each thread for.
-     * @param threads Threads to start and join.
+     * 
+     * @param timeout
+     *            How long to join on each thread for.
+     * @param threads
+     *            Threads to start and join.
      */
-    public static void startAndJoinAssertSuccess(long timeout, Thread... threads) {
-        Map<Thread,Throwable> errors = startAndJoin(timeout, threads);
+    public static void startAndJoinAssertSuccess(final long timeout, final Thread... threads) {
+        final Map<Thread, Throwable> errors = startAndJoin(timeout, threads);
         String description = "";
-        for(Map.Entry<Thread, Throwable> entry : errors.entrySet()) {
-           description += " " + entry.getKey().getName() + "=" + entry.getValue().toString();
+        for (final Map.Entry<Thread, Throwable> entry : errors.entrySet()) {
+            description += " " + entry.getKey().getName() + "=" + entry.getValue().toString();
         }
-        assertEquals("All threads completed successfully", "{}", "{"+description+"}");
+        assertEquals("All threads completed successfully", "{}", "{" + description + "}");
     }
 }

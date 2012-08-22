@@ -619,7 +619,7 @@ public final class Value {
      *            A <code>Value</code> whose state should be copied as the
      *            initial state of this <code>Value</code>.
      */
-    public Value(Value source) {
+    public Value(final Value source) {
         this(source._persistit, source._bytes.length, source._maximumSize);
         source.copyTo(this);
     }
@@ -637,7 +637,7 @@ public final class Value {
         return this;
     }
 
-    void clear(boolean secure) {
+    void clear(final boolean secure) {
         if (secure) {
             Util.clearBytes(_bytes, 0, _bytes.length);
             if (_longBytes != null) {
@@ -645,9 +645,9 @@ public final class Value {
             }
             _longSize = 0;
             if (_stringAssemblyBufferWeakRef != null) {
-                StringBuilder sb = _stringAssemblyBufferWeakRef.get();
+                final StringBuilder sb = _stringAssemblyBufferWeakRef.get();
                 if (sb != null) {
-                    int length = sb.length();
+                    final int length = sb.length();
                     for (int index = 0; index < length; index++) {
                         sb.setCharAt(index, (char) 0);
                     }
@@ -657,7 +657,7 @@ public final class Value {
         clear();
     }
 
-    private StringBuilder getStringAssemblyBuffer(int size) {
+    private StringBuilder getStringAssemblyBuffer(final int size) {
         StringBuilder sb = null;
         if (_stringAssemblyBufferWeakRef != null) {
             sb = _stringAssemblyBufferWeakRef.get();
@@ -677,7 +677,7 @@ public final class Value {
      * @param target
      *            The <code>Value</code> to which state should be copied.
      */
-    public void copyTo(Value target) {
+    public void copyTo(final Value target) {
         if (target == this) {
             return;
         }
@@ -699,6 +699,7 @@ public final class Value {
      * different result. Construct a {@link ValueState} instance to hold an
      * immutable copy of the current state of a <code>Value</code>.
      */
+    @Override
     public int hashCode() {
         int hashCode = 0;
         for (int index = 0; index < _size; index++) {
@@ -711,9 +712,10 @@ public final class Value {
      * Implements the <code>equals</code> method such that <code>Value</code>
      * and {@link ValueState} objects may be used interchangeably as map keys.
      */
-    public boolean equals(Object obj) {
+    @Override
+    public boolean equals(final Object obj) {
         if (obj instanceof Value) {
-            Value value = (Value) obj;
+            final Value value = (Value) obj;
             if (value._size != _size)
                 return false;
             for (int i = 0; i < _size; i++) {
@@ -745,9 +747,9 @@ public final class Value {
      *            the minimum size of the backing buffer.
      * @return <code>true</code> if the size was actually reduced.
      */
-    public boolean trim(int newSize) {
+    public boolean trim(final int newSize) {
         if (_bytes.length > _size && _bytes.length > newSize) {
-            byte[] bytes = new byte[Math.max(_size, newSize)];
+            final byte[] bytes = new byte[Math.max(_size, newSize)];
             System.arraycopy(_bytes, 0, bytes, 0, _size);
             _bytes = bytes;
             return true;
@@ -787,7 +789,7 @@ public final class Value {
         if (newArraySize < newSize) {
             throw new ConversionException("Requested size=" + newSize + " exceeds maximum size=" + _maximumSize);
         }
-        byte[] bytes = new byte[newArraySize];
+        final byte[] bytes = new byte[newArraySize];
         System.arraycopy(_bytes, 0, bytes, 0, _size);
         _bytes = bytes;
 
@@ -808,7 +810,7 @@ public final class Value {
      *            Number of bytes to copy
      * @throws ArrayIndexOutOfBoundsException
      */
-    public void copyFromEncodedBytes(byte[] dest, int from, int to, int length) {
+    public void copyFromEncodedBytes(final byte[] dest, final int from, final int to, final int length) {
         System.arraycopy(_bytes, from, dest, to, length);
     }
 
@@ -838,7 +840,7 @@ public final class Value {
      * @throws ConversionException
      *             if the resulting value size exceeds the maximum size
      */
-    public void putEncodedBytes(byte[] from, int offset, int length) {
+    public void putEncodedBytes(final byte[] from, final int offset, final int length) {
         ensureFit(length);
         if (length > 0) {
             System.arraycopy(from, offset, _bytes, 0, length);
@@ -863,7 +865,7 @@ public final class Value {
      * be stored in the database during the next <code>store</code> operation.
      * This method is part of the <a href="#_lowLevelAPI">Low-Level API</a>.
      */
-    public void setEncodedSize(int size) {
+    public void setEncodedSize(final int size) {
         if (size < 0 || size > _bytes.length) {
             throw new IllegalArgumentException("Size " + size + " exceeds capacity");
         }
@@ -892,7 +894,7 @@ public final class Value {
      *             <code>size</code>, this method
      * 
      */
-    public void setMaximumSize(int size) {
+    public void setMaximumSize(final int size) {
         if (size < _size) {
             throw new IllegalArgumentException("Value is larger than new maximum size");
         }
@@ -907,7 +909,7 @@ public final class Value {
         return _next;
     }
 
-    public void setCursor(int cursor) {
+    public void setCursor(final int cursor) {
         if (cursor < 0 || cursor > _size) {
             throw new IllegalArgumentException("Cursor out of bound (0," + _size + ")");
         }
@@ -922,7 +924,7 @@ public final class Value {
      *            <code>true</code> to enable stream mode, <code>false</code> to
      *            disable it.
      */
-    public void setStreamMode(boolean b) {
+    public void setStreamMode(final boolean b) {
         reset();
         _depth = b ? 1 : 0;
     }
@@ -977,6 +979,7 @@ public final class Value {
      *         {@link #isDefined()} method to determine reliably whether the
      *         <code>Value</code> is defined.
      */
+    @Override
     public String toString() {
         if (_size == 0) {
             return UNDEFINED;
@@ -986,11 +989,11 @@ public final class Value {
             return toStringLongMode();
         }
 
-        int saveDepth = _depth;
-        int saveLevel = _level;
-        int saveNext = _next;
-        int saveEnd = _end;
-        StringBuilder sb = new StringBuilder();
+        final int saveDepth = _depth;
+        final int saveLevel = _level;
+        final int saveNext = _next;
+        final int saveEnd = _end;
+        final StringBuilder sb = new StringBuilder();
         setStreamMode(true);
         try {
             boolean first = true;
@@ -1001,11 +1004,11 @@ public final class Value {
                 first = false;
                 decodeDisplayable(true, sb, null);
             }
-        } catch (ConversionException e) {
-            int truncatedSize = Math.min(_size - _next, 256);
+        } catch (final ConversionException e) {
+            final int truncatedSize = Math.min(_size - _next, 256);
             sb.append("ConversionException " + e.getCause() + " index=" + _next + " size=" + (_size - _next) + ": "
                     + Util.hexDump(_bytes, 0, truncatedSize));
-        } catch (Exception e) {
+        } catch (final Exception e) {
             sb.append("Exception " + e + " while decoding value at index=" + _next + ": " + e);
         } finally {
             _end = saveEnd;
@@ -1040,7 +1043,7 @@ public final class Value {
      *            A <code>StringBuilder</code> to which the displayable value
      *            will be appended.
      */
-    public void decodeDisplayable(boolean quoted, StringBuilder sb) {
+    public void decodeDisplayable(final boolean quoted, final StringBuilder sb) {
         decodeDisplayable(quoted, sb, null);
     }
 
@@ -1063,12 +1066,12 @@ public final class Value {
     public void decodeDisplayable(final boolean quoted, final StringBuilder sb, final CoderContext context) {
         checkSize(1);
 
-        int start = _next;
-        int level = _level;
+        final int start = _next;
+        final int level = _level;
 
-        int classHandle = nextType();
-        int currentItemCount = _serializedItemCount;
-        boolean isVariableLength = (_next - start) > 1;
+        final int classHandle = nextType();
+        final int currentItemCount = _serializedItemCount;
+        final boolean isVariableLength = (_next - start) > 1;
         switch (classHandle) {
         case TYPE_NULL: {
             _next = start;
@@ -1139,14 +1142,14 @@ public final class Value {
             _next = start;
             if (_level != level)
                 _end = popEnd();
-            Object value = get(null, context);
+            final Object value = get(null, context);
             appendDisplayable(sb, value, quoted, false);
             break;
         }
 
         case CLASS_REREF: {
             _next = start;
-            Object value = get(null, context);
+            final Object value = get(null, context);
             appendDisplayable(sb, value, quoted, true);
             break;
         }
@@ -1156,11 +1159,11 @@ public final class Value {
                 _depth++;
                 _serializedItemCount++;
                 registerEncodedObject(sb.length());
-                int componentClassHandle = nextType();
+                final int componentClassHandle = nextType();
                 switch (componentClassHandle) {
                 case TYPE_BOOLEAN: {
                     sb.append("boolean[]{");
-                    int length = _end - _next;
+                    final int length = _end - _next;
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
@@ -1172,7 +1175,7 @@ public final class Value {
 
                 case TYPE_BYTE: {
                     sb.append("byte[]{");
-                    int length = _end - _next;
+                    final int length = _end - _next;
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
@@ -1184,7 +1187,7 @@ public final class Value {
 
                 case TYPE_SHORT: {
                     sb.append("short[]{");
-                    int length = arraySize(_end, _next, 2);
+                    final int length = arraySize(_end, _next, 2);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
@@ -1196,15 +1199,15 @@ public final class Value {
 
                 case TYPE_CHAR: {
                     sb.append("char[]{");
-                    int length = arraySize(_end, _next, 2);
+                    final int length = arraySize(_end, _next, 2);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
-                        int c = Util.getChar(_bytes, _next);
+                        final int c = Util.getChar(_bytes, _next);
                         if (quoted)
                             Util.appendQuotedChar(sb, c);
                         else
-                            sb.append((int) c);
+                            sb.append(c);
                         _next += 2;
                     }
                     break;
@@ -1212,7 +1215,7 @@ public final class Value {
 
                 case TYPE_INT: {
                     sb.append("int[]{");
-                    int length = arraySize(_end, _next, 4);
+                    final int length = arraySize(_end, _next, 4);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
@@ -1224,7 +1227,7 @@ public final class Value {
 
                 case TYPE_LONG: {
                     sb.append("long[]{");
-                    int length = arraySize(_end, _next, 8);
+                    final int length = arraySize(_end, _next, 8);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
@@ -1236,11 +1239,11 @@ public final class Value {
 
                 case TYPE_FLOAT: {
                     sb.append("float[]{");
-                    int length = arraySize(_end, _next, 4);
+                    final int length = arraySize(_end, _next, 4);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
-                        float f = Float.intBitsToFloat(Util.getInt(_bytes, _next));
+                        final float f = Float.intBitsToFloat(Util.getInt(_bytes, _next));
                         sb.append(f);
                         _next += 4;
                     }
@@ -1249,11 +1252,11 @@ public final class Value {
 
                 case TYPE_DOUBLE: {
                     sb.append("double[]{");
-                    int length = arraySize(_end, _next, 8);
+                    final int length = arraySize(_end, _next, 8);
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
-                        double d = Double.longBitsToDouble(Util.getLong(_bytes, _next));
+                        final double d = Double.longBitsToDouble(Util.getLong(_bytes, _next));
                         sb.append(d);
                         _next += 8;
                     }
@@ -1261,11 +1264,11 @@ public final class Value {
                 }
 
                 default: {
-                    Class<?> cl = classForHandle(componentClassHandle);
+                    final Class<?> cl = classForHandle(componentClassHandle);
                     if (cl != null)
                         appendFriendlyClassName(sb, cl);
                     sb.append("[]{");
-                    int length = decodeElementCount();
+                    final int length = decodeElementCount();
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
@@ -1289,13 +1292,13 @@ public final class Value {
         }
         case CLASS_SERIALIZED: {
             _next = start;
-            int length = sb.length();
+            final int length = sb.length();
             _depth++;
             try {
-                Object object = get(null, context);
+                final Object object = get(null, context);
                 getValueCache().store(currentItemCount, new DisplayMarker(sb.length()));
                 appendDisplayable(sb, object, quoted, false);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 sb.setLength(length);
                 sb.append("(Serialized-Object)");
                 Util.bytesToHex(sb, _bytes, start, _end - start);
@@ -1320,15 +1323,15 @@ public final class Value {
                     }
 
                     @Override
-                    public void sawVersion(long version, int offset, int valueLength) {
+                    public void sawVersion(final long version, final int offset, final int valueLength) {
                         if (!first) {
                             sb.append(',');
                         }
                         sb.append(TransactionStatus.versionString(version));
                         try {
-                            long tc = _persistit.getTransactionIndex().commitStatus(version, Long.MAX_VALUE, 0);
+                            final long tc = _persistit.getTransactionIndex().commitStatus(version, Long.MAX_VALUE, 0);
                             sb.append("<" + TransactionStatus.tcString(tc) + ">");
-                        } catch (Exception e) {
+                        } catch (final Exception e) {
                             sb.append("<" + e + ">");
                         }
 
@@ -1344,7 +1347,7 @@ public final class Value {
                     }
 
                 }, getEncodedBytes(), 0, getEncodedSize());
-            } catch (Throwable t) {
+            } catch (final Throwable t) {
                 sb.append("<<").append(t).append(">>");
             } finally {
                 _next = _end = _size = savedSize;
@@ -1357,7 +1360,7 @@ public final class Value {
         default: {
             if (classHandle >= CLASS1) {
                 try {
-                    Class<?> clazz = _persistit.classForHandle(classHandle);
+                    final Class<?> clazz = _persistit.classForHandle(classHandle);
                     ValueCoder coder = null;
                     _depth++;
                     getValueCache().store(currentItemCount, new DisplayMarker(sb.length()));
@@ -1371,13 +1374,13 @@ public final class Value {
                         appendParenthesizedFriendlyClassName(sb, clazz);
                         ((ValueDisplayer) coder).display(this, sb, clazz, context);
                     } else if (coder instanceof SerialValueCoder) {
-                        int length = sb.length();
+                        final int length = sb.length();
                         try {
                             _next = start;
-                            Object object = get(null, context);
+                            final Object object = get(null, context);
                             getValueCache().store(currentItemCount, new DisplayMarker(sb.length()));
                             appendDisplayable(sb, object, quoted, false);
-                        } catch (Exception e) {
+                        } catch (final Exception e) {
                             sb.setLength(length);
                             sb.append("(Serialized-Object)");
                             Util.bytesToHex(sb, _bytes, start, _end - start);
@@ -1395,7 +1398,7 @@ public final class Value {
                         sb.append('}');
                     }
                     break;
-                } catch (Throwable t) {
+                } catch (final Throwable t) {
                     sb.append("<<" + t + ">>");
                 } finally {
                     _depth--;
@@ -1405,10 +1408,10 @@ public final class Value {
             } else {
                 try {
                     _next = start;
-                    Object value = get(null, context);
+                    final Object value = get(null, context);
                     getValueCache().store(currentItemCount, new DisplayMarker(sb.length()));
                     appendDisplayable(sb, value, quoted, false);
-                } catch (Throwable t) {
+                } catch (final Throwable t) {
                     sb.append("<<" + t + ">>");
                 } finally {
                     if (isVariableLength)
@@ -1420,12 +1423,13 @@ public final class Value {
         }
     }
 
-    private void decodeDisplayableMultiArray(boolean quoted, StringBuilder sb, CoderContext context, Class<?> prototype) {
-        int start = _next;
-        int type = nextType(CLASS_MULTI_ARRAY, CLASS_REREF);
+    private void decodeDisplayableMultiArray(final boolean quoted, final StringBuilder sb, final CoderContext context,
+            Class<?> prototype) {
+        final int start = _next;
+        final int type = nextType(CLASS_MULTI_ARRAY, CLASS_REREF);
         if (type == CLASS_REREF) {
             _next = start;
-            Object array = get(null, null);
+            final Object array = get(null, null);
             if (array == null || array instanceof DisplayMarker || array.getClass().isArray()) {
                 appendDisplayable(sb, array, quoted, true);
             } else {
@@ -1434,18 +1438,18 @@ public final class Value {
         } else {
             try {
                 _depth++;
-                int componentClassHandle = nextType();
+                final int componentClassHandle = nextType();
                 checkSize(1);
-                int dimensions = _bytes[_next++] & 0xFF;
+                final int dimensions = _bytes[_next++] & 0xFF;
                 if (prototype == null) {
                     prototype = Array.newInstance(classForHandle(componentClassHandle), new int[dimensions]).getClass();
                 }
-                int length = decodeElementCount();
+                final int length = decodeElementCount();
 
                 _serializedItemCount++;
                 registerEncodedObject(sb.length());
                 sb.append('[');
-                Class<?> componentType = prototype.getComponentType();
+                final Class<?> componentType = prototype.getComponentType();
                 if (componentType.getComponentType().isArray()) {
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
@@ -1467,13 +1471,13 @@ public final class Value {
         }
     }
 
-    private void appendParenthesizedFriendlyClassName(StringBuilder sb, Class<?> cl) {
+    private void appendParenthesizedFriendlyClassName(final StringBuilder sb, final Class<?> cl) {
         sb.append('(');
         appendFriendlyClassName(sb, cl);
         sb.append(')');
     }
 
-    private void appendFriendlyClassName(StringBuilder sb, Class<?> cl) {
+    private void appendFriendlyClassName(final StringBuilder sb, final Class<?> cl) {
         if (cl == null) {
             sb.append(cl);
             return;
@@ -1495,15 +1499,16 @@ public final class Value {
         }
     }
 
-    private void appendDisplayable(StringBuilder sb, Object value, boolean quoted, boolean reference) {
+    private void appendDisplayable(final StringBuilder sb, final Object value, final boolean quoted,
+            final boolean reference) {
         if (value == null) {
             sb.append(value);
         } else {
-            Class<?> cl = value.getClass();
-            String className = cl.getName();
+            final Class<?> cl = value.getClass();
+            final String className = cl.getName();
 
             if (cl == String.class) {
-                String s = (String) value;
+                final String s = (String) value;
                 int length = s.length();
                 if (length > 24 && reference)
                     length = 21;
@@ -1534,9 +1539,9 @@ public final class Value {
             } else {
                 appendParenthesizedFriendlyClassName(sb, cl);
                 try {
-                    String s = value.toString();
+                    final String s = value.toString();
                     appendDisplayable(sb, s, false, reference);
-                } catch (Throwable t) {
+                } catch (final Throwable t) {
                     sb.append("<<" + t + ">>");
                 }
             }
@@ -1544,11 +1549,11 @@ public final class Value {
     }
 
     int getTypeHandle() {
-        int saveDepth = _depth;
-        int saveLevel = _level;
-        int saveNext = _next;
-        int saveEnd = _end;
-        int result = nextType();
+        final int saveDepth = _depth;
+        final int saveLevel = _level;
+        final int saveNext = _next;
+        final int saveEnd = _end;
+        final int result = nextType();
         _end = saveEnd;
         _next = saveNext;
         _level = saveLevel;
@@ -1563,23 +1568,23 @@ public final class Value {
      * @return The type
      */
     public Class<?> getType() {
-        int saveDepth = _depth;
-        int saveLevel = _level;
-        int saveNext = _next;
-        int saveEnd = _end;
+        final int saveDepth = _depth;
+        final int saveLevel = _level;
+        final int saveNext = _next;
+        final int saveEnd = _end;
         try {
-            int classHandle = nextType();
+            final int classHandle = nextType();
             if (classHandle > 0 && classHandle < CLASSES.length && CLASSES[classHandle] != null) {
                 return CLASSES[classHandle];
             } else if (classHandle == CLASS_ARRAY) {
                 _depth++;
-                int componentClassHandle = nextType();
+                final int componentClassHandle = nextType();
                 return arrayClass(classForHandle(componentClassHandle), 1);
             } else if (classHandle == CLASS_MULTI_ARRAY) {
                 _depth++;
-                int componentClassHandle = nextType();
+                final int componentClassHandle = nextType();
                 checkSize(1);
-                int dimensions = _bytes[_next++] & 0xFF;
+                final int dimensions = _bytes[_next++] & 0xFF;
                 return arrayClass(classForHandle(componentClassHandle), dimensions);
             }
 
@@ -1603,12 +1608,12 @@ public final class Value {
         }
         try {
             return getType() == clazz;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             return false;
         }
     }
 
-    private Class<?> arrayClass(Class<?> componentClass, int dimensions) {
+    private Class<?> arrayClass(final Class<?> componentClass, final int dimensions) {
         Class<?>[] arraysByDimension = _arrayTypeCache.get(componentClass);
         Class<?> result = null;
         if (arraysByDimension != null && arraysByDimension.length > dimensions)
@@ -1623,7 +1628,7 @@ public final class Value {
             result = Array.newInstance(componentClass, new int[dimensions]).getClass();
         if (arraysByDimension != null) {
             if (arraysByDimension.length <= dimensions) {
-                Class<?>[] temp = new Class<?>[dimensions + 2];
+                final Class<?>[] temp = new Class<?>[dimensions + 2];
                 System.arraycopy(arraysByDimension, 0, temp, 0, arraysByDimension.length);
                 arraysByDimension = temp;
                 _arrayTypeCache.put(componentClass, arraysByDimension);
@@ -1645,14 +1650,14 @@ public final class Value {
      *             <code>null</code>.
      */
     public Object getNull() {
-        int start = _next;
-        int type = nextType();
+        final int start = _next;
+        final int type = nextType();
         if (type == TYPE_NULL) {
             _serializedItemCount++;
             return null;
         }
         _next = start;
-        Object object = get(null, null);
+        final Object object = get(null, null);
         if (object == null)
             return null;
         throw new ConversionException("Expected null");
@@ -1668,7 +1673,7 @@ public final class Value {
      *             of this type.
      */
     public boolean getBoolean() {
-        int start = _next;
+        final int start = _next;
         if (nextType() == TYPE_BOOLEAN) {
             _serializedItemCount++;
             return getBooleanInternal();
@@ -1679,7 +1684,7 @@ public final class Value {
 
     private boolean getBooleanInternal() {
         checkSize(1);
-        boolean result = toBoolean(_next);
+        final boolean result = toBoolean(_next);
         _next++;
         return result;
     }
@@ -1694,7 +1699,7 @@ public final class Value {
      *             of this type.
      */
     public byte getByte() {
-        int start = _next;
+        final int start = _next;
         if (nextType() == TYPE_BYTE) {
             _serializedItemCount++;
             return getByteInternal();
@@ -1705,7 +1710,7 @@ public final class Value {
 
     private byte getByteInternal() {
         checkSize(1);
-        byte result = _bytes[_next++];
+        final byte result = _bytes[_next++];
         return result;
     }
 
@@ -1719,7 +1724,7 @@ public final class Value {
      *             of this type.
      */
     public short getShort() {
-        int start = _next;
+        final int start = _next;
         if (nextType() == TYPE_SHORT) {
             _serializedItemCount++;
             return getShortInternal();
@@ -1730,7 +1735,7 @@ public final class Value {
 
     private short getShortInternal() {
         checkSize(2);
-        short result = (short) Util.getShort(_bytes, _next);
+        final short result = (short) Util.getShort(_bytes, _next);
         _next += 2;
         return result;
     }
@@ -1745,7 +1750,7 @@ public final class Value {
      *             of this type.
      */
     public char getChar() {
-        int start = _next;
+        final int start = _next;
         if (nextType() == TYPE_CHAR) {
             _serializedItemCount++;
             return getCharInternal();
@@ -1756,7 +1761,7 @@ public final class Value {
 
     private char getCharInternal() {
         checkSize(2);
-        char result = (char) Util.getChar(_bytes, _next);
+        final char result = (char) Util.getChar(_bytes, _next);
         _next += 2;
         return result;
     }
@@ -1771,7 +1776,7 @@ public final class Value {
      *             of this type.
      */
     public int getInt() {
-        int start = _next;
+        final int start = _next;
         if (nextType() == TYPE_INT) {
             _serializedItemCount++;
             return getIntInternal();
@@ -1782,7 +1787,7 @@ public final class Value {
 
     private int getIntInternal() {
         checkSize(4);
-        int result = Util.getInt(_bytes, _next);
+        final int result = Util.getInt(_bytes, _next);
         _next += 4;
         return result;
     }
@@ -1797,7 +1802,7 @@ public final class Value {
      *             of this type.
      */
     public long getLong() {
-        int start = _next;
+        final int start = _next;
         if (nextType() == TYPE_LONG) {
             _serializedItemCount++;
             return getLongInternal();
@@ -1808,7 +1813,7 @@ public final class Value {
 
     private long getLongInternal() {
         checkSize(8);
-        long result = Util.getLong(_bytes, _next);
+        final long result = Util.getLong(_bytes, _next);
         _next += 8;
         return result;
     }
@@ -1823,7 +1828,7 @@ public final class Value {
      *             of this type.
      */
     public float getFloat() {
-        int start = _next;
+        final int start = _next;
         if (nextType() == TYPE_FLOAT) {
             _serializedItemCount++;
             return getFloatInternal();
@@ -1834,7 +1839,7 @@ public final class Value {
 
     private float getFloatInternal() {
         checkSize(4);
-        float result = Float.intBitsToFloat(Util.getInt(_bytes, _next));
+        final float result = Float.intBitsToFloat(Util.getInt(_bytes, _next));
         _next += 4;
         return result;
     }
@@ -1849,7 +1854,7 @@ public final class Value {
      *             of this type.
      */
     public double getDouble() {
-        int start = _next;
+        final int start = _next;
         if (nextType() == TYPE_DOUBLE) {
             _serializedItemCount++;
             return getDoubleInternal();
@@ -1860,7 +1865,7 @@ public final class Value {
 
     private double getDoubleInternal() {
         checkSize(8);
-        double result = Double.longBitsToDouble(Util.getLong(_bytes, _next));
+        final double result = Double.longBitsToDouble(Util.getLong(_bytes, _next));
         _next += 8;
         return result;
     }
@@ -1912,7 +1917,7 @@ public final class Value {
      * @throws MalformedValueException
      *             if this <code>Value</code> is structurally corrupt.
      */
-    public Object peek(Object target) {
+    public Object peek(final Object target) {
         return peek(target, null);
     }
 
@@ -1938,7 +1943,7 @@ public final class Value {
      * @throws MalformedValueException
      *             if this <code>Value</code> is structurally corrupt.
      */
-    public Object peek(Object target, CoderContext context) {
+    public Object peek(final Object target, final CoderContext context) {
         final Object object;
         final int saveDepth = _depth;
         final int saveLevel = _level;
@@ -2004,7 +2009,7 @@ public final class Value {
      * @throws MalformedValueException
      *             if this <code>Value</code> is structurally corrupt.
      */
-    public Object get(Object target) {
+    public Object get(final Object target) {
         return get(target, null);
     }
 
@@ -2045,9 +2050,9 @@ public final class Value {
      */
     public Object get(final Object target, final CoderContext context) {
         Object object = null;
-        int start = _next;
-        int classHandle = nextType();
-        int currentItemCount = _serializedItemCount++;
+        final int start = _next;
+        final int classHandle = nextType();
+        final int currentItemCount = _serializedItemCount++;
 
         switch (classHandle) {
         case TYPE_NULL:
@@ -2098,7 +2103,7 @@ public final class Value {
                 utfToAppendable((Appendable) target, _next, _end);
                 object = target;
             } else {
-                StringBuilder sb = getStringAssemblyBuffer(_end - _next);
+                final StringBuilder sb = getStringAssemblyBuffer(_end - _next);
                 utfToAppendable(sb, _next, _end);
                 object = sb.toString();
             }
@@ -2107,14 +2112,14 @@ public final class Value {
         }
 
         case CLASS_DATE:
-            long time = Util.getLong(_bytes, _next);
+            final long time = Util.getLong(_bytes, _next);
             _next += 8;
             object = new Date(time);
             break;
 
         case CLASS_BIG_INTEGER: {
-            int length = _end - _next;
-            byte[] bytes = new byte[length];
+            final int length = _end - _next;
+            final byte[] bytes = new byte[length];
             System.arraycopy(_bytes, _next, bytes, 0, length);
             _next += length;
             object = new BigInteger(bytes);
@@ -2165,9 +2170,9 @@ public final class Value {
         }
 
         case CLASS_BIG_DECIMAL: {
-            int length = _end - _next;
-            int scale = Util.getInt(_bytes, _next);
-            byte[] bytes = new byte[length - 4];
+            final int length = _end - _next;
+            final int scale = Util.getInt(_bytes, _next);
+            final byte[] bytes = new byte[length - 4];
             System.arraycopy(_bytes, _next + 4, bytes, 0, length - 4);
             _next += length;
             object = new BigDecimal(new BigInteger(bytes), scale);
@@ -2176,7 +2181,7 @@ public final class Value {
         }
 
         case CLASS_ANTIVALUE: {
-            int length = _end - _next;
+            final int length = _end - _next;
             int elisionCount = 0;
             byte[] bytes = null;
             if (length > 0) {
@@ -2193,10 +2198,10 @@ public final class Value {
         case CLASS_ARRAY: {
             try {
                 _depth++;
-                int componentClassHandle = nextType();
+                final int componentClassHandle = nextType();
                 switch (componentClassHandle) {
                 case TYPE_BOOLEAN: {
-                    boolean[] result = new boolean[_end - _next];
+                    final boolean[] result = new boolean[_end - _next];
                     for (int index = 0; index < result.length; index++) {
                         result[index] = toBoolean(_next + index);
                     }
@@ -2205,14 +2210,14 @@ public final class Value {
                 }
 
                 case TYPE_BYTE: {
-                    byte[] result = new byte[_end - _next];
+                    final byte[] result = new byte[_end - _next];
                     System.arraycopy(_bytes, _next, result, 0, _end - _next);
                     object = result;
                     break;
                 }
 
                 case TYPE_SHORT: {
-                    short[] result = new short[arraySize(_end, _next, 2)];
+                    final short[] result = new short[arraySize(_end, _next, 2)];
                     for (int index = 0; index < result.length; index++) {
                         result[index] = (short) Util.getShort(_bytes, _next + (index * 2));
                     }
@@ -2221,7 +2226,7 @@ public final class Value {
                 }
 
                 case TYPE_CHAR: {
-                    char[] result = new char[arraySize(_end, _next, 2)];
+                    final char[] result = new char[arraySize(_end, _next, 2)];
                     for (int index = 0; index < result.length; index++) {
                         result[index] = (char) Util.getChar(_bytes, _next + (index * 2));
                     }
@@ -2230,25 +2235,25 @@ public final class Value {
                 }
 
                 case TYPE_INT: {
-                    int[] result = new int[arraySize(_end, _next, 4)];
+                    final int[] result = new int[arraySize(_end, _next, 4)];
                     for (int index = 0; index < result.length; index++) {
-                        result[index] = (int) Util.getInt(_bytes, _next + (index * 4));
+                        result[index] = Util.getInt(_bytes, _next + (index * 4));
                     }
                     object = result;
                     break;
                 }
 
                 case TYPE_LONG: {
-                    long[] result = new long[arraySize(_end, _next, 8)];
+                    final long[] result = new long[arraySize(_end, _next, 8)];
                     for (int index = 0; index < result.length; index++) {
-                        result[index] = (long) Util.getLong(_bytes, _next + (index * 8));
+                        result[index] = Util.getLong(_bytes, _next + (index * 8));
                     }
                     object = result;
                     break;
                 }
 
                 case TYPE_FLOAT: {
-                    float[] result = new float[arraySize(_end, _next, 4)];
+                    final float[] result = new float[arraySize(_end, _next, 4)];
                     for (int index = 0; index < result.length; index++) {
                         result[index] = Float.intBitsToFloat(Util.getInt(_bytes, _next + (index * 4)));
                     }
@@ -2257,7 +2262,7 @@ public final class Value {
                 }
 
                 case TYPE_DOUBLE: {
-                    double[] result = new double[arraySize(_end, _next, 8)];
+                    final double[] result = new double[arraySize(_end, _next, 8)];
                     for (int index = 0; index < result.length; index++) {
                         result[index] = Double.longBitsToDouble(Util.getLong(_bytes, _next + (index * 8)));
                     }
@@ -2266,8 +2271,8 @@ public final class Value {
                 }
 
                 case CLASS_STRING: {
-                    int length = decodeElementCount();
-                    String[] result = new String[length];
+                    final int length = decodeElementCount();
+                    final String[] result = new String[length];
                     for (int index = 0; index < length; index++) {
                         result[index] = getString();
                     }
@@ -2276,9 +2281,9 @@ public final class Value {
                 }
 
                 default: {
-                    Class<?> componentClass = classForHandle(componentClassHandle);
-                    int length = decodeElementCount();
-                    Object[] result = (Object[]) Array.newInstance(componentClass, length);
+                    final Class<?> componentClass = classForHandle(componentClassHandle);
+                    final int length = decodeElementCount();
+                    final Object[] result = (Object[]) Array.newInstance(componentClass, length);
                     getValueCache().store(currentItemCount, result);
                     for (int index = 0; index < length; index++) {
                         Array.set(result, index, get(null, null));
@@ -2304,15 +2309,15 @@ public final class Value {
         case CLASS_SERIALIZED:
             _depth++;
             try {
-                ObjectInputStream ois = new OldValueInputStream(this);
+                final ObjectInputStream ois = new OldValueInputStream(this);
                 object = ois.readObject();
                 if (_next != _end) {
                     throw new ConversionException("Invalid serialized Object at index=" + _next);
                 }
                 closeVariableLengthItem();
-            } catch (IOException ioe) {
+            } catch (final IOException ioe) {
                 throw new ConversionException("@" + start, ioe);
-            } catch (ClassNotFoundException cnfe) {
+            } catch (final ClassNotFoundException cnfe) {
                 throw new ConversionException("@" + start, cnfe);
             } finally {
                 _depth--;
@@ -2321,8 +2326,8 @@ public final class Value {
             break;
 
         case CLASS_REREF: {
-            int base = _bytes[_next++] & 0xFF;
-            int handle = decodeVariableLengthInt(base);
+            final int base = _bytes[_next++] & 0xFF;
+            final int handle = decodeVariableLengthInt(base);
             object = getValueCache().get(handle);
             break;
         }
@@ -2340,7 +2345,7 @@ public final class Value {
                     }
 
                     @Override
-                    public void sawVersion(long version, int offset, int valueLength) {
+                    public void sawVersion(final long version, final int offset, final int valueLength) {
                         Object obj = null;
                         if (valueLength > 0) {
                             _next = offset;
@@ -2351,7 +2356,7 @@ public final class Value {
                     }
 
                 }, getEncodedBytes(), 0, getEncodedSize());
-            } catch (PersistitException pe) {
+            } catch (final PersistitException pe) {
                 throw new ConversionException("@" + start, pe);
             } finally {
                 _depth--;
@@ -2362,11 +2367,11 @@ public final class Value {
         }
 
         default: {
-            int saveDepth = _depth;
+            final int saveDepth = _depth;
             try {
                 _depth++;
-                Class<?> cl = _persistit.classForHandle(classHandle);
-                ValueCoder coder = getValueCoder(cl);
+                final Class<?> cl = _persistit.classForHandle(classHandle);
+                final ValueCoder coder = getValueCoder(cl);
 
                 if (coder != null) {
                     if (target == null) {
@@ -2397,19 +2402,19 @@ public final class Value {
         return object;
     }
 
-    private int arraySize(int end, int next, int blockSize) {
-        int size = end - next;
+    private int arraySize(final int end, final int next, final int blockSize) {
+        final int size = end - next;
         if ((size % blockSize) != 0) {
             throw new ConversionException("Invalid array size");
         }
         return size / blockSize;
     }
 
-    private int utfToAppendable(Appendable sb, int offset, int end) {
-        int counter = 0;
+    private int utfToAppendable(final Appendable sb, final int offset, final int end) {
+        final int counter = 0;
 
         for (int i = offset; i < end; i++) {
-            int b = _bytes[i] & 0xFF;
+            final int b = _bytes[i] & 0xFF;
             int b2;
             int b3;
             switch (b >> 4) {
@@ -2477,7 +2482,7 @@ public final class Value {
      *            A newly created objected whose fields are about to be
      *            deserialized
      */
-    public void registerEncodedObject(Object object) {
+    public void registerEncodedObject(final Object object) {
         if (_depth > 0) {
             getValueCache().store(_serializedItemCount - 1, object);
         }
@@ -2489,7 +2494,7 @@ public final class Value {
      * @param index
      *            Current position in the output string
      */
-    private void registerEncodedObject(int index) {
+    private void registerEncodedObject(final int index) {
         if (_depth > 0) {
             getValueCache().store(_serializedItemCount - 1, new DisplayMarker(index));
         }
@@ -2518,7 +2523,7 @@ public final class Value {
      *             if this <code>Value</code> does not currently represent a
      *             String.
      */
-    public <T extends Appendable> Appendable getString(T sb) {
+    public <T extends Appendable> Appendable getString(final T sb) {
         _serializedItemCount++;
         if (nextType(CLASS_STRING) == TYPE_NULL) {
             return null;
@@ -2578,8 +2583,8 @@ public final class Value {
      *             array.
      */
     public int getArrayLength() {
-        int start = _next;
-        int type = nextType(CLASS_ARRAY, CLASS_MULTI_ARRAY);
+        final int start = _next;
+        final int type = nextType(CLASS_ARRAY, CLASS_MULTI_ARRAY);
         if (type == TYPE_NULL)
             return -1;
         int componentClassHandle = -1;
@@ -2589,7 +2594,7 @@ public final class Value {
             componentClassHandle = nextType();
             if (type == CLASS_MULTI_ARRAY)
                 _next++; // skip the dimension count.
-            int length = _end - _next;
+            final int length = _end - _next;
             if (type == CLASS_ARRAY && componentClassHandle > 0 && componentClassHandle <= TYPE_DOUBLE
                     && FIXED_ENCODING_SIZES[componentClassHandle] > 0) {
                 result = length / FIXED_ENCODING_SIZES[componentClassHandle];
@@ -2614,7 +2619,7 @@ public final class Value {
      *             array.
      */
     public Object getArray() {
-        Object object = get(null, null);
+        final Object object = get(null, null);
         if (object == null || object.getClass().isArray()) {
             return object;
         }
@@ -2650,14 +2655,14 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getBooleanArray(boolean[] array, int fromOffset, int toOffset, int length) {
+    public int getBooleanArray(final boolean[] array, final int fromOffset, final int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
         try {
             _depth++;
             nextType(TYPE_BOOLEAN);
-            int sourceLength = _end - _next;
+            final int sourceLength = _end - _next;
             if (length > sourceLength - fromOffset)
                 length = sourceLength - fromOffset;
             if (length > array.length - toOffset)
@@ -2701,7 +2706,7 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getByteArray(byte[] array, int fromOffset, int toOffset, int length) {
+    public int getByteArray(final byte[] array, final int fromOffset, final int toOffset, int length) {
         _serializedItemCount++;
         if (array == _bytes) {
             throw new IllegalArgumentException("Can't overwrite encoded bytes");
@@ -2711,7 +2716,7 @@ public final class Value {
         try {
             _depth++;
             nextType(TYPE_BYTE);
-            int sourceLength = _end - _next;
+            final int sourceLength = _end - _next;
             if (length > sourceLength - fromOffset)
                 length = sourceLength - fromOffset;
             if (length > array.length - toOffset)
@@ -2754,14 +2759,14 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getShortArray(short[] array, int fromOffset, int toOffset, int length) {
+    public int getShortArray(final short[] array, final int fromOffset, final int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
         try {
             _depth++;
             nextType(TYPE_SHORT);
-            int sourceLength = (_end - _next) / 2;
+            final int sourceLength = (_end - _next) / 2;
             if (length > sourceLength - fromOffset)
                 length = sourceLength - fromOffset;
             if (length > array.length - toOffset)
@@ -2805,14 +2810,14 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getCharArray(char[] array, int fromOffset, int toOffset, int length) {
+    public int getCharArray(final char[] array, final int fromOffset, final int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
         try {
             _depth++;
             nextType(TYPE_CHAR);
-            int sourceLength = (_end - _next) / 2;
+            final int sourceLength = (_end - _next) / 2;
             if (length > sourceLength - fromOffset)
                 length = sourceLength - fromOffset;
             if (length > array.length - toOffset)
@@ -2856,20 +2861,20 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getIntArray(int[] array, int fromOffset, int toOffset, int length) {
+    public int getIntArray(final int[] array, final int fromOffset, final int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
         try {
             _depth++;
             nextType(TYPE_INT);
-            int sourceLength = (_end - _next) / 4;
+            final int sourceLength = (_end - _next) / 4;
             if (length > sourceLength - fromOffset)
                 length = sourceLength - fromOffset;
             if (length > array.length - toOffset)
                 length = array.length - toOffset;
             for (int index = 0; index < length; index++) {
-                array[toOffset + index] = (int) Util.getInt(_bytes, _next + (index + fromOffset) * 4);
+                array[toOffset + index] = Util.getInt(_bytes, _next + (index + fromOffset) * 4);
             }
             closeVariableLengthItem();
             return length;
@@ -2907,7 +2912,7 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getLongArray(long[] array, int fromOffset, int toOffset, int length) {
+    public int getLongArray(final long[] array, final int fromOffset, final int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
@@ -2915,13 +2920,13 @@ public final class Value {
         try {
             _depth++;
             nextType(TYPE_LONG);
-            int sourceLength = (_end - _next) / 8;
+            final int sourceLength = (_end - _next) / 8;
             if (length > sourceLength - fromOffset)
                 length = sourceLength - fromOffset;
             if (length > array.length - toOffset)
                 length = array.length - toOffset;
             for (int index = 0; index < length; index++) {
-                array[toOffset + index] = (long) Util.getLong(_bytes, _next + (index + fromOffset) * 8);
+                array[toOffset + index] = Util.getLong(_bytes, _next + (index + fromOffset) * 8);
             }
             closeVariableLengthItem();
             return length;
@@ -2959,14 +2964,14 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getFloatArray(float[] array, int fromOffset, int toOffset, int length) {
+    public int getFloatArray(final float[] array, final int fromOffset, final int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
         try {
             _depth++;
             nextType(TYPE_FLOAT);
-            int sourceLength = (_end - _next) / 4;
+            final int sourceLength = (_end - _next) / 4;
             if (length > sourceLength - fromOffset)
                 length = sourceLength - fromOffset;
             if (length > array.length - toOffset)
@@ -3010,14 +3015,14 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getDoubleArray(double[] array, int fromOffset, int toOffset, int length) {
+    public int getDoubleArray(final double[] array, final int fromOffset, final int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
         try {
             _depth++;
             nextType(TYPE_DOUBLE);
-            int sourceLength = (_end - _next) / 8;
+            final int sourceLength = (_end - _next) / 8;
             if (length > sourceLength - fromOffset)
                 length = sourceLength - fromOffset;
             if (length > array.length - toOffset)
@@ -3075,7 +3080,7 @@ public final class Value {
      * @param booleanValue
      *            The new value
      */
-    public void put(boolean booleanValue) {
+    public void put(final boolean booleanValue) {
         preparePut();
         ensureFit(2);
         _bytes[_size++] = (byte) TYPE_BOOLEAN;
@@ -3091,7 +3096,7 @@ public final class Value {
      * @param byteValue
      *            The new value
      */
-    public void put(byte byteValue) {
+    public void put(final byte byteValue) {
         preparePut();
         ensureFit(2);
         _bytes[_size++] = (byte) TYPE_BYTE;
@@ -3107,7 +3112,7 @@ public final class Value {
      * @param shortValue
      *            The new value
      */
-    public void put(short shortValue) {
+    public void put(final short shortValue) {
         preparePut();
         ensureFit(3);
         _bytes[_size++] = (byte) TYPE_SHORT;
@@ -3124,7 +3129,7 @@ public final class Value {
      * @param charValue
      *            The new value
      */
-    public void put(char charValue) {
+    public void put(final char charValue) {
         preparePut();
         ensureFit(3);
         _bytes[_size++] = (byte) TYPE_CHAR;
@@ -3141,7 +3146,7 @@ public final class Value {
      * @param intValue
      *            The new value
      */
-    public void put(int intValue) {
+    public void put(final int intValue) {
         preparePut();
         ensureFit(5);
         _bytes[_size++] = (byte) TYPE_INT;
@@ -3158,7 +3163,7 @@ public final class Value {
      * @param longValue
      *            The new value
      */
-    public void put(long longValue) {
+    public void put(final long longValue) {
         preparePut();
         ensureFit(9);
         _bytes[_size++] = (byte) TYPE_LONG;
@@ -3175,7 +3180,7 @@ public final class Value {
      * @param floatValue
      *            The new value
      */
-    public void put(float floatValue) {
+    public void put(final float floatValue) {
         preparePut();
         ensureFit(5);
         _bytes[_size++] = (byte) TYPE_FLOAT;
@@ -3192,7 +3197,7 @@ public final class Value {
      * @param doubleValue
      *            The new value
      */
-    public void put(double doubleValue) {
+    public void put(final double doubleValue) {
         preparePut();
         ensureFit(9);
         _bytes[_size++] = (byte) TYPE_DOUBLE;
@@ -3215,7 +3220,7 @@ public final class Value {
      * @throws ConversionException
      *             if the Object cannot be encoded as a sequence of bytes.
      */
-    public void put(Object object) {
+    public void put(final Object object) {
         put(object, null);
     }
 
@@ -3238,9 +3243,9 @@ public final class Value {
      * @throws ConversionException
      *             if the Object cannot be encoded as a sequence of bytes.
      */
-    public void put(Object object, CoderContext context) {
+    public void put(Object object, final CoderContext context) {
         preparePut();
-        int currentItemCount = _serializedItemCount++;
+        final int currentItemCount = _serializedItemCount++;
 
         if (object == null) {
             ensureFit(1);
@@ -3248,7 +3253,7 @@ public final class Value {
             return;
         }
         if (_depth > 0 && _shared) {
-            int serializationHandle = getValueCache().put(currentItemCount, object);
+            final int serializationHandle = getValueCache().put(currentItemCount, object);
             if (serializationHandle != -1) {
                 ensureFit(5);
                 _bytes[_size++] = (byte) CLASS_REREF;
@@ -3258,7 +3263,7 @@ public final class Value {
         }
         Class<?> cl = object.getClass();
         if (cl == String.class) {
-            String string = (String) object;
+            final String string = (String) object;
             putUTF(string);
         } else if (cl == Date.class) {
             ensureFit(9);
@@ -3266,8 +3271,8 @@ public final class Value {
             Util.putLong(_bytes, _size, ((Date) object).getTime());
             _size += 8;
         } else if (cl == BigInteger.class) {
-            byte[] bytes = ((BigInteger) object).toByteArray();
-            int length = bytes.length;
+            final byte[] bytes = ((BigInteger) object).toByteArray();
+            final int length = bytes.length;
             ensureFit(length + 2);
             int index = _size;
             _bytes[index++] = CLASS_BIG_INTEGER;
@@ -3276,10 +3281,10 @@ public final class Value {
             endVariableSizeItem(length + 1);
 
         } else if (cl == BigDecimal.class) {
-            BigDecimal bigDecimalValue = (BigDecimal) object;
-            BigInteger unscaled = bigDecimalValue.unscaledValue();
-            byte[] bytes = unscaled.toByteArray();
-            int length = bytes.length;
+            final BigDecimal bigDecimalValue = (BigDecimal) object;
+            final BigInteger unscaled = bigDecimalValue.unscaledValue();
+            final byte[] bytes = unscaled.toByteArray();
+            final int length = bytes.length;
             ensureFit(length + 8);
             int index = _size;
             _bytes[index++] = CLASS_BIG_DECIMAL;
@@ -3348,8 +3353,8 @@ public final class Value {
             _bytes[_size++] = (byte) CLASS_TREE;
             _size += ((Tree) object).store(_bytes, _size);
         } else if (cl.isArray()) {
-            Class<?> componentClass = cl.getComponentType();
-            int length = Array.getLength(object);
+            final Class<?> componentClass = cl.getComponentType();
+            final int length = Array.getLength(object);
             if (componentClass.isPrimitive()) {
                 if (componentClass == Boolean.TYPE) {
                     putBooleanArray1((boolean[]) object, 0, length);
@@ -3375,7 +3380,7 @@ public final class Value {
 
         else {
             ensureFit(6);
-            int start = _size;
+            final int start = _size;
             int end = start;
             boolean replaced = false;
 
@@ -3387,7 +3392,7 @@ public final class Value {
                 ValueCoder coder = getValueCoder(cl);
 
                 while (coder instanceof DefaultObjectCoder) {
-                    Object replacement = ((DefaultObjectCoder) coder).writeReplace(this, object);
+                    final Object replacement = ((DefaultObjectCoder) coder).writeReplace(this, object);
 
                     if (replacement == object)
                         break;
@@ -3420,13 +3425,13 @@ public final class Value {
                         end = _size;
                     } else {
                         _bytes[_size++] = CLASS_SERIALIZED;
-                        ObjectOutputStream oos = new OldValueOutputStream(this);
+                        final ObjectOutputStream oos = new OldValueOutputStream(this);
                         oos.writeObject(object);
                         oos.close();
                         end = _size;
                     }
                 }
-            } catch (IOException ioe) {
+            } catch (final IOException ioe) {
                 throw new ConversionException(ioe);
             } finally {
                 _depth--;
@@ -3463,7 +3468,7 @@ public final class Value {
      * @param string
      *            The new value
      */
-    public void putString(String string) {
+    public void putString(final String string) {
         put(string, null);
     }
 
@@ -3479,7 +3484,7 @@ public final class Value {
      * @param string
      *            The new value
      */
-    public void putUTF(String string) {
+    public void putUTF(final String string) {
         preparePut();
         putCharSequenceInternal(string);
     }
@@ -3492,7 +3497,7 @@ public final class Value {
      * @param sb
      *            The String value as a CharSequence
      */
-    public void putString(CharSequence sb) {
+    public void putString(final CharSequence sb) {
         if (sb == null) {
             putNull();
         } else {
@@ -3510,7 +3515,7 @@ public final class Value {
      * @param dateValue
      *            The new value
      */
-    public void putDate(Date dateValue) {
+    public void putDate(final Date dateValue) {
         put(dateValue, null);
     }
 
@@ -3522,7 +3527,7 @@ public final class Value {
      * @param bigIntValue
      *            The new value
      */
-    public void putBigInteger(BigInteger bigIntValue) {
+    public void putBigInteger(final BigInteger bigIntValue) {
         put(bigIntValue, null);
     }
 
@@ -3534,7 +3539,7 @@ public final class Value {
      * @param bigDecimalValue
      *            The new value
      */
-    public void putBigDecimal(BigDecimal bigDecimalValue) {
+    public void putBigDecimal(final BigDecimal bigDecimalValue) {
         put(bigDecimalValue, null);
     }
 
@@ -3546,7 +3551,7 @@ public final class Value {
      * @param array
      *            The new array value
      */
-    public void putBooleanArray(boolean[] array) {
+    public void putBooleanArray(final boolean[] array) {
         put(array, null);
     }
 
@@ -3563,13 +3568,13 @@ public final class Value {
      * @param length
      *            Length of the subarray
      */
-    public void putBooleanArray(boolean[] array, int offset, int length) {
+    public void putBooleanArray(final boolean[] array, final int offset, final int length) {
         checkArrayLength(length, offset, array.length);
         preparePut();
         putBooleanArray1(array, offset, length);
     }
 
-    private void putBooleanArray1(boolean[] array, int offset, int length) {
+    private void putBooleanArray1(final boolean[] array, final int offset, final int length) {
         ensureFit(length + 2);
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_BOOLEAN;
@@ -3588,7 +3593,7 @@ public final class Value {
      * @param array
      *            The new array value
      */
-    public void putByteArray(byte[] array) {
+    public void putByteArray(final byte[] array) {
         put(array, null);
     }
 
@@ -3604,13 +3609,13 @@ public final class Value {
      * @param length
      *            Length of the subarray
      */
-    public void putByteArray(byte[] array, int offset, int length) {
+    public void putByteArray(final byte[] array, final int offset, final int length) {
         checkArrayLength(length, offset, array.length);
         preparePut();
         putByteArray1(array, offset, length);
     }
 
-    private void putByteArray1(byte[] array, int offset, int length) {
+    private void putByteArray1(final byte[] array, final int offset, final int length) {
         ensureFit(length + 2);
         int index = _size;
         _bytes[index++] = CLASS_ARRAY;
@@ -3628,7 +3633,7 @@ public final class Value {
      * @param array
      *            The new array value
      */
-    public void putShortArray(short[] array) {
+    public void putShortArray(final short[] array) {
         put(array, null);
     }
 
@@ -3645,13 +3650,13 @@ public final class Value {
      * @param length
      *            Length of the subarray
      */
-    public void putShortArray(short[] array, int offset, int length) {
+    public void putShortArray(final short[] array, final int offset, final int length) {
         checkArrayLength(length, offset, array.length);
         preparePut();
         putShortArray1(array, offset, length);
     }
 
-    void putShortArray1(short[] array, int offset, int length) {
+    void putShortArray1(final short[] array, final int offset, final int length) {
         ensureFit(length * 2 + 2);
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_SHORT;
@@ -3670,7 +3675,7 @@ public final class Value {
      * @param array
      *            The new array value
      */
-    public void putCharArray(char[] array) {
+    public void putCharArray(final char[] array) {
         put(array, null);
     }
 
@@ -3686,13 +3691,13 @@ public final class Value {
      * @param length
      *            Length of the subarray
      */
-    public void putCharArray(char[] array, int offset, int length) {
+    public void putCharArray(final char[] array, final int offset, final int length) {
         checkArrayLength(length, offset, array.length);
         preparePut();
         putCharArray1(array, offset, length);
     }
 
-    private void putCharArray1(char[] array, int offset, int length) {
+    private void putCharArray1(final char[] array, final int offset, final int length) {
         ensureFit(length * 2 + 2);
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_CHAR;
@@ -3711,7 +3716,7 @@ public final class Value {
      * @param array
      *            The new array value
      */
-    public void putIntArray(int[] array) {
+    public void putIntArray(final int[] array) {
         put(array, null);
     }
 
@@ -3727,13 +3732,13 @@ public final class Value {
      * @param length
      *            Length of the subarray
      */
-    public void putIntArray(int[] array, int offset, int length) {
+    public void putIntArray(final int[] array, final int offset, final int length) {
         checkArrayLength(length, offset, array.length);
         preparePut();
         putIntArray1(array, offset, length);
     }
 
-    private void putIntArray1(int[] array, int offset, int length) {
+    private void putIntArray1(final int[] array, final int offset, final int length) {
         ensureFit(length * 4 + 2);
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_INT;
@@ -3752,7 +3757,7 @@ public final class Value {
      * @param array
      *            The new array value
      */
-    public void putLongArray(long[] array) {
+    public void putLongArray(final long[] array) {
         put(array, null);
     }
 
@@ -3768,13 +3773,13 @@ public final class Value {
      * @param length
      *            Length of the subarray
      */
-    public void putLongArray(long[] array, int offset, int length) {
+    public void putLongArray(final long[] array, final int offset, final int length) {
         checkArrayLength(length, offset, array.length);
         preparePut();
         putLongArray1(array, offset, length);
     }
 
-    private void putLongArray1(long[] array, int offset, int length) {
+    private void putLongArray1(final long[] array, final int offset, final int length) {
         ensureFit(length * 8 + 2);
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_LONG;
@@ -3793,7 +3798,7 @@ public final class Value {
      * @param array
      *            The new array value
      */
-    public void putFloatArray(float[] array) {
+    public void putFloatArray(final float[] array) {
         put(array, null);
     }
 
@@ -3810,13 +3815,13 @@ public final class Value {
      * @param length
      *            Length of the subarray
      */
-    public void putFloatArray(float[] array, int offset, int length) {
+    public void putFloatArray(final float[] array, final int offset, final int length) {
         checkArrayLength(length, offset, array.length);
         preparePut();
         putFloatArray1(array, offset, length);
     }
 
-    private void putFloatArray1(float[] array, int offset, int length) {
+    private void putFloatArray1(final float[] array, final int offset, final int length) {
         ensureFit(length * 4 + 2);
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_FLOAT;
@@ -3835,7 +3840,7 @@ public final class Value {
      * @param array
      *            The new array value
      */
-    public void putDoubleArray(double[] array) {
+    public void putDoubleArray(final double[] array) {
         put(array, null);
     }
 
@@ -3852,13 +3857,13 @@ public final class Value {
      * @param length
      *            Length of the subarray
      */
-    public void putDoubleArray(double[] array, int offset, int length) {
+    public void putDoubleArray(final double[] array, final int offset, final int length) {
         checkArrayLength(length, offset, array.length);
         preparePut();
         putDoubleArray1(array, offset, length);
     }
 
-    private void putDoubleArray1(double[] array, int offset, int length) {
+    private void putDoubleArray1(final double[] array, final int offset, final int length) {
         ensureFit(length * 8 + 2);
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_DOUBLE;
@@ -3877,7 +3882,7 @@ public final class Value {
      * @param array
      *            The new array value
      */
-    public void putStringArray(String[] array) {
+    public void putStringArray(final String[] array) {
         put(array, null);
     }
 
@@ -3894,11 +3899,11 @@ public final class Value {
      * @param length
      *            Length of the subarray
      */
-    public void putStringArray(String[] array, int offset, int length) {
+    public void putStringArray(final String[] array, final int offset, final int length) {
         checkArrayLength(length, offset, array.length);
         preparePut();
         ensureFit(7 + length);
-        int start = _size;
+        final int start = _size;
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = CLASS_STRING;
         _size += encodeVariableLengthInt(COUNT1, _size, length);
@@ -3921,7 +3926,7 @@ public final class Value {
      * @param array
      *            The new array value
      */
-    public void putObjectArray(Object[] array) {
+    public void putObjectArray(final Object[] array) {
         put(array, null);
     }
 
@@ -3938,7 +3943,7 @@ public final class Value {
      * @param length
      *            Length of the subarray
      */
-    public void putObjectArray(Object[] array, int offset, int length) {
+    public void putObjectArray(final Object[] array, final int offset, final int length) {
         preparePut();
         putObjectArray1(array, offset, length);
     }
@@ -3953,14 +3958,14 @@ public final class Value {
     public void skip() {
         if (_depth == 0)
             return;
-        int classHandle = nextType();
+        final int classHandle = nextType();
         if (classHandle == 0)
             return;
         int size = -1;
         if (classHandle < FIXED_ENCODING_SIZES.length) {
             size = FIXED_ENCODING_SIZES[classHandle];
         } else if (classHandle == CLASS_REREF) {
-            int base = _bytes[_next++] & 0xFF;
+            final int base = _bytes[_next++] & 0xFF;
             decodeVariableLengthInt(base);
             size = 0;
         }
@@ -3972,7 +3977,7 @@ public final class Value {
         }
     }
 
-    private void putObjectArray1(Object[] array, int offset, int length) {
+    private void putObjectArray1(final Object[] array, final int offset, final int length) {
         int dimensions = 1;
         Class<?> componentType = array.getClass().getComponentType();
 
@@ -3981,7 +3986,7 @@ public final class Value {
             dimensions++;
         }
         checkArrayLength(length, offset, array.length);
-        int start = _size;
+        final int start = _size;
         ensureFit(12);
         _bytes[_size++] = (byte) (dimensions == 1 ? CLASS_ARRAY : CLASS_MULTI_ARRAY);
         encodeClass(componentType);
@@ -4000,9 +4005,9 @@ public final class Value {
         endVariableSizeItem(_size - start);
     }
 
-    void putAntiValue(short elisionCount, byte[] bytes) {
+    void putAntiValue(final short elisionCount, final byte[] bytes) {
         preparePut();
-        int start = _size;
+        final int start = _size;
         ensureFit(8 + bytes.length);
         _bytes[_size++] = (byte) CLASS_ANTIVALUE;
         Util.putShort(_bytes, _size, elisionCount);
@@ -4021,7 +4026,7 @@ public final class Value {
         return _pointer;
     }
 
-    void setPointerValue(long pointer) {
+    void setPointerValue(final long pointer) {
         _pointer = pointer;
     }
 
@@ -4029,7 +4034,7 @@ public final class Value {
         return _pointerPageType;
     }
 
-    void setPointerPageType(int pageType) {
+    void setPointerPageType(final int pageType) {
         _pointerPageType = pageType;
     }
 
@@ -4041,7 +4046,7 @@ public final class Value {
         return _longSize;
     }
 
-    void setLongSize(int size) {
+    void setLongSize(final int size) {
         _longSize = size;
     }
 
@@ -4049,12 +4054,12 @@ public final class Value {
         return _longMode;
     }
 
-    void setLongRecordMode(boolean mode) {
+    void setLongRecordMode(final boolean mode) {
         _longMode = mode;
     }
 
-    private ValueCoder getValueCoder(Class<?> clazz) {
-        CoderManager cm = _persistit.getCoderManager();
+    private ValueCoder getValueCoder(final Class<?> clazz) {
+        final CoderManager cm = _persistit.getCoderManager();
         if (cm != null) {
             return cm.getValueCoder(clazz);
         } else {
@@ -4062,7 +4067,7 @@ public final class Value {
         }
     }
 
-    void changeLongRecordMode(boolean mode) {
+    void changeLongRecordMode(final boolean mode) {
         if (mode != _longMode) {
 
             if (_longBytes == null || _longBytes.length < Buffer.LONGREC_SIZE) {
@@ -4073,8 +4078,8 @@ public final class Value {
             //
             // Swap the regular and long raw byte arrays
             //
-            byte[] tempBytes = _bytes;
-            int tempSize = _size;
+            final byte[] tempBytes = _bytes;
+            final int tempSize = _size;
             _bytes = _longBytes;
             _size = _longSize;
             _longBytes = tempBytes;
@@ -4112,7 +4117,7 @@ public final class Value {
         }
     }
 
-    private void checkSize(int size) {
+    private void checkSize(final int size) {
         if (_next + size != _size) {
             if (_next + size >= _size) {
                 throw new MalformedValueException("Not enough bytes in Value at index=" + (_next - 1));
@@ -4123,17 +4128,17 @@ public final class Value {
         }
     }
 
-    private void checkArrayLength(int length, int offset, int arrayLength) {
+    private void checkArrayLength(final int length, final int offset, final int arrayLength) {
         if (length < 0 || length + offset > arrayLength) {
             throw new IllegalArgumentException("Invalid length " + length);
         }
     }
 
-    private void pushEnd(int end) {
+    private void pushEnd(final int end) {
         if (_endArray == null)
             _endArray = new int[10];
         else if (_level >= _endArray.length) {
-            int[] temp = new int[_level * 2 + 1];
+            final int[] temp = new int[_level * 2 + 1];
             System.arraycopy(_endArray, 0, temp, 0, _level);
             _endArray = temp;
         }
@@ -4168,7 +4173,7 @@ public final class Value {
             type = type();
             _next++;
             if (type >= SIZE1 && type <= SIZE5) {
-                int size = decodeVariableLengthInt(type);
+                final int size = decodeVariableLengthInt(type);
                 pushEnd(_end);
                 _end = _next + size;
                 type = _bytes[_next++] & 0xFF;
@@ -4200,8 +4205,8 @@ public final class Value {
         return type;
     }
 
-    private int nextType(int expectedType) {
-        int type = nextType();
+    private int nextType(final int expectedType) {
+        final int type = nextType();
         if (type == expectedType || type == TYPE_NULL)
             return type;
 
@@ -4209,8 +4214,8 @@ public final class Value {
                 + classForHandle(type));
     }
 
-    private int nextType(int expectedType1, int expectedType2) {
-        int type = nextType();
+    private int nextType(final int expectedType1, final int expectedType2) {
+        final int type = nextType();
         if (type == expectedType1 || type == expectedType2 || type == TYPE_NULL)
             return type;
 
@@ -4218,8 +4223,8 @@ public final class Value {
                 + classForHandle(type));
     }
 
-    private Object getExpectedType(Class<?> type) {
-        Object object = get(null, null);
+    private Object getExpectedType(final Class<?> type) {
+        final Object object = get(null, null);
         if (object == null || type.isAssignableFrom(object.getClass())) {
             return object;
         } else {
@@ -4228,16 +4233,16 @@ public final class Value {
         }
     }
 
-    private void endVariableSizeItem(int itemSize) {
+    private void endVariableSizeItem(final int itemSize) {
         if (_depth > 0) {
             _size += encodeVariableLengthInt(SIZE1, _size - itemSize, itemSize);
         }
     }
 
-    private int encodeVariableLengthInt(int base, int index, int value) {
+    private int encodeVariableLengthInt(int base, final int index, int value) {
         Debug.$assert0.t((base & 0x3F) == 0);
 
-        int encodingSize = value < 0x00000010 ? 1 : value < 0x00001000 ? 2 : value < 0x10000000 ? 3 : 5;
+        final int encodingSize = value < 0x00000010 ? 1 : value < 0x00001000 ? 2 : value < 0x10000000 ? 3 : 5;
 
         if (_size > index) {
             ensureFit(encodingSize);
@@ -4270,7 +4275,7 @@ public final class Value {
     }
 
     private int decodeElementCount() {
-        int base = _bytes[_next] & 0xFF;
+        final int base = _bytes[_next] & 0xFF;
         if (base < COUNT1 || base > COUNT5) {
             throw new MalformedValueException("Invalid element count introducer " + base + " at " + _next);
         }
@@ -4301,8 +4306,8 @@ public final class Value {
         return result;
     }
 
-    private void encodeClass(Class<?> cl) {
-        int classHandle = handleForClass(cl);
+    private void encodeClass(final Class<?> cl) {
+        final int classHandle = handleForClass(cl);
         if (classHandle < CLASS1) {
             ensureFit(1);
             _bytes[_size++] = (byte) classHandle;
@@ -4312,7 +4317,7 @@ public final class Value {
         }
     }
 
-    private int handleForClass(Class<?> cl) {
+    private int handleForClass(final Class<?> cl) {
         if (cl.isArray()) {
             return CLASS_ARRAY;
         }
@@ -4331,15 +4336,15 @@ public final class Value {
         return handleForIndexedClass(cl);
     }
 
-    private int handleForIndexedClass(Class<?> cl) {
-        ClassInfo ci = _persistit.getClassIndex().lookupByClass(cl);
+    private int handleForIndexedClass(final Class<?> cl) {
+        final ClassInfo ci = _persistit.getClassIndex().lookupByClass(cl);
         if (ci != null) {
             return ci.getHandle();
         }
         throw new ConversionException("Class not mapped to handle " + cl.getName());
     }
 
-    private Class<?> classForHandle(int classHandle) {
+    private Class<?> classForHandle(final int classHandle) {
         if (classHandle > 0 && classHandle < CLASSES.length && CLASSES[classHandle] != null) {
             return CLASSES[classHandle];
         } else if (classHandle == CLASS_ARRAY) {
@@ -4347,20 +4352,20 @@ public final class Value {
         } else if (classHandle == CLASS_MULTI_ARRAY) {
             return Object[][].class;
         }
-        ClassInfo ci = classInfoForHandle(classHandle);
+        final ClassInfo ci = classInfoForHandle(classHandle);
         return ci.getDescribedClass();
     }
 
-    private ClassInfo classInfoForHandle(int classHandle) {
-        ClassInfo classInfo = _persistit.getClassIndex().lookupByHandle(classHandle);
+    private ClassInfo classInfoForHandle(final int classHandle) {
+        final ClassInfo classInfo = _persistit.getClassIndex().lookupByHandle(classHandle);
         if (classInfo == null) {
             throw new ConversionException("Unknown class handle " + classHandle);
         }
         return classInfo;
     }
 
-    private boolean toBoolean(int index) {
-        char ch = (char) (_bytes[index] & 0xFF);
+    private boolean toBoolean(final int index) {
+        final char ch = (char) (_bytes[index] & 0xFF);
         if (ch == TRUE_CHAR)
             return true;
         if (ch == FALSE_CHAR)
@@ -4370,11 +4375,11 @@ public final class Value {
     }
 
     private Object getMultiArray(Class<?> prototype) {
-        int start = _next;
-        int type = nextType(CLASS_MULTI_ARRAY, CLASS_REREF);
+        final int start = _next;
+        final int type = nextType(CLASS_MULTI_ARRAY, CLASS_REREF);
         if (type == CLASS_REREF) {
             _next = start;
-            Object array = get(null, null);
+            final Object array = get(null, null);
             if (array == null || array.getClass().isArray()) {
                 return array;
             } else {
@@ -4384,19 +4389,19 @@ public final class Value {
         Object result;
         try {
             _depth++;
-            int componentClassHandle = nextType();
+            final int componentClassHandle = nextType();
             checkSize(1);
-            int dimensions = _bytes[_next++] & 0xFF;
+            final int dimensions = _bytes[_next++] & 0xFF;
             if (prototype == null) {
                 prototype = Array.newInstance(classForHandle(componentClassHandle), new int[dimensions]).getClass();
             }
-            int length = decodeElementCount();
+            final int length = decodeElementCount();
             result = Array.newInstance(prototype.getComponentType(), length);
 
             _serializedItemCount++;
             registerEncodedObject(result);
 
-            Class<?> componentType = prototype.getComponentType();
+            final Class<?> componentType = prototype.getComponentType();
             if (componentType.getComponentType().isArray()) {
                 for (int index = 0; index < length; index++) {
                     Array.set(result, index, getMultiArray(componentType));
@@ -4413,11 +4418,11 @@ public final class Value {
         return result;
     }
 
-    void decodeAntiValue(Exchange exchange) throws InvalidKeyException {
+    void decodeAntiValue(final Exchange exchange) throws InvalidKeyException {
         nextType(CLASS_ANTIVALUE);
-        int length = _end - _next;
+        final int length = _end - _next;
         if (length > 0) {
-            int elisionCount = Util.getShort(_bytes, _next);
+            final int elisionCount = Util.getShort(_bytes, _next);
             AntiValue.fixUpKeys(exchange, elisionCount, _bytes, _next + 2, length - 2);
         }
         _next += length;
@@ -4461,6 +4466,7 @@ public final class Value {
         try {
             final Value value = this;
             return AccessController.doPrivileged(new PrivilegedExceptionAction() {
+                @Override
                 public Object run() throws IOException {
                     if (output)
                         return new ValueObjectOutputStream(value);
@@ -4468,7 +4474,7 @@ public final class Value {
                         return new ValueObjectInputStream(value);
                 }
             });
-        } catch (PrivilegedActionException pae) {
+        } catch (final PrivilegedActionException pae) {
             throw new ConversionException("While creating "
                     + (output ? "ValueObjectOutputStream" : "ValueObjectInputStream"), pae.getException());
         }
@@ -4479,82 +4485,98 @@ public final class Value {
      * can be wrapped in an ObjectOutputStream for serialization of Objects.
      */
     private static class ValueObjectOutputStream extends ObjectOutputStream {
-        private Value _value;
+        private final Value _value;
 
         private ValueObjectOutputStream(final Value value) throws IOException {
             super();
             _value = value;
         }
 
-        public void writeObjectOverride(Object object) {
+        @Override
+        public void writeObjectOverride(final Object object) {
             writeObject0(object, true);
         }
 
-        public void write(int b) {
+        @Override
+        public void write(final int b) {
             _value.ensureFit(1);
             _value._bytes[_value._size++] = (byte) b;
         }
 
-        public void write(byte[] bytes) {
+        @Override
+        public void write(final byte[] bytes) {
             write(bytes, 0, bytes.length);
         }
 
-        public void write(byte[] bytes, int offset, int size) {
+        @Override
+        public void write(final byte[] bytes, final int offset, final int size) {
             _value.ensureFit(size);
             System.arraycopy(bytes, offset, _value._bytes, _value._size, size);
             _value._size += size;
         }
 
-        public void writeBoolean(boolean v) {
+        @Override
+        public void writeBoolean(final boolean v) {
             _value.put(v);
         }
 
-        public void writeByte(int v) {
+        @Override
+        public void writeByte(final int v) {
             _value.put((byte) v);
         }
 
-        public void writeShort(int v) {
+        @Override
+        public void writeShort(final int v) {
             _value.put((short) v);
         }
 
-        public void writeChar(int v) {
+        @Override
+        public void writeChar(final int v) {
             _value.put((char) v);
         }
 
-        public void writeInt(int v) {
+        @Override
+        public void writeInt(final int v) {
             _value.put(v);
         }
 
-        public void writeLong(long v) {
+        @Override
+        public void writeLong(final long v) {
             _value.put(v);
         }
 
-        public void writeFloat(float v) {
+        @Override
+        public void writeFloat(final float v) {
             _value.put(v);
         }
 
-        public void writeDouble(double v) {
+        @Override
+        public void writeDouble(final double v) {
             _value.put(v);
         }
 
-        public void writeUnshared(Object object) {
+        @Override
+        public void writeUnshared(final Object object) {
             writeObject0(object, false);
         }
 
-        public void writeUTF(String v) {
+        @Override
+        public void writeUTF(final String v) {
             _value.putUTF(v);
         }
 
-        public void writeBytes(String s) {
+        @Override
+        public void writeBytes(final String s) {
             throw new UnsupportedOperationException("No writeBytes method");
         }
 
-        public void writeChars(String s) {
+        @Override
+        public void writeChars(final String s) {
             throw new UnsupportedOperationException("No writeChars method");
         }
 
-        private void writeObject0(Object object, boolean shared) {
-            boolean saveShared = _value._shared;
+        private void writeObject0(final Object object, final boolean shared) {
+            final boolean saveShared = _value._shared;
             _value._shared = shared;
             try {
                 _value.put(object);
@@ -4563,10 +4585,12 @@ public final class Value {
             }
         }
 
+        @Override
         public void close() {
             // no effect - we can reuse this stream all we want.
         }
 
+        @Override
         public void defaultWriteObject() throws IOException {
             if (_value._currentCoder == null || _value._currentObject == null) {
                 throw new NotActiveException("not in call to writeObject");
@@ -4587,75 +4611,92 @@ public final class Value {
             _value = value;
         }
 
+        @Override
         public Object readObjectOverride() {
             return _value.get();
         }
 
+        @Override
         public boolean markSupported() {
             return false;
         }
 
+        @Override
         public boolean readBoolean() {
             return _value.getBoolean();
         }
 
+        @Override
         public byte readByte() {
             return _value.getByte();
         }
 
+        @Override
         public int readUnsignedByte() {
             return _value.getByte() & 0xFF;
         }
 
+        @Override
         public short readShort() {
             return _value.getShort();
         }
 
+        @Override
         public int readUnsignedShort() {
             return _value.getShort() & 0xFFFF;
         }
 
+        @Override
         public char readChar() {
             return _value.getChar();
         }
 
+        @Override
         public int readInt() {
             return _value.getInt();
         }
 
+        @Override
         public long readLong() {
             return _value.getLong();
         }
 
+        @Override
         public float readFloat() {
             return _value.getFloat();
         }
 
+        @Override
         public double readDouble() {
             return _value.getDouble();
         }
 
+        @Override
         public String readUTF() {
             return _value.getString();
         }
 
-        public void readFully(byte[] b) throws IOException {
+        @Override
+        public void readFully(final byte[] b) throws IOException {
             read(b, 0, b.length);
         }
 
-        public void readFully(byte[] b, int offset, int length) throws IOException {
+        @Override
+        public void readFully(final byte[] b, final int offset, final int length) throws IOException {
             read(b, offset, length);
         }
 
-        public int read(byte[] b) throws IOException {
+        @Override
+        public int read(final byte[] b) throws IOException {
             return read(b, 0, b.length);
         }
 
-        public int read(byte[] b, int offset, int length) throws IOException {
+        @Override
+        public int read(final byte[] b, final int offset, final int length) throws IOException {
             if (offset < 0 || offset + length > b.length) {
                 throw new IndexOutOfBoundsException();
             }
-            int sourceLength = _value._end - _value._next;
+            final int sourceLength = _value._end - _value._next;
             if (length > sourceLength) {
                 throw new IOException("Not enough bytes remaining in value");
             }
@@ -4664,8 +4705,9 @@ public final class Value {
             return length;
         }
 
-        public int skipBytes(int length) throws IOException {
-            int sourceLength = _value._end - _value._next;
+        @Override
+        public int skipBytes(final int length) throws IOException {
+            final int sourceLength = _value._end - _value._next;
             if (length > sourceLength) {
                 throw new IOException("Not enough bytes remaining in value");
             }
@@ -4673,10 +4715,12 @@ public final class Value {
             return length;
         }
 
+        @Override
         public String readLine() {
             throw new UnsupportedOperationException("No readLine method");
         }
 
+        @Override
         public void defaultReadObject() {
             if (_value._currentCoder == null || _value._currentObject == null) {
                 throw new ConversionException("not in call to readObject");
@@ -4686,11 +4730,11 @@ public final class Value {
 
     }
 
-    public OldValueInputStream oldValueInputStream(ObjectStreamClass classDescriptor) throws IOException {
+    public OldValueInputStream oldValueInputStream(final ObjectStreamClass classDescriptor) throws IOException {
         return new OldValueInputStream(this, classDescriptor);
     }
 
-    public OldValueOutputStream oldValueOutputStream(ObjectStreamClass classDescriptor) throws IOException {
+    public OldValueOutputStream oldValueOutputStream(final ObjectStreamClass classDescriptor) throws IOException {
         return new OldValueOutputStream(this, classDescriptor);
     }
 
@@ -4707,7 +4751,7 @@ public final class Value {
         int _mark = -1;
         ObjectStreamClass _classDescriptor;
 
-        private OldValueInputStream(final Value value, ObjectStreamClass classDescriptor) throws IOException {
+        private OldValueInputStream(final Value value, final ObjectStreamClass classDescriptor) throws IOException {
             this(value);
             if (classDescriptor == null) {
                 throw new ConversionException("Null class descriptor");
@@ -4718,6 +4762,7 @@ public final class Value {
 
         private OldValueInputStream(final Value value) throws IOException {
             super(new InputStream() {
+                @Override
                 public int read() {
                     if (value._next < value._end) {
                         return value._bytes[value._next++] & 0xFF;
@@ -4726,11 +4771,13 @@ public final class Value {
                     }
                 }
 
-                public int read(byte[] bytes) {
+                @Override
+                public int read(final byte[] bytes) {
                     return read(bytes, 0, bytes.length);
                 }
 
-                public int read(byte[] bytes, int offset, int size) {
+                @Override
+                public int read(final byte[] bytes, final int offset, int size) {
                     if (value._next + size > value._end) {
                         size = value._end - value._next;
                     }
@@ -4744,7 +4791,8 @@ public final class Value {
                     return size;
                 }
 
-                public long skip(long lsize) {
+                @Override
+                public long skip(final long lsize) {
                     int size = lsize > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) lsize;
                     if (size < 0)
                         return 0;
@@ -4757,8 +4805,9 @@ public final class Value {
                     return size;
                 }
 
+                @Override
                 public int available() {
-                    int available = value._end - value._next;
+                    final int available = value._end - value._next;
                     return available > 0 ? available : 0;
                 }
 
@@ -4766,12 +4815,13 @@ public final class Value {
             _value = value;
         }
 
+        @Override
         protected final ObjectStreamClass readClassDescriptor() throws IOException, ClassNotFoundException {
             if (_classDescriptor == null) {
                 return super.readClassDescriptor();
             } else if (_innerClassDescriptor) {
-                int handle = readInt();
-                ClassInfo classInfo = _value.classInfoForHandle(handle);
+                final int handle = readInt();
+                final ClassInfo classInfo = _value.classInfoForHandle(handle);
                 ObjectStreamClass classDescriptor = null;
                 if (classInfo != null) {
                     classDescriptor = classInfo.getClassDescriptor();
@@ -4786,15 +4836,18 @@ public final class Value {
             }
         }
 
+        @Override
         protected final void readStreamHeader() throws IOException {
             if (_classDescriptor == null)
                 super.readStreamHeader();
         }
 
-        public void mark(int readLimit) {
+        @Override
+        public void mark(final int readLimit) {
             _mark = _value._next;
         }
 
+        @Override
         public void reset() throws IOException {
             if (_mark < 0) {
                 throw new IOException("No mark");
@@ -4803,6 +4856,7 @@ public final class Value {
             }
         }
 
+        @Override
         public boolean markSupported() {
             return true;
         }
@@ -4811,8 +4865,9 @@ public final class Value {
          * Override the default implementation because we want to use the
          * application's ClassLoader, not necessarily the bootstrap loader.
          */
-        protected Class<?> resolveClass(ObjectStreamClass desc) throws ClassNotFoundException {
-            String name = desc.getName();
+        @Override
+        protected Class<?> resolveClass(final ObjectStreamClass desc) throws ClassNotFoundException {
+            final String name = desc.getName();
             return Class.forName(name, false, Thread.currentThread().getContextClassLoader());
         }
     }
@@ -4829,7 +4884,7 @@ public final class Value {
         ObjectStreamClass _classDescriptor;
         boolean _innerClassDescriptor;
 
-        OldValueOutputStream(final Value value, ObjectStreamClass classDescriptor) throws IOException {
+        OldValueOutputStream(final Value value, final ObjectStreamClass classDescriptor) throws IOException {
             this(value);
             if (classDescriptor == null) {
                 throw new ConversionException("Null class descriptor");
@@ -4839,16 +4894,19 @@ public final class Value {
 
         private OldValueOutputStream(final Value value) throws IOException {
             super(new OutputStream() {
-                public void write(int b) {
+                @Override
+                public void write(final int b) {
                     value.ensureFit(1);
                     value._bytes[value._size++] = (byte) b;
                 }
 
-                public void write(byte[] bytes) {
+                @Override
+                public void write(final byte[] bytes) {
                     write(bytes, 0, bytes.length);
                 }
 
-                public void write(byte[] bytes, int offset, int size) {
+                @Override
+                public void write(final byte[] bytes, final int offset, final int size) {
                     value.ensureFit(size);
                     System.arraycopy(bytes, offset, value._bytes, value._size, size);
                     value._size += size;
@@ -4857,18 +4915,20 @@ public final class Value {
             _value = value;
         }
 
-        protected final void writeClassDescriptor(ObjectStreamClass classDescriptor) throws IOException {
+        @Override
+        protected final void writeClassDescriptor(final ObjectStreamClass classDescriptor) throws IOException {
             if (_classDescriptor == null) {
                 super.writeClassDescriptor(classDescriptor);
             } else if (_innerClassDescriptor) {
-                Class<?> clazz = classDescriptor.forClass();
-                int handle = _value.handleForIndexedClass(clazz);
+                final Class<?> clazz = classDescriptor.forClass();
+                final int handle = _value.handleForIndexedClass(clazz);
                 writeInt(handle);
             } else {
                 _innerClassDescriptor = true;
             }
         }
 
+        @Override
         protected final void writeStreamHeader() throws IOException {
             if (_classDescriptor == null)
                 super.writeStreamHeader();
@@ -4883,11 +4943,11 @@ public final class Value {
         return _currentObject;
     }
 
-    void setCurrentCoder(DefaultValueCoder coder) {
+    void setCurrentCoder(final DefaultValueCoder coder) {
         _currentCoder = coder;
     }
 
-    void setCurrentObject(Object object) {
+    void setCurrentObject(final Object object) {
         _currentObject = object;
     }
 
@@ -4939,7 +4999,7 @@ public final class Value {
          * @param object
          * @return The handle, or -1 if the object has not been stored yet.
          */
-        int lookup(Object object) {
+        int lookup(final Object object) {
             for (int index = _handleCount; --index >= 0;) {
                 if (_array[index] == object) {
                     return index;
@@ -4954,7 +5014,7 @@ public final class Value {
          * @param handle
          * @return The object
          */
-        Object get(int handle) {
+        Object get(final int handle) {
             return _array[handle];
         }
 
@@ -4967,7 +5027,7 @@ public final class Value {
          * @param object
          * @return previous handle, or -1 if none
          */
-        void store(int handle, Object object) {
+        void store(final int handle, final Object object) {
             if (handle >= _array.length)
                 grow(1 + handle * 2);
             if (handle >= _handleCount) {
@@ -4976,8 +5036,8 @@ public final class Value {
             _array[handle] = object;
         }
 
-        int put(int handle, Object object) {
-            int previous = lookup(object);
+        int put(final int handle, final Object object) {
+            final int previous = lookup(object);
             if (previous != -1) {
                 return previous;
             }
@@ -4988,8 +5048,8 @@ public final class Value {
         /**
          * Enlarges the backing arrays to support more objects
          */
-        void grow(int newSize) {
-            Object[] temp = _array;
+        void grow(final int newSize) {
+            final Object[] temp = _array;
             _array = new Object[newSize];
             System.arraycopy(temp, 0, _array, 0, temp.length);
         }
@@ -5008,10 +5068,11 @@ public final class Value {
     private static class DisplayMarker {
         int _start;
 
-        DisplayMarker(int start) {
+        DisplayMarker(final int start) {
             _start = start;
         }
 
+        @Override
         public String toString() {
             return "@" + Integer.toString(_start);
         }
@@ -5022,7 +5083,7 @@ public final class Value {
         private final long _commitTimestamp;
         private final Value _value;
 
-        private Version(long versionHandle, long commitTimestamp, Value value) {
+        private Version(final long versionHandle, final long commitTimestamp, final Value value) {
             _versionHandle = versionHandle;
             _commitTimestamp = commitTimestamp;
             _value = value;
@@ -5057,9 +5118,10 @@ public final class Value {
             return TransactionIndex.vh2step(_versionHandle);
         }
 
+        @Override
         public String toString() {
             try {
-                StringBuilder sb = new StringBuilder();
+                final StringBuilder sb = new StringBuilder();
                 sb.append(String.format("%,d", getStartTimestamp()));
                 if (getStep() > 0) {
                     sb.append(String.format("#%02d", getStep()));
@@ -5068,7 +5130,7 @@ public final class Value {
                 sb.append(":");
                 sb.append(_value);
                 return sb.toString();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 e.printStackTrace();
                 return e.toString();
             }
@@ -5084,18 +5146,18 @@ public final class Value {
      */
     List<Version> unpackMvvVersions() throws PersistitException {
         final List<Version> versions = new ArrayList<Version>();
-        MVV.VersionVisitor visitor = new MVV.VersionVisitor() {
+        final MVV.VersionVisitor visitor = new MVV.VersionVisitor() {
 
             @Override
-            public void sawVersion(long version, int valueOffset, int valueLength) {
+            public void sawVersion(final long version, final int valueOffset, final int valueLength) {
                 long tc = -1;
 
                 try {
                     tc = _persistit.getTransactionIndex().commitStatus(version, TransactionStatus.UNCOMMITTED, 0);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     tc = -1;
                 }
-                Value value = new Value(_persistit);
+                final Value value = new Value(_persistit);
                 value.ensureFit(valueLength);
                 System.arraycopy(_bytes, valueOffset, value.getEncodedBytes(), 0, valueLength);
                 value.setEncodedSize(valueLength);
@@ -5112,7 +5174,7 @@ public final class Value {
         return versions;
     }
 
-    private void putCharSequenceInternal(CharSequence string) {
+    private void putCharSequenceInternal(final CharSequence string) {
         int length = string.length();
         ensureFit(length + 1);
         final int saveSize = _size;
@@ -5122,7 +5184,7 @@ public final class Value {
         int maxLength = _bytes.length;
 
         for (int i = 0; i < length; i++) {
-            char c = string.charAt(i);
+            final char c = string.charAt(i);
 
             if (c <= 0x007F) {
                 if (index + 1 > maxLength) {

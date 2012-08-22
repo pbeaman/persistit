@@ -53,8 +53,8 @@ public class StatisticsTask extends Task {
     PrintWriter _pw;
     String _lastUpdate = "none";
 
-    private Map<String, Stat> _statsMap = new HashMap<String, Stat>();
-    private List<Stat> _statsList = new ArrayList<Stat>();
+    private final Map<String, Stat> _statsMap = new HashMap<String, Stat>();
+    private final List<Stat> _statsList = new ArrayList<Stat>();
 
     enum Display {
         TOTAL, CHANGE, RATE
@@ -83,7 +83,7 @@ public class StatisticsTask extends Task {
             return toString(Display.TOTAL);
         }
 
-        public String toString(Display display) {
+        public String toString(final Display display) {
             switch (display) {
             case TOTAL:
                 return String.format("%s=%d", _name, _value);
@@ -125,13 +125,17 @@ public class StatisticsTask extends Task {
     }
 
     @Cmd("stat")
-    static Task createStatisticsTask(@Arg("delay|long:10:0:10000000|Interval in seconds between updates") long delay,
-            @Arg("count|long:1:0:|Number of updates") long count, @Arg("file|string|Output file name") String toFile,
-            @Arg("_flag|a|All") boolean all, @Arg("_flag|b|Buffer pool statistics") boolean bstats,
-            @Arg("_flag|j|Journal statistics") boolean jstats, @Arg("_flag|i|I/O Statistics") boolean istats,
-            @Arg("_flag|t|Transaction statistics") boolean tstats, @Arg("_flag|r|Show rates") boolean showRates,
-            @Arg("_flag|v|Show values") boolean showValues) throws Exception {
-        StatisticsTask task = new StatisticsTask();
+    static Task createStatisticsTask(
+            @Arg("delay|long:10:0:10000000|Interval in seconds between updates") final long delay,
+            @Arg("count|long:1:0:|Number of updates") final long count,
+            @Arg("file|string|Output file name") final String toFile, @Arg("_flag|a|All") final boolean all,
+            @Arg("_flag|b|Buffer pool statistics") final boolean bstats,
+            @Arg("_flag|j|Journal statistics") final boolean jstats,
+            @Arg("_flag|i|I/O Statistics") final boolean istats,
+            @Arg("_flag|t|Transaction statistics") final boolean tstats,
+            @Arg("_flag|r|Show rates") final boolean showRates, @Arg("_flag|v|Show values") final boolean showValues)
+            throws Exception {
+        final StatisticsTask task = new StatisticsTask();
         task._delay = delay;
         task._count = count;
         task._fileName = toFile;
@@ -166,7 +170,7 @@ public class StatisticsTask extends Task {
                 while (true) {
                     poll();
                     now = System.nanoTime();
-                    long sleep = Math.min(1000, (next - now) / NANOS_PER_MILLI);
+                    final long sleep = Math.min(1000, (next - now) / NANOS_PER_MILLI);
                     if (sleep <= 0) {
                         break;
                     }
@@ -175,7 +179,7 @@ public class StatisticsTask extends Task {
             }
             updateStatistics(now);
             sb.setLength(0);
-            Display d = _showRate ? Display.RATE : count == 0 ? Display.TOTAL : Display.CHANGE;
+            final Display d = _showRate ? Display.RATE : count == 0 ? Display.TOTAL : Display.CHANGE;
             if (count > 0 || !_showRate) {
                 for (final Stat stat : _statsList) {
                     if (sb.length() > 0) {
@@ -275,7 +279,7 @@ public class StatisticsTask extends Task {
         final String[] items = IOMeterMXBean.SUMMARY_ITEMS;
         long size = 0;
 
-        for (String item : items) {
+        for (final String item : items) {
             stat(item).update(time, ioMeter.totalOperations(item));
             size += ioMeter.totalBytes(item);
         }

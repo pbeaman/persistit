@@ -30,6 +30,6 @@ public abstract class AdminPanel extends JPanel {
 
     protected abstract void setDefaultButton();
 
-    protected void setIsShowing(boolean isShowing) {
+    protected void setIsShowing(final boolean isShowing) {
     }
 }

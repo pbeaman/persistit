@@ -23,10 +23,9 @@ import java.lang.annotation.Target;
 import javax.management.DescriptorKey;
 
 /**
- * Annotation used to declare the externally visible name of a
- * parameter on an MXBean operation. The {@link MXBeanWrapper}
- * class marshals the value added here to the descriptor to
- * the appropriate MBeanParameterInfo attribute.
+ * Annotation used to declare the externally visible name of a parameter on an
+ * MXBean operation. The {@link MXBeanWrapper} class marshals the value added
+ * here to the descriptor to the appropriate MBeanParameterInfo attribute.
  */
 @Target({ ElementType.METHOD, ElementType.PARAMETER })
 @Retention(RetentionPolicy.RUNTIME)

@@ -36,7 +36,7 @@ class MVV {
         private final long _version;
         private final long _longRecordPage;
 
-        private PrunedVersion(long version, long longRecordPage) {
+        private PrunedVersion(final long version, final long longRecordPage) {
             _version = version;
             _longRecordPage = longRecordPage;
         }
@@ -117,7 +117,7 @@ class MVV {
      *            Number of versions to compute overhead for.
      * @return length of all overhead
      */
-    static int overheadLength(int numVersions) {
+    static int overheadLength(final int numVersions) {
         return LENGTH_TYPE_MVV + LENGTH_PER_VERSION * numVersions;
     }
 
@@ -134,7 +134,7 @@ class MVV {
      *            Length of the new version that will be put into {@code source}
      * @return Required length estimate
      */
-    static int estimateRequiredLength(byte[] source, int sourceLength, int newVersionLength) {
+    static int estimateRequiredLength(final byte[] source, final int sourceLength, final int newVersionLength) {
         if (sourceLength < 0) {
             return overheadLength(1) + newVersionLength;
         } else if (sourceLength == 0 || source[0] != TYPE_MVV_BYTE) {
@@ -160,8 +160,8 @@ class MVV {
      *            Length of version being inserted
      * @return Exact required length
      */
-    static int exactRequiredLength(byte[] target, int targetOffset, int targetLength, long newVersion,
-            int newVersionLength) {
+    static int exactRequiredLength(final byte[] target, final int targetOffset, final int targetLength,
+            final long newVersion, final int newVersionLength) {
         if (targetLength < 0) {
             return overheadLength(1) + newVersionLength;
         } else if (targetLength == 0 || target[targetOffset] != TYPE_MVV_BYTE) {
@@ -192,7 +192,7 @@ class MVV {
      * 
      * @return <code>true</code> if the array is an MVV
      */
-    static boolean isArrayMVV(byte[] source, int offset, int length) {
+    static boolean isArrayMVV(final byte[] source, final int offset, final int length) {
         return (length > 0) && (source[offset] == TYPE_MVV_BYTE);
     }
 
@@ -246,8 +246,9 @@ class MVV {
      * @throws IllegalArgumentException
      *             If target is too small to hold final MVV contents
      */
-    public static int storeVersion(byte[] target, int targetOffset, int targetLength, int targetLimit,
-            long versionHandle, byte[] source, int sourceOffset, int sourceLength) {
+    public static int storeVersion(final byte[] target, final int targetOffset, final int targetLength,
+            final int targetLimit, final long versionHandle, final byte[] source, final int sourceOffset,
+            final int sourceLength) {
         int existedMask = 0;
         int to = targetOffset;
         if (targetLimit > target.length) {
@@ -396,7 +397,7 @@ class MVV {
      *             if the MVV value is corrupt
      */
     static int prune(final byte[] bytes, final int offset, final int length, final TransactionIndex ti,
-            boolean convertToPrimordial, List<PrunedVersion> prunedVersionList) throws PersistitException {
+            final boolean convertToPrimordial, final List<PrunedVersion> prunedVersionList) throws PersistitException {
         if (!isArrayMVV(bytes, offset, length)) {
             /*
              * Not an MVV
@@ -435,7 +436,7 @@ class MVV {
                 final long tc = ti.commitStatus(versionHandle, UNCOMMITTED, 0);
                 if (tc >= 0) {
                     if (tc == UNCOMMITTED) {
-                        long ts = vh2ts(versionHandle);
+                        final long ts = vh2ts(versionHandle);
                         if (uncommittedTransactionTs != 0 && uncommittedTransactionTs != ts) {
                             throw new CorruptValueException("Multiple uncommitted version");
                         }
@@ -488,13 +489,13 @@ class MVV {
                 final int vlength = getLength(bytes, from);
                 Debug.$assert0.t(vlength + from + LENGTH_PER_VERSION <= offset + length);
                 if (!isMarked(bytes, from)) {
-                    long version = getVersion(bytes, from);
+                    final long version = getVersion(bytes, from);
                     long longRecordPage = 0;
                     if (vlength == LONGREC_SIZE && (bytes[from + LENGTH_PER_VERSION] & 0xFF) == LONGREC_TYPE) {
                         longRecordPage = Util.getLong(bytes, from + LENGTH_PER_VERSION + LONGREC_PAGE_OFFSET);
                     }
                     if (version != PRIMORDIAL_VALUE_VERSION || longRecordPage != 0) {
-                        PrunedVersion pv = new PrunedVersion(version, longRecordPage);
+                        final PrunedVersion pv = new PrunedVersion(version, longRecordPage);
                         prunedVersionList.add(pv);
                     }
                 }
@@ -513,7 +514,7 @@ class MVV {
                 if (marked > 0) {
                     from = offset + 1;
                     while (from < offset + length) {
-                        int vlength = getLength(bytes, from);
+                        final int vlength = getLength(bytes, from);
                         Debug.$assert0.t(vlength + from + LENGTH_PER_VERSION <= offset + length);
                         if (isMarked(bytes, from)) {
                             System.arraycopy(bytes, from + LENGTH_PER_VERSION, bytes, offset, vlength);
@@ -558,7 +559,7 @@ class MVV {
                 Debug.$assert0.t(verify(bytes, offset, to - offset));
                 return to - offset;
             }
-        } catch (InterruptedException ie) {
+        } catch (final InterruptedException ie) {
             throw new PersistitInterruptedException(ie);
         } finally {
             /*
@@ -568,7 +569,7 @@ class MVV {
             if (marked > 0) {
                 int index = offset + 1;
                 while (index < length) {
-                    int vlength = getLength(bytes, index);
+                    final int vlength = getLength(bytes, index);
                     Debug.$assert0.t(vlength + index + LENGTH_PER_VERSION <= offset + length);
                     unmark(bytes, index);
                     index += vlength + LENGTH_PER_VERSION;
@@ -617,7 +618,7 @@ class MVV {
      * @throws IllegalArgumentException
      *             If the target array is too small to hold the value
      */
-    public static int fetchVersion(byte[] source, int sourceLength, long version, byte[] target) {
+    public static int fetchVersion(final byte[] source, final int sourceLength, final long version, final byte[] target) {
         int offset = 0;
         int length = VERSION_NOT_FOUND;
 
@@ -626,8 +627,8 @@ class MVV {
         } else if (sourceLength > 0 && source[0] == TYPE_MVV_BYTE) {
             offset = 1;
             while (offset < sourceLength) {
-                long curVersion = Util.getLong(source, offset);
-                int curLength = Util.getShort(source, offset + LENGTH_VERSION);
+                final long curVersion = Util.getLong(source, offset);
+                final int curLength = Util.getShort(source, offset + LENGTH_VERSION);
                 offset += LENGTH_PER_VERSION;
                 if (curVersion == version) {
                     length = curLength;
@@ -682,8 +683,8 @@ class MVV {
      * @throws PersistitException
      *             For any error coming from <code>visitor</code>
      */
-    public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceOffset, int sourceLength)
-            throws PersistitException {
+    public static void visitAllVersions(final VersionVisitor visitor, final byte[] source, final int sourceOffset,
+            final int sourceLength) throws PersistitException {
         visitor.init();
         if (sourceLength < 0) {
             // No versions
@@ -727,7 +728,8 @@ class MVV {
      * @throws IllegalArgumentException
      *             If the target array is too small to hold the value
      */
-    public static int fetchVersionByOffset(byte[] source, int sourceLength, int offset, byte[] target) {
+    public static int fetchVersionByOffset(final byte[] source, final int sourceLength, final int offset,
+            final byte[] target) {
         if (offset < 0 || (offset > 0 && offset > sourceLength)) {
             throw new IllegalArgumentException("Offset out of range: " + offset);
         }
@@ -750,7 +752,7 @@ class MVV {
      * @throws IllegalArgumentException
      *             If the array is too small
      */
-    private static void assertCapacity(int limit, int length) throws IllegalArgumentException {
+    private static void assertCapacity(final int limit, final int length) throws IllegalArgumentException {
         if (limit < length) {
             throw new IllegalArgumentException("Destination array not big enough: " + limit + " < " + length);
         }

@@ -26,13 +26,13 @@ import javax.swing.AbstractListModel;
 public class ManagementListModel extends AbstractListModel {
     private Object[] _infoArray;
 
-    public void setInfoArray(Object[] array) {
-        int oldLength = _infoArray == null ? 0 : _infoArray.length;
-        int newLength = array == null ? 0 : array.length;
+    public void setInfoArray(final Object[] array) {
+        final int oldLength = _infoArray == null ? 0 : _infoArray.length;
+        final int newLength = array == null ? 0 : array.length;
         if (oldLength != newLength && oldLength != 0) {
             fireIntervalRemoved(this, 0, oldLength);
         }
-        Object[] oldArray = _infoArray;
+        final Object[] oldArray = _infoArray;
         _infoArray = array;
         if (oldLength != newLength) {
             fireIntervalAdded(this, 0, newLength);
@@ -54,7 +54,7 @@ public class ManagementListModel extends AbstractListModel {
     }
 
     @Override
-    public Object getElementAt(int index) {
+    public Object getElementAt(final int index) {
         if (_infoArray != null && index >= 0 && index < _infoArray.length) {
             return _infoArray[index];
         }

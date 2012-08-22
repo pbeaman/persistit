@@ -25,7 +25,7 @@ public class Recovery2_StdIn extends AbstractSuite {
         return Recovery2_StdIn.class.getSimpleName();
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         new Recovery2_StdIn(args).runTest();
     }
 
@@ -33,6 +33,7 @@ public class Recovery2_StdIn extends AbstractSuite {
         super(name(), args);
     }
 
+    @Override
     public void runTest() throws Exception {
 
         deleteFiles(substitute("$datapath$/persistit*"));

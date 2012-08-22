@@ -28,8 +28,7 @@ public class VolumeFullException extends PersistitException {
         super();
     }
 
-    public VolumeFullException(String msg) {
+    public VolumeFullException(final String msg) {
         super(msg);
     }
 }
-

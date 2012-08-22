@@ -25,7 +25,7 @@ public class Stress10Suite extends AbstractSuite {
         return Stress10Suite.class.getSimpleName();
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         new Stress10Suite(args).runTest();
     }
 
@@ -33,6 +33,7 @@ public class Stress10Suite extends AbstractSuite {
         super(name(), args);
     }
 
+    @Override
     public void runTest() throws Exception {
 
         if (isUntilStopped()) {
