@@ -15,18 +15,15 @@
 
 package com.persistit;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -96,6 +93,15 @@ public class BufferPool {
      * Ratio of age-based write priority bump
      */
     private final static int WRITE_AGE_THRESHOLD_RATIO = 4;
+    /**
+     * Maximum number of buffer inventory versions to retain
+     */
+    private final static int INVENTORY_VERSIONS = 3;
+
+    /**
+     * Preload log multiple
+     */
+    private final static int INVENTORY_PRELOAD_LOG_MESSAGE_MULTIPLE = 10000;
 
     /**
      * The Persistit instance that references this BufferPool.
@@ -208,19 +214,9 @@ public class BufferPool {
     private volatile int _pageWriterTrancheSize = PAGE_WRITER_TRANCHE_SIZE;
 
     /**
-     * Polling interval for PageCacher
-     */
-    private volatile long _cacherPollInterval;
-
-    /**
      * The PAGE_WRITER IOTaskRunnable
      */
     private PageWriter _writer;
-
-    /**
-     * The PAGE_CACHER IOTaskRunnable
-     */
-    private PageCacher _cacher;
 
     private String _defaultLogPath;
 
@@ -294,50 +290,6 @@ public class BufferPool {
             throw e;
         }
         _writer = new PageWriter();
-        _cacher = new PageCacher();
-    }
-
-    void warmupBufferPool(final String pathName, final String fname) throws PersistitException {
-        final File file = new File(pathName, fname + ".log");
-        _defaultLogPath = file.getAbsolutePath();
-        final JournalManager jman = _persistit.getJournalManager();
-
-        try {
-            if (!file.exists()) {
-                file.createNewFile();
-            }
-            final List<PageNode> pageNodes = new ArrayList<PageNode>();
-            final HashMap<String, Volume> volumeMap = new HashMap<String, Volume>();
-            final BufferedReader reader = new BufferedReader(new FileReader(file));
-            String currLine;
-            while ((currLine = reader.readLine()) != null) {
-                final String[] info = currLine.split(" ");
-                if (info.length == 2) {
-                    final Volume vol = _persistit.getVolume(info[1]);
-                    if (vol != null) {
-                        final long page = Long.parseLong(info[0]);
-                        PageNode pn = jman.lookupUpPageNode(page, vol);
-                        if (pn == null) {
-                            pn = new PageNode(vol.getHandle(), page);
-                        }
-                        pageNodes.add(pn);
-                        volumeMap.put(vol.getName(), vol);
-                    }
-                }
-            }
-            Collections.sort(pageNodes, PageNode.READ_COMPARATOR);
-            for (final PageNode pn : pageNodes) {
-                final Volume vol = jman.lookupVolumeHandle(pn.getVolumeHandle());
-                final Buffer buff = get(volumeMap.get(vol.getName()), pn.getPageAddress(), false, true);
-                buff.release();
-            }
-
-            reader.close();
-            _cacherPollInterval = _persistit.getConfiguration().getBufferInventoryPollingInterval();
-            _cacher.start();
-        } catch (final IOException e) {
-            throw new PersistitException(e);
-        }
     }
 
     void startThreads() throws PersistitException {
@@ -347,9 +299,7 @@ public class BufferPool {
     void close() {
         _closed.set(true);
         _persistit.waitForIOTaskStop(_writer);
-        _persistit.waitForIOTaskStop(_cacher);
         _writer = null;
-        _cacher = null;
     }
 
     /**
@@ -358,7 +308,6 @@ public class BufferPool {
      */
     void crash() {
         IOTaskRunnable.crash(_writer);
-        IOTaskRunnable.crash(_cacher);
     }
 
     void flush(final long timestamp) throws PersistitInterruptedException {
@@ -448,35 +397,6 @@ public class BufferPool {
             if (array[index] == null)
                 array[index] = new ManagementImpl.BufferInfo();
             buffer.populateInfo(array[index]);
-        }
-    }
-
-    protected void populateWarmupFile() throws PersistitException {
-        final File file = new File(_defaultLogPath);
-
-        try {
-            final BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-            for (int i = 0; i < _buffers.length; ++i) {
-                final Buffer b = _buffers[i];
-                if (b != null && b.isValid() && !b.isDirty()) {
-                    final long page = b.getPageAddress();
-                    final Volume volume = b.getVolume();
-                    final long page2 = b.getPageAddress();
-                    final Volume volume2 = b.getVolume();
-
-                    // Check if buffer has changed while reading
-                    if (page == page2 && volume == volume2 && volume != null) {
-                        final String addr = Long.toString(page);
-                        final String vol = volume.getName();
-                        writer.append(addr + " " + vol);
-                        writer.newLine();
-                        writer.flush();
-                    }
-                }
-            }
-            writer.close();
-        } catch (final IOException e) {
-            throw new PersistitException(e);
         }
     }
 
@@ -1421,35 +1341,6 @@ public class BufferPool {
         }
     }
 
-    /**
-     * Implementation of PAGE_CACHER thread
-     */
-    class PageCacher extends IOTaskRunnable {
-
-        PageCacher() {
-            super(BufferPool.this._persistit);
-        }
-
-        void start() {
-            start("PAGE_CACHER:" + _bufferSize, _cacherPollInterval);
-        }
-
-        @Override
-        public void runTask() throws Exception {
-            populateWarmupFile();
-        }
-
-        @Override
-        protected boolean shouldStop() {
-            return _closed.get() && !isFlushing();
-        }
-
-        @Override
-        protected long pollInterval() {
-            return isFlushing() ? 0 : _cacherPollInterval;
-        }
-    }
-
     @Override
     public String toString() {
         return "BufferPool[" + _bufferCount + "@" + _bufferSize + (_closed.get() ? ":closed" : "") + "]";
@@ -1503,5 +1394,126 @@ public class BufferPool {
             bb.clear();
         }
         stream.flush();
+    }
+
+    void recordBufferInventory(final long timestamp) throws PersistitException {
+        final Volume sysvol = _persistit.getSystemVolume();
+        final Exchange exchange = _persistit.getExchange(sysvol, "buffers", true);
+        /*
+         * Advisory only - transaction integrity not needed
+         */
+        exchange.ignoreTransactions();
+        try {
+            exchange.clear().append(_bufferSize).append(timestamp).append(Key.BEFORE);
+            final Value value = exchange.getValue();
+            final int clockValueBefore = _clock.get();
+            for (int index = 0; index < _buffers.length; index++) {
+                final Buffer buffer = _buffers[index];
+                long page1 = -1, page2 = -1;
+                Volume volume1 = null, volume2 = null;
+                if (buffer != null && buffer.isValid()) {
+                    while (true) {
+                        page1 = buffer.getPageAddress();
+                        volume1 = buffer.getVolume();
+                        page2 = buffer.getPageAddress();
+                        volume2 = buffer.getVolume();
+                        if (page1 == page2 && volume1 == volume2) {
+                            break;
+                        }
+                        Util.spinSleep();
+                    }
+                    if (volume1 != null && !volume1.isTemporary()) {
+                        value.clear().setStreamMode(true);
+                        value.put(volume1.getHandle());
+                        value.put(page1);
+                        exchange.to(index).store();
+                    }
+                }
+            }
+            final int clockValueAfter = _clock.get();
+            exchange.cut();
+            value.clear().setStreamMode(true);
+            value.put(_bufferCount);
+            value.put(clockValueBefore);
+            value.put(clockValueAfter);
+            value.put(System.currentTimeMillis());
+            exchange.store();
+            int count = 0;
+            while (exchange.previous()) {
+                if (++count > INVENTORY_VERSIONS) {
+                    exchange.remove(Key.GTEQ);
+                }
+            }
+        } finally {
+            _persistit.releaseExchange(exchange);
+        }
+    }
+
+    void preloadBufferInventory() {
+        int count = 0;
+        try {
+            final JournalManager jman = _persistit.getJournalManager();
+            final Volume sysvol = _persistit.getSystemVolume();
+            final Exchange exchange = _persistit.getExchange(sysvol, "buffers", true);
+            final Value value = exchange.getValue();
+            final List<PageNode> pageNodes = new ArrayList<PageNode>();
+            boolean foundInventory = false;
+            exchange.clear().append(_bufferSize).append(Key.AFTER);
+            while (exchange.previous()) {
+                if (exchange.getValue().isDefined()) {
+                    foundInventory = true;
+                    break;
+                }
+            }
+            if (!foundInventory) {
+                return;
+            }
+            value.setStreamMode(true);
+            /* int bufferCount = */value.getInt();
+            /* int clockValueBefore = */value.getInt();
+            /* int clockValueAfter = */value.getInt();
+            final long systemTime = value.getLong();
+
+            _persistit.getLogBase().bufferInventoryLoad.log(systemTime);
+
+            exchange.append(Key.BEFORE);
+
+            while (exchange.next()) {
+                value.setStreamMode(true);
+                final int volumeHandle = value.getInt();
+                final long pageAddress = value.getLong();
+                final PageNode pn = new PageNode(volumeHandle, pageAddress);
+                pageNodes.add(pn);
+            }
+
+            Collections.sort(pageNodes, PageNode.READ_COMPARATOR);
+            for (final PageNode pn : pageNodes) {
+                final Volume vol = jman.volumeForHandle(pn.getVolumeHandle());
+                if (vol == null) {
+                    continue;
+                }
+                try {
+                    final Buffer buff = get(vol, pn.getPageAddress(), false, true);
+                    buff.release();
+                    count++;
+                    if ((count % INVENTORY_PRELOAD_LOG_MESSAGE_MULTIPLE) == 0) {
+                        _persistit.getLogBase().bufferInventoryProgress.log(count, _bufferCount);
+                    }
+                    if (count >= _bufferCount) {
+                        //
+                        // If the buffer pool is now smaller, no need to load
+                        // more pages
+                        //
+                        break;
+                    }
+                } catch (final PersistitException e) {
+                    // ignore it
+                }
+            }
+        } catch (final PersistitException e) {
+            _persistit.getLogBase().bufferInventoryException.log(e);
+        } finally {
+            _persistit.getLogBase().bufferInventoryProgress.log(count, _bufferCount);
+        }
     }
 }

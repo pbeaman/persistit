@@ -25,6 +25,14 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 public class WarmupTest extends PersistitUnitTestCase {
 
+    protected Properties getProperties(final boolean cleanup) {
+        final Properties p = super.getProperties(cleanup);
+                p.setProperty("bufferinventory", "true");
+                p.setProperty("bufferpreload", "true");
+        return p;
+    }
+
+
     @Test
     public void testWarmup() throws Exception {
         Exchange ex = _persistit.getExchange("persistit", "WarmupTest", true);

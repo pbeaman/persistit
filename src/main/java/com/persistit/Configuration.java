@@ -263,7 +263,7 @@ public class Configuration {
     /**
      * Property name for the "append only" property.
      */
-    public final static String APPEND_ONLY_PROPERTY = "appendonly";
+    public final static String APPEND_ONLY_PROPERTY_NAME = "appendonly";
 
     /**
      * Property name for the "ignore missing volumes" property.
@@ -276,11 +276,14 @@ public class Configuration {
     public final static String SPLIT_POLICY_PROPERTY_NAME = "splitpolicy";
 
     /**
-     * Property name to specify the"buffer inventory" property name.
+     * Property name to specify whether buffer preloading is enabled.
+     */
+    public final static String BUFFER_PRELOAD_PROPERTY_NAME = "bufferpreload";
+
+    /**
+     * Property name to specify whether buffer inventory is enabled.
      */
     public final static String BUFFER_INVENTORY_PROPERTY_NAME = "bufferinventory";
-
-    public final static String BUFFER_POLLING_INTERVAL_PROPERTY = "bufferpollinginterval";
 
     /**
      * Property name to specify the default {@link JoinPolicy}.
@@ -634,9 +637,8 @@ public class Configuration {
     private int rmiServerPort;
     private boolean jmx = true;
     private boolean appendOnly;
-    private String bufferInventoryPathName;
-    private long bufferInventoryPollInterval = 3000000; // default five minute
-                                                        // polling
+    private boolean bufferInventoryEnabled;
+    private boolean bufferPreloadEnabled;
     private boolean ignoreMissingVolumes;
     private String tmpVolDir;
     private int tmpVolPageSize;
@@ -715,9 +717,7 @@ public class Configuration {
     }
 
     void loadProperties() throws InvalidVolumeSpecificationException {
-        setBufferInventoryPathName(getProperty(BUFFER_INVENTORY_PROPERTY_NAME));
-        setBufferInventoryPollingInterval(getLongProperty(BUFFER_POLLING_INTERVAL_PROPERTY, bufferInventoryPollInterval));
-        setAppendOnly(getBooleanProperty(APPEND_ONLY_PROPERTY, false));
+        setAppendOnly(getBooleanProperty(APPEND_ONLY_PROPERTY_NAME, false));
         setCommitPolicy(getProperty(COMMIT_POLICY_PROPERTY_NAME));
         setConstructorOverride(getBooleanProperty(CONSTRUCTOR_OVERRIDE_PROPERTY_NAME, false));
         setIgnoreMissingVolumes(getBooleanProperty(IGNORE_MISSING_VOLUMES_PROPERTY, false));
@@ -737,6 +737,8 @@ public class Configuration {
         setShowGUI(getBooleanProperty(SHOW_GUI_PROPERTY_NAME, false));
         setSplitPolicy(getProperty(SPLIT_POLICY_PROPERTY_NAME));
         setSysVolume(getProperty(SYSTEM_VOLUME_PROPERTY_NAME, DEFAULT_SYSTEM_VOLUME_NAME));
+        setBufferInventoryEnabled(getBooleanProperty(BUFFER_INVENTORY_PROPERTY_NAME, false));
+        setBufferPreloadEnabled(getBooleanProperty(BUFFER_PRELOAD_PROPERTY_NAME, false));
 
         loadPropertiesBufferSpecifications();
         loadPropertiesVolumeSpecifications();
@@ -1548,8 +1550,7 @@ public class Configuration {
     /**
      * <p>
      * Set a pattern that identifies classes to be serialized using standard
-     * Java serialization rather than Persistit's default serialization. TODO
-     * Link to Serialization section of user_guide.html.
+     * Java serialization rather than Persistit's default serialization.
      * </p>
      * <p>
      * Default value is <code>null</code><br />
@@ -1559,6 +1560,7 @@ public class Configuration {
      * @param serialOverride
      *            the serial override pattern to set
      * @see DefaultCoderManager
+     * @see http://www.akiban.com/ak-docs/admin/persistit/Serialization.html
      */
     public void setSerialOverride(final String serialOverride) {
         this.serialOverride = serialOverride;
@@ -1579,8 +1581,7 @@ public class Configuration {
      * a public no-argument constructor. If so, then that constructor is used
      * when deserializing in the {@link DefaultObjectCoder}; if not then
      * Persistit uses private methods within the JDK to emulate standard Java
-     * serialization logic. TODO Link to Serialization section of
-     * user_guide.html.
+     * serialization logic.
      * </p>
      * <p>
      * Default value is <code>false</code><br />
@@ -1589,6 +1590,7 @@ public class Configuration {
      * 
      * @param constructorOverride
      *            the constructorOverride to set
+     * @see http://www.akiban.com/ak-docs/admin/persistit/Serialization.html
      */
     public void setConstructorOverride(final boolean constructorOverride) {
         this.constructorOverride = constructorOverride;
@@ -1807,7 +1809,7 @@ public class Configuration {
      * </p>
      * <p>
      * Default value is <code>false</code><br />
-     * Property name is {@value #APPEND_ONLY_PROPERTY}
+     * Property name is {@value #APPEND_ONLY_PROPERTY_NAME}
      * </p>
      * 
      * @param appendOnly
@@ -1818,60 +1820,54 @@ public class Configuration {
     }
 
     /**
-     * Return the path name defined by {@link #getBufferInventoryPathName}
+     * Return the value defined by {@link #setBufferInventoryEnabled}
+     * 
+     * @return the whether buffer inventory is enabled
+     */
+    public boolean isBufferInventoryEnabled() {
+        return bufferInventoryEnabled;
+    }
+
+    /**
+     * <p>
+     * Control whether Persistit periodically records an inventory of its buffer
+     * pools to enable buffer pool preloading on a subsequent startup.
+     * </p>
+     * <p>
+     * Default value is <code>false</code><br />
+     * Property name is {@value #BUFFER_INVENTORY_PROPERTY_NAME}
      * 
      * @return the path where file to warm-up Persistit with sample buffer data
      *         is stored
      */
-    public String getBufferInventoryPathName() {
-        return bufferInventoryPathName;
+    public void setBufferInventoryEnabled(final boolean bufferInventoryEnabled) {
+        this.bufferInventoryEnabled = bufferInventoryEnabled;
+    }
+
+    /**
+     * Return the value defined by {@link #setBufferPreloadEnabled}
+     * 
+     * @return the whether the buffer pools with be pre-loaded from a previous
+     *         inventory
+     */
+    public boolean isBufferPreloadEnabled() {
+        return bufferPreloadEnabled;
     }
 
     /**
      * <p>
-     * Control where Persistit stores its buffer inventory. In this mode
-     * Persistit restarts with information from the last run. This method
-     * initializes the warm-up file at the specified location, if none is
-     * specified the buffer pool is not warmed up on start-up.
+     * Control whether Persistit attempts to pre-load (warm up) the buffer pools
+     * by pre-loading pages recorded in a previously generated inventory.
      * </p>
      * <p>
-     * Default value is <code>null</code><br />
+     * Default value is <code>false</code><br />
      * Property name is {@value #BUFFER_INVENTORY_PROPERTY_NAME}
-     * </p>
      * 
-     * @param pathName
-     *            the name of the path to the warm-up file
+     * @return the path where file to warm-up Persistit with sample buffer data
+     *         is stored
      */
-    public void setBufferInventoryPathName(final String pathName) {
-        bufferInventoryPathName = pathName;
-
-    }
-
-    /**
-     * Return polling interval defined by
-     * {@link #getBufferInventoryPollingInterval}
-     * 
-     * @return the number of seconds wait between warm-up polls
-     */
-    public long getBufferInventoryPollingInterval() {
-        return bufferInventoryPollInterval;
-    }
-
-    /**
-     * <p>
-     * Control the number of seconds between each poll for the cache warm-up
-     * option in Persistit.
-     * </p>
-     * <p>
-     * Default value is <code>3000</code><br />
-     * Property name is {@value #BUFFER_POLLING_INTERVAL_PROPERTY}
-     * </p>
-     * 
-     * @param seconds
-     *            the number of seconds between polls
-     */
-    public void setBufferInventoryPollingInterval(final long seconds) {
-        bufferInventoryPollInterval = Util.rangeCheck(seconds, 60L, Long.MAX_VALUE) * 1000L;
+    public void setBufferPreloadEnabled(final boolean bufferPreloadEnabled) {
+        this.bufferPreloadEnabled = bufferPreloadEnabled;
     }
 
     /**

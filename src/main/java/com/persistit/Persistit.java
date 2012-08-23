@@ -403,6 +403,7 @@ public class Persistit {
 
     private final AtomicBoolean _suspendShutdown = new AtomicBoolean(false);
     private final AtomicBoolean _suspendUpdates = new AtomicBoolean(false);
+    private final AtomicBoolean _enableBufferInventory = new AtomicBoolean(false);
 
     private UtilControl _localGUI;
 
@@ -588,9 +589,7 @@ public class Persistit {
                 initializeVolumes();
                 startJournal();
                 startBufferPools();
-                if (_configuration.getBufferInventoryPathName() != null) {
-                    warmupBufferPools();
-                }
+                preloadBufferPools();
                 finishRecovery();
                 startCheckpointManager();
                 startTransactionIndexPollTask();
@@ -699,6 +698,7 @@ public class Persistit {
         _defaultSplitPolicy = _configuration.getSplitPolicy();
         _defaultJoinPolicy = _configuration.getJoinPolicy();
         _defaultCommitPolicy = _configuration.getCommitPolicy();
+        _enableBufferInventory.set(_configuration.isBufferInventoryEnabled());
     }
 
     void startCheckpointManager() {
@@ -719,10 +719,24 @@ public class Persistit {
         }
     }
 
-    void warmupBufferPools() throws PersistitException {
-        final String pathName = _configuration.getBufferInventoryPathName();
-        for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.warmupBufferPool(pathName, pool.toString());
+    void recordBufferPoolInventory() {
+        final long timestamp = _timestampAllocator.getCurrentTimestamp();
+        if (_enableBufferInventory.get()) {
+            for (final BufferPool pool : _bufferPoolTable.values()) {
+                try {
+                    pool.recordBufferInventory(timestamp);
+                } catch (PersistitException e) {
+                    getLogBase().bufferInventoryException.log(e);
+                }
+            }
+        }
+    }
+
+    void preloadBufferPools() throws PersistitException {
+        if (_configuration.isBufferPreloadEnabled()) {
+            for (final BufferPool pool : _bufferPoolTable.values()) {
+                pool.preloadBufferInventory();
+            }
         }
     }
 
@@ -974,8 +988,6 @@ public class Persistit {
      * 
      * @throws IllegalStateException
      */
-
-    // TODO - why not one pool.
     public void releaseExchange(final Exchange exchange, final boolean secure) {
         if (exchange == null) {
             return;
@@ -1638,6 +1650,7 @@ public class Persistit {
                     }
                 }
             }
+            recordBufferPoolInventory();
 
             /*
              * The copier is responsible for background pruning of aborted

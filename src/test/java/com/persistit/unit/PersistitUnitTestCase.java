@@ -31,8 +31,6 @@ public abstract class PersistitUnitTestCase {
 
     protected final static String RED_FOX = "The quick red fox jumped over the lazy brown dog.";
 
-    protected boolean WARMUP_ON = true;
-
     protected static String createString(final int exactLength) {
         final StringBuilder sb = new StringBuilder(exactLength);
         // Simple 0..9a..z string
@@ -50,9 +48,6 @@ public abstract class PersistitUnitTestCase {
 
     protected Properties getProperties(final boolean cleanup) {
         final Properties p = UnitTestProperties.getProperties(cleanup);
-        if (WARMUP_ON) {
-            p.setProperty("bufferinventory", "/tmp/persistit_test_data");
-        }
         return p;
     }
 

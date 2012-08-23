@@ -47,19 +47,25 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
     private Random _valueRandom;
     private Exchange[] _exchanges;
     private Properties _savedProperties;
+    
+    protected Properties getProperties(final boolean cleanup) {
+        final Properties p = super.getProperties(cleanup);
+                p.setProperty("bufferinventory", "true");
+        return p;
+    }
 
     private void setupExchanges() throws PersistitException {
         _exchanges = new Exchange[TREE_COUNT];
-        for(int i = 0; i < TREE_COUNT; ++i) {
+        for (int i = 0; i < TREE_COUNT; ++i) {
             String treeName = "tree_" + i;
             _exchanges[i] = _persistit.getExchange(UnitTestProperties.VOLUME_NAME, treeName, true);
         }
     }
-    
+
     @Override
     public void setUp() throws Exception {
-        //WARMUP_ON = false;
-        
+        // WARMUP_ON = false;
+
         super.setUp();
         _keyRandom = new Random();
         _valueRandom = new Random();
@@ -70,8 +76,10 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
     public void tearDown() throws Exception {
         _keyRandom = null;
         _valueRandom = null;
-        for(Exchange ex : _exchanges) {
-            _persistit.releaseExchange(ex);
+        if (_exchanges != null) {
+            for (Exchange ex : _exchanges) {
+                _persistit.releaseExchange(ex);
+            }
         }
         _exchanges = null;
         super.tearDown();
@@ -85,7 +93,7 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         _keyRandom.setSeed(SEED);
         _valueRandom.setSeed(SEED);
 
-        for(int i = 0; i < WRITE_COUNT; ++i) {
+        for (int i = 0; i < WRITE_COUNT; ++i) {
             int index = _keyRandom.nextInt(TREE_COUNT);
             Exchange ex = _exchanges[index];
 
@@ -95,8 +103,6 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
             ex.store();
         }
 
-        if (WARMUP_ON) populateWarmupFile();
-        
         double duration = nanoToSec(System.nanoTime() - start);
         System.out.printf("doLoad took %fs%n", duration);
         return duration;
@@ -109,7 +115,7 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         int emptyFetches = 0;
         _keyRandom.setSeed(SEED);
 
-        for(int i = 0; i < WRITE_COUNT; ++i) {
+        for (int i = 0; i < WRITE_COUNT; ++i) {
             int index = _keyRandom.nextInt(TREE_COUNT);
             Exchange ex = _exchanges[index];
 
@@ -117,12 +123,12 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
             ex.clear().append(id);
             ex.fetch();
 
-            if(!ex.getValue().isDefined()) {
+            if (!ex.getValue().isDefined()) {
                 ++emptyFetches;
             }
         }
 
-        if(emptyFetches == 0) {
+        if (emptyFetches == 0) {
             System.out.println("Empty fetch performed");
         }
 
@@ -137,12 +143,12 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
 
         int[] keysPerEx = new int[TREE_COUNT];
 
-        for(int i = 0; i < TREE_COUNT; ++i) {
+        for (int i = 0; i < TREE_COUNT; ++i) {
             Exchange ex = _exchanges[i];
 
             int count = 0;
             ex.clear().append(Key.BEFORE);
-            while(ex.next()) {
+            while (ex.next()) {
                 ++count;
             }
 
@@ -150,10 +156,10 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         }
 
         int totalKeys = 0;
-        for(int count : keysPerEx) {
+        for (int count : keysPerEx) {
             totalKeys += count;
         }
-        
+
         if (totalKeys != WRITE_COUNT) {
             System.out.println("Too few keys");
         }
@@ -167,10 +173,11 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         System.out.println("Start doShutdown...");
         long start = System.nanoTime();
 
-        // See:  crashWithoutFlushAndRestoreProperties();
+        // See: crashWithoutFlushAndRestoreProperties();
         assert _savedProperties == null;
         _savedProperties = _persistit.getProperties();
         _persistit.crash();
+        _exchanges = null;
 
         double duration = nanoToSec(System.nanoTime() - start);
         System.out.printf("doShutdown took %fs%n", duration);
@@ -181,33 +188,26 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         System.out.println("Start doStartup...");
         long start = System.nanoTime();
 
-        // See:  crashWithoutFlushAndRestoreProperties();
+        // See: crashWithoutFlushAndRestoreProperties();
         assert _savedProperties != null;
         _persistit = new Persistit();
         _persistit.initialize(_savedProperties);
         _savedProperties = null;
 
         setupExchanges();
-        
+
         double duration = nanoToSec(System.nanoTime() - start);
         System.out.printf("doStartup took %fs%n", duration);
         return duration;
     }
-    
-    private void populateWarmupFile() throws PersistitException {           
-        for (BufferPool p: _persistit.getBufferPoolHashMap().values()) {
-            p.populateWarmupFile();
-        }
-    }
-    
+
     private double getPercent(double total, double num) {
         return num / total * 100;
     }
-    
+
     private double nanoToSec(double nano) {
         return nano / 1000000000;
     }
-
 
     // Expectation: no perf change
     @Test
@@ -222,8 +222,8 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         double load = doLoad();
         double shutdown = doShutdown();
         double t = load + shutdown;
-        System.out.printf("Total time %fs\t load took %f%% \t shutdown took %f%% %n",
-                t, getPercent(t, load), getPercent(t, shutdown));
+        System.out.printf("Total time %fs\t load took %f%% \t shutdown took %f%% %n", t, getPercent(t, load),
+                getPercent(t, shutdown));
     }
 
     // Expectation: no perf change
@@ -232,8 +232,8 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         double load = doLoad();
         double random = doRandomFetches();
         double t = load + random;
-        System.out.printf("Total time %fs\t load took %f%% \t random took %f%% %n",
-                t, getPercent(t, load), getPercent(t, random));
+        System.out.printf("Total time %fs\t load took %f%% \t random took %f%% %n", t, getPercent(t, load),
+                getPercent(t, random));
     }
 
     // Expectation: no perf change
@@ -242,11 +242,12 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         double load = doLoad();
         double seq = doSequentialFetches();
         double t = load + seq;
-        System.out.printf("Total time %fs\t load took %f%% \t sequential took %f%% %n",
-                t, getPercent(t, load), getPercent(t, seq));
+        System.out.printf("Total time %fs\t load took %f%% \t sequential took %f%% %n", t, getPercent(t, load),
+                getPercent(t, seq));
     }
 
-    // Expectation: lod same, shutdown same, startup "a little" slower with page cacher, and random fetches "much" faster with page cacher
+    // Expectation: lod same, shutdown same, startup "a little" slower with page
+    // cacher, and random fetches "much" faster with page cacher
     @Test
     public void loadShutdownStartupRandomFetch() throws PersistitException {
         double load = doLoad();
@@ -255,11 +256,12 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         double random = doRandomFetches();
         double t = load + shutdown + startup + random;
         System.out.printf("Total time %fs\t load took %f%% \t shutdown took %f%% \t startup took %f%% \t "
-                + "random took %f%% %n", t, getPercent(t, load), getPercent(t, shutdown),
-                getPercent(t, startup), getPercent(t, random));
+                + "random took %f%% %n", t, getPercent(t, load), getPercent(t, shutdown), getPercent(t, startup),
+                getPercent(t, random));
     }
 
-    // Expectation: load same, shutdown same, startup "a little" slower with page cacher, and random fetches "a little" faster with page cacher
+    // Expectation: load same, shutdown same, startup "a little" slower with
+    // page cacher, and random fetches "a little" faster with page cacher
     @Test
     public void loadShutdownStartupSequentialFetch() throws PersistitException {
         double load = doLoad();
@@ -268,21 +270,21 @@ public class WarmUpPerfTest extends PersistitUnitTestCase {
         double seq = doSequentialFetches();
         double t = load + shutdown + startup + seq;
         System.out.printf("Total time %fs\t load took %f%% \t shutdown took %f%% \t startup took %f%% \t "
-                + "sequential took %f%% %n", t, getPercent(t, load), getPercent(t, shutdown),
-                getPercent(t, startup), getPercent(t, seq));
+                + "sequential took %f%% %n", t, getPercent(t, load), getPercent(t, shutdown), getPercent(t, startup),
+                getPercent(t, seq));
     }
-    
+
     public static void main(String[] args) throws Exception {
         new WarmUpPerfTest().initAndRunTest();
     }
-    
+
     @Override
     public void runAllTests() throws Exception {
-        //loadOnly();
-        //loadShutdown();
+        // loadOnly();
+        // loadShutdown();
         loadRandomFetch();
-        //loadSequentialFetch();
-        //loadShutdownStartupRandomFetch();
-        //loadShutdownStartupSequentialFetch();
+        // loadSequentialFetch();
+        // loadShutdownStartupRandomFetch();
+        // loadShutdownStartupSequentialFetch();
     }
 }
