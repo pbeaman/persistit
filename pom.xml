@@ -82,6 +82,14 @@
         </dependency>
     </dependencies>
 
+    <pluginRepositories>
+        <pluginRepository>
+            <id>maven-java-formatter-plugin</id>
+            <name>Maven2 Java Formatter Plugin repository</name>
+            <url>https://raw.github.com/benalexau/maven-java-formatter-plugin/master/releases/</url>
+        </pluginRepository>
+    </pluginRepositories>
+
     <build>
         <finalName>${project.artifactId}-${project.version}${BZR_REVISION}</finalName>
         <resources>
@@ -256,6 +264,7 @@
                         <exclude>.project</exclude>
                         <exclude>.classpath</exclude>
                         <exclude>.bzrignore</exclude>
+                        <exclude>src/etc/eclipse*.xml</exclude>
                         <!-- Other -->
                         <exclude>LICENSE.txt</exclude>
                     </excludes>
@@ -272,6 +281,21 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-eclipse-plugin</artifactId>
                 <version>2.6</version>
+            </plugin>
+            <plugin>
+                <groupId>com.googlecode.maven-java-formatter-plugin</groupId>
+                <artifactId>maven-java-formatter-plugin</artifactId>
+                <version>0.4.0.e371sr1</version>
+                <configuration>
+                    <configFile>${project.basedir}/src/etc/eclipse-format-config.xml</configFile>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>format</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
         <pluginManagement>
@@ -324,6 +348,19 @@
                                         <ignore />
                                     </action>
                                 </pluginExecution>
+                                <pluginExecution>
+                                    <pluginExecutionFilter>
+                                        <groupId>com.googlecode.maven-java-formatter-plugin</groupId>
+                                        <artifactId>maven-java-formatter-plugin</artifactId>
+                                        <versionRange>[0.4.0.e371sr1,)</versionRange>
+                                        <goals>
+                                            <goal>format</goal>
+                                        </goals>
+                                    </pluginExecutionFilter>
+                                    <action>
+                                        <ignore></ignore>
+                                    </action>
+                                </pluginExecution>
                             </pluginExecutions>
                         </lifecycleMappingMetadata>
                     </configuration>
@@ -331,7 +368,6 @@
             </plugins>
         </pluginManagement>
     </build>
-
     <reporting>
         <plugins>
             <plugin>
