@@ -45,8 +45,8 @@ public class CommitBench extends PersistitUnitTestCase {
 
     private final int RECORDS = 200000;
     private final int RECORDS_PER_TXN = 10;
-    private final String[] ARG_TEMPLATE = new String[] { "threads|int:1:1000|Number of threads",
-            "duration|int:10:86400|Duration of test in seconds",
+    private final String[] ARG_TEMPLATE = new String[] { "threads|int:1:1:1000|Number of threads",
+            "duration|int:10:10:86400|Duration of test in seconds",
             "policy|String:HARD|Commit policy: SOFT, HARD or GROUP", };
 
     volatile long stopTime;
@@ -59,7 +59,7 @@ public class CommitBench extends PersistitUnitTestCase {
     }
 
     public void bench(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser("CommitBench", args, ARG_TEMPLATE);
+        final ArgParser ap = new ArgParser("CommitBench", args, ARG_TEMPLATE).strict();
         final int threadCount = ap.getIntValue("threads");
         final int duration = ap.getIntValue("duration");
         final String policy = ap.getStringValue("policy");

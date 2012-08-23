@@ -856,10 +856,11 @@ public class Transaction {
             sequence(COMMIT_FLUSH_C);
             boolean committed = false;
             try {
-                flushTransactionBuffer(false);
-                _persistit.getJournalManager().waitForDurability(
-                        policy == CommitPolicy.SOFT ? _persistit.getTransactionCommitLeadTime() : 0,
-                        policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
+                if (flushTransactionBuffer(false)) {
+                    _persistit.getJournalManager().waitForDurability(
+                            policy == CommitPolicy.SOFT ? _persistit.getTransactionCommitLeadTime() : 0,
+                            policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
+                }
                 committed = true;
             } finally {
 
@@ -1143,17 +1144,20 @@ public class Transaction {
         }
     }
 
-    synchronized void flushTransactionBuffer(final boolean chain) throws PersistitException {
+    synchronized boolean flushTransactionBuffer(final boolean chain) throws PersistitException {
+        boolean didWrite = false;
         if (_buffer.position() > 0 || _previousJournalAddress != 0) {
             final long previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, _commitTimestamp, _previousJournalAddress);
             _buffer.clear();
+            didWrite = true;
             if (chain) {
                 _previousJournalAddress = previousJournalAddress;
             } else {
                 _previousJournalAddress = 0;
             }
         }
+        return didWrite;
     }
 
     synchronized void flushOnCheckpoint(final long timestamp) throws PersistitException {
