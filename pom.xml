@@ -264,6 +264,7 @@
                         <exclude>.project</exclude>
                         <exclude>.classpath</exclude>
                         <exclude>.bzrignore</exclude>
+                        <exclude>src/etc/eclipse*.xml</exclude>
                         <!-- Other -->
                         <exclude>LICENSE.txt</exclude>
                     </excludes>
