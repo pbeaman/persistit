@@ -1560,7 +1560,8 @@ public class Configuration {
      * @param serialOverride
      *            the serial override pattern to set
      * @see DefaultCoderManager
-     * @see http://www.akiban.com/ak-docs/admin/persistit/Serialization.html
+     * @see <a
+     *      href="http://www.akiban.com/ak-docs/admin/persistit/Serialization.html">Serialization</a>
      */
     public void setSerialOverride(final String serialOverride) {
         this.serialOverride = serialOverride;
@@ -1590,7 +1591,8 @@ public class Configuration {
      * 
      * @param constructorOverride
      *            the constructorOverride to set
-     * @see http://www.akiban.com/ak-docs/admin/persistit/Serialization.html
+     * @see <a
+     *      href="http://www.akiban.com/ak-docs/admin/persistit/Serialization.html">Serialization</a>
      */
     public void setConstructorOverride(final boolean constructorOverride) {
         this.constructorOverride = constructorOverride;
@@ -1793,7 +1795,7 @@ public class Configuration {
     /**
      * Return the value defined by {@link #setAppendOnly}
      * 
-     * @return the whether to start Persistit in append-only mode
+     * @return <true>true</code> if append-only mode is enabled at startup
      */
     public boolean isAppendOnly() {
         return appendOnly;
@@ -1813,7 +1815,7 @@ public class Configuration {
      * </p>
      * 
      * @param appendOnly
-     *            <code>true</code> to start Persistit in append-only only
+     *            <code>true</code> to start Persistit in append-only mode
      */
     public void setAppendOnly(final boolean appendOnly) {
         this.appendOnly = appendOnly;
@@ -1822,7 +1824,8 @@ public class Configuration {
     /**
      * Return the value defined by {@link #setBufferInventoryEnabled}
      * 
-     * @return the whether buffer inventory is enabled
+     * @return <code>true</code> if periodic buffer pool inventory recording is
+     *         enabled
      */
     public boolean isBufferInventoryEnabled() {
         return bufferInventoryEnabled;
@@ -1837,8 +1840,8 @@ public class Configuration {
      * Default value is <code>false</code><br />
      * Property name is {@value #BUFFER_INVENTORY_PROPERTY_NAME}
      * 
-     * @return the path where file to warm-up Persistit with sample buffer data
-     *         is stored
+     * @param bufferInventoryEnabled
+     *            <code>true</code> to enable periodic buffer inventory behavior
      */
     public void setBufferInventoryEnabled(final boolean bufferInventoryEnabled) {
         this.bufferInventoryEnabled = bufferInventoryEnabled;
@@ -1847,8 +1850,8 @@ public class Configuration {
     /**
      * Return the value defined by {@link #setBufferPreloadEnabled}
      * 
-     * @return the whether the buffer pools with be pre-loaded from a previous
-     *         inventory
+     * @return <code>true</code> if the option to preload buffer pools is
+     *         enabled
      */
     public boolean isBufferPreloadEnabled() {
         return bufferPreloadEnabled;
@@ -1856,15 +1859,16 @@ public class Configuration {
 
     /**
      * <p>
-     * Control whether Persistit attempts to pre-load (warm up) the buffer pools
-     * by pre-loading pages recorded in a previously generated inventory.
+     * Control whether Persistit attempts to preload (warm up) the buffer pools
+     * by preloading pages recorded in a previously generated inventory.
      * </p>
      * <p>
      * Default value is <code>false</code><br />
      * Property name is {@value #BUFFER_INVENTORY_PROPERTY_NAME}
      * 
-     * @return the path where file to warm-up Persistit with sample buffer data
-     *         is stored
+     * @param bufferPreloadEnabled
+     *            <code>true</code> to enable buffer pool preloading during
+     *            startup
      */
     public void setBufferPreloadEnabled(final boolean bufferPreloadEnabled) {
         this.bufferPreloadEnabled = bufferPreloadEnabled;
@@ -1873,7 +1877,7 @@ public class Configuration {
     /**
      * Return the value defined by {@link #setIgnoreMissingVolumes(boolean)}
      * 
-     * @return the whether to start Persistit in ignore-missing-volumes mode
+     * @return <code>true</code>to enable ignore-missing-volumes mode
      */
     public boolean isIgnoreMissingVolumes() {
         return ignoreMissingVolumes;

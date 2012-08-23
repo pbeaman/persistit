@@ -233,12 +233,12 @@ The following additional properties are defined for Persistit. Other properties 
 
   ''bufferinventory``: (``com.persistit.Configuration.setBufferInventoryEnabled``)
       If true, Persistit periodically records an inventory of all the buffes in the buffers pools to the System Volume. The inventory
-      enables Persistit to pre-load the buffer pools then next time it starts up with approximately the same pages that were present
-      before shutdown. To enable buffer pre-loading, the bufferpreload property must also be true. Default value is false.
+      enables Persistit to preload the buffer pools then next time it starts up with approximately the same pages that were present
+      before shutdown. To enable buffer preloading, the bufferpreload property must also be true. Default value is false.
       
   ``bufferpreload``: (``com.persistit.Configuration.setBufferPreloadEnabled``)
       If true, and if a buffer pool inventory was previously recorded, Persistit attempts to "warm up" the buffer pool
-      by pre-loading pages that were present in the buffer pool when Persistit last just down. This may allow a freshly started
+      by preloading pages that were present in the buffer pool when Persistit last shut down. This may allow a freshly started
       Persistit instance to begin service a workload similar to what it had previously been processing without incurring the
       cost of many random disk reads to load pages. Default value is false.
         

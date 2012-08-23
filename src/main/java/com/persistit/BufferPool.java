@@ -1516,7 +1516,7 @@ public class BufferPool {
             _persistit.getLogBase().bufferInventoryProgress.log(count, total);
         }
     }
-    
+
     private Exchange getBufferInventoryExchange() throws PersistitException {
         final Volume sysvol = _persistit.getSystemVolume();
         return _persistit.getExchange(sysvol, INVENTORY_TREE_NAME, true);
