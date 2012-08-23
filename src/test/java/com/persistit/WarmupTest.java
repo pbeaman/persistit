@@ -14,10 +14,9 @@
  */
 
 package com.persistit;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.Assert.assertEquals;
 
 import java.util.Properties;
 
@@ -27,6 +26,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 public class WarmupTest extends PersistitUnitTestCase {
 
+    @Override
     protected Properties getProperties(final boolean cleanup) {
         final Properties p = super.getProperties(cleanup);
         p.setProperty("bufferinventory", "true");
@@ -62,13 +62,13 @@ public class WarmupTest extends PersistitUnitTestCase {
             assertEquals(bufferCopy.getBufferSize(), buff[i].getBufferSize());
         }
     }
-    
+
     @Test
     public void readOrderIsSequential() throws Exception {
-        
+
         Exchange ex = _persistit.getExchange("persistit", "WarmupTest", true);
         BufferPool pool = ex.getBufferPool();
-        
+
         final int full = pool.getBufferCount() * (pool.getBufferSize() / RED_FOX.length());
         /*
          * Overflow the buffer pool
@@ -84,22 +84,23 @@ public class WarmupTest extends PersistitUnitTestCase {
             ex.clear().append(i).fetch();
         }
         /*
-         * Verify that buffers in pool now have somewhat scrambled page addresses
+         * Verify that buffers in pool now have somewhat scrambled page
+         * addresses
          */
         int breaks = 0;
         long previous = -1;
-        
-        for (int i = 0; i < pool.getBufferCount(); i++ ) {
-            Buffer b = pool.getBufferCopy(i);
+
+        for (int i = 0; i < pool.getBufferCount(); i++) {
+            final Buffer b = pool.getBufferCopy(i);
             assertTrue("Every buffer should be valid at this point", b.isValid());
             if (b.getPageAddress() < previous) {
                 breaks++;
             }
             previous = b.getPageAddress();
         }
-        
+
         assertTrue("Buffer pool should have scrambled page address", breaks > 0);
-        
+
         final Configuration config = _persistit.getConfiguration();
         ex = null;
         pool = null;
@@ -110,12 +111,12 @@ public class WarmupTest extends PersistitUnitTestCase {
         _persistit.initialize(config);
 
         final Volume volume = _persistit.getVolume("persistit");
-        final MediatedFileChannel mfc = (MediatedFileChannel)volume.getStorage().getChannel();
-        TrackingFileChannel tfc = new TrackingFileChannel();
+        final MediatedFileChannel mfc = (MediatedFileChannel) volume.getStorage().getChannel();
+        final TrackingFileChannel tfc = new TrackingFileChannel();
         mfc.injectChannelForTests(tfc);
         pool = volume.getStructure().getPool();
         pool.preloadBufferInventory();
         assertTrue("Preload should have loaded pages from journal file", tfc.getReadPositionList().size() > 0);
-        tfc.assertSequential(true,  true);
+        tfc.assertSequential(true, true);
     }
 }

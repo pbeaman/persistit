@@ -444,7 +444,7 @@ class VolumeStorageV2 extends VolumeStorage {
         try {
             final long page = buffer.getPageAddress();
             if (page < 0 || page >= _nextAvailablePage) {
-               throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
+                throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
             }
             if (_persistit.getJournalManager().readPageFromJournal(buffer)) {
                 return;

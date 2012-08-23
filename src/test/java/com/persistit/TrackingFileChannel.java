@@ -14,6 +14,7 @@
  */
 
 package com.persistit;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -43,9 +44,9 @@ import com.persistit.MediatedFileChannel.TestChannelInjector;
 class TrackingFileChannel extends FileChannel implements TestChannelInjector {
 
     volatile FileChannel _channel;
-    
+
     final List<Long> _writePositions = new ArrayList<Long>();
-    
+
     final List<Long> _readPositions = new ArrayList<Long>();
 
     @Override
@@ -155,11 +156,11 @@ class TrackingFileChannel extends FileChannel implements TestChannelInjector {
     public List<Long> getWritePositionList() {
         return _writePositions;
     }
-    
+
     public List<Long> getReadPositionList() {
         return _readPositions;
     }
-    
+
     public void assertSequential(boolean read, boolean forward) {
         final List<Long> list = read ? _readPositions : _writePositions;
         long previous = forward ? -1 : Long.MAX_VALUE;

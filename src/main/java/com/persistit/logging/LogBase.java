@@ -243,7 +243,7 @@ public class LogBase {
 
     @Message("ERROR|Too many journal files %,d")
     public final LogItem tooManyJournalFilesError = PersistitLogMessage.empty();
-    
+
     @Message("INFO|Preloading buffer pool inventory recorded at %tc")
     public final LogItem bufferInventoryLoad = PersistitLogMessage.empty();
 

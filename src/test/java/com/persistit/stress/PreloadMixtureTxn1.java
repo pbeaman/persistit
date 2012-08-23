@@ -46,7 +46,7 @@ public class PreloadMixtureTxn1 extends AbstractSuite {
     public void runTest() throws Exception {
 
         deleteFiles(substitute("$datapath$/persistit*"));
-        
+
         for (int iteration = 0; iteration < CYCLES; iteration++) {
             clear();
             add(new Stress1("repeat=10 count=25000"));
