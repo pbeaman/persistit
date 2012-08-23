@@ -1404,6 +1404,7 @@ public class BufferPool {
          */
         exchange.ignoreTransactions();
         try {
+            int total = 0;
             exchange.clear().append(_bufferSize).append(timestamp).append(Key.BEFORE);
             final Value value = exchange.getValue();
             final int clockValueBefore = _clock.get();
@@ -1427,6 +1428,7 @@ public class BufferPool {
                         value.put(volume1.getHandle());
                         value.put(page1);
                         exchange.to(index).store();
+                        total++;
                     }
                 }
             }
@@ -1434,6 +1436,7 @@ public class BufferPool {
             exchange.cut();
             value.clear().setStreamMode(true);
             value.put(_bufferCount);
+            value.put(total);
             value.put(clockValueBefore);
             value.put(clockValueAfter);
             value.put(System.currentTimeMillis());
@@ -1451,6 +1454,7 @@ public class BufferPool {
 
     void preloadBufferInventory() {
         int count = 0;
+        int total = 0;
         try {
             final JournalManager jman = _persistit.getJournalManager();
             final Volume sysvol = _persistit.getSystemVolume();
@@ -1470,6 +1474,7 @@ public class BufferPool {
             }
             value.setStreamMode(true);
             /* int bufferCount = */value.getInt();
+            total = value.getInt();
             /* int clockValueBefore = */value.getInt();
             /* int clockValueAfter = */value.getInt();
             final long systemTime = value.getLong();
@@ -1497,7 +1502,7 @@ public class BufferPool {
                     buff.release();
                     count++;
                     if ((count % INVENTORY_PRELOAD_LOG_MESSAGE_MULTIPLE) == 0) {
-                        _persistit.getLogBase().bufferInventoryProgress.log(count, _bufferCount);
+                        _persistit.getLogBase().bufferInventoryProgress.log(count, total);
                     }
                     if (count >= _bufferCount) {
                         //
@@ -1513,7 +1518,7 @@ public class BufferPool {
         } catch (final PersistitException e) {
             _persistit.getLogBase().bufferInventoryException.log(e);
         } finally {
-            _persistit.getLogBase().bufferInventoryProgress.log(count, _bufferCount);
+            _persistit.getLogBase().bufferInventoryProgress.log(count, total);
         }
     }
 }

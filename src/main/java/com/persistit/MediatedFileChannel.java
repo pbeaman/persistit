@@ -342,7 +342,7 @@ class MediatedFileChannel extends FileChannel {
      * 
      * @param channel
      */
-    void setErrorInjectingChannelForTests(final FileChannel channel) {
+    void injectChannelForTests(final FileChannel channel) {
         ((TestChannelInjector) channel).setChannel(_channel);
         _channel = channel;
     }

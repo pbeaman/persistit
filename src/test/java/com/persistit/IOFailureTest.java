@@ -57,7 +57,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
 
     private ErrorInjectingFileChannel errorInjectingChannel(final FileChannel channel) {
         final ErrorInjectingFileChannel eimfc = new ErrorInjectingFileChannel();
-        ((MediatedFileChannel) channel).setErrorInjectingChannelForTests(eimfc);
+        ((MediatedFileChannel) channel).injectChannelForTests(eimfc);
         return eimfc;
     }
 

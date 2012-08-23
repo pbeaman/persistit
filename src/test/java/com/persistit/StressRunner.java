@@ -31,6 +31,7 @@ import com.persistit.stress.Mixture3;
 import com.persistit.stress.MixtureTxn1;
 import com.persistit.stress.MixtureTxn2;
 import com.persistit.stress.PersistitMap1;
+import com.persistit.stress.PreloadMixtureTxn1;
 import com.persistit.stress.StartStop;
 import com.persistit.stress.Stress10Suite;
 import com.persistit.stress.Stress12txnSuite;
@@ -79,6 +80,7 @@ public class StressRunner {
         _classes.add(Stress12txnSuite.class);
         _classes.add(Stress4Suite.class);
         _classes.add(Stress8txnSuite.class);
+        _classes.add(PreloadMixtureTxn1.class);
     }
 
     private final static String DURATION_PARAM = "duration=";
