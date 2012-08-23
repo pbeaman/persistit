@@ -15,10 +15,7 @@
 
 package com.persistit;
 
-import java.io.BufferedWriter;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -93,6 +90,8 @@ public class BufferPool {
      * Ratio of age-based write priority bump
      */
     private final static int WRITE_AGE_THRESHOLD_RATIO = 4;
+
+    private final static String INVENTORY_TREE_NAME = "_buffers";
     /**
      * Maximum number of buffer inventory versions to retain
      */
@@ -217,8 +216,6 @@ public class BufferPool {
      * The PAGE_WRITER IOTaskRunnable
      */
     private PageWriter _writer;
-
-    private String _defaultLogPath;
 
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -1397,8 +1394,7 @@ public class BufferPool {
     }
 
     void recordBufferInventory(final long timestamp) throws PersistitException {
-        final Volume sysvol = _persistit.getSystemVolume();
-        final Exchange exchange = _persistit.getExchange(sysvol, "buffers", true);
+        final Exchange exchange = getBufferInventoryExchange();
         /*
          * Advisory only - transaction integrity not needed
          */
@@ -1447,8 +1443,8 @@ public class BufferPool {
                     exchange.remove(Key.GTEQ);
                 }
             }
-        } finally {
-            _persistit.releaseExchange(exchange);
+        } catch (final PersistitException e) {
+            _persistit.getLogBase().bufferInventoryException.log(e);
         }
     }
 
@@ -1457,8 +1453,7 @@ public class BufferPool {
         int total = 0;
         try {
             final JournalManager jman = _persistit.getJournalManager();
-            final Volume sysvol = _persistit.getSystemVolume();
-            final Exchange exchange = _persistit.getExchange(sysvol, "buffers", true);
+            final Exchange exchange = getBufferInventoryExchange();
             final Value value = exchange.getValue();
             final List<PageNode> pageNodes = new ArrayList<PageNode>();
             boolean foundInventory = false;
@@ -1520,5 +1515,10 @@ public class BufferPool {
         } finally {
             _persistit.getLogBase().bufferInventoryProgress.log(count, total);
         }
+    }
+    
+    private Exchange getBufferInventoryExchange() throws PersistitException {
+        final Volume sysvol = _persistit.getSystemVolume();
+        return _persistit.getExchange(sysvol, INVENTORY_TREE_NAME, true);
     }
 }

@@ -231,6 +231,18 @@ The following additional properties are defined for Persistit. Other properties 
       install a logging adapter to reroute messages through Log4J, SLF4J or other logger. The ``logfile`` property is used 
       only when no adapter has been installed.
 
+  ''bufferinventory``: (``com.persistit.Configuration.setBufferInventoryEnabled``)
+      If true, Persistit periodically records an inventory of all the buffes in the buffers pools to the System Volume. The inventory
+      enables Persistit to pre-load the buffer pools then next time it starts up with approximately the same pages that were present
+      before shutdown. To enable buffer pre-loading, the bufferpreload property must also be true. Default value is false.
+      
+  ``bufferpreload``: (``com.persistit.Configuration.setBufferPreloadEnabled``)
+      If true, and if a buffer pool inventory was previously recorded, Persistit attempts to "warm up" the buffer pool
+      by pre-loading pages that were present in the buffer pool when Persistit last just down. This may allow a freshly started
+      Persistit instance to begin service a workload similar to what it had previously been processing without incurring the
+      cost of many random disk reads to load pages. Default value is false.
+        
+
 For all integer-valued properties, the suffix “K” may be used to represent kilo, “M” for mega, “G” for giga and “T” for tera. For example, “2M” represents the value 2,097,152.
 
 A Configuration Example
