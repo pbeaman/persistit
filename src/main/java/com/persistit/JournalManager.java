@@ -554,6 +554,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         if (_copyFast.get()) {
             return URGENT;
         }
+
         final int journalFileCount = (int) ((_currentAddress - _baseAddress) / _blockSize);
         if (journalFileCount < HALF_URGENT) {
             return journalFileCount;
