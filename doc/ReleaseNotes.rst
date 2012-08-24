@@ -44,6 +44,26 @@ For optimal performance, proper configuration of the Persistit buffer pool is re
 |
 |
 
+
+************************************
+3.1.6
+************************************
+
+Release Date
+============
+August 24, 2012
+
+Overview
+========
+This version of Persistit fixes one bug.
+
+Fixed Issues
+============
+
+https://bugs.launchpad.net/akiban-persistit/+bug/1036422
+
+With CommitPolicy HARD we observed a CPU-soaking loop in the commit logic.
+
 ************************************
 3.1.5
 ************************************
