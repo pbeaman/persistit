@@ -244,6 +244,15 @@ public class LogBase {
     @Message("ERROR|Too many journal files %,d")
     public final LogItem tooManyJournalFilesError = PersistitLogMessage.empty();
 
+    @Message("INFO|Preloading buffer pool inventory recorded at %tc")
+    public final LogItem bufferInventoryLoad = PersistitLogMessage.empty();
+
+    @Message("INFO|Preloaded %,d of %,d buffers")
+    public final LogItem bufferInventoryProgress = PersistitLogMessage.empty();
+
+    @Message("WARNING|Exception while writing buffer pool inventory %s")
+    public final LogItem bufferInventoryException = PersistitLogMessage.empty();
+
     public static String recurring(final String message, final int count, final long duration) {
         return String.format(RECURRING, message, count, duration);
     }

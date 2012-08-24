@@ -720,33 +720,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         final ByteBuffer bb = buffer.getByteBuffer();
 
         final Volume volume = buffer.getVolume();
-        PageNode pnLookup = null;
-        synchronized (this) {
-            final Integer volumeHandle = _volumeToHandleMap.get(volume);
-            if (volumeHandle != null) {
-                pnLookup = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
-            }
-        }
-
-        if (pnLookup == null) {
+        final PageNode pn = lookupUpPageNode(pageAddress, volume);
+        if (pn == null) {
             return false;
         }
-
-        final PageNode pn = new PageNode(pnLookup.getVolumeHandle(), pnLookup.getPageAddress(),
-                pnLookup.getJournalAddress(), pnLookup.getTimestamp());
-        sequence(PAGE_MAP_READ_INVALIDATE_A);
-
-        /*
-         * If the page is still valid, use the values saved in pn so we don't
-         * lose them mid-processing. We can use it because it was in the map
-         * when we first looked and that means it is is still in the journal.
-         * The journal won't go away because of the claim on buffer preventing
-         * new checkpoints and that keeps the copier from deleting it.
-         */
-        if (pnLookup.isInvalid()) {
-            return false;
-        }
-
         bb.position(0);
         final long recordPageAddress = readPageBufferFromJournal(pn, bb);
         _persistit.getIOMeter().chargeReadPageFromJournal(volume, pageAddress, bufferSize, pn.getJournalAddress(),
@@ -763,6 +740,36 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         _readPageCount++;
         buffer.getVolume().getStatistics().bumpReadCounter();
         return true;
+    }
+
+    PageNode lookupUpPageNode(final long pageAddress, final Volume volume) {
+        PageNode pnLookup = null;
+        synchronized (this) {
+            final Integer volumeHandle = _volumeToHandleMap.get(volume);
+            if (volumeHandle != null) {
+                pnLookup = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
+            }
+        }
+
+        if (pnLookup == null) {
+            return null;
+        }
+
+        final PageNode pn = new PageNode(pnLookup.getVolumeHandle(), pnLookup.getPageAddress(),
+                pnLookup.getJournalAddress(), pnLookup.getTimestamp());
+        sequence(PAGE_MAP_READ_INVALIDATE_A);
+
+        /*
+         * If the page is still valid, use the values saved in pn so we don't
+         * lose them mid-processing. We can use it because it was in the map
+         * when we first looked and that means it is is still in the journal.
+         * The journal won't go away because of the claim on buffer preventing
+         * new checkpoints and that keeps the copier from deleting it.
+         */
+        if (pnLookup.isInvalid()) {
+            return null;
+        }
+        return pn;
     }
 
     private long readPageBufferFromJournal(final PageNode pn, final ByteBuffer bb) throws PersistitIOException,
@@ -1871,6 +1878,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
         PageNode _previous;
 
+        PageNode(final int volumeHandle, final long pageAddress) {
+            this(volumeHandle, pageAddress, Long.MIN_VALUE, -1);
+        }
+
         PageNode(final int volumeHandle, final long pageAddress, final long journalAddress, final long timestamp) {
             this._volumeHandle = volumeHandle;
             this._pageAddress = pageAddress;
@@ -1992,8 +2003,20 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             @Override
             public int compare(final PageNode a, final PageNode b) {
-                return a.getJournalAddress() > b.getJournalAddress() ? 1 : a.getJournalAddress() < b
-                        .getJournalAddress() ? -1 : 0;
+                if (!a.isInvalid() && !b.isInvalid()) {
+                    return a.getJournalAddress() > b.getJournalAddress() ? 1 : a.getJournalAddress() < b
+                            .getJournalAddress() ? -1 : 0;
+                }
+                if (a.isInvalid() && !b.isInvalid()) {
+                    return -1;
+                }
+                if (!a.isInvalid() && b.isInvalid()) {
+                    return 1;
+                }
+                if (a._volumeHandle != b._volumeHandle) {
+                    return a._volumeHandle - b._volumeHandle;
+                }
+                return a._pageAddress > b._pageAddress ? 1 : a._pageAddress < b._pageAddress ? -1 : 0;
             }
         };
 

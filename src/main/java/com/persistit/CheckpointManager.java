@@ -201,6 +201,7 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
     void pollCreateCheckpoint() throws PersistitException {
         final long now = System.nanoTime();
         if (_lastCheckpointNanos + _checkpointIntervalNanos < now) {
+            _persistit.recordBufferPoolInventory();
             createCheckpoint();
         }
     }
@@ -252,12 +253,12 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
                 _currentCheckpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
                 _outstandingCheckpoints.add(_currentCheckpoint);
                 _persistit.getLogBase().checkpointProposed.log(_currentCheckpoint);
-                return _currentCheckpoint;
             } catch (final InterruptedException ie) {
                 throw new PersistitInterruptedException(ie);
             } finally {
                 txn.end();
             }
+            return _currentCheckpoint;
         } finally {
             _persistit.setSessionId(saveSessionId);
         }

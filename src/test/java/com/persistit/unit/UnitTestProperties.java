@@ -43,7 +43,6 @@ public class UnitTestProperties {
         p.setProperty("tmpvoldir", "${datapath}");
         p.setProperty("rmiport", System.getProperty("rmiport", "8081"));
         p.setProperty("jmx", "true");
-        p.setProperty("bufferinventory", "/tmp/persistit_test_data");
         return p;
     }
 
