@@ -29,15 +29,15 @@ public class ConversionException extends RuntimeException {
         super();
     }
 
-    public ConversionException(String msg) {
+    public ConversionException(final String msg) {
         super(msg);
     }
 
-    public ConversionException(Throwable t) {
+    public ConversionException(final Throwable t) {
         super(t);
     }
 
-    public ConversionException(String msg, Throwable t) {
+    public ConversionException(final String msg, final Throwable t) {
         super(msg, t);
     }
 

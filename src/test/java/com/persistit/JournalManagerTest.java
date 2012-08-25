@@ -58,7 +58,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
      * because it uses some package-private methods in Persistit.
      */
 
-    private String _volumeName = "persistit";
+    private final String _volumeName = "persistit";
 
     @Test
     public void testJournalRecords() throws Exception {
@@ -152,7 +152,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         jman.close();
         volume.resetHandle();
 
-        RecoveryManager rman = new RecoveryManager(_persistit);
+        final RecoveryManager rman = new RecoveryManager(_persistit);
         rman.init(path);
 
         rman.buildRecoveryPlan();
@@ -172,42 +172,43 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final TransactionPlayerListener actor = new TransactionPlayerListener() {
 
             @Override
-            public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
-                recoveryTimestamps.add(timestamp);
-            }
-
-            @Override
-            public void removeKeyRange(final long address, final long timestamp, Exchange exchange, Key from, Key to)
+            public void store(final long address, final long timestamp, final Exchange exchange)
                     throws PersistitException {
                 recoveryTimestamps.add(timestamp);
             }
 
             @Override
-            public void removeTree(final long address, final long timestamp, Exchange exchange)
+            public void removeKeyRange(final long address, final long timestamp, final Exchange exchange,
+                    final Key from, final Key to) throws PersistitException {
+                recoveryTimestamps.add(timestamp);
+            }
+
+            @Override
+            public void removeTree(final long address, final long timestamp, final Exchange exchange)
                     throws PersistitException {
                 recoveryTimestamps.add(timestamp);
             }
 
             @Override
-            public void startRecovery(long address, long timestamp) throws PersistitException {
+            public void startRecovery(final long address, final long timestamp) throws PersistitException {
             }
 
             @Override
-            public void startTransaction(long address, long startTimestamp, long commitTimestamp)
+            public void startTransaction(final long address, final long startTimestamp, final long commitTimestamp)
                     throws PersistitException {
             }
 
             @Override
-            public void endTransaction(long address, long timestamp) throws PersistitException {
+            public void endTransaction(final long address, final long timestamp) throws PersistitException {
             }
 
             @Override
-            public void endRecovery(long address, long timestamp) throws PersistitException {
+            public void endRecovery(final long address, final long timestamp) throws PersistitException {
             }
 
             @Override
-            public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value)
-                    throws PersistitException {
+            public void delta(final long address, final long timestamp, final Tree tree, final int index,
+                    final int accumulatorTypeOrdinal, final long value) throws PersistitException {
             }
 
             @Override
@@ -266,18 +267,19 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
         final String kilo = sb.toString();
         exchange.getValue().put(kilo);
-        int overhead = JournalRecord.SR.OVERHEAD + exchange.getKey().getEncodedSize() + JournalRecord.JE.OVERHEAD + 1;
+        final int overhead = JournalRecord.SR.OVERHEAD + exchange.getKey().getEncodedSize() + JournalRecord.JE.OVERHEAD
+                + 1;
         long timestamp = 0;
         long addressBeforeRollover = -1;
         long addressAfterRollover = -1;
 
         while (jman.getCurrentAddress() < 300 * 1000 * 1000) {
             timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-            long remaining = jman.getBlockSize() - (jman.getCurrentAddress() % jman.getBlockSize()) - 1;
+            final long remaining = jman.getBlockSize() - (jman.getCurrentAddress() % jman.getBlockSize()) - 1;
             if (remaining == JournalRecord.JE.OVERHEAD) {
                 addressBeforeRollover = jman.getCurrentAddress();
             }
-            long size = remaining - overhead;
+            final long size = remaining - overhead;
             if (size > 0 && size < sb.length()) {
                 exchange.getValue().put(kilo.substring(0, (int) size));
             } else {
@@ -308,9 +310,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertEquals(0, countKeys(true));
         _persistit.getJournalManager().pruneObsoleteTransactions(true);
         assertTrue(countKeys(false) < 50000);
-        CleanupManager cm = _persistit.getCleanupManager();
+        final CleanupManager cm = _persistit.getCleanupManager();
         assertTrue(cm.getAcceptedCount() > 0);
-        long start = System.currentTimeMillis();
+        final long start = System.currentTimeMillis();
         while (cm.getPerformedCount() < cm.getAcceptedCount()) {
             if (System.currentTimeMillis() > start + 30000) {
                 fail("Pruning not done in 30 seconds");
@@ -331,7 +333,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             txn.end();
         }
 
-        long start = System.currentTimeMillis();
+        final long start = System.currentTimeMillis();
         long elapsed = 0;
         while (countKeys(false) > 0) {
             Util.sleep(1000);
@@ -357,13 +359,13 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
         _persistit.getJournalManager().pruneObsoleteTransactions(true);
         assertEquals(0, countKeys(false));
-        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        final IntegrityCheck icheck = new IntegrityCheck(_persistit);
         icheck.checkVolume(volume);
-        long totalPages = volume.getStorage().getNextAvailablePage();
-        long dataPages = icheck.getDataPageCount();
-        long indexPages = icheck.getIndexPageCount();
-        long longPages = icheck.getLongRecordPageCount();
-        long garbagePages = icheck.getGarbagePageCount();
+        final long totalPages = volume.getStorage().getNextAvailablePage();
+        final long dataPages = icheck.getDataPageCount();
+        final long indexPages = icheck.getIndexPageCount();
+        final long longPages = icheck.getLongRecordPageCount();
+        final long garbagePages = icheck.getGarbagePageCount();
         assertEquals(totalPages, dataPages + indexPages + longPages + garbagePages);
         assertEquals(0, longPages);
         assertTrue(garbagePages > 0);
@@ -372,9 +374,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     @Test
     public void testTransactionMapSpanningJournalWriteBuffer() throws Exception {
         _persistit.getJournalManager().setWriteBufferSize(JournalManager.MINIMUM_BUFFER_SIZE);
-        Transaction txn = _persistit.getTransaction();
-        Accumulator acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true).getAccumulator(
-                Accumulator.Type.SUM, 0);
+        final Transaction txn = _persistit.getTransaction();
+        Accumulator acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true)
+                .getAccumulator(Accumulator.Type.SUM, 0);
         /*
          * Load up a sizable live transaction map
          */
@@ -390,8 +392,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
 
-        acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true).getAccumulator(
-                Accumulator.Type.SUM, 0);
+        acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true)
+                .getAccumulator(Accumulator.Type.SUM, 0);
         assertEquals("Accumulator value is incorrect", 25000, acc.getLiveValue());
 
     }
@@ -469,16 +471,16 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         volume2 = null;
         _persistit = new Persistit();
         _persistit.initialize(config);
-        AlertMonitor am = _persistit.getAlertMonitor();
-        assertTrue("Startup with missing volumes should have generated alerts", am
-                .getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);
+        final AlertMonitor am = _persistit.getAlertMonitor();
+        assertTrue("Startup with missing volumes should have generated alerts",
+                am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);
 
         _persistit.getJournalManager().setIgnoreMissingVolumes(true);
         // Should add more alerts
         _persistit.copyBackPages();
-        int alertCount1 = am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY).getCount();
+        final int alertCount1 = am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY).getCount();
         _persistit.copyBackPages();
-        int alertCount2 = am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY).getCount();
+        final int alertCount2 = am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY).getCount();
         assertEquals("No more alerts after setting ignoreMissingVolumes", alertCount1, alertCount2);
     }
 
@@ -488,7 +490,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         Volume volume = new Volume(config.volumeSpecification("${datapath}/missing1,create,"
                 + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
         volume.open(_persistit);
-        Exchange ex = _persistit.getExchange(volume, "test1", true);
+        final Exchange ex = _persistit.getExchange(volume, "test1", true);
         final Transaction txn = ex.getTransaction();
         txn.begin();
         ex.getValue().put(RED_FOX);
@@ -504,14 +506,14 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertTrue("Should have failed updates during recovery", _persistit.getRecoveryManager().getPlayer()
                 .getFailedUpdates() > 0);
     }
-    
+
     @Test
     public void missingVolumeTransactionHandlingIgnored() throws Exception {
         final Configuration config = _persistit.getConfiguration();
         Volume volume = new Volume(config.volumeSpecification("${datapath}/missing1,create,"
                 + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
         volume.open(_persistit);
-        Exchange ex = _persistit.getExchange(volume, "test1", true);
+        final Exchange ex = _persistit.getExchange(volume, "test1", true);
         final Transaction txn = ex.getTransaction();
         txn.begin();
         ex.getValue().put(RED_FOX);
@@ -526,18 +528,18 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.getJournalManager().setIgnoreMissingVolumes(true);
         _persistit.initialize(config);
-        AlertMonitor am = _persistit.getAlertMonitor();
-        assertTrue("Startup with missing volumes should have generated alerts", am
-                .getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);
+        final AlertMonitor am = _persistit.getAlertMonitor();
+        assertTrue("Startup with missing volumes should have generated alerts",
+                am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);
         assertTrue("Should have failed updates during recovery", _persistit.getRecoveryManager().getPlayer()
                 .getIgnoredUpdates() > 0);
     }
-    
+
     @Test
     public void waitForDurabilitySoaksCPU() throws Exception {
         _persistit.setDefaultTransactionCommitPolicy(CommitPolicy.HARD);
         final JournalManager jman = _persistit.getJournalManager();
-        long waitLoopsWithoutDelay  = jman.getWaitLoopsWithNoDelay();
+        long waitLoopsWithoutDelay = jman.getWaitLoopsWithNoDelay();
         final Exchange exchange = _persistit.getExchange("persistit", "JournalManagerTest", true);
         final Transaction txn = exchange.getTransaction();
         for (int count = 0; count < 1000; count++) {
@@ -561,14 +563,14 @@ public class JournalManagerTest extends PersistitUnitTestCase {
 
     private void testCleanupPageListHelper(final List<PageNode> source) throws Exception {
         final List<PageNode> cleaned = new ArrayList<PageNode>(source);
-        for (Iterator<PageNode> iterator = cleaned.iterator(); iterator.hasNext();) {
+        for (final Iterator<PageNode> iterator = cleaned.iterator(); iterator.hasNext();) {
             if (iterator.next().isInvalid()) {
                 iterator.remove();
             }
         }
-        JournalManager jman = new JournalManager(_persistit);
+        final JournalManager jman = new JournalManager(_persistit);
         jman.unitTestInjectPageList(source);
-        int removed = jman.cleanupPageList();
+        final int removed = jman.cleanupPageList();
         assertTrue(jman.unitTestPageListEquals(cleaned));
         assertEquals("Removed count is wrong", source.size() - cleaned.size(), removed);
         assertTrue("Invalidated no page nodes", source.size() > cleaned.size());
@@ -577,13 +579,13 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     @Test
     public void copyBackPagesLeavesOneJournal() throws Exception {
         final int BATCH_SIZE = 1000;
-        JournalManager jman = _persistit.getJournalManager();
+        final JournalManager jman = _persistit.getJournalManager();
 
         int total = 0;
         for (long curSize = 0; curSize < JournalManager.ROLLOVER_THRESHOLD;) {
-            Exchange ex = _persistit.getExchange(UnitTestProperties.VOLUME_NAME, "JournalManagerTest", true);
-            Transaction txn = _persistit.getTransaction();
-            Accumulator accum = ex.getTree().getAccumulator(Accumulator.Type.SUM, 0);
+            final Exchange ex = _persistit.getExchange(UnitTestProperties.VOLUME_NAME, "JournalManagerTest", true);
+            final Transaction txn = _persistit.getTransaction();
+            final Accumulator accum = ex.getTree().getAccumulator(Accumulator.Type.SUM, 0);
             txn.begin();
             for (int j = 0; j < BATCH_SIZE; ++j) {
                 ex.clear().append(total + j);
@@ -615,9 +617,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         /*
          * Insert enough to dirty a few pages
          */
-        Transaction txn = _persistit.getTransaction();
+        final Transaction txn = _persistit.getTransaction();
         txn.begin();
-        Exchange ex = _persistit.getExchange(_volumeName, TREE_NAME, true);
+        final Exchange ex = _persistit.getExchange(_volumeName, TREE_NAME, true);
         for (int i = 0; i < COUNT; ++i) {
             ex.to(i);
             ex.getValue().put(RED_FOX);
@@ -629,12 +631,12 @@ public class JournalManagerTest extends PersistitUnitTestCase {
          * Thread will read over everything that is inserted, hopefully going to
          * the journal for each required page.
          */
-        Thread thread1 = createThread("READ_THREAD", new ThrowingRunnable() {
+        final Thread thread1 = createThread("READ_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws PersistitException {
-                Transaction txn = _persistit.getTransaction();
+                final Transaction txn = _persistit.getTransaction();
                 txn.begin();
-                Exchange ex = _persistit.getExchange(_volumeName, TREE_NAME, false);
+                final Exchange ex = _persistit.getExchange(_volumeName, TREE_NAME, false);
                 ex.to(Key.BEFORE);
                 int count = 0;
                 while (ex.next(true)) {
@@ -648,7 +650,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
          * Thread will copy pages out of the journal and into the volume,
          * hopefully invalidating pageMap entries during the cleanupForCopy.
          */
-        Thread thread2 = createThread("COPY_BACK_THREAD", new ThrowingRunnable() {
+        final Thread thread2 = createThread("COPY_BACK_THREAD", new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
                 sequence(PAGE_MAP_READ_INVALIDATE_B);
@@ -664,8 +666,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         /*
          * Invalidate so next read must go from disk and check if in journal
          */
-        Volume v = _persistit.getVolume(_volumeName);
-        BufferPool bp = _persistit.getBufferPool(v.getPageSize());
+        final Volume v = _persistit.getVolume(_volumeName);
+        final BufferPool bp = _persistit.getBufferPool(v.getPageSize());
         bp.invalidate(v);
         /*
          * Enable sequencing and run threads
@@ -679,7 +681,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     private int countKeys(final boolean mvcc) throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
         exchange.ignoreMVCCFetch(!mvcc);
-        int count1 = 0, count2 = 0;
+        int count1 = 0;
+        final int count2 = 0;
         exchange.clear().append(Key.BEFORE);
         while (exchange.next()) {
             count1++;

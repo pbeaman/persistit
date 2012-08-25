@@ -32,8 +32,9 @@ public class InsertSequenceTest extends PersistitUnitTestCase {
     private class TestPolicy extends SplitPolicy {
 
         @Override
-        public int splitFit(Buffer buffer, int kbOffset, int insertAt, boolean replace, int leftSize, int rightSize,
-                int currentSize, int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+        public int splitFit(final Buffer buffer, final int kbOffset, final int insertAt, final boolean replace,
+                final int leftSize, final int rightSize, final int currentSize, final int virtualSize,
+                final int capacity, final int splitInfo, final Sequence sequence) {
             if (buffer.isDataPage()) {
                 InsertSequenceTest.this.sequence = sequence;
             }
@@ -76,8 +77,8 @@ public class InsertSequenceTest extends PersistitUnitTestCase {
         exchange.setSplitPolicy(new TestPolicy());
 
         for (index = 1; index < 100000; index++) {
-            String key = "a" + index;
-            boolean expectForward = index % 10 != 0;
+            final String key = "a" + index;
+            final boolean expectForward = index % 10 != 0;
             exchange.clear().append(key);
             exchange.getValue().put("Record #" + index);
             exchange.store();
@@ -95,8 +96,8 @@ public class InsertSequenceTest extends PersistitUnitTestCase {
         exchange.setSplitPolicy(new TestPolicy());
 
         for (index = 1000000; index >= 0; index--) {
-            String key = "a" + index;
-            boolean expectReverse = index > 99999;
+            final String key = "a" + index;
+            final boolean expectReverse = index > 99999;
             exchange.clear().append(key);
             exchange.getValue().put("Record #" + index);
             exchange.store();

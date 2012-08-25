@@ -20,7 +20,6 @@ import java.util.Random;
 import com.persistit.Exchange;
 import com.persistit.Value;
 import com.persistit.stress.AbstractStressTest;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public abstract class StressBase extends AbstractStressTest {
@@ -170,7 +169,7 @@ public abstract class StressBase extends AbstractStressTest {
         fillLong(v2, i, length - i, true);
     }
 
-    protected void fillLong(long value, final int offset, final int length, boolean leadZeroes) {
+    protected void fillLong(long value, final int offset, final int length, final boolean leadZeroes) {
         if (_sb1.length() < offset + length) {
             _sb1.setLength(offset + length);
         }

@@ -58,12 +58,12 @@ public class PersistitTableModel extends AbstractTableModel {
     /**
      * The Row that corresponds to the root Key.
      */
-    private Row _rootRow = new Row(new byte[0]);
+    private final Row _rootRow = new Row(new byte[0]);
     /**
      * A list of contiguous rows. The first element in the list corresponds with
      * the row index in _rowCacheOffset.
      */
-    private RowCache _rowCache = new RowCache();
+    private final RowCache _rowCache = new RowCache();
     /**
      * There are at least this many rows.
      */
@@ -86,7 +86,7 @@ public class PersistitTableModel extends AbstractTableModel {
      * 
      * @param exchange
      */
-    public void setExchange(Exchange exchange) {
+    public void setExchange(final Exchange exchange) {
         _exchange = exchange;
         _rootKey = new Key(_exchange.getKey());
         _rowCache.clear();
@@ -100,7 +100,7 @@ public class PersistitTableModel extends AbstractTableModel {
     }
 
     @Override
-    public Object getValueAt(int rowIndex, int columnIndex) {
+    public Object getValueAt(final int rowIndex, final int columnIndex) {
         if (rowIndex < 0) {
             throw new IllegalArgumentException("rowIndex=" + rowIndex);
         }
@@ -160,9 +160,9 @@ public class PersistitTableModel extends AbstractTableModel {
                 index++;
 
                 if (row == null) {
-                    boolean changed = index != _rowCountEstimate;
+                    final boolean changed = index != _rowCountEstimate;
                     // we are at the end!
-                    int previousEstimate = _rowCountEstimate;
+                    final int previousEstimate = _rowCountEstimate;
                     _rowCountEstimate = index;
                     _rowCountActual = index;
                     if (changed)
@@ -172,12 +172,12 @@ public class PersistitTableModel extends AbstractTableModel {
                     _rowCache.put(index, row);
             }
             if (_rowCountActual < 0 && _rowCountEstimate - rowIndex < SCROLL_EXTRA) {
-                int previousEstimate = _rowCountEstimate;
+                final int previousEstimate = _rowCountEstimate;
                 _rowCountEstimate = (int) ((_rowCountEstimate + SCROLL_EXTRA) * SCROLL_FACTOR);
                 fireSizeChanged(previousEstimate);
             }
             return row;
-        } catch (PersistitException de) {
+        } catch (final PersistitException de) {
             return de;
         }
     }
@@ -197,12 +197,12 @@ public class PersistitTableModel extends AbstractTableModel {
      * 
      * @param table
      */
-    public void setupColumns(JTable table) {
-        TableColumnModel tcm = table.getColumnModel();
-        int count = tcm.getColumnCount();
-        String[] headers = COLUMN_HEADER_NAMES;
-        int[] widths = COLUMN_HEADER_WIDTHS;
-        TableCellRenderer renderer = new ExchangeTableCellRenderer();
+    public void setupColumns(final JTable table) {
+        final TableColumnModel tcm = table.getColumnModel();
+        final int count = tcm.getColumnCount();
+        final String[] headers = COLUMN_HEADER_NAMES;
+        final int[] widths = COLUMN_HEADER_WIDTHS;
+        final TableCellRenderer renderer = new ExchangeTableCellRenderer();
 
         for (int i = 0; i < headers.length; i++) {
             TableColumn tc;
@@ -218,7 +218,7 @@ public class PersistitTableModel extends AbstractTableModel {
         }
     }
 
-    private void fireSizeChanged(int previousEstimate) {
+    private void fireSizeChanged(final int previousEstimate) {
         if (_rowCountEstimate > previousEstimate) {
             fireTableRowsInserted(previousEstimate, _rowCountEstimate - 1);
         } else if (_rowCountEstimate < previousEstimate) {
@@ -231,10 +231,10 @@ public class PersistitTableModel extends AbstractTableModel {
     //
 
     private class Row {
-        private byte[] _keyBytes;
+        private final byte[] _keyBytes;
         private int _index = -1; // TODO - debugging
 
-        private Row(byte[] keyBytes) {
+        private Row(final byte[] keyBytes) {
             _keyBytes = keyBytes;
         }
 
@@ -248,74 +248,74 @@ public class PersistitTableModel extends AbstractTableModel {
             return true;
         }
 
-        private Row getNextRow(boolean forward) throws PersistitException {
-            Exchange ex = setupExchange();
-            boolean expanded = (isExpanded());
+        private Row getNextRow(final boolean forward) throws PersistitException {
+            final Exchange ex = setupExchange();
+            final boolean expanded = (isExpanded());
             if (!ex.traverse(forward ? Key.GT : Key.LT, expanded)) {
                 return null;
             }
-            Key key = ex.getKey();
+            final Key key = ex.getKey();
             if (key.compareKeyFragment(_rootKey, 0, _rootKey.getEncodedSize()) != 0) {
                 return null;
             }
-            int keyBytesSize = key.getEncodedSize() - _rootKey.getEncodedSize();
-            byte[] keyBytes = new byte[keyBytesSize];
+            final int keyBytesSize = key.getEncodedSize() - _rootKey.getEncodedSize();
+            final byte[] keyBytes = new byte[keyBytesSize];
             System.arraycopy(key.getEncodedBytes(), _rootKey.getEncodedSize(), keyBytes, 0, keyBytesSize);
             return new Row(keyBytes);
         }
 
         private String getValueTypeString() {
             try {
-                Exchange ex = setupExchange();
+                final Exchange ex = setupExchange();
                 if (ex.getKey().getEncodedSize() == 0)
                     return "";
                 ex.fetch();
-                Value value = ex.getValue();
+                final Value value = ex.getValue();
                 if (!value.isDefined())
                     return "undefined";
                 return value.getType().getName();
-            } catch (PersistitException de) {
+            } catch (final PersistitException de) {
                 return de.toString();
             }
         }
 
         private String getValueString() {
             try {
-                Exchange ex = setupExchange();
+                final Exchange ex = setupExchange();
                 if (ex.getKey().getEncodedSize() == 0)
                     return "";
                 ex.fetch();
-                Value value = ex.getValue();
+                final Value value = ex.getValue();
                 if (value.getEncodedSize() > 50000) {
                     return "Too long to display: " + value.getEncodedSize();
                 } else {
                     return value.toString();
                 }
-            } catch (PersistitException de) {
+            } catch (final PersistitException de) {
                 return de.toString();
             }
         }
 
         private Key getKey() {
-            Exchange ex = setupExchange();
+            final Exchange ex = setupExchange();
             return ex.getKey();
         }
 
         private Value getValue() throws PersistitException, IOException {
-            Exchange ex = setupExchange();
+            final Exchange ex = setupExchange();
             ex.fetch();
             return ex.getValue();
         }
 
         private String getKeyString() {
-            Exchange ex = setupExchange();
+            final Exchange ex = setupExchange();
             ex.getKey().setIndex(0);
             return ex.getKey().toString();
         }
 
         private Exchange setupExchange() {
-            Exchange ex = PersistitTableModel.this.getExchange();
-            Key key = ex.getKey();
+            final Exchange ex = PersistitTableModel.this.getExchange();
+            final Key key = ex.getKey();
             System.arraycopy(_rootKey.getEncodedBytes(), 0, key.getEncodedBytes(), 0, _rootKey.getEncodedSize());
             System.arraycopy(_keyBytes, 0, key.getEncodedBytes(), _rootKey.getEncodedSize(), _keyBytes.length);
             key.setEncodedSize(_rootKey.getEncodedSize() + _keyBytes.length);
@@ -332,7 +332,7 @@ public class PersistitTableModel extends AbstractTableModel {
         /**
          * Array of cached rows, organized as a ring buffer.
          */
-        private Row[] _cache = new Row[ROW_CACHE_SIZE];
+        private final Row[] _cache = new Row[ROW_CACHE_SIZE];
         /**
          * Offset of lowest indexed Row in the cache.
          */
@@ -379,10 +379,10 @@ public class PersistitTableModel extends AbstractTableModel {
             return _cache[index];
         }
 
-        private void put(int index, Row row) {
+        private void put(int index, final Row row) {
             row._index = index;
             index -= _firstCachedIndex;
-            int size = size();
+            final int size = size();
             if (index == -1) {
                 _tail--;
                 if (_tail < 0)
@@ -427,13 +427,13 @@ public class PersistitTableModel extends AbstractTableModel {
         }
 
         @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-                boolean hasFocus, int rowIndex, int columnIndex) {
+        public Component getTableCellRendererComponent(final JTable table, final Object value,
+                final boolean isSelected, final boolean hasFocus, final int rowIndex, final int columnIndex) {
 
-            JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, rowIndex,
-                    columnIndex);
+            final JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus,
+                    rowIndex, columnIndex);
 
-            Row row = (Row) value;
+            final Row row = (Row) value;
             if (row == null) {
                 label.setText("");
             } else
@@ -468,33 +468,33 @@ public class PersistitTableModel extends AbstractTableModel {
         }
 
         @Override
-        protected void setValue(Object value) {
+        protected void setValue(final Object value) {
         }
 
     }
 
     public JTable createTreeDisplayTable() {
-        TreeDisplayTable tdt = new TreeDisplayTable(this);
+        final TreeDisplayTable tdt = new TreeDisplayTable(this);
         setupColumns(tdt);
         return tdt;
     }
 
     private static class TreeDisplayTable extends JTable {
-        TreeDisplayTable(PersistitTableModel dtm) {
+        TreeDisplayTable(final PersistitTableModel dtm) {
             super(dtm);
         }
 
         @Override
-        public String getToolTipText(MouseEvent me) {
-            int row = rowAtPoint(me.getPoint());
-            int col = columnAtPoint(me.getPoint());
+        public String getToolTipText(final MouseEvent me) {
+            final int row = rowAtPoint(me.getPoint());
+            final int col = columnAtPoint(me.getPoint());
             if (row >= 0 && col >= 0) {
-                Object value = getModel().getValueAt(row, col);
+                final Object value = getModel().getValueAt(row, col);
                 if (value != null) {
-                    TableCellRenderer tcr = getCellRenderer(row, col);
-                    Component rc = tcr.getTableCellRendererComponent(this, value, false, false, row, col);
+                    final TableCellRenderer tcr = getCellRenderer(row, col);
+                    final Component rc = tcr.getTableCellRendererComponent(this, value, false, false, row, col);
                     if (rc instanceof JLabel) {
-                        String s = ((JLabel) rc).getText();
+                        final String s = ((JLabel) rc).getText();
                         if (s.length() > 20)
                             return s;
                     }

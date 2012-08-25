@@ -140,7 +140,7 @@ class VolumeStatistics {
      * @return the maximum Persistit timestamp on data contained in this
      *         <code>Volume</code>. Note that this is <i>not</i> continuously
      *         updated, but only during certain operations (e.g. close).
-     *
+     * 
      */
     public long getLastGlobalTimestamp() {
         return _lastGlobalTimestamp;
@@ -196,31 +196,31 @@ class VolumeStatistics {
         return _nextAvailablePage;
     }
 
-    void setOpenTime(long openTime) {
+    void setOpenTime(final long openTime) {
         _openTime = openTime;
     }
 
-    void setLastReadTime(long lastReadTime) {
+    void setLastReadTime(final long lastReadTime) {
         _lastReadTime = lastReadTime;
     }
 
-    void setLastWriteTime(long lastWriteTime) {
+    void setLastWriteTime(final long lastWriteTime) {
         _lastWriteTime = lastWriteTime;
     }
 
-    void setLastExtensionTime(long lastExtensionTime) {
+    void setLastExtensionTime(final long lastExtensionTime) {
         _lastExtensionTime = lastExtensionTime;
     }
 
-    void setNextAvailablePage(long nextAvailablePage) {
+    void setNextAvailablePage(final long nextAvailablePage) {
         _nextAvailablePage = nextAvailablePage;
     }
 
-    void setCreateTime(long createTime) {
+    void setCreateTime(final long createTime) {
         _createTime = createTime;
     }
 
-    void setLastGlobalTimestamp(long lastGlobalTimestamp) {
+    void setLastGlobalTimestamp(final long lastGlobalTimestamp) {
         _lastGlobalTimestamp = lastGlobalTimestamp;
     }
 }

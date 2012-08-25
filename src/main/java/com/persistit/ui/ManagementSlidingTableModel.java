@@ -45,9 +45,9 @@ class ManagementSlidingTableModel extends ManagementTableModel {
     /**
      * Size of _infoArray row cache
      */
-    private int _rowCacheSize = DEFAULT_ROW_CACHE_SIZE;
+    private final int _rowCacheSize = DEFAULT_ROW_CACHE_SIZE;
 
-    private int _maxValueSize = DEFAULT_MAXIMUM_VALUE_SIZE;
+    private final int _maxValueSize = DEFAULT_MAXIMUM_VALUE_SIZE;
     /**
      * Current estimate of total row count
      */
@@ -108,7 +108,8 @@ class ManagementSlidingTableModel extends ManagementTableModel {
      * @param clazz
      */
 
-    public ManagementSlidingTableModel(Class clazz, String className, AdminUI ui) throws NoSuchMethodException {
+    public ManagementSlidingTableModel(final Class clazz, final String className, final AdminUI ui)
+            throws NoSuchMethodException {
         super(clazz, className, ui);
     }
 
@@ -122,7 +123,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
         _definite = false;
     }
 
-    void set(String volumeName, String treeName, String keyFilterString) {
+    void set(final String volumeName, final String treeName, final String keyFilterString) {
         reset();
         _volumeName = volumeName;
         _treeName = treeName;
@@ -140,7 +141,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
     }
 
     @Override
-    public Object getValueAt(int row, int col) {
+    public Object getValueAt(final int row, final int col) {
         // if ((row % 1000) == 0 && col == 0) System.out.println("Getting row "
         // + row);
         if (row < 0 || (_definite && row >= _currentRowCount)) {
@@ -152,7 +153,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
         }
     }
 
-    private synchronized Object fetch(int row) {
+    private synchronized Object fetch(final int row) {
         if (_waiting) {
             return _adminUI.getWaitingMessage();
         }
@@ -195,12 +196,12 @@ class ManagementSlidingTableModel extends ManagementTableModel {
         // ",fromOffset=" + fromOffset + ",requestedCount=" + requestedCount +
         // ",skipCount=" + skipCount + "): _offset=" + _offset +
         // " and _valid=" + _valid);
-        Fetcher fetcher = new Fetcher(forward, fromOffset, requestedCount, skipCount);
+        final Fetcher fetcher = new Fetcher(forward, fromOffset, requestedCount, skipCount);
         new Thread(fetcher).start();
         return _adminUI.getWaitingMessage();
     }
 
-    private synchronized void receiveData(Fetcher fetcher) {
+    private synchronized void receiveData(final Fetcher fetcher) {
         _waiting = false;
         if (fetcher._exception != null) {
             _adminUI.postException(fetcher._exception);
@@ -214,7 +215,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
             _valid = 0;
         }
 
-        int count = fetcher._resultRows.length;
+        final int count = fetcher._resultRows.length;
         int newValid = _valid + count;
 
         // System.out.println(
@@ -227,9 +228,9 @@ class ManagementSlidingTableModel extends ManagementTableModel {
         // ",fetcher._requestedCount=" + fetcher._requestedCount
         // );
 
-        int oldOffset = _offset;
+        final int oldOffset = _offset;
         int newOffset = oldOffset;
-        int oldRowCount = _currentRowCount;
+        final int oldRowCount = _currentRowCount;
         int firstUpdatedRow;
         int lastUpdatedRow;
 
@@ -300,7 +301,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
         _valid = newValid;
 
         if (!_definite) {
-            int receivedRowCount = newOffset + newValid;
+            final int receivedRowCount = newOffset + newValid;
             int estimatedRowCount = (newOffset + _valid) * SCROLL_BAR_ESTIMATE_MULTIPLIER;
             if (estimatedRowCount - receivedRowCount > MAXIMUM_GROWTH_ESTIMATE) {
                 estimatedRowCount = receivedRowCount + MAXIMUM_GROWTH_ESTIMATE;
@@ -313,7 +314,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
         fireTableRowsUpdated(0, _currentRowCount - 1);
     }
 
-    private void changeRowCount(int newRowCount, boolean definite) {
+    private void changeRowCount(final int newRowCount, final boolean definite) {
         // System.out.println(
         // "Changing row count from " + _currentRowCount +
         // " to " + newRowCount +
@@ -321,7 +322,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
 
         _deletingRows = true;
 
-        int oldRowCount = _currentRowCount;
+        final int oldRowCount = _currentRowCount;
         _definite = definite;
         _currentRowCount = newRowCount;
 
@@ -347,7 +348,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
         Object[] _resultRows;
         Exception _exception;
 
-        Fetcher(boolean forward, int from, int requestedCount, int skipCount) {
+        Fetcher(final boolean forward, final int from, final int requestedCount, final int skipCount) {
             _forward = forward;
             _from = from;
             _requestedCount = requestedCount;
@@ -361,14 +362,14 @@ class ManagementSlidingTableModel extends ManagementTableModel {
                 rec = (Management.LogicalRecord) _infoArray[_from - _offset];
             }
             KeyState ks = rec == null ? KeyState.LEFT_GUARD_KEYSTATE : rec.getKeyState();
-            Management management = _adminUI.getManagement();
+            final Management management = _adminUI.getManagement();
             _resultRows = new Management.LogicalRecord[0];
             if (management != null) {
                 try {
                     if (_skipCount > 0) {
-                        LogicalRecordCount lrc = management.getLogicalRecordCount(_volumeName, _treeName,
+                        final LogicalRecordCount lrc = management.getLogicalRecordCount(_volumeName, _treeName,
                                 _keyFilterString, ks, _forward ? Key.GT : Key.LT, _skipCount);
-                        int skipped = lrc.getCount();
+                        final int skipped = lrc.getCount();
                         if (skipped > 0) {
                             ks = lrc.getKeyState();
                             _from = _forward ? _from + skipped : _from - skipped;
@@ -377,7 +378,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
 
                     _resultRows = management.getLogicalRecordArray(_volumeName, _treeName, _keyFilterString, ks,
                             _forward ? Key.GT : Key.LT, _requestedCount, _maxValueSize, true);
-                } catch (RemoteException remoteException) {
+                } catch (final RemoteException remoteException) {
                     // TODO
                     _exception = remoteException;
                 }

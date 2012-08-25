@@ -54,18 +54,18 @@ public class CommitBench extends PersistitUnitTestCase {
     AtomicInteger rollbackCount = new AtomicInteger();
 
     @Override
-    protected Properties getProperties(boolean cleanup) {
+    protected Properties getProperties(final boolean cleanup) {
         return UnitTestProperties.getBiggerProperties(cleanup);
     }
 
     public void bench(final String[] args) throws Exception {
         final ArgParser ap = new ArgParser("CommitBench", args, ARG_TEMPLATE).strict();
-        int threadCount = ap.getIntValue("threads");
-        int duration = ap.getIntValue("duration");
-        String policy = ap.getStringValue("policy");
+        final int threadCount = ap.getIntValue("threads");
+        final int duration = ap.getIntValue("duration");
+        final String policy = ap.getStringValue("policy");
         _persistit.setDefaultTransactionCommitPolicy(CommitPolicy.valueOf(policy));
-        TransactionRun[] runs = new TransactionRun[threadCount];
-        Thread[] threads = new Thread[threadCount];
+        final TransactionRun[] runs = new TransactionRun[threadCount];
+        final Thread[] threads = new Thread[threadCount];
         for (int index = 0; index < threadCount; index++) {
             runs[index] = new TransactionRun(index, threadCount);
             threads[index] = new Thread(runs[index]);
@@ -79,10 +79,10 @@ public class CommitBench extends PersistitUnitTestCase {
         for (int index = 0; index < threadCount; index++) {
             threads[index].join();
         }
-        long elapsed = System.currentTimeMillis() - startTime;
+        final long elapsed = System.currentTimeMillis() - startTime;
         System.out.printf("Joined %,d threads after %,d seconds\n", threadCount, (elapsed / 1000));
-        long committed = commitCount.get();
-        long rate = (committed * 60000) / elapsed;
+        final long committed = commitCount.get();
+        final long rate = (committed * 60000) / elapsed;
         int min = Integer.MAX_VALUE;
         int max = Integer.MIN_VALUE;
         for (final TransactionRun run : runs) {
@@ -101,11 +101,12 @@ public class CommitBench extends PersistitUnitTestCase {
         final Random random = new Random();
         int countPerThread = 0;
 
-        TransactionRun(int index, int count) {
+        TransactionRun(final int index, final int count) {
             threadId = index;
             threadCount = count;
         }
 
+        @Override
         public void run() {
             try {
                 if (txn == null) {
@@ -115,7 +116,7 @@ public class CommitBench extends PersistitUnitTestCase {
                 while (System.currentTimeMillis() < stopTime) {
                     try {
                         txn.begin();
-                        int key = (random.nextInt(RECORDS / threadCount / RECORDS_PER_TXN) * threadCount + threadId)
+                        final int key = (random.nextInt(RECORDS / threadCount / RECORDS_PER_TXN) * threadCount + threadId)
                                 * RECORDS_PER_TXN;
                         exchange.getValue().put(
                                 RED_FOX + " " + Thread.currentThread().getName() + " " + ++countPerThread);
@@ -124,13 +125,13 @@ public class CommitBench extends PersistitUnitTestCase {
                         }
                         txn.commit();
                         commitCount.incrementAndGet();
-                    } catch (RollbackException e) {
+                    } catch (final RollbackException e) {
                         rollbackCount.incrementAndGet();
                     } finally {
                         txn.end();
                     }
                 }
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 e.printStackTrace();
             }
         }

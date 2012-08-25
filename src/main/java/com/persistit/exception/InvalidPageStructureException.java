@@ -24,7 +24,7 @@ package com.persistit.exception;
 public class InvalidPageStructureException extends PersistitException {
     private static final long serialVersionUID = -1653907911348747889L;
 
-    public InvalidPageStructureException(String msg) {
+    public InvalidPageStructureException(final String msg) {
         super(msg);
     }
 

@@ -71,8 +71,8 @@ final class ClassIndex {
             INITIAL_CAPACITY);
 
     private int _testIdFloor = Integer.MIN_VALUE;
-    private AtomicInteger _cacheMisses = new AtomicInteger();
-    private AtomicInteger _discardedDuplicates = new AtomicInteger();
+    private final AtomicInteger _cacheMisses = new AtomicInteger();
+    private final AtomicInteger _discardedDuplicates = new AtomicInteger();
 
     /**
      * A structure holding a ClassInfo, plus links to other related
@@ -82,7 +82,7 @@ final class ClassIndex {
         final ClassInfoEntry _next;
         final ClassInfo _classInfo;
 
-        ClassInfoEntry(ClassInfo ci, ClassInfoEntry next) {
+        ClassInfoEntry(final ClassInfo ci, final ClassInfoEntry next) {
             _classInfo = ci;
             _next = next;
         }
@@ -95,7 +95,7 @@ final class ClassIndex {
      * @param persistit
      *            Owning Persistit instance.
      */
-    ClassIndex(Persistit persistit) {
+    ClassIndex(final Persistit persistit) {
         _persistit = persistit;
     }
 
@@ -117,8 +117,8 @@ final class ClassIndex {
      *            The handle
      * @return The associated ClassInfo, or <i>null</i> if there is none.
      */
-    public ClassInfo lookupByHandle(int handle) {
-        AtomicReferenceArray<ClassInfoEntry> hashTable = _hashTable;
+    public ClassInfo lookupByHandle(final int handle) {
+        final AtomicReferenceArray<ClassInfoEntry> hashTable = _hashTable;
         ClassInfoEntry cie = hashTable.get(handle % hashTable.length());
         while (cie != null) {
             if (cie._classInfo.getHandle() == handle)
@@ -138,43 +138,44 @@ final class ClassIndex {
                 try {
                     ex.clear().append(BY_HANDLE).append(handle).fetch();
                     txn.commit();
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     _persistit.getLogBase().exception.log(e);
                     throw new ConversionException(e);
                 } finally {
                     txn.end();
                 }
-                Value value = ex.getValue();
+                final Value value = ex.getValue();
                 if (value.isDefined()) {
                     value.setStreamMode(true);
-                    int storedId = value.getInt();
-                    String storedName = value.getString();
-                    long storedSuid = value.getLong();
+                    final int storedId = value.getInt();
+                    final String storedName = value.getString();
+                    final long storedSuid = value.getLong();
                     if (storedId != handle) {
                         throw new IllegalStateException("ClassInfo stored for handle=" + handle
                                 + " has invalid stored handle=" + storedId);
                     }
-                    Class<?> cl = Class.forName(storedName, false, Thread.currentThread().getContextClassLoader());
+                    final Class<?> cl = Class
+                            .forName(storedName, false, Thread.currentThread().getContextClassLoader());
 
                     long suid = 0;
-                    ObjectStreamClass osc = ObjectStreamClass.lookupAny(cl);
+                    final ObjectStreamClass osc = ObjectStreamClass.lookupAny(cl);
                     if (osc != null)
                         suid = osc.getSerialVersionUID();
                     if (storedSuid != suid) {
                         throw new ConversionException("Class " + cl.getName() + " persistent SUID=" + storedSuid
                                 + " does not match current class SUID=" + suid);
                     }
-                    ClassInfo ci = new ClassInfo(cl, suid, handle, osc);
+                    final ClassInfo ci = new ClassInfo(cl, suid, handle, osc);
                     hashClassInfo(ci);
                     return ci;
                 } else {
-                    ClassInfo ci = new ClassInfo(null, 0, handle, null);
+                    final ClassInfo ci = new ClassInfo(null, 0, handle, null);
                     hashClassInfo(ci);
                     return ci;
                 }
-            } catch (ClassNotFoundException cnfe) {
+            } catch (final ClassNotFoundException cnfe) {
                 throw new ConversionException(cnfe);
-            } catch (PersistitException pe) {
+            } catch (final PersistitException pe) {
                 throw new ConversionException(pe);
             } finally {
                 if (ex != null)
@@ -191,13 +192,13 @@ final class ClassIndex {
      *            The <code>Class</code>
      * @return The ClassInfo for the specified Class.
      */
-    public ClassInfo lookupByClass(Class<?> clazz) {
-        AtomicReferenceArray<ClassInfoEntry> hashTable = _hashTable;
+    public ClassInfo lookupByClass(final Class<?> clazz) {
+        final AtomicReferenceArray<ClassInfoEntry> hashTable = _hashTable;
 
         ObjectStreamClass osc = null;
         long suid = 0;
 
-        int nh = clazz.getName().hashCode() & 0x7FFFFFFF;
+        final int nh = clazz.getName().hashCode() & 0x7FFFFFFF;
         ClassInfoEntry cie = hashTable.get(nh % hashTable.length());
 
         while (cie != null) {
@@ -260,14 +261,14 @@ final class ClassIndex {
                 final int handle;
                 txn.begin();
                 ex.clear().append(BY_NAME).append(clazz.getName()).append(suid).fetch();
-                Value value = ex.getValue();
+                final Value value = ex.getValue();
                 try {
                     if (value.isDefined()) {
                         value.setStreamMode(true);
 
                         handle = value.getInt();
-                        String storedName = value.getString();
-                        long storedSuid = value.getLong();
+                        final String storedName = value.getString();
+                        final long storedSuid = value.getLong();
 
                         if (storedSuid != suid || !clazz.getName().equals(storedName)) {
                             throw new ConversionException("Class " + clazz.getName() + " persistent SUID=" + storedSuid
@@ -301,7 +302,7 @@ final class ClassIndex {
                 } finally {
                     txn.end();
                 }
-            } catch (PersistitException pe) {
+            } catch (final PersistitException pe) {
                 throw new ConversionException(pe);
             } finally {
                 if (ex != null) {
@@ -322,16 +323,16 @@ final class ClassIndex {
      * @param clazz
      *            Class instance to register.
      */
-    public void registerClass(Class<?> clazz) {
+    public void registerClass(final Class<?> clazz) {
         lookupByClass(clazz);
     }
 
-    private void hashClassInfo(ClassInfo ci) {
-        int size = _size.get();
+    private void hashClassInfo(final ClassInfo ci) {
+        final int size = _size.get();
         if (size * EXTRA_FACTOR > _hashTable.length()) {
-            int discarded = _discardedDuplicates.get();
-            AtomicReferenceArray<ClassInfoEntry> newHashTable = new AtomicReferenceArray<ClassInfoEntry>(EXTRA_FACTOR
-                    * 2 * size);
+            final int discarded = _discardedDuplicates.get();
+            final AtomicReferenceArray<ClassInfoEntry> newHashTable = new AtomicReferenceArray<ClassInfoEntry>(
+                    EXTRA_FACTOR * 2 * size);
             for (int i = 0; i < _hashTable.length(); i++) {
                 ClassInfoEntry cie = _hashTable.get(i);
                 while (cie != null) {
@@ -345,7 +346,7 @@ final class ClassIndex {
         addHashEntry(_hashTable, ci);
     }
 
-    private void addHashEntry(final AtomicReferenceArray<ClassInfoEntry> hashTable, ClassInfo ci) {
+    private void addHashEntry(final AtomicReferenceArray<ClassInfoEntry> hashTable, final ClassInfo ci) {
         final int hh = ci.getHandle() % hashTable.length();
         final int nh = ci.getDescribedClass() == null ? -1
                 : ((ci.getDescribedClass().getName().hashCode() & 0x7FFFFFFF) % hashTable.length());
@@ -358,7 +359,8 @@ final class ClassIndex {
         }
     }
 
-    private boolean addHashEntry(final AtomicReferenceArray<ClassInfoEntry> hashTable, ClassInfo ci, final int hash) {
+    private boolean addHashEntry(final AtomicReferenceArray<ClassInfoEntry> hashTable, final ClassInfo ci,
+            final int hash) {
         ClassInfoEntry cie = hashTable.get(hash);
         while (cie != null) {
             if (ci.equals(cie._classInfo)) {
@@ -367,7 +369,7 @@ final class ClassIndex {
             cie = cie._next;
         }
         cie = hashTable.get(hash);
-        ClassInfoEntry newCie = new ClassInfoEntry(ci, cie);
+        final ClassInfoEntry newCie = new ClassInfoEntry(ci, cie);
         hashTable.set(hash, newCie);
         _size.incrementAndGet();
         return true;
@@ -375,14 +377,14 @@ final class ClassIndex {
 
     private Exchange getExchange() throws PersistitException {
         try {
-            Volume volume = _persistit.getSystemVolume();
+            final Volume volume = _persistit.getSystemVolume();
             return _persistit.getExchange(volume, CLASS_INDEX_TREE_NAME, true);
-        } catch (PersistitException pe) {
+        } catch (final PersistitException pe) {
             throw new ConversionException(pe);
         }
     }
 
-    private void releaseExchange(Exchange ex) {
+    private void releaseExchange(final Exchange ex) {
         _persistit.releaseExchange(ex);
     }
 

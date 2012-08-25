@@ -28,7 +28,7 @@ public class StressUUID extends StressBase {
 
     int _size;
 
-    public StressUUID(String argsString) {
+    public StressUUID(final String argsString) {
         super(argsString);
     }
 

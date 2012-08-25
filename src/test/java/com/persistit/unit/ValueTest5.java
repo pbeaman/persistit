@@ -42,7 +42,7 @@ public class ValueTest5 extends PersistitUnitTestCase {
         Job _myJob;
         Job _yourJob;
 
-        S(Job m, Job y) {
+        S(final Job m, final Job y) {
             _myJob = m;
             _yourJob = y;
         }
@@ -70,23 +70,23 @@ public class ValueTest5 extends PersistitUnitTestCase {
     @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
-        S s = new S(Job.COOK, Job.BOTTLEWASHER);
+        final S s = new S(Job.COOK, Job.BOTTLEWASHER);
         _exchange.getValue().put(s);
         _exchange.clear().append("test1").store();
-        Object x = _exchange.getValue().get();
+        final Object x = _exchange.getValue().get();
         assertEquals("COOK:BOTTLEWASHER", x.toString());
 
         System.out.println("- done");
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         new ValueTest5().initAndRunTest();
     }
 
     @Override
     public void runAllTests() throws Exception {
         _exchange = _persistit.getExchange("persistit", "ValueTest5", true);
-        CoderManager cm = _persistit.getCoderManager();
+        final CoderManager cm = _persistit.getCoderManager();
 
         test1();
 

@@ -91,7 +91,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         try {
             ex.clear().append("test1").hasChildren();
             fail("Should have thrown an exception");
-        } catch (Exception e) {
+        } catch (final Exception e) {
             // ok
         }
 
@@ -227,7 +227,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                     txn.rollback();
                 }
                 txn.commit();
-            } catch (RollbackException re) {
+            } catch (final RollbackException re) {
                 assertEquals(0, i % 2);
             } finally {
                 txn.end();
@@ -291,7 +291,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         traverseTest7(remainingKeys, ex, kf);
     }
 
-    private void traverseTest7(final Set<Integer> remainingKeys, final Exchange ex, KeyFilter kf)
+    private void traverseTest7(final Set<Integer> remainingKeys, final Exchange ex, final KeyFilter kf)
             throws PersistitException {
         remainingKeys.clear();
         ex.clear().append(Key.BEFORE);
@@ -342,12 +342,12 @@ public class TransactionTest1 extends PersistitUnitTestCase {
     }
 
     private void checkTest7(final Set<Integer> remainingKeys, final Exchange ex) throws PersistitException {
-        int k = ex.getKey().reset().decodeInt();
+        final int k = ex.getKey().reset().decodeInt();
         remainingKeys.add(k);
         assertTrue(ex.traverse(Key.GTEQ, true, Integer.MAX_VALUE));
-        int m = ex.getKey().reset().decodeInt();
+        final int m = ex.getKey().reset().decodeInt();
         assertTrue(ex.traverse(Key.LTEQ, true, Integer.MAX_VALUE));
-        int n = ex.getKey().reset().decodeInt();
+        final int n = ex.getKey().reset().decodeInt();
         assertEquals(m, k);
         assertEquals(n, k);
     }

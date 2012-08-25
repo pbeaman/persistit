@@ -28,8 +28,7 @@ public class VolumeClosedException extends PersistitException {
         super();
     }
 
-    public VolumeClosedException(String msg) {
+    public VolumeClosedException(final String msg) {
         super(msg);
     }
 }
-

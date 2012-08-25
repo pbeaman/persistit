@@ -15,7 +15,6 @@
 
 package com.persistit;
 
-import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Random;
@@ -25,7 +24,6 @@ import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
-import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.VolumeClosedException;
 
 /**
@@ -80,7 +78,7 @@ abstract class VolumeStorage extends SharedResource {
 
     /**
      * @return the channel used to read and write pages of this volume.
-     * @throws PersistitIOException 
+     * @throws PersistitIOException
      */
     abstract FileChannel getChannel() throws PersistitIOException;
 

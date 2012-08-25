@@ -65,17 +65,17 @@ public class Tree extends SharedResource {
     private final Volume _volume;
     private volatile long _rootPageAddr;
     private volatile int _depth;
-    private AtomicLong _changeCount = new AtomicLong(0);
-    private AtomicReference<Object> _appCache = new AtomicReference<Object>();
-    private AtomicInteger _handle = new AtomicInteger();
+    private final AtomicLong _changeCount = new AtomicLong(0);
+    private final AtomicReference<Object> _appCache = new AtomicReference<Object>();
+    private final AtomicInteger _handle = new AtomicInteger();
 
-    private Accumulator[] _accumulators = new Accumulator[MAX_ACCUMULATOR_COUNT];
+    private final Accumulator[] _accumulators = new Accumulator[MAX_ACCUMULATOR_COUNT];
 
     private final TreeStatistics _treeStatistics = new TreeStatistics();
 
-    Tree(final Persistit persistit, Volume volume, String name) {
+    Tree(final Persistit persistit, final Volume volume, final String name) {
         super(persistit);
-        int serializedLength = name.getBytes().length;
+        final int serializedLength = name.getBytes().length;
         if (serializedLength > MAX_TREE_NAME_SIZE) {
             throw new IllegalArgumentException("Tree name too long: " + name.length() + "(as " + serializedLength
                     + " bytes)");
@@ -105,9 +105,9 @@ public class Tree extends SharedResource {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (o instanceof Tree) {
-            Tree tree = (Tree) o;
+            final Tree tree = (Tree) o;
             return _name.equals(tree._name) && _volume.equals(tree.getVolume());
         } else {
             return false;
@@ -132,7 +132,7 @@ public class Tree extends SharedResource {
         return _depth;
     }
 
-    void changeRootPageAddr(long rootPageAddr, int deltaDepth) throws PersistitException {
+    void changeRootPageAddr(final long rootPageAddr, final int deltaDepth) throws PersistitException {
         Debug.$assert0.t(isMine());
         _rootPageAddr = rootPageAddr;
         _depth += deltaDepth;
@@ -160,7 +160,7 @@ public class Tree extends SharedResource {
      * @param value
      */
     int store(final byte[] bytes, final int index) {
-        byte[] nameBytes = Util.stringToBytes(_name);
+        final byte[] nameBytes = Util.stringToBytes(_name);
         Util.putLong(bytes, index, _rootPageAddr);
         Util.putLong(bytes, index + 8, getChangeCount());
         Util.putShort(bytes, index + 16, _depth);
@@ -175,7 +175,7 @@ public class Tree extends SharedResource {
      * @param value
      */
     int load(final byte[] bytes, final int index, final int length) {
-        int nameLength = length < 20 ? -1 : Util.getShort(bytes, index + 18);
+        final int nameLength = length < 20 ? -1 : Util.getShort(bytes, index + 18);
         if (nameLength < 1 || nameLength + 20 > length) {
             throw new IllegalStateException("Invalid tree record is too short for tree " + _name + ": " + length);
         }
@@ -201,7 +201,7 @@ public class Tree extends SharedResource {
             Buffer buffer = null;
             try {
                 buffer = getVolume().getStructure().getPool().get(_volume, rootPageAddr, false, true);
-                int type = buffer.getPageType();
+                final int type = buffer.getPageType();
                 if (type < Buffer.PAGE_TYPE_DATA || type > Buffer.PAGE_TYPE_INDEX_MAX) {
                     throw new CorruptVolumeException(String.format("Tree root page %,d has invalid type %s",
                             rootPageAddr, buffer.getPageTypeName()));
@@ -254,7 +254,7 @@ public class Tree extends SharedResource {
      * @param appCache
      *            the object to be cached for application convenience.
      */
-    public void setAppCache(Object appCache) {
+    public void setAppCache(final Object appCache) {
         _appCache.set(appCache);
     }
 

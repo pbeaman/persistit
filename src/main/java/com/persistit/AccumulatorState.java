@@ -15,7 +15,6 @@
 
 package com.persistit;
 
-
 /**
  * State of an accumulator recovered from a checkpoint.
  * 
@@ -48,19 +47,19 @@ final class AccumulatorState {
     public String toString() {
         return String.format("Accumulator(tree=%s index=%d type=%s value=%,d)", _treeName, _index, _type, _value);
     }
-    
+
     public String getTreeName() {
         return _treeName;
     }
-    
+
     public int getIndex() {
         return _index;
     }
-    
+
     public Accumulator.Type getType() {
         return _type;
     }
-    
+
     public long getValue() {
         return _value;
     }

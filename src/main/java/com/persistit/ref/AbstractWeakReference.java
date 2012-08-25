@@ -67,7 +67,7 @@ public abstract class AbstractWeakReference implements PersistitReference {
      * @param referent
      *            The object identified by the id
      */
-    protected AbstractWeakReference(Object id, Object referent) {
+    protected AbstractWeakReference(final Object id, final Object referent) {
         _id = id;
         if (referent == null)
             _knownNull = true;
@@ -82,7 +82,7 @@ public abstract class AbstractWeakReference implements PersistitReference {
      * 
      * @param id
      */
-    protected AbstractWeakReference(Object id) {
+    protected AbstractWeakReference(final Object id) {
         _id = id;
         _weakReference = null;
         _knownNull = false;

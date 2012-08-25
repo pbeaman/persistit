@@ -28,7 +28,7 @@ public class InvalidKeyException extends PersistitException {
         super();
     }
 
-    public InvalidKeyException(String msg) {
+    public InvalidKeyException(final String msg) {
         super(msg);
     }
 

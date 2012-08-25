@@ -19,11 +19,9 @@ import java.util.ArrayList;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
 
 public class Stress11 extends StressBase {
-
 
     private final static String[] ARGS_TEMPLATE = { "op|String:wrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions", "count|int:10000:0:1000000000|Number of nodes to populate",
@@ -37,7 +35,7 @@ public class Stress11 extends StressBase {
     ArrayList _objects = new ArrayList();
     ArrayList _objectsCopy = new ArrayList();
 
-    public Stress11(String argsString) {
+    public Stress11(final String argsString) {
         super(argsString);
     }
 
@@ -129,8 +127,7 @@ public class Stress11 extends StressBase {
 
                         final int size2 = _exs.getValue().getEncodedSize();
                         if (size2 != size1) {
-                            fail("Value is size " + size2 + ", should be " + size1 + " key="
-                                    + _ex.getKey());
+                            fail("Value is size " + size2 + ", should be " + size1 + " key=" + _ex.getKey());
                         }
                         if (size1 != 0) {
                             _exs.getValue().get();
@@ -162,8 +159,7 @@ public class Stress11 extends StressBase {
                                 size1 = _ex.getValue().getInt();
                             }
                             if (size2 != size1) {
-                                fail("Value is size " + size2 + ", should be " + size1
-                                        + " key=" + _ex.getKey());
+                                fail("Value is size " + size2 + ", should be " + size1 + " key=" + _ex.getKey());
                             }
                             if (size1 != 0) {
                                 _exs.getValue().get();

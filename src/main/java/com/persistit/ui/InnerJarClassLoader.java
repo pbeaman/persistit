@@ -40,36 +40,36 @@ import java.util.zip.ZipEntry;
 class InnerJarClassLoader extends ClassLoader {
     HashMap _resourceMap = new HashMap();
 
-    InnerJarClassLoader(ClassLoader parent) throws IOException {
+    InnerJarClassLoader(final ClassLoader parent) throws IOException {
         super(parent);
     }
 
-    public void addJar(String jarName) throws IOException {
+    public void addJar(final String jarName) throws IOException {
         addJar(getClass().getClassLoader().getResourceAsStream(jarName));
     }
 
-    public void addJar(InputStream is) throws IOException {
-        JarInputStream jis = new JarInputStream(new BufferedInputStream(is, 32768));
+    public void addJar(final InputStream is) throws IOException {
+        final JarInputStream jis = new JarInputStream(new BufferedInputStream(is, 32768));
 
         byte[] hbytes = new byte[65536];
         for (;;) {
-            ZipEntry entry = jis.getNextEntry();
+            final ZipEntry entry = jis.getNextEntry();
             if (entry == null)
                 break;
-            String name = entry.getName();
+            final String name = entry.getName();
             int offset = 0;
             for (;;) {
-                int length = jis.read(hbytes, offset, hbytes.length - offset);
+                final int length = jis.read(hbytes, offset, hbytes.length - offset);
                 if (length == -1)
                     break;
                 offset += length;
                 if (offset == hbytes.length) {
-                    byte[] temp = new byte[hbytes.length + 65536];
+                    final byte[] temp = new byte[hbytes.length + 65536];
                     System.arraycopy(hbytes, 0, temp, 0, offset);
                     hbytes = temp;
                 }
             }
-            byte[] bytes = new byte[offset];
+            final byte[] bytes = new byte[offset];
             System.arraycopy(hbytes, 0, bytes, 0, offset);
             _resourceMap.put(name, bytes);
             jis.closeEntry();
@@ -77,9 +77,9 @@ class InnerJarClassLoader extends ClassLoader {
     }
 
     @Override
-    public Class findClass(String className) throws ClassNotFoundException {
-        String fileName = className.replace('.', '/') + ".class";
-        byte[] bytes = (byte[]) _resourceMap.get(fileName);
+    public Class findClass(final String className) throws ClassNotFoundException {
+        final String fileName = className.replace('.', '/') + ".class";
+        final byte[] bytes = (byte[]) _resourceMap.get(fileName);
         if (bytes != null) {
             return defineClass(className, bytes, 0, bytes.length);
         } else
@@ -87,8 +87,8 @@ class InnerJarClassLoader extends ClassLoader {
     }
 
     @Override
-    public InputStream getResourceAsStream(String name) {
-        byte[] bytes = (byte[]) _resourceMap.get(name);
+    public InputStream getResourceAsStream(final String name) {
+        final byte[] bytes = (byte[]) _resourceMap.get(name);
         if (bytes != null)
             return new ByteArrayInputStream(bytes);
         else

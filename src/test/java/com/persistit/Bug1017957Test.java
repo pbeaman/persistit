@@ -23,7 +23,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
-import com.persistit.mxbeans.ManagementMXBean;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
@@ -101,7 +100,7 @@ import com.persistit.unit.UnitTestProperties;
 public class Bug1017957Test extends PersistitUnitTestCase {
 
     @Override
-    protected Properties getProperties(boolean cleanup) {
+    protected Properties getProperties(final boolean cleanup) {
         return UnitTestProperties.getBiggerProperties(cleanup);
     }
 
@@ -115,38 +114,40 @@ public class Bug1017957Test extends PersistitUnitTestCase {
     public void induceCorruptionByStress() throws Exception {
         final long expiresAt = System.nanoTime() + STRESS_NANOS;
         final AtomicInteger totalErrors = new AtomicInteger();
-        Thread t1 = new Thread(new Runnable() {
+        final Thread t1 = new Thread(new Runnable() {
+            @Override
             public void run() {
                 int count = 0;
                 int errors = 0;
                 try {
-                    Exchange ex = _persistit.getExchange("persistit", "Bug1017957Test", true);
+                    final Exchange ex = _persistit.getExchange("persistit", "Bug1017957Test", true);
                     while (System.nanoTime() < expiresAt) {
                         try {
-                            Key key = createUnsafeStructure(ex);
+                            final Key key = createUnsafeStructure(ex);
                             removeInterestingKey(ex, key);
                             if (++count % 5000 == 0) {
                                 System.out.printf("T1 iterations %,d\n", count);
                             }
-                        } catch (Exception e) {
+                        } catch (final Exception e) {
                             if (++errors < 10) {
                                 e.printStackTrace();
                             }
                             totalErrors.incrementAndGet();
                         }
                     }
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     throw new RuntimeException(e);
                 }
             }
         });
 
-        Thread t2 = new Thread(new Runnable() {
+        final Thread t2 = new Thread(new Runnable() {
+            @Override
             public void run() {
                 int count = 0;
                 int errors = 0;
                 try {
-                    Exchange ex = _persistit.getExchange("persistit", "Bug1017957Test", true);
+                    final Exchange ex = _persistit.getExchange("persistit", "Bug1017957Test", true);
                     while (System.nanoTime() < expiresAt) {
                         try {
                             removeCoveringRange(ex);
@@ -154,14 +155,14 @@ public class Bug1017957Test extends PersistitUnitTestCase {
                             if (++count % 5000 == 0) {
                                 System.out.printf("T2 iterations %,d\n", count);
                             }
-                        } catch (Exception e) {
+                        } catch (final Exception e) {
                             if (++errors < 10) {
                                 e.printStackTrace();
                             }
                             totalErrors.incrementAndGet();
                         }
                     }
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     if (++errors < 10) {
                         e.printStackTrace();
                     }
@@ -174,7 +175,7 @@ public class Bug1017957Test extends PersistitUnitTestCase {
         t1.join();
         t2.join();
 
-        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        final IntegrityCheck icheck = new IntegrityCheck(_persistit);
         icheck.setMessageLogVerbosity(Task.LOG_VERBOSE);
         icheck.setMessageWriter(new PrintWriter(System.out));
         icheck.checkVolume(_persistit.getVolume("persistit"));

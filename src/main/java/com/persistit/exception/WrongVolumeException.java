@@ -15,7 +15,6 @@
 
 package com.persistit.exception;
 
-
 /**
  * Thrown by {@link com.persistit.Volume} if the volume file has a different
  * internal ID value than expected. This condition can signify that a volume
@@ -29,7 +28,7 @@ public class WrongVolumeException extends PersistitException {
         super();
     }
 
-    public WrongVolumeException(String msg) {
+    public WrongVolumeException(final String msg) {
         super(msg);
     }
 

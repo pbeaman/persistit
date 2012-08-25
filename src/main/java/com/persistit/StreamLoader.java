@@ -58,14 +58,14 @@ public class StreamLoader extends Task {
     protected ImportHandler _handler;
 
     @Cmd("load")
-    static Task createStreamLoader(@Arg("file|string:|Load from file path") String file,
-            @Arg("trees|string:|Tree selector - specify Volumes/Trees/Keys to save") String treeSelectorString,
-            @Arg("_flag|r|Use regular expressions in tree selector") boolean regex,
-            @Arg("_flag|n|Don't create missing Volumes (Default is to create them)") boolean dontCreateVolumes,
-            @Arg("_flag|t|Don't create missing Trees (Default is to create them)") boolean dontCreateTrees,
-            @Arg("_flag|v|verbose") boolean verbose) throws Exception {
+    static Task createStreamLoader(@Arg("file|string:|Load from file path") final String file,
+            @Arg("trees|string:|Tree selector - specify Volumes/Trees/Keys to save") final String treeSelectorString,
+            @Arg("_flag|r|Use regular expressions in tree selector") final boolean regex,
+            @Arg("_flag|n|Don't create missing Volumes (Default is to create them)") final boolean dontCreateVolumes,
+            @Arg("_flag|t|Don't create missing Trees (Default is to create them)") final boolean dontCreateTrees,
+            @Arg("_flag|v|verbose") final boolean verbose) throws Exception {
 
-        StreamLoader task = new StreamLoader();
+        final StreamLoader task = new StreamLoader();
         task._filePath = file;
         task._treeSelector = TreeSelector.parseSelector(treeSelectorString, regex, '\\');
         task._createMissingVolumes = !dontCreateVolumes;
@@ -102,23 +102,23 @@ public class StreamLoader extends Task {
         load(new TreeSelector(), true, true);
     }
 
-    public void load(TreeSelector treeSelector, boolean createMissingVolumes, boolean createMissingTrees)
-            throws IOException, PersistitException {
+    public void load(final TreeSelector treeSelector, final boolean createMissingVolumes,
+            final boolean createMissingTrees) throws IOException, PersistitException {
         _handler = new ImportHandler(_persistit, treeSelector, createMissingVolumes, createMissingTrees);
         load(_handler);
         close();
     }
 
-    public void load(ImportHandler handler) throws IOException, PersistitException {
+    public void load(final ImportHandler handler) throws IOException, PersistitException {
         String volumeName = null;
         String treeName = null;
         for (;;) {
-            int b1 = _dis.read();
+            final int b1 = _dis.read();
             if (b1 == -1) {
                 break;
             }
-            int b2 = _dis.read();
-            int recordType = ((b1 & 0xFF) << 8) + (b2 & 0xFF);
+            final int b2 = _dis.read();
+            final int recordType = ((b1 & 0xFF) << 8) + (b2 & 0xFF);
 
             switch (recordType) {
             case StreamSaver.RECORD_TYPE_FILL: {
@@ -127,9 +127,9 @@ public class StreamLoader extends Task {
                 break;
             }
             case StreamSaver.RECORD_TYPE_DATA: {
-                int keySize = _dis.readShort();
-                int elisionCount = _dis.readShort();
-                int valueSize = _dis.readInt();
+                final int keySize = _dis.readShort();
+                final int elisionCount = _dis.readShort();
+                final int valueSize = _dis.readInt();
                 _value.ensureFit(valueSize);
                 _dis.read(_key.getEncodedBytes(), elisionCount, keySize - elisionCount);
                 _key.setEncodedSize(keySize);
@@ -140,18 +140,18 @@ public class StreamLoader extends Task {
                 break;
             }
             case StreamSaver.RECORD_TYPE_KEY_FILTER: {
-                String filterString = _dis.readUTF();
+                final String filterString = _dis.readUTF();
                 handler.handleKeyFilterRecord(filterString);
                 _otherRecordCount++;
                 break;
             }
             case StreamSaver.RECORD_TYPE_VOLUME_ID: {
-                long id = _dis.readLong();
-                long initialPages = _dis.readLong();
-                long extensionPages = _dis.readLong();
-                long maximumPages = _dis.readLong();
-                int bufferSize = _dis.readInt();
-                String path = _dis.readUTF();
+                final long id = _dis.readLong();
+                final long initialPages = _dis.readLong();
+                final long extensionPages = _dis.readLong();
+                final long maximumPages = _dis.readLong();
+                final int bufferSize = _dis.readInt();
+                final String path = _dis.readUTF();
                 volumeName = _dis.readUTF();
                 handler.handleVolumeIdRecord(id, initialPages, extensionPages, maximumPages, bufferSize, path,
                         volumeName);
@@ -166,26 +166,26 @@ public class StreamLoader extends Task {
                 break;
             }
             case StreamSaver.RECORD_TYPE_HOSTNAME: {
-                String hostName = _dis.readUTF();
+                final String hostName = _dis.readUTF();
                 handler.handleHostNameRecord(hostName);
                 _otherRecordCount++;
                 break;
             }
             case StreamSaver.RECORD_TYPE_USER: {
-                String hostName = _dis.readUTF();
+                final String hostName = _dis.readUTF();
                 handler.handleUserRecord(hostName);
                 _otherRecordCount++;
                 break;
             }
             case StreamSaver.RECORD_TYPE_COMMENT: {
-                String comment = _dis.readUTF();
+                final String comment = _dis.readUTF();
                 handler.handleCommentRecord(comment);
                 _otherRecordCount++;
                 break;
             }
             case StreamSaver.RECORD_TYPE_COUNT: {
-                long dataRecordCount = _dis.readLong();
-                long otherRecordCount = _dis.readLong();
+                final long dataRecordCount = _dis.readLong();
+                final long otherRecordCount = _dis.readLong();
                 handler.handleCountRecord(dataRecordCount, otherRecordCount);
                 _otherRecordCount++;
                 break;
@@ -201,13 +201,13 @@ public class StreamLoader extends Task {
                 break;
             }
             case StreamSaver.RECORD_TYPE_TIMESTAMP: {
-                long timeStamp = _dis.readLong();
+                final long timeStamp = _dis.readLong();
                 handler.handleTimeStampRecord(timeStamp);
                 _otherRecordCount++;
                 break;
             }
             case StreamSaver.RECORD_TYPE_EXCEPTION: {
-                String exceptionString = _dis.readUTF();
+                final String exceptionString = _dis.readUTF();
                 handler.handleExceptionRecord(exceptionString);
                 _otherRecordCount++;
                 break;
@@ -247,12 +247,12 @@ public class StreamLoader extends Task {
         protected boolean _createMissingVolumes;
         protected boolean _createMissingTrees;
 
-        public ImportHandler(Persistit persistit) {
+        public ImportHandler(final Persistit persistit) {
             this(persistit, new TreeSelector(), true, true);
         }
 
-        public ImportHandler(Persistit persistit, TreeSelector treeSelector, boolean createMissingVolumes,
-                boolean createMissingTrees) {
+        public ImportHandler(final Persistit persistit, final TreeSelector treeSelector,
+                final boolean createMissingVolumes, final boolean createMissingTrees) {
             _persistit = persistit;
             _treeSelector = treeSelector == null ? new TreeSelector() : treeSelector;
             _createMissingTrees = createMissingTrees;
@@ -262,7 +262,7 @@ public class StreamLoader extends Task {
         public void handleFillRecord() throws PersistitException {
         }
 
-        public void handleDataRecord(Key key, Value value) throws PersistitException {
+        public void handleDataRecord(final Key key, final Value value) throws PersistitException {
             if (_keyFilter == null || _keyFilter.selected(key)) {
                 if (_volume == null || _tree == null)
                     return;
@@ -277,12 +277,13 @@ public class StreamLoader extends Task {
             }
         }
 
-        public void handleKeyFilterRecord(String keyFilterString) throws PersistitException {
+        public void handleKeyFilterRecord(final String keyFilterString) throws PersistitException {
         }
 
-        public void handleVolumeIdRecord(long volumeId, long initialPages, long extensionPages, long maximumPages,
-                int bufferSize, String path, String name) throws PersistitException {
-            Exchange oldExchange = _exchange;
+        public void handleVolumeIdRecord(final long volumeId, final long initialPages, final long extensionPages,
+                final long maximumPages, final int bufferSize, final String path, final String name)
+                throws PersistitException {
+            final Exchange oldExchange = _exchange;
             _exchange = null;
             _volume = null;
             _tree = null;
@@ -305,8 +306,8 @@ public class StreamLoader extends Task {
             }
         }
 
-        public void handleTreeIdRecord(String treeName) throws PersistitException {
-            Exchange oldExchange = _exchange;
+        public void handleTreeIdRecord(final String treeName) throws PersistitException {
+            final Exchange oldExchange = _exchange;
             _exchange = null;
             _tree = null;
 
@@ -327,19 +328,19 @@ public class StreamLoader extends Task {
 
         }
 
-        public void handleTimeStampRecord(long timeStamp) throws PersistitException {
+        public void handleTimeStampRecord(final long timeStamp) throws PersistitException {
         }
 
-        public void handleHostNameRecord(String hostName) throws PersistitException {
+        public void handleHostNameRecord(final String hostName) throws PersistitException {
         }
 
-        public void handleUserRecord(String userName) throws PersistitException {
+        public void handleUserRecord(final String userName) throws PersistitException {
         }
 
-        public void handleCommentRecord(String comment) throws PersistitException {
+        public void handleCommentRecord(final String comment) throws PersistitException {
         }
 
-        public void handleCountRecord(long keyValueRecords, long otherRecords) throws PersistitException {
+        public void handleCountRecord(final long keyValueRecords, final long otherRecords) throws PersistitException {
         }
 
         public void handleStartRecord() throws PersistitException {
@@ -348,7 +349,7 @@ public class StreamLoader extends Task {
         public void handleEndRecord() throws PersistitException {
         }
 
-        public void handleExceptionRecord(String exceptionString) throws PersistitException {
+        public void handleExceptionRecord(final String exceptionString) throws PersistitException {
         }
 
         public void handleCompletionRecord() throws PersistitException {
@@ -367,7 +368,7 @@ public class StreamLoader extends Task {
         if (_handler == null || _handler._tree == null) {
             return null;
         }
-        Tree tree = _handler._tree;
+        final Tree tree = _handler._tree;
         return tree.getName() + " in " + tree.getVolume().getPath() + " (" + _dataRecordCount + ")";
     }
 

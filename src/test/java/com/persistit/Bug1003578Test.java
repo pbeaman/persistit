@@ -115,14 +115,15 @@ public class Bug1003578Test extends PersistitUnitTestCase {
         ex1.clear().removeAll();
         txn.commit();
         txn.end();
-        
+
         /*
          * Traverse the AntiValues. This will enqueue the pages for pruning.
          */
         assertFalse("Should have no visible keys", ex1.to(Key.BEFORE).next());
 
         final String longString = createString(1000000);
-        Thread t = new Thread(new Runnable() {
+        final Thread t = new Thread(new Runnable() {
+            @Override
             public void run() {
                 final Exchange ex2 = new Exchange(ex1);
                 try {
@@ -131,14 +132,14 @@ public class Bug1003578Test extends PersistitUnitTestCase {
                      */
                     ex2.getValue().put(longString);
                     ex2.to("longrec").store();
-                } catch (PersistitException e) {
+                } catch (final PersistitException e) {
                     e.printStackTrace();
                 }
             }
         });
         t.start();
         /*
-         * Clean up the non-edge AntiValues 
+         * Clean up the non-edge AntiValues
          */
         _persistit.getCleanupManager().poll();
         /*
@@ -146,7 +147,6 @@ public class Bug1003578Test extends PersistitUnitTestCase {
          */
         _persistit.getCleanupManager().poll();
 
-        
         sequence(LONG_RECORD_ALLOCATE_B);
         disableSequencer();
         t.join();

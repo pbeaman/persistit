@@ -49,7 +49,7 @@ public class Volume {
 
     private final String _name;
     private long _id;
-    private AtomicBoolean _closing = new AtomicBoolean();
+    private final AtomicBoolean _closing = new AtomicBoolean();
     private final AtomicInteger _handle = new AtomicInteger();
     private final AtomicReference<Object> _appCache = new AtomicReference<Object>();
 
@@ -78,7 +78,8 @@ public class Volume {
     }
 
     static Volume createTemporaryVolume(final Persistit persistit, final int pageSize) throws PersistitException {
-        Volume volume = new Volume(Thread.currentThread().getName() + TEMP_VOLUME_NAME_SUFFIX_FOR_FIXUP_DETECTION,
+        final Volume volume = new Volume(
+                Thread.currentThread().getName() + TEMP_VOLUME_NAME_SUFFIX_FOR_FIXUP_DETECTION,
                 TEMP_VOLUME_ID_FOR_FIXUP_DETECTION);
         volume.openTemporary(persistit, pageSize);
         return volume;
@@ -374,7 +375,7 @@ public class Volume {
      *            name
      * @return an information structure for the Management interface.
      */
-    Management.TreeInfo getTreeInfo(String name) {
+    Management.TreeInfo getTreeInfo(final String name) {
         try {
             final Tree tree = getTree(name, false);
             if (tree != null) {
@@ -382,7 +383,7 @@ public class Volume {
             } else {
                 return null;
             }
-        } catch (PersistitException pe) {
+        } catch (final PersistitException pe) {
             return null;
         }
     }
@@ -489,7 +490,7 @@ public class Volume {
      * @param appCache
      *            the object to be cached for application convenience.
      */
-    public void setAppCache(Object appCache) {
+    public void setAppCache(final Object appCache) {
         _appCache.set(appCache);
     }
 
@@ -532,7 +533,7 @@ public class Volume {
 
     @Override
     public String toString() {
-        VolumeSpecification specification = _specification;
+        final VolumeSpecification specification = _specification;
         if (specification != null) {
             return specification.summary();
         } else {
@@ -546,7 +547,7 @@ public class Volume {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (o instanceof Volume) {
             final Volume volume = (Volume) o;
             return volume.getName().equals(getName()) && volume.getId() == getId();

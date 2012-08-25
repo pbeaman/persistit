@@ -101,7 +101,7 @@ class TimestampAllocator {
          * settled.
          */
         _checkpointTimestamp = UNAVAILABLE_CHECKPOINT_TIMESTAMP;
-        long timestamp = updateTimestamp();
+        final long timestamp = updateTimestamp();
         _checkpointTimestamp = timestamp;
         return timestamp;
     }
@@ -120,7 +120,7 @@ class TimestampAllocator {
                 Util.spinSleep();
             }
         }
-            
+
         return timestamp;
     }
 

@@ -79,25 +79,25 @@ public class ManagementTableModel extends AbstractTableModel {
      * @param clazz
      */
 
-    public ManagementTableModel(Class clazz, String className, AdminUI ui) throws NoSuchMethodException {
+    public ManagementTableModel(final Class clazz, String className, final AdminUI ui) throws NoSuchMethodException {
         _adminUI = ui;
 
-        int p = className.lastIndexOf('.');
+        final int p = className.lastIndexOf('.');
         if (p >= 0)
             className = className.substring(p + 1);
-        ArrayList specList = new ArrayList();
+        final ArrayList specList = new ArrayList();
         for (int index = 0;; index++) {
-            String propName = className + ".column." + index;
-            String value = ui.getProperty(propName);
+            final String propName = className + ".column." + index;
+            final String value = ui.getProperty(propName);
             if (value == null || value.startsWith("."))
                 break;
             specList.add(value);
         }
-        String[] columnSpecs = (String[]) specList.toArray(new String[0]);
+        final String[] columnSpecs = (String[]) specList.toArray(new String[0]);
         setup(clazz, columnSpecs);
     }
 
-    protected void setup(Class clazz, String[] columnSpecs) throws NoSuchMethodException {
+    protected void setup(final Class clazz, final String[] columnSpecs) throws NoSuchMethodException {
         _columnCount = columnSpecs.length;
         _displayedColumnCount = 0;
         _displayedColumns = new boolean[_columnCount];
@@ -109,11 +109,11 @@ public class ManagementTableModel extends AbstractTableModel {
         _renderers = new TableCellRenderer[_columnCount];
 
         for (int index = 0; index < columnSpecs.length; index++) {
-            StringTokenizer st = new StringTokenizer(columnSpecs[index], ":");
-            String methodName = st.nextToken();
-            int width = Integer.parseInt(st.nextToken());
-            String flags = st.nextToken();
-            String header = st.nextToken();
+            final StringTokenizer st = new StringTokenizer(columnSpecs[index], ":");
+            final String methodName = st.nextToken();
+            final int width = Integer.parseInt(st.nextToken());
+            final String flags = st.nextToken();
+            final String header = st.nextToken();
             String rendererName = null;
             int minWidth = width / 2;
             if (st.hasMoreTokens()) {
@@ -133,7 +133,7 @@ public class ManagementTableModel extends AbstractTableModel {
         }
     }
 
-    public void setInfoArray(Object[] array) {
+    public void setInfoArray(final Object[] array) {
         // int oldLength = _infoArray == null ? 0 : _infoArray.length;
         // int newLength = array == null ? 0 : array.length;
         // if (oldLength != newLength && oldLength != 0)
@@ -171,7 +171,7 @@ public class ManagementTableModel extends AbstractTableModel {
     }
 
     @Override
-    public Object getValueAt(int row, int col) {
+    public Object getValueAt(final int row, final int col) {
         if (_infoArray == null || row < 0 || row >= _infoArray.length) {
             return null;
         }
@@ -179,18 +179,18 @@ public class ManagementTableModel extends AbstractTableModel {
             return _infoArray[row];
 
         try {
-            Object struct = _infoArray[row];
-            int index = _displayedColumnIndex[col];
+            final Object struct = _infoArray[row];
+            final int index = _displayedColumnIndex[col];
             if (index < 0)
                 return null;
-            Object value = _methods[index].invoke(struct, NO_ARG_LIST);
+            final Object value = _methods[index].invoke(struct, NO_ARG_LIST);
             return value;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             return e;
         }
     }
 
-    public void formatColumns(JTable table, String flags) {
+    public void formatColumns(final JTable table, final String flags) {
         int trueCount = 0;
         boolean changed = false;
         for (int i = 0; i < _columnCount; i++) {
@@ -212,8 +212,8 @@ public class ManagementTableModel extends AbstractTableModel {
             changed = true;
         _displayedColumnCount = trueCount;
         if (changed) {
-            TableColumnModel tcm = table.getColumnModel();
-            int count = tcm.getColumnCount();
+            final TableColumnModel tcm = table.getColumnModel();
+            final int count = tcm.getColumnCount();
             if (count > _displayedColumnCount) {
                 for (int i = _displayedColumnCount; --i >= count;) {
                     tcm.removeColumn(tcm.getColumn(i));
@@ -253,9 +253,9 @@ public class ManagementTableModel extends AbstractTableModel {
     }
 
     @Override
-    public Class getColumnClass(int col) {
-        int index = _displayedColumnIndex[col];
-        Class clazz = _methods[index].getReturnType();
+    public Class getColumnClass(final int col) {
+        final int index = _displayedColumnIndex[col];
+        final Class clazz = _methods[index].getReturnType();
         if (clazz.isPrimitive()) {
             if (clazz == boolean.class)
                 return Boolean.class;
@@ -276,7 +276,7 @@ public class ManagementTableModel extends AbstractTableModel {
      **/
 
     class AlignedCellRenderer extends DefaultTableCellRenderer {
-        AlignedCellRenderer(int alignment) {
+        AlignedCellRenderer(final int alignment) {
             super();
             setHorizontalAlignment(alignment);
         }
@@ -289,7 +289,7 @@ public class ManagementTableModel extends AbstractTableModel {
         }
 
         @Override
-        public void setValue(Object value) {
+        public void setValue(final Object value) {
             setText((value == null) ? "" : value instanceof Long ? _adminUI.formatLong(((Long) value).longValue())
                     : value.toString());
         }
@@ -302,7 +302,7 @@ public class ManagementTableModel extends AbstractTableModel {
         }
 
         @Override
-        public void setValue(Object value) {
+        public void setValue(final Object value) {
             setText((value == null) ? "" : value instanceof Integer ? _adminUI.formatInteger(((Integer) value)
                     .intValue()) : value.toString());
         }
@@ -315,14 +315,14 @@ public class ManagementTableModel extends AbstractTableModel {
         }
 
         @Override
-        public void setValue(Object value) {
+        public void setValue(final Object value) {
             setText((value == null) ? "" : value instanceof Double ? _adminUI.formatPercent(((Double) value)
                     .doubleValue()) : value.toString());
         }
     }
 
     class KeyStateRenderer extends AlignedCellRenderer {
-        private Key _key;
+        private final Key _key;
 
         public KeyStateRenderer() {
             super(SwingConstants.LEFT);
@@ -330,7 +330,7 @@ public class ManagementTableModel extends AbstractTableModel {
         }
 
         @Override
-        public void setValue(Object value) {
+        public void setValue(final Object value) {
             if (value instanceof KeyState) {
                 ((KeyState) value).copyTo(_key);
                 setText(_key.toString());
@@ -340,7 +340,7 @@ public class ManagementTableModel extends AbstractTableModel {
     }
 
     class ValueStateRenderer extends AlignedCellRenderer {
-        private Value _value;
+        private final Value _value;
 
         public ValueStateRenderer() {
             super(SwingConstants.LEFT);
@@ -348,7 +348,7 @@ public class ManagementTableModel extends AbstractTableModel {
         }
 
         @Override
-        public void setValue(Object value) {
+        public void setValue(final Object value) {
             if (value instanceof ValueState) {
                 ((ValueState) value).copyTo(_value);
                 setText(_value.toString());
@@ -362,17 +362,18 @@ public class ManagementTableModel extends AbstractTableModel {
         protected abstract void setup(AdminUI ui, Class infClass, String columnSpec);
     }
 
-    protected TableCellRenderer constructRenderer(String rendererName, Class infoClass, String columnSpec) {
+    protected TableCellRenderer constructRenderer(final String rendererName, final Class infoClass,
+            final String columnSpec) {
         String className = getClass().getName();
         className = className.substring(0, className.lastIndexOf('.')) + ".renderers." + rendererName;
         try {
-            Class clazz = Class.forName(className);
-            Object object = clazz.newInstance();
+            final Class clazz = Class.forName(className);
+            final Object object = clazz.newInstance();
             if (object instanceof AbstractCustomTableCellRenderer) {
                 ((AbstractCustomTableCellRenderer) object).setup(_adminUI, infoClass, columnSpec);
                 return (TableCellRenderer) object;
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             _adminUI.postException(e);
         }
         return null;

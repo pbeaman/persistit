@@ -20,8 +20,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
-import com.persistit.AlertMonitor.Event;
 import com.persistit.AlertMonitor.AlertLevel;
+import com.persistit.AlertMonitor.Event;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
@@ -62,6 +62,7 @@ class VolumeStorageT2 extends VolumeStorage {
      * 
      * @return The path name
      */
+    @Override
     String getPath() {
         return _path;
     }
@@ -71,6 +72,7 @@ class VolumeStorageT2 extends VolumeStorage {
      * 
      * @return <code>true</code> if this Volume prohibits updates.
      */
+    @Override
     boolean isReadOnly() {
         return false;
     }
@@ -80,6 +82,7 @@ class VolumeStorageT2 extends VolumeStorage {
      * 
      * @return <code>true</code> if this volume is temporary
      */
+    @Override
     boolean isTemp() {
         return true;
     }
@@ -87,6 +90,7 @@ class VolumeStorageT2 extends VolumeStorage {
     /**
      * @return the channel used to read and write pages of this volume.
      */
+    @Override
     synchronized FileChannel getChannel() throws PersistitIOException {
         if (_channel == null) {
             try {
@@ -95,7 +99,7 @@ class VolumeStorageT2 extends VolumeStorage {
                 final File file = File.createTempFile(TEMP_FILE_PREFIX, null, directory);
                 _path = file.getPath();
                 _channel = new MediatedFileChannel(_path, "rw");
-            } catch (IOException ioe) {
+            } catch (final IOException ioe) {
                 _persistit.getLogBase().tempVolumeCreateException.log(ioe, _path);
                 throw new PersistitIOException(ioe);
             }
@@ -109,6 +113,7 @@ class VolumeStorageT2 extends VolumeStorage {
      * 
      * @throws PersistitException
      */
+    @Override
     void create() throws PersistitException {
         final long maxSize = _persistit.getConfiguration().getTmpVolMaxSize();
         _maxPages = maxSize / _volume.getStructure().getPageSize();
@@ -123,6 +128,7 @@ class VolumeStorageT2 extends VolumeStorage {
      * 
      * @throws PersistitException
      */
+    @Override
     void open() throws PersistitException {
         throw new UnsupportedOperationException("Temporary volume can only be created.");
     }
@@ -131,6 +137,7 @@ class VolumeStorageT2 extends VolumeStorage {
      * @return <code>true</code> if a backing file exists on the specified path.
      * @throws PersistitException
      */
+    @Override
     boolean exists() throws PersistitException {
         return false;
     }
@@ -142,6 +149,7 @@ class VolumeStorageT2 extends VolumeStorage {
      *         deleted
      * @throws PersistitException
      */
+    @Override
     boolean delete() throws PersistitException {
         return false;
     }
@@ -151,6 +159,7 @@ class VolumeStorageT2 extends VolumeStorage {
      * 
      * @throws PersistitIOException
      */
+    @Override
     void force() throws PersistitIOException {
         // No need to force a temporary Volume
     }
@@ -161,6 +170,7 @@ class VolumeStorageT2 extends VolumeStorage {
      * 
      * @throws PersistitException
      */
+    @Override
     void close() throws PersistitException {
         synchronized (this) {
             if (_closed) {
@@ -173,7 +183,7 @@ class VolumeStorageT2 extends VolumeStorage {
 
         try {
             closeChannel();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             _persistit.getLogBase().exception.log(e);
             // has priority over Exception thrown by
             // releasing file lock.
@@ -184,7 +194,7 @@ class VolumeStorageT2 extends VolumeStorage {
                 final File file = new File(_path);
                 file.delete();
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             _persistit.getLogBase().exception.log(e);
             // has priority over Exception thrown by
             // releasing file lock.
@@ -204,15 +214,16 @@ class VolumeStorageT2 extends VolumeStorage {
         }
     }
 
+    @Override
     void truncate() throws PersistitException {
         if (!claim(true, 0)) {
             throw new InUseException("Unable to acquire claim on " + this);
         }
         try {
-            VolumeStatistics stat = _volume.getStatistics();
-            VolumeStructure struc = _volume.getStructure();
+            final VolumeStatistics stat = _volume.getStatistics();
+            final VolumeStructure struc = _volume.getStructure();
 
-            long now = System.currentTimeMillis();
+            final long now = System.currentTimeMillis();
             stat.setCreateTime(now);
             stat.setOpenTime(now);
 
@@ -226,29 +237,36 @@ class VolumeStorageT2 extends VolumeStorage {
 
     }
 
+    @Override
     boolean isOpened() {
         return _opened;
     }
 
+    @Override
     boolean isClosed() {
         return _closed;
     }
 
+    @Override
     long getExtentedPageCount() {
         return _nextAvailablePage;
     }
 
+    @Override
     long getNextAvailablePage() {
         return _nextAvailablePage;
     }
 
+    @Override
     void claimHeadBuffer() throws PersistitException {
     }
 
+    @Override
     void releaseHeadBuffer() {
     }
 
-    void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException,
+    @Override
+    void readPage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException,
             InUseException, PersistitInterruptedException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
@@ -265,8 +283,8 @@ class VolumeStorageT2 extends VolumeStorage {
                 bb.position(0).limit(buffer.getBufferSize());
                 int read = 0;
                 while (read < buffer.getBufferSize()) {
-                    long position = (page - 1) * _volume.getStructure().getPageSize() + bb.position();
-                    int bytesRead = getChannel().read(bb, position);
+                    final long position = (page - 1) * _volume.getStructure().getPageSize() + bb.position();
+                    final int bytesRead = getChannel().read(bb, position);
                     if (bytesRead <= 0) {
                         throw new PersistitIOException("Unable to read bytes at position " + position + " in " + this);
                     }
@@ -275,10 +293,10 @@ class VolumeStorageT2 extends VolumeStorage {
                 _persistit.getIOMeter().chargeReadPageFromVolume(this._volume, buffer.getPageAddress(),
                         buffer.getBufferSize(), buffer.getIndex());
                 _volume.getStatistics().bumpReadCounter();
-            } catch (IOException ioe) {
+            } catch (final IOException ioe) {
                 _persistit.getAlertMonitor().post(
-                        new Event(AlertLevel.ERROR, _persistit.getLogBase().readException, ioe, _volume, page, buffer
-                                .getIndex()), AlertMonitor.READ_PAGE_CATEGORY);
+                        new Event(AlertLevel.ERROR, _persistit.getLogBase().readException, ioe, _volume, page,
+                                buffer.getIndex()), AlertMonitor.READ_PAGE_CATEGORY);
                 throw new PersistitIOException(ioe);
             }
         } finally {
@@ -289,7 +307,7 @@ class VolumeStorageT2 extends VolumeStorage {
     @Override
     void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
             ReadOnlyVolumeException, VolumeClosedException, InUseException, PersistitInterruptedException {
-        int pageSize = _volume.getStructure().getPageSize();
+        final int pageSize = _volume.getStructure().getPageSize();
         final ByteBuffer bb = buffer.getByteBuffer();
         bb.position(0).limit(pageSize);
         writePage(bb, buffer.getPageAddress());
@@ -300,7 +318,7 @@ class VolumeStorageT2 extends VolumeStorage {
             ReadOnlyVolumeException, VolumeClosedException, InUseException, PersistitInterruptedException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
-        int pageSize = _volume.getStructure().getPageSize();
+        final int pageSize = _volume.getStructure().getPageSize();
         if (!claim(false, 0)) {
             throw new InUseException("Unable to acquire claim on " + this);
         }
@@ -312,7 +330,7 @@ class VolumeStorageT2 extends VolumeStorage {
             try {
                 getChannel().write(bb, (page - 1) * pageSize);
 
-            } catch (IOException ioe) {
+            } catch (final IOException ioe) {
                 _persistit.getAlertMonitor().post(
                         new Event(AlertLevel.ERROR, _persistit.getLogBase().writeException, ioe, _volume, page),
                         AlertMonitor.WRITE_PAGE_CATEGORY);
@@ -323,27 +341,32 @@ class VolumeStorageT2 extends VolumeStorage {
         }
     }
 
+    @Override
     long allocNewPage() throws PersistitException {
         if (_nextAvailablePage >= _maxPages) {
             throw new VolumeFullException(_volume.getName());
         }
-        long page = _nextAvailablePage++;
+        final long page = _nextAvailablePage++;
         _volume.getStatistics().setNextAvailablePage(page);
         return page;
     }
 
+    @Override
     void flush() throws PersistitException {
 
     }
 
+    @Override
     void flushMetaData() throws PersistitException {
 
     }
 
+    @Override
     void extend(final long pageAddr) throws PersistitException {
 
     }
 
+    @Override
     boolean updateMetaData(final byte[] bytes) {
         // Temporary volume has no head buffer
         return false;

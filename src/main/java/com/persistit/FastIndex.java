@@ -15,8 +15,6 @@
 
 package com.persistit;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.persistit.util.Debug;
 
 /**
@@ -157,7 +155,7 @@ class FastIndex {
      */
     private final Buffer _buffer;
 
-    FastIndex(Buffer buffer, int elementSize) {
+    FastIndex(final Buffer buffer, final int elementSize) {
         _buffer = buffer;
         _findexElements = new short[elementSize];
         _isValid = false;
@@ -167,17 +165,17 @@ class FastIndex {
         return _findexElements.length;
     }
 
-    void putRunCount(int index, int runCount) {
+    void putRunCount(final int index, final int runCount) {
         _findexElements[index] = (short) runCount;
     }
 
-    int getRunCount(int index) {
+    int getRunCount(final int index) {
         return _findexElements[index];
     }
 
-    int getEbc(int index) {
-        int kbData = _buffer.getInt((index << 2) + Buffer.KEY_BLOCK_START);
-        int ebc = Buffer.decodeKeyBlockEbc(kbData);
+    int getEbc(final int index) {
+        final int kbData = _buffer.getInt((index << 2) + Buffer.KEY_BLOCK_START);
+        final int ebc = Buffer.decodeKeyBlockEbc(kbData);
         return ebc;
     }
 
@@ -191,26 +189,26 @@ class FastIndex {
 
     void recompute() {
         if (_buffer.isDataPage() || _buffer.isIndexPage()) {
-            int start = _buffer.getKeyBlockStart();
-            int end = _buffer.getKeyBlockEnd();
+            final int start = _buffer.getKeyBlockStart();
+            final int end = _buffer.getKeyBlockEnd();
 
             int ebc0 = 0;
             int runCountFixupIndex = 0;
             int crossCountFixupIndex = -1;
 
-            int lastIndex = (end - start) / Buffer.KEYBLOCK_LENGTH;
+            final int lastIndex = (end - start) / Buffer.KEYBLOCK_LENGTH;
 
             for (int i = 0, p = start; i <= lastIndex; i++, p += Buffer.KEYBLOCK_LENGTH) {
                 int ebc;
                 if (i < lastIndex || i == 0) {
-                    int kbData = _buffer.getInt(p);
+                    final int kbData = _buffer.getInt(p);
                     ebc = Buffer.decodeKeyBlockEbc(kbData);
                 } else {
                     ebc = -1;
                 }
 
                 if (ebc != ebc0) {
-                    int runCount = i - runCountFixupIndex - 1;
+                    final int runCount = i - runCountFixupIndex - 1;
                     putRunCount(runCountFixupIndex, runCount);
                     runCountFixupIndex = i;
 
@@ -228,10 +226,10 @@ class FastIndex {
                         // crossCount field updated.
                         //
                         for (int j = crossCountFixupIndex; j != -1;) {
-                            int ccFixupEbc = getEbc(j);
+                            final int ccFixupEbc = getEbc(j);
 
                             if (ebc <= ccFixupEbc) {
-                                int crossCount = -(i - j - 1);
+                                final int crossCount = -(i - j - 1);
 
                                 crossCountFixupIndex = getRunCount(j);
                                 putRunCount(j, crossCount);
@@ -265,8 +263,8 @@ class FastIndex {
         if (!isValid()) {
             return false;
         }
-        int start = _buffer.getKeyBlockStart();
-        int end = _buffer.getKeyBlockEnd();
+        final int start = _buffer.getKeyBlockStart();
+        final int end = _buffer.getKeyBlockEnd();
         //
         // This is the index of a Findex array entry that needs to be fixed up
         // with its true count.
@@ -308,22 +306,22 @@ class FastIndex {
      * newly inserted keyblock, prior to the insertion. (Inserting the new
      * keyblock may cause ebc2 to change.)
      */
-    synchronized void insertKeyBlock(int foundAt, int previousEbc, boolean fixupSuccessor) {
+    synchronized void insertKeyBlock(final int foundAt, final int previousEbc, final boolean fixupSuccessor) {
 
         if (!isValid()) {
             return;
         }
 
-        int start = Buffer.KEY_BLOCK_START;
-        int end = _buffer.getKeyBlockEnd();
+        final int start = Buffer.KEY_BLOCK_START;
+        final int end = _buffer.getKeyBlockEnd();
         int runIndex = -1;
         int p = foundAt;
 
         if (p > end) {
             p = end;
         }
-        int insertIndex = (foundAt - start) / Buffer.KEYBLOCK_LENGTH;
-        int lastIndex = (end - start) / Buffer.KEYBLOCK_LENGTH;
+        final int insertIndex = (foundAt - start) / Buffer.KEYBLOCK_LENGTH;
+        final int lastIndex = (end - start) / Buffer.KEYBLOCK_LENGTH;
         //
         // Insert the associated Findex element.
         //
@@ -334,11 +332,11 @@ class FastIndex {
         // this detect the start of a run that the newly inserted key may be
         // part of in runIndex.
         //
-        int insertedEbc = getEbc(insertIndex);
+        final int insertedEbc = getEbc(insertIndex);
 
         for (int index = 0; index < insertIndex;) {
-            int runCount = getRunCount(index);
-            int ebc = getEbc(index);
+            final int runCount = getRunCount(index);
+            final int ebc = getEbc(index);
 
             runIndex = -1;
             if (runCount < 0) {
@@ -346,7 +344,7 @@ class FastIndex {
                 // Index of the next element whose ebc is less than or equal to
                 // this one.
                 //
-                int nextSibling = index - runCount + 1;
+                final int nextSibling = index - runCount + 1;
                 if (insertIndex > nextSibling) {
                     //
                     // We can skip the entire crossCount because the insertion
@@ -433,7 +431,7 @@ class FastIndex {
                     // This is a tricky case because the successor KeyBlock is
                     // changing level.
                     //
-                    int successorEbc = Buffer.decodeKeyBlockEbc(_buffer.getInt(p + Buffer.KEYBLOCK_LENGTH));
+                    final int successorEbc = Buffer.decodeKeyBlockEbc(_buffer.getInt(p + Buffer.KEYBLOCK_LENGTH));
                     if (runCount < 0) {
                         runCount = 0;
                     }
@@ -450,8 +448,8 @@ class FastIndex {
                 }
             }
         } else {
-            int runCount = getRunCount(runIndex);
-            int ebc = getEbc(runIndex);
+            final int runCount = getRunCount(runIndex);
+            final int ebc = getEbc(runIndex);
             Debug.$assert0.t(runCount + runIndex + 1 >= insertIndex);
             if (runCount + runIndex + 1 > insertIndex) {
                 // ///////
@@ -468,7 +466,7 @@ class FastIndex {
                         // This is a tricky case because the successor KeyBlock
                         // is changing level.
                         //
-                        int successorEbc = Buffer.decodeKeyBlockEbc(_buffer.getInt(p + Buffer.KEYBLOCK_LENGTH));
+                        final int successorEbc = Buffer.decodeKeyBlockEbc(_buffer.getInt(p + Buffer.KEYBLOCK_LENGTH));
                         fixupSuccessor(lastIndex, insertIndex, runIndex, runCount, ebc, successorEbc);
                     } else {
                         putRunCount(runIndex, runCount + 1);
@@ -520,7 +518,8 @@ class FastIndex {
      * @param ebc
      * @param successorEbc
      */
-    private void fixupSuccessor(int lastIndex, int insertIndex, int runIndex, int runCount, int ebc, int successorEbc) {
+    private void fixupSuccessor(final int lastIndex, final int insertIndex, final int runIndex, final int runCount,
+            final int ebc, final int successorEbc) {
         if (insertIndex > runIndex) {
             putRunCount(runIndex, insertIndex - runIndex);
         }
@@ -534,7 +533,7 @@ class FastIndex {
             //
             putRunCount(insertIndex, -1);
             putRunCount(insertIndex + 1, 0);
-            int remainingRunCount = runCount - (insertIndex - runIndex) - 1;
+            final int remainingRunCount = runCount - (insertIndex - runIndex) - 1;
             if (insertIndex + 2 < lastIndex) {
                 if (remainingRunCount > 0) {
                     putRunCount(insertIndex + 2, remainingRunCount);
@@ -551,18 +550,18 @@ class FastIndex {
             //
             putRunCount(insertIndex, runCount - 1);
 
-            int successorRunCount = insertIndex + 1 < lastIndex ? getRunCount(insertIndex + 1) : 0;
+            final int successorRunCount = insertIndex + 1 < lastIndex ? getRunCount(insertIndex + 1) : 0;
             Debug.$assert0.t(successorRunCount <= 0);
             putRunCount(insertIndex, successorRunCount - 1);
 
             if (insertIndex + 2 < lastIndex) {
-                int secondSuccessorEbc = getEbc(insertIndex + 2);
+                final int secondSuccessorEbc = getEbc(insertIndex + 2);
                 if (successorEbc == secondSuccessorEbc) {
                     //
                     // The fixup has made the successor kb the new start of a
                     // run.
                     //
-                    int secondSuccessorRunCount = getRunCount(insertIndex + 2);
+                    final int secondSuccessorRunCount = getRunCount(insertIndex + 2);
                     if (secondSuccessorRunCount >= 0) {
                         putRunCount(insertIndex + 1, secondSuccessorRunCount + 1);
                         putRunCount(insertIndex + 2, 0);
@@ -570,7 +569,7 @@ class FastIndex {
                         putRunCount(insertIndex + 1, 1);
                     }
                 } else {
-                    int newCrossCount = successorEbc < secondSuccessorEbc ? computeCrossCount(successorEbc,
+                    final int newCrossCount = successorEbc < secondSuccessorEbc ? computeCrossCount(successorEbc,
                             insertIndex + 1, lastIndex, insertIndex) : 0;
                     putRunCount(insertIndex + 1, newCrossCount);
                 }
@@ -581,13 +580,13 @@ class FastIndex {
         }
     }
 
-    private int computeCrossCount(int ebc0, int start, int end, int insertIndex) {
+    private int computeCrossCount(final int ebc0, final int start, final int end, final int insertIndex) {
         for (int index = start + 1; index < end;) {
-            int ebc = getEbc(index);
+            final int ebc = getEbc(index);
             if (ebc <= ebc0) {
                 return start - index + 1;
             }
-            int runCount = getRunCount(index);
+            final int runCount = getRunCount(index);
             if (runCount < 0) {
                 index = index + 1 - runCount;
             } else {
@@ -598,15 +597,16 @@ class FastIndex {
     }
 
     // TODO - unnecessary after debugging
+    @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        Buffer buffer = _buffer;
+        final StringBuilder sb = new StringBuilder();
+        final Buffer buffer = _buffer;
         if (buffer == null) {
             sb.append("buffer=null");
         } else {
             for (int index = 0; index < buffer.getKeyCount(); index++) {
-                int p = index * 4 + Buffer.KEY_BLOCK_START;
-                int kbData = buffer.getInt(p);
+                final int p = index * 4 + Buffer.KEY_BLOCK_START;
+                final int kbData = buffer.getInt(p);
                 sb.append(String.format("%4d: runCount=%6d || Buffer p=%5d: ebc=%4d  db=%3d\n", index,
                         getRunCount(index), p, Buffer.decodeKeyBlockEbc(kbData), Buffer.decodeKeyBlockDb(kbData)));
             }

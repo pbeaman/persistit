@@ -30,7 +30,7 @@ public class KeyState implements Comparable, Serializable {
 
     public final static KeyState RIGHT_GUARD_KEYSTATE = new KeyState(Key.RIGHT_GUARD_KEY);
 
-    private byte[] _bytes;
+    private final byte[] _bytes;
     private int _hashCode = -1;
 
     /**
@@ -43,13 +43,13 @@ public class KeyState implements Comparable, Serializable {
      * @param key
      *            The <code>Key</code> from which the state is copied.
      */
-    public KeyState(Key key) {
-        int length = key.getEncodedSize();
+    public KeyState(final Key key) {
+        final int length = key.getEncodedSize();
         _bytes = new byte[length];
         System.arraycopy(key.getEncodedBytes(), 0, _bytes, 0, length);
     }
 
-    public KeyState(byte[] data) {
+    public KeyState(final byte[] data) {
         _bytes = data;
     }
 
@@ -60,7 +60,7 @@ public class KeyState implements Comparable, Serializable {
      * @param key
      *            The <code>key</code> to which content should be copied.
      */
-    public void copyTo(Key key) {
+    public void copyTo(final Key key) {
         if (key.getMaximumSize() < _bytes.length) {
             throw new IllegalArgumentException("Too small");
         }
@@ -70,10 +70,10 @@ public class KeyState implements Comparable, Serializable {
     }
 
     /**
-     * Compute the hash code for this <code>KeyState</code>. The hashCode is the same as
-     * for the equivalent <code>Key</code>, that is the <code>Key</code> from
-     * which this <code>KeyState</code> was constructed prior to any subsequent
-     * modifications.
+     * Compute the hash code for this <code>KeyState</code>. The hashCode is the
+     * same as for the equivalent <code>Key</code>, that is the <code>Key</code>
+     * from which this <code>KeyState</code> was constructed prior to any
+     * subsequent modifications.
      * 
      * @return The hashCode.
      */
@@ -98,19 +98,19 @@ public class KeyState implements Comparable, Serializable {
      *         represents an identical object or primitive value.
      */
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj instanceof Key) {
-            Key key = (Key) obj;
+            final Key key = (Key) obj;
             if (key.getEncodedSize() != _bytes.length)
                 return false;
-            byte[] valueBytes = key.getEncodedBytes();
+            final byte[] valueBytes = key.getEncodedBytes();
             for (int i = 0; i < _bytes.length; i++) {
                 if (valueBytes[i] != _bytes[i])
                     return false;
             }
             return true;
         } else if (obj instanceof KeyState) {
-            KeyState keyState = (KeyState) obj;
+            final KeyState keyState = (KeyState) obj;
             if (keyState._bytes.length != _bytes.length)
                 return false;
             for (int i = 0; i < _bytes.length; i++) {
@@ -123,8 +123,8 @@ public class KeyState implements Comparable, Serializable {
     }
 
     /**
-     * Implement <code>Comparable</code> in such a way that <code>Key</code>
-     * and <code>KeyState</code> can be used interchangeably as map keys.
+     * Implement <code>Comparable</code> in such a way that <code>Key</code> and
+     * <code>KeyState</code> can be used interchangeably as map keys.
      * 
      * @return results of comparing the key value represented by this
      *         <code>KeyState</code> with a supplied <code>KeyState</code> or
@@ -137,23 +137,23 @@ public class KeyState implements Comparable, Serializable {
      *             <code>KeyState</code>
      */
     @Override
-    public int compareTo(Object obj) {
+    public int compareTo(final Object obj) {
         int size;
         byte[] bytes;
         if (obj instanceof Key) {
-            Key key = (Key) obj;
+            final Key key = (Key) obj;
             bytes = key.getEncodedBytes();
             size = key.getEncodedSize();
         } else if (obj instanceof KeyState) {
-            KeyState ks = (KeyState) obj;
+            final KeyState ks = (KeyState) obj;
             bytes = ks._bytes;
             size = bytes.length;
         } else
             throw new ClassCastException();
-        int length = Math.min(size, _bytes.length);
+        final int length = Math.min(size, _bytes.length);
         for (int i = 0; i < length; i++) {
-            int a = _bytes[i] & 0xFF;
-            int b = bytes[i] & 0xFF;
+            final int a = _bytes[i] & 0xFF;
+            final int b = bytes[i] & 0xFF;
             if (a != b)
                 return a < b ? -1 : 1;
         }

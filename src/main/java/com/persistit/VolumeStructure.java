@@ -15,6 +15,9 @@
 
 package com.persistit;
 
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_A;
+import static com.persistit.util.ThreadSequencer.sequence;
+
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,9 +31,6 @@ import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
-
-import static com.persistit.util.ThreadSequencer.sequence;
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_A;
 
 class VolumeStructure {
     /**
@@ -52,10 +52,10 @@ class VolumeStructure {
     private volatile long _directoryRootPage;
     private volatile long _garbageRoot;
 
-    private Map<String, WeakReference<Tree>> _treeNameHashMap = new HashMap<String, WeakReference<Tree>>();
+    private final Map<String, WeakReference<Tree>> _treeNameHashMap = new HashMap<String, WeakReference<Tree>>();
     private Tree _directoryTree;
 
-    VolumeStructure(final Persistit persistit, final Volume volume, int pageSize) {
+    VolumeStructure(final Persistit persistit, final Volume volume, final int pageSize) {
         _persistit = persistit;
         _volume = volume;
         _pageSize = pageSize;
@@ -100,7 +100,7 @@ class VolumeStructure {
     }
 
     Exchange directoryExchange() {
-        Exchange ex = new Exchange(_directoryTree);
+        final Exchange ex = new Exchange(_directoryTree);
         ex.ignoreTransactions();
         return ex;
     }
@@ -125,7 +125,7 @@ class VolumeStructure {
         final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         rootPageBuffer.writePageOnCheckpoint(timestamp);
 
-        long rootPage = rootPageBuffer.getPageAddress();
+        final long rootPage = rootPageBuffer.getPageAddress();
 
         try {
             rootPageBuffer.init(Buffer.PAGE_TYPE_DATA);
@@ -157,12 +157,12 @@ class VolumeStructure {
      * 
      * @throws PersistitException
      */
-    public synchronized Tree getTree(String name, boolean createIfNecessary) throws PersistitException {
+    public synchronized Tree getTree(final String name, final boolean createIfNecessary) throws PersistitException {
         if (DIRECTORY_TREE_NAME.equals(name)) {
             throw new IllegalArgumentException("Tree name is reserved: " + name);
         }
         Tree tree;
-        WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
+        final WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
         if (treeRef != null) {
             tree = treeRef.get();
             if (tree != null && tree.isValid()) {
@@ -171,7 +171,7 @@ class VolumeStructure {
         }
         final Exchange ex = directoryExchange();
         ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(name);
-        Value value = ex.fetch().getValue();
+        final Value value = ex.fetch().getValue();
         tree = new Tree(_persistit, _volume, name);
         if (value.isDefined()) {
             value.get(tree);
@@ -208,7 +208,7 @@ class VolumeStructure {
         }
     }
 
-    void updateDirectoryTree(Tree tree) throws PersistitException {
+    void updateDirectoryTree(final Tree tree) throws PersistitException {
         if (tree == _directoryTree) {
             _volume.getStorage().claimHeadBuffer();
             try {
@@ -218,15 +218,15 @@ class VolumeStructure {
                 _volume.getStorage().releaseHeadBuffer();
             }
         } else {
-            Exchange ex = directoryExchange();
+            final Exchange ex = directoryExchange();
             ex.getValue().put(tree);
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).store();
         }
     }
 
-    void storeTreeStatistics(Tree tree) throws PersistitException {
+    void storeTreeStatistics(final Tree tree) throws PersistitException {
         if (tree.getStatistics().isDirty() && !DIRECTORY_TREE_NAME.equals(tree.getName())) {
-            Exchange ex = directoryExchange();
+            final Exchange ex = directoryExchange();
             if (!ex.getVolume().isReadOnly()) {
                 ex.getValue().put(tree.getStatistics());
                 ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).store();
@@ -235,15 +235,15 @@ class VolumeStructure {
         }
     }
 
-    void loadTreeStatistics(Tree tree) throws PersistitException {
-        Exchange ex = directoryExchange();
+    void loadTreeStatistics(final Tree tree) throws PersistitException {
+        final Exchange ex = directoryExchange();
         ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).fetch();
         if (ex.getValue().isDefined()) {
             ex.getValue().get(tree.getStatistics());
         }
     }
 
-    boolean removeTree(Tree tree) throws PersistitException {
+    boolean removeTree(final Tree tree) throws PersistitException {
         if (tree == _directoryTree) {
             throw new IllegalArgumentException("Can't delete the Directory tree");
         }
@@ -265,7 +265,7 @@ class VolumeStructure {
                 tree.invalidate();
 
                 tree.changeRootPageAddr(-1, 0);
-                Exchange ex = directoryExchange();
+                final Exchange ex = directoryExchange();
                 ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
                 ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
                 ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
@@ -293,7 +293,7 @@ class VolumeStructure {
                 }
                 if (buffer.isIndexPage()) {
                     deallocate = page;
-                    int p = buffer.toKeyBlock(0);
+                    final int p = buffer.toKeyBlock(0);
                     if (p > 0) {
                         page = buffer.getPointer(p);
                     } else {
@@ -347,7 +347,7 @@ class VolumeStructure {
             for (final Tree tree : trees) {
                 storeTreeStatistics(tree);
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             _persistit.getAlertMonitor().post(
                     new Event(AlertLevel.ERROR, _persistit.getLogBase().adminFlushException, e),
                     AlertMonitor.FLUSH_STATISTICS_CATEGORY);
@@ -362,14 +362,14 @@ class VolumeStructure {
      * @throws PersistitException
      */
     public String[] getTreeNames() throws PersistitException {
-        List<String> list = new ArrayList<String>();
-        Exchange ex = directoryExchange();
+        final List<String> list = new ArrayList<String>();
+        final Exchange ex = directoryExchange();
         ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append("");
         while (ex.next()) {
-            String treeName = ex.getKey().indexTo(-1).decodeString();
+            final String treeName = ex.getKey().indexTo(-1).decodeString();
             list.add(treeName);
         }
-        String[] names = list.toArray(new String[list.size()]);
+        final String[] names = list.toArray(new String[list.size()]);
         return names;
     }
 
@@ -381,7 +381,7 @@ class VolumeStructure {
      *            name
      * @return an information structure for the Management interface.
      */
-    Management.TreeInfo getTreeInfo(String name) {
+    Management.TreeInfo getTreeInfo(final String name) {
         try {
             final Tree tree = getTree(name, false);
             if (tree != null) {
@@ -389,7 +389,7 @@ class VolumeStructure {
             } else {
                 return null;
             }
-        } catch (PersistitException pe) {
+        } catch (final PersistitException pe) {
             return null;
         }
     }
@@ -417,7 +417,7 @@ class VolumeStructure {
         Buffer buffer = null;
         _volume.getStorage().claimHeadBuffer();
         try {
-            long garbageRoot = getGarbageRoot();
+            final long garbageRoot = getGarbageRoot();
             if (garbageRoot != 0) {
                 Buffer garbageBuffer = _pool.get(_volume, garbageRoot, true, true);
                 try {
@@ -426,13 +426,13 @@ class VolumeStructure {
                     Debug.$assert0.t(garbageBuffer.isGarbagePage());
                     Debug.$assert0.t((garbageBuffer.getStatus() & Buffer.CLAIMED_MASK) == 1);
 
-                    long page = garbageBuffer.getGarbageChainLeftPage();
-                    long rightPage = garbageBuffer.getGarbageChainRightPage();
+                    final long page = garbageBuffer.getGarbageChainLeftPage();
+                    final long rightPage = garbageBuffer.getGarbageChainRightPage();
 
                     Debug.$assert0.t(page != 0);
 
                     if (page == -1) {
-                        long newGarbageRoot = garbageBuffer.getRightSibling();
+                        final long newGarbageRoot = garbageBuffer.getRightSibling();
                         _persistit.getLogBase().garbagePageExhausted.log(garbageRoot, newGarbageRoot,
                                 garbageBufferInfo(garbageBuffer));
                         setGarbageRoot(newGarbageRoot);
@@ -440,13 +440,13 @@ class VolumeStructure {
                         garbageBuffer = null;
                     } else {
                         _persistit.getLogBase().allocateFromGarbageChain.log(page, garbageBufferInfo(garbageBuffer));
-                        boolean solitaire = rightPage == -1;
+                        final boolean solitaire = rightPage == -1;
                         buffer = _pool.get(_volume, page, true, !solitaire);
                         buffer.writePageOnCheckpoint(timestamp);
 
                         Debug.$assert0.t(buffer.getPageAddress() > 0);
 
-                        long nextGarbagePage = solitaire ? -1 : buffer.getRightSibling();
+                        final long nextGarbagePage = solitaire ? -1 : buffer.getRightSibling();
 
                         if (nextGarbagePage == rightPage || nextGarbagePage == 0) {
                             _persistit.getLogBase().garbageChainDone.log(garbageBufferInfo(garbageBuffer), rightPage);
@@ -481,7 +481,7 @@ class VolumeStructure {
          * If there was no garbage chain above then we need to allocate a new
          * page from the volume.
          */
-        long page = _volume.getStorage().allocNewPage();
+        final long page = _volume.getStorage().allocNewPage();
         buffer = _pool.get(_volume, page, true, false);
         buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
         Debug.$assert0.t(buffer.getPageAddress() != 0);
@@ -489,7 +489,7 @@ class VolumeStructure {
 
     }
 
-    void deallocateGarbageChain(long left, long right) throws PersistitException {
+    void deallocateGarbageChain(final long left, final long right) throws PersistitException {
         Debug.$assert0.t(left > 0);
 
         _volume.getStorage().claimHeadBuffer();
@@ -498,7 +498,7 @@ class VolumeStructure {
         final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
 
         try {
-            long garbagePage = getGarbageRoot();
+            final long garbagePage = getGarbageRoot();
             if (garbagePage != 0) {
                 if (left == garbagePage || right == garbagePage) {
                     Debug.$assert0.t(false);
@@ -509,7 +509,7 @@ class VolumeStructure {
                 garbageBuffer = _pool.get(_volume, garbagePage, true, true);
                 garbageBuffer.writePageOnCheckpoint(timestamp);
 
-                boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
+                final boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
 
                 if (fits) {
                     _persistit.getLogBase().newGarbageChain.log(left, right, garbageBufferInfo(garbageBuffer));
@@ -520,14 +520,14 @@ class VolumeStructure {
                     garbageBuffer = releaseBuffer(garbageBuffer);
                 }
             }
-            boolean solitaire = (right == -1);
+            final boolean solitaire = (right == -1);
             garbageBuffer = _pool.get(_volume, left, true, !solitaire);
             garbageBuffer.writePageOnCheckpoint(timestamp);
 
             Debug.$assert0.t((garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())
                     || garbageBuffer.isLongRecordPage() || (solitaire && garbageBuffer.isUnallocatedPage()));
 
-            long nextGarbagePage = solitaire ? 0 : garbageBuffer.getRightSibling();
+            final long nextGarbagePage = solitaire ? 0 : garbageBuffer.getRightSibling();
 
             Debug.$assert0.t(nextGarbagePage > 0 || right == 0 || solitaire);
 
@@ -554,13 +554,13 @@ class VolumeStructure {
     }
 
     // TODO - no one needs the return value
-    boolean harvestLongRecords(Buffer buffer, int start, int end) throws PersistitException {
+    boolean harvestLongRecords(final Buffer buffer, final int start, final int end) throws PersistitException {
         boolean anyLongRecords = false;
         if (buffer.isDataPage()) {
-            int p1 = buffer.toKeyBlock(start);
-            int p2 = buffer.toKeyBlock(end);
+            final int p1 = buffer.toKeyBlock(start);
+            final int p2 = buffer.toKeyBlock(end);
             for (int p = p1; p < p2 && p != -1; p = buffer.nextKeyBlock(p)) {
-                long pointer = buffer.fetchLongRecordPointer(p);
+                final long pointer = buffer.fetchLongRecordPointer(p);
                 if (pointer != 0) {
                     deallocateGarbageChain(pointer, 0);
                     anyLongRecords |= true;
@@ -599,15 +599,15 @@ class VolumeStructure {
     }
 
     List<Long> getGarbageList() throws PersistitException {
-        List<Long> garbageList = new ArrayList<Long>();
+        final List<Long> garbageList = new ArrayList<Long>();
         _volume.getStorage().claimHeadBuffer();
         try {
-            long root = getGarbageRoot();
+            final long root = getGarbageRoot();
             if (root != 0) {
                 garbageList.add(root);
-                Buffer buffer = _pool.get(_volume, root, true, true);
+                final Buffer buffer = _pool.get(_volume, root, true, true);
                 try {
-                    for (Management.RecordInfo rec : buffer.getRecords()) {
+                    for (final Management.RecordInfo rec : buffer.getRecords()) {
                         if (rec._garbageLeftPage > 0) {
                             garbageList.add(rec._garbageLeftPage);
                         }
@@ -625,7 +625,7 @@ class VolumeStructure {
         return garbageList;
     }
 
-    private void setGarbageRoot(long garbagePage) throws PersistitException {
+    private void setGarbageRoot(final long garbagePage) throws PersistitException {
         _garbageRoot = garbagePage;
         _volume.getStorage().flushMetaData();
     }
@@ -647,14 +647,14 @@ class VolumeStructure {
         return _pool;
     }
 
-    private String garbageBufferInfo(Buffer buffer) {
+    private String garbageBufferInfo(final Buffer buffer) {
         if (buffer.getPageType() != Buffer.PAGE_TYPE_GARBAGE) {
             return "!!!" + buffer.getPageAddress() + " is not a garbage page!!!";
         }
         return "@<" + buffer.getPageAddress() + ":" + buffer.getAlloc() + ">";
     }
 
-    synchronized boolean treeMapContainsName(String treeName) {
+    synchronized boolean treeMapContainsName(final String treeName) {
         return _treeNameHashMap.containsKey(treeName);
     }
 }

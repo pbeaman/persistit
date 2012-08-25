@@ -66,8 +66,8 @@ public class VolumeSpecification {
     private long maximumSize = -1;
 
     public static String nameFromFile(final File file) {
-        String name = file.getName();
-        int p = name.lastIndexOf('.');
+        final String name = file.getName();
+        final int p = name.lastIndexOf('.');
         return p < 1 ? name : name.substring(0, p);
     }
 
@@ -163,15 +163,15 @@ public class VolumeSpecification {
      */
 
     public VolumeSpecification(final String specification) throws InvalidVolumeSpecificationException {
-        StringTokenizer mainTokenizer = new StringTokenizer(specification, ",");
+        final StringTokenizer mainTokenizer = new StringTokenizer(specification, ",");
         try {
             path = mainTokenizer.nextToken().trim();
             name = nameFromFile(new File(path));
 
             while (mainTokenizer.hasMoreTokens()) {
-                String token = mainTokenizer.nextToken().trim();
-                StringTokenizer innerTokenizer = new StringTokenizer(token, ":");
-                String attr = innerTokenizer.nextToken().trim();
+                final String token = mainTokenizer.nextToken().trim();
+                final StringTokenizer innerTokenizer = new StringTokenizer(token, ":");
+                final String attr = innerTokenizer.nextToken().trim();
                 if (ATTR_READONLY.equals(attr)) {
                     readOnly = true;
                 } else if (ATTR_CREATE.equals(attr)) {
@@ -179,14 +179,14 @@ public class VolumeSpecification {
                 } else if (ATTR_CREATEONLY.equals(attr)) {
                     createOnly = true;
                 } else if (ATTR_NAME.equals(attr) || ATTR_ALIAS.equals(attr)) {
-                    String valueString = innerTokenizer.nextToken().trim();
+                    final String valueString = innerTokenizer.nextToken().trim();
                     if (valueString != null && !valueString.isEmpty()) {
                         name = valueString;
                     }
                 } else {
-                    String valueString = innerTokenizer.nextToken().trim();
+                    final String valueString = innerTokenizer.nextToken().trim();
                     boolean bad = false;
-                    long value = Configuration.parseLongProperty(attr, valueString);
+                    final long value = Configuration.parseLongProperty(attr, valueString);
 
                     if (ATTR_PAGE_SIZE.equals(attr)) {
                         if (value < Integer.MAX_VALUE && value > 0 && Volume.isValidPageSize((int) value)) {
@@ -263,9 +263,9 @@ public class VolumeSpecification {
                     throw new InvalidVolumeSpecificationException("Invalid maximum page count: " + maximumPages);
                 }
             }
-        } catch (NumberFormatException nfe) {
+        } catch (final NumberFormatException nfe) {
             throw new InvalidVolumeSpecificationException(specification + ": invalid number");
-        } catch (NoSuchElementException nste) {
+        } catch (final NoSuchElementException nste) {
             throw new InvalidVolumeSpecificationException(specification + ": " + nste);
         }
     }
@@ -360,7 +360,7 @@ public class VolumeSpecification {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         sb.append(path);
         sb.append(',').append(ATTR_NAME).append(':').append(name);
         sb.append(',').append(ATTR_PAGE_SIZE).append(':').append(pageSize);
@@ -397,7 +397,7 @@ public class VolumeSpecification {
      * @param initialPages
      *            the initialPages to set
      */
-    void setInitialPages(long initialPages) {
+    void setInitialPages(final long initialPages) {
         this.initialPages = initialPages;
     }
 
@@ -405,7 +405,7 @@ public class VolumeSpecification {
      * @param extensionPages
      *            the extensionPages to set
      */
-    void setExtensionPages(long extensionPages) {
+    void setExtensionPages(final long extensionPages) {
         this.extensionPages = extensionPages;
     }
 
@@ -413,9 +413,8 @@ public class VolumeSpecification {
      * @param maximumPages
      *            the maximumPages to set
      */
-    void setMaximumPages(long maximumPages) {
+    void setMaximumPages(final long maximumPages) {
         this.maximumPages = maximumPages;
     }
 
 }
-

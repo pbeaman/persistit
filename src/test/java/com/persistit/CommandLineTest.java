@@ -43,7 +43,7 @@ public class CommandLineTest extends PersistitUnitTestCase {
         try {
             TestShim.parseTask(_persistit, "backup file=somefile -s -y -z wrong=parameter");
             fail();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             // okay
         }
     }
@@ -76,10 +76,10 @@ public class CommandLineTest extends PersistitUnitTestCase {
         waitForCompletion(taskId(status));
 
     }
-    
+
     @Test
     public void testSelect() throws Exception {
-        CLI cli = _persistit.getSessionCLI();
+        final CLI cli = _persistit.getSessionCLI();
         final Tree tree = _persistit.getVolume("persistit").getTree("atree", true);
         final Management management = _persistit.getManagement();
         management.execute("select tree=persistit:*tree");
@@ -119,7 +119,7 @@ public class CommandLineTest extends PersistitUnitTestCase {
         for (int waiting = 0; waiting < 60; waiting++) {
             final String status = _persistit.getManagement().execute("task taskId=" + taskId);
             if (!status.isEmpty()) {
-                String[] s = status.split(Util.NEW_LINE, 2);
+                final String[] s = status.split(Util.NEW_LINE, 2);
                 if (s.length == 2) {
                     System.out.println(s[1]);
                 }

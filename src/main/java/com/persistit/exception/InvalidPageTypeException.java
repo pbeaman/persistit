@@ -24,7 +24,7 @@ package com.persistit.exception;
 public class InvalidPageTypeException extends PersistitException {
     private static final long serialVersionUID = 2266946506191639222L;
 
-    public InvalidPageTypeException(String msg) {
+    public InvalidPageTypeException(final String msg) {
         super(msg);
     }
 

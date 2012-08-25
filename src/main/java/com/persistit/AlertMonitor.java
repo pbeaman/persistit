@@ -113,7 +113,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      */
     public class History {
         private AlertLevel _level = AlertLevel.NORMAL;
-        private List<Event> _eventList = new ArrayList<Event>();
+        private final List<Event> _eventList = new ArrayList<Event>();
         private volatile long _firstEventTime = Long.MAX_VALUE;
         private volatile long _lastWarnLogTime = Long.MIN_VALUE;
         private volatile long _lastErrorLogTime = Long.MIN_VALUE;
@@ -142,7 +142,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
         public String getDetailedHistory() {
             final StringBuilder sb = new StringBuilder();
             synchronized (AlertMonitor.this) {
-                int size = _eventList.size();
+                final int size = _eventList.size();
                 if (_count > 0) {
                     sb.append(String.format(EVENT_FORMAT, 1, format(_firstEvent)));
                     for (int index = _count > size ? 0 : 1; index < size; index++) {
@@ -250,7 +250,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
          *            does nothing unless the interval has elapsed.
          */
         public void poll(final long now, final boolean force) {
-            int count = getCount();
+            final int count = getCount();
             if (count > _reportedCount) {
                 switch (_level) {
                 case ERROR:
@@ -316,7 +316,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * event was posted.
      */
     public static class Event {
-        private AlertLevel _level;
+        private final AlertLevel _level;
         private final LogItem _logItem;
         private final Object[] _args;
         private final long _time;
@@ -332,7 +332,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
          * @param args
          *            arguments specific to the <code>LogItem</code>
          */
-        public Event(AlertLevel level, LogItem logItem, Object... args) {
+        public Event(final AlertLevel level, final LogItem logItem, final Object... args) {
             this(level, System.currentTimeMillis(), logItem, args);
         }
 
@@ -349,7 +349,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
          * @param args
          *            arguments specific to the <code>LogItem</code>
          */
-        public Event(AlertLevel level, long time, LogItem logItem, Object... args) {
+        public Event(final AlertLevel level, final long time, final LogItem logItem, final Object... args) {
             _level = level;
             _logItem = logItem;
             _args = args;
@@ -492,7 +492,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
     private volatile long _errorLogTimeInterval = DEFAULT_ERROR_INTERVAL;
     private volatile int _historyLength = DEFAULT_HISTORY_LENGTH;
 
-    private AtomicLong _notificationSequence = new AtomicLong();
+    private final AtomicLong _notificationSequence = new AtomicLong();
     private volatile ObjectName _objectName;
 
     /**
@@ -533,7 +533,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      *            A String describing the nature of the event. A separate
      *            event-history is maintained for each unique category.
      */
-    public synchronized final void post(Event event, final String category) {
+    public synchronized final void post(final Event event, final String category) {
         History history = _historyMap.get(category);
         if (history == null) {
             history = new History();
@@ -570,7 +570,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      *            the interval in milliseconds
      */
     @Override
-    public void setWarnLogTimeInterval(long warnLogTimeInterval) {
+    public void setWarnLogTimeInterval(final long warnLogTimeInterval) {
         Util.rangeCheck(warnLogTimeInterval, MINIMUM_WARN_INTERVAL, MAXIMUM_WARN_INTERVAL);
         _warnLogTimeInterval = warnLogTimeInterval;
     }
@@ -592,7 +592,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      *            the interval in milliseconds
      */
     @Override
-    public void setErrorLogTimeInterval(long errorLogTimeInterval) {
+    public void setErrorLogTimeInterval(final long errorLogTimeInterval) {
         Util.rangeCheck(errorLogTimeInterval, MINIMUM_ERROR_INTERVAL, MAXIMUM_ERROR_INTERVAL);
         _errorLogTimeInterval = errorLogTimeInterval;
     }
@@ -613,7 +613,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * @return the <code>History</code> for that category or <code>null</code>
      *         if the specified category has no <code>History</code>.
      */
-    public synchronized History getHistory(String name) {
+    public synchronized History getHistory(final String name) {
         return _historyMap.get(name);
     }
 
@@ -637,7 +637,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      *            the historyLength to set
      */
     @Override
-    public synchronized void setHistoryLength(int historyLength) {
+    public synchronized void setHistoryLength(final int historyLength) {
         Util.rangeCheck(historyLength, MINIMUM_HISTORY_LENGTH, MAXIMUM_HISTORY_LENGTH);
         _historyLength = historyLength;
         for (final History history : _historyMap.values()) {
@@ -652,7 +652,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * @return List of AlertRecord elements.
      */
     public synchronized AlertRecord[] getAlertRecordArray() {
-        List<AlertRecord> list = new ArrayList<AlertRecord>();
+        final List<AlertRecord> list = new ArrayList<AlertRecord>();
         for (final Map.Entry<String, History> entry : _historyMap.entrySet()) {
             for (final Event event : entry.getValue().getEventList()) {
                 list.add(new AlertRecord(entry.getKey(), event));
@@ -681,7 +681,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      */
     @Override
     public synchronized String toString() {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         for (final Map.Entry<String, History> entry : _historyMap.entrySet()) {
             sb.append(String.format("%12s: %s\n", entry.getKey(), entry.getValue()));
         }
@@ -705,8 +705,8 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      */
     @Override
     public synchronized String getDetailedHistory(final String select) {
-        Pattern pattern = Util.pattern(select, true);
-        StringBuilder sb = new StringBuilder();
+        final Pattern pattern = Util.pattern(select, true);
+        final StringBuilder sb = new StringBuilder();
         for (final Map.Entry<String, History> entry : _historyMap.entrySet()) {
             if (pattern.matcher(entry.getKey()).matches()) {
                 sb.append(String.format("%s:\n", entry.getKey()));
@@ -737,10 +737,10 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      */
     @Override
     public MBeanNotificationInfo[] getNotificationInfo() {
-        String[] types = new String[] { NOTIFICATION_TYPE };
-        String name = Notification.class.getName();
-        String description = "Alert raised by Akiban PersistIT";
-        MBeanNotificationInfo info = new MBeanNotificationInfo(types, name, description);
+        final String[] types = new String[] { NOTIFICATION_TYPE };
+        final String name = Notification.class.getName();
+        final String description = "Alert raised by Akiban PersistIT";
+        final MBeanNotificationInfo info = new MBeanNotificationInfo(types, name, description);
         return new MBeanNotificationInfo[] { info };
     }
 
@@ -751,7 +751,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * 
      * @param history
      */
-    private void log(History history) {
+    private void log(final History history) {
         final Event event = history.getLastEvent();
         if (event != null && event.getLogItem().isEnabled()) {
             if (history.getCount() == 1) {
@@ -767,13 +767,13 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * 
      * @param history
      */
-    private void sendNotification(History history) {
+    private void sendNotification(final History history) {
         final Event event = history.getLastEvent();
         if (event != null && event.getLogItem().isEnabled()) {
-            final String description = LogBase.recurring(event.getLogItem().logMessage(event.getArgs()), history
-                    .getCount(), history.getDuration());
-            Notification notification = new Notification(NOTIFICATION_TYPE, getClass().getName(), _notificationSequence
-                    .incrementAndGet(), description);
+            final String description = LogBase.recurring(event.getLogItem().logMessage(event.getArgs()),
+                    history.getCount(), history.getDuration());
+            final Notification notification = new Notification(NOTIFICATION_TYPE, getClass().getName(),
+                    _notificationSequence.incrementAndGet(), description);
             sendNotification(notification);
         }
     }
@@ -796,7 +796,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * @param event
      * @return
      */
-    private String format(Event event) {
+    private String format(final Event event) {
         return event == null ? "null" : event.toString();
     }
 

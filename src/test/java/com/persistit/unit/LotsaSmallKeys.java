@@ -25,7 +25,7 @@ import com.persistit.policy.SplitPolicy;
 
 public class LotsaSmallKeys extends PersistitUnitTestCase {
 
-    private String _volumeName = "persistit";
+    private final String _volumeName = "persistit";
 
     /**
      * Tests bug 775752. Logic to limit the key count was missing in the delete

@@ -46,17 +46,17 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     final Queue<CleanupAction> _cleanupActionQueue = new ArrayBlockingQueue<CleanupAction>(DEFAULT_QUEUE_SIZE);
 
-    private AtomicBoolean _closed = new AtomicBoolean();
+    private final AtomicBoolean _closed = new AtomicBoolean();
 
-    private AtomicLong _accepted = new AtomicLong();
+    private final AtomicLong _accepted = new AtomicLong();
 
-    private AtomicLong _refused = new AtomicLong();
+    private final AtomicLong _refused = new AtomicLong();
 
-    private AtomicLong _performed = new AtomicLong();
+    private final AtomicLong _performed = new AtomicLong();
 
-    private AtomicLong _errors = new AtomicLong();
+    private final AtomicLong _errors = new AtomicLong();
 
-    private AtomicLong _minimumPruningDelay = new AtomicLong(DEFAULT_MINIMUM_PRUNING_DELAY);
+    private final AtomicLong _minimumPruningDelay = new AtomicLong(DEFAULT_MINIMUM_PRUNING_DELAY);
 
     CleanupManager(final Persistit persistit) {
         super(persistit);
@@ -81,8 +81,8 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         return _closed.get();
     }
 
-    synchronized boolean offer(CleanupAction action) {
-        boolean accepted = _cleanupActionQueue.offer(action);
+    synchronized boolean offer(final CleanupAction action) {
+        final boolean accepted = _cleanupActionQueue.offer(action);
         if (accepted) {
             _accepted.incrementAndGet();
         } else {
@@ -148,9 +148,10 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
             try {
                 action.performAction(_persistit);
                 _performed.incrementAndGet();
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 lastException(e);
-                _persistit.getAlertMonitor().post(new Event(AlertLevel.ERROR, _persistit.getLogBase().cleanupException, e, action),
+                _persistit.getAlertMonitor().post(
+                        new Event(AlertLevel.ERROR, _persistit.getLogBase().cleanupException, e, action),
                         AlertMonitor.CLEANUP_CATEGORY);
                 _errors.incrementAndGet();
             }
@@ -164,7 +165,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     @Override
     public synchronized String toString() {
-        StringBuilder sb = new StringBuilder("[");
+        final StringBuilder sb = new StringBuilder("[");
         for (final CleanupAction a : _cleanupActionQueue) {
             if (sb.length() > 1) {
                 sb.append(",\n ");
@@ -188,9 +189,9 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         }
 
         @Override
-        public boolean equals(Object other) {
+        public boolean equals(final Object other) {
             if (other instanceof CleanupTreePage) {
-                CleanupTreePage a = (CleanupTreePage) other;
+                final CleanupTreePage a = (CleanupTreePage) other;
                 return a._page == _page && a._treeHandle == _treeHandle && getClass().equals(a.getClass());
             } else {
                 return false;
@@ -199,10 +200,10 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         }
 
         @Override
-        public int compareTo(CleanupAction other) {
+        public int compareTo(final CleanupAction other) {
             if (other instanceof CleanupTreePage) {
-                CleanupTreePage a = (CleanupTreePage) other;
-                int d = _treeHandle - a._treeHandle;
+                final CleanupTreePage a = (CleanupTreePage) other;
+                final int d = _treeHandle - a._treeHandle;
                 if (d != 0) {
                     return d;
                 }
@@ -222,15 +223,15 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
             if (tree == null) {
                 return null;
             }
-            WeakReference<Exchange> ref = _exchangeThreadLocal.get();
+            final WeakReference<Exchange> ref = _exchangeThreadLocal.get();
             if (ref != null) {
-                Exchange exchange = ref.get();
+                final Exchange exchange = ref.get();
                 if (exchange != null) {
                     exchange.init(tree);
                     return exchange;
                 }
             }
-            Exchange exchange = new Exchange(tree);
+            final Exchange exchange = new Exchange(tree);
             _exchangeThreadLocal.set(new WeakReference<Exchange>(exchange));
             return exchange;
         }
@@ -253,7 +254,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     static class CleanupPruneAction extends CleanupTreePage {
 
-        CleanupPruneAction(int treeHandle, long page) {
+        CleanupPruneAction(final int treeHandle, final long page) {
             super(treeHandle, page);
         }
 
@@ -269,7 +270,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     static class CleanupIndexHole extends CleanupTreePage {
         int _level;
 
-        CleanupIndexHole(int treeHandle, long page, int level) {
+        CleanupIndexHole(final int treeHandle, final long page, final int level) {
             super(treeHandle, page);
             _level = level;
         }

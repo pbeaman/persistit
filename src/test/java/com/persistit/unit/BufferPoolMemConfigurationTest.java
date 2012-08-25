@@ -36,10 +36,10 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
     public void testBufferMemConfiguration() throws Exception {
         final Properties properties = UnitTestProperties.getPropertiesByMemory(true, "1M");
         _persistit.initialize(properties);
-        BufferPoolInfo[] infoArray = _persistit.getManagement().getBufferPoolInfoArray();
+        final BufferPoolInfo[] infoArray = _persistit.getManagement().getBufferPoolInfoArray();
         assertEquals(1, infoArray.length);
-        int bufferSize = infoArray[0].getBufferSize();
-        int bufferCount = infoArray[0].getBufferCount();
+        final int bufferSize = infoArray[0].getBufferSize();
+        final int bufferCount = infoArray[0].getBufferCount();
         assertTrue(bufferSize * bufferCount < 1024 * 1024);
         assertTrue(bufferSize * bufferCount > 512 * 1024);
         _persistit.close();
@@ -51,7 +51,7 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
         try {
             _persistit.initialize(properties);
             fail("Accepted allocation 10000 bytes");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // okay
         }
 
@@ -59,7 +59,7 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
         try {
             _persistit.initialize(properties);
             fail("Accepted allocation 10000G bytes");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // okay
         }
 
@@ -68,7 +68,7 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
         try {
             _persistit.initialize(properties);
             fail("Accepted allocation specified by both count and size");
-        } catch (IllegalArgumentException e) {
+        } catch (final IllegalArgumentException e) {
             // okay
         }
         _persistit.close();

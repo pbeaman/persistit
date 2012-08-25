@@ -172,7 +172,7 @@ class TransactionIndexBucket {
 
     TransactionStatus allocateTransactionStatus() {
         assert _lock.isHeldByCurrentThread();
-        TransactionStatus status = _free;
+        final TransactionStatus status = _free;
         if (status != null) {
             assert !status.isLocked();
             _free = status.getNext();
@@ -446,7 +446,7 @@ class TransactionIndexBucket {
          */
         previous = null;
         for (TransactionStatus status = _aborted; status != null;) {
-            TransactionStatus next = status.getNext();
+            final TransactionStatus next = status.getNext();
             assert status.getTc() == ABORTED;
             if (status.getMvvCount() == 0 && status.getTa() < activeTransactionFloor && status.isNotified()) {
                 aggregate(status, false);
@@ -468,7 +468,7 @@ class TransactionIndexBucket {
          */
         previous = null;
         for (TransactionStatus status = _longRunning; status != null;) {
-            TransactionStatus next = status.getNext();
+            final TransactionStatus next = status.getNext();
             if (status.isNotified() && isCommitted(status) && isObsolete(status)) {
                 aggregate(status, true);
                 if (previous == null) {
@@ -523,7 +523,7 @@ class TransactionIndexBucket {
         return status.getTc() < _activeTransactionFloor;
     }
 
-    private void aggregate(final TransactionStatus status, boolean committed) {
+    private void aggregate(final TransactionStatus status, final boolean committed) {
         assert _lock.isHeldByCurrentThread();
 
         for (Delta delta = status.takeDelta(); delta != null; delta = freeDelta(delta)) {
@@ -597,7 +597,7 @@ class TransactionIndexBucket {
             if (tc > 0 && tc != UNCOMMITTED && tc < timestamp) {
                 for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
                     final Accumulator accumulator = delta.getAccumulator();
-                    long newValue = accumulator.applyValue(accumulator.getCheckpointTemp(), delta.getValue());
+                    final long newValue = accumulator.applyValue(accumulator.getCheckpointTemp(), delta.getValue());
                     accumulator.setCheckpointTemp(newValue);
                 }
             } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
@@ -645,7 +645,7 @@ class TransactionIndexBucket {
     }
 
     Delta allocateDelta() {
-        Delta delta = _freeDeltaList;
+        final Delta delta = _freeDeltaList;
         if (delta != null) {
             _freeDeltaList = delta.getNext();
             _freeDeltaCount--;

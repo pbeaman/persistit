@@ -40,8 +40,8 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
      * This class needs to be in com.persistit because of some package-private
      * methods used in controlling the test.
      */
-    private String journalSize = "100000000";
-    private Random random = new Random();
+    private final String journalSize = "100000000";
+    private final Random random = new Random();
     final AtomicBoolean running = new AtomicBoolean();
     final AtomicLong counter = new AtomicLong();
 
@@ -82,7 +82,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             final Transaction txn = ex.getTransaction();
             txn.begin();
             try {
-                boolean removed = ex.clear().append("test1").append(j).remove(Key.GTEQ);
+                final boolean removed = ex.clear().append("test1").append(j).remove(Key.GTEQ);
                 if (removed) {
                     rowCount.update(-7, txn);
                 }
@@ -108,14 +108,15 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         final TransactionPlayerListener commitListener = new TransactionPlayerListener() {
 
             @Override
-            public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
+            public void store(final long address, final long timestamp, final Exchange exchange)
+                    throws PersistitException {
                 recoveryTimestamps.add(timestamp);
                 expectedRowCount.incrementAndGet();
             }
 
             @Override
-            public void removeKeyRange(final long address, final long timestamp, Exchange exchange, Key from, Key to)
-                    throws PersistitException {
+            public void removeKeyRange(final long address, final long timestamp, final Exchange exchange,
+                    final Key from, final Key to) throws PersistitException {
                 recoveryTimestamps.add(timestamp);
                 expectedRowCount.addAndGet(from.getDepth() == 2 ? -7 : -1); // because
                                                                             // there
@@ -132,31 +133,31 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             }
 
             @Override
-            public void removeTree(final long address, final long timestamp, Exchange exchange)
+            public void removeTree(final long address, final long timestamp, final Exchange exchange)
                     throws PersistitException {
                 recoveryTimestamps.add(timestamp);
             }
 
             @Override
-            public void startRecovery(long address, long timestamp) throws PersistitException {
+            public void startRecovery(final long address, final long timestamp) throws PersistitException {
             }
 
             @Override
-            public void startTransaction(long address, long startTmestamp, long commitTimestamp)
+            public void startTransaction(final long address, final long startTmestamp, final long commitTimestamp)
                     throws PersistitException {
             }
 
             @Override
-            public void endTransaction(long address, long timestamp) throws PersistitException {
+            public void endTransaction(final long address, final long timestamp) throws PersistitException {
             }
 
             @Override
-            public void endRecovery(long address, long timestamp) throws PersistitException {
+            public void endRecovery(final long address, final long timestamp) throws PersistitException {
             }
 
             @Override
-            public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value)
-                    throws PersistitException {
+            public void delta(final long address, final long timestamp, final Tree tree, final int index,
+                    final int accumulatorTypeOrdinal, final long value) throws PersistitException {
                 recoveredRowCount.addAndGet(value);
             }
 
@@ -182,7 +183,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         counter.set(0);
         // Make sure the helper methods work
         accumulateRows(10000);
-        long accumulated = verifyRowCount();
+        final long accumulated = verifyRowCount();
         assertEquals(counter.get(), accumulated);
     }
 
@@ -191,15 +192,16 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         // Make sure the helper methods work in concurrent transactions
         counter.set(0);
         running.set(true);
-        Thread[] threads = new Thread[10];
+        final Thread[] threads = new Thread[10];
         for (int i = 0; i < threads.length; i++) {
             final int index = i;
             threads[i] = new Thread(new Runnable() {
+                @Override
                 public void run() {
                     try {
                         accumulateRows(1000);
                         verifyRowCount();
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         System.out.println("Thread " + index + " failed");
                         e.printStackTrace();
                     }
@@ -222,16 +224,17 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         counter.set(0);
         running.set(true);
 
-        Thread[] threads = new Thread[10];
+        final Thread[] threads = new Thread[10];
         for (int i = 0; i < threads.length; i++) {
             final int index = i;
             threads[i] = new Thread(new Runnable() {
+                @Override
                 public void run() {
                     for (int j = 0; j < 10; j++) {
                         try {
                             accumulateRows(1000000);
                             verifyRowCount();
-                        } catch (Exception e) {
+                        } catch (final Exception e) {
                             System.out.println("Thread " + index + " failed");
                             e.printStackTrace();
                         }
@@ -259,26 +262,26 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         verifyRowCount();
     }
 
-    private void accumulateRows(int max) throws Exception {
+    private void accumulateRows(final int max) throws Exception {
         final Exchange exchange = _persistit.getExchange("persistit", "AccumulatorRecoveryTest", true);
         final Transaction txn = _persistit.getTransaction();
         int count = 0;
         Exception exception = null;
         while (running.get() && count++ < max) {
-            int key = random.nextInt(1000000);
-            int op = random.nextInt(100);
+            final int key = random.nextInt(1000000);
+            final int op = random.nextInt(100);
             int retryCount = 0;
             while (true) {
                 txn.begin();
                 try {
-                    boolean exists = exchange.to(key).isValueDefined();
+                    final boolean exists = exchange.to(key).isValueDefined();
                     int update = 0;
                     if (op < 80) { // TODO - when constant is 80, test causes
                                    // corruption during recovery
                         if (!exists) {
                             exchange.getValue().put(RED_FOX);
                             exchange.store();
-                            Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
+                            final Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
                                     ROW_COUNT_ACCUMULATOR_INDEX);
                             rowCount.update(1, txn);
                             update = 1;
@@ -286,7 +289,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
                     } else {
                         if (exists) {
                             exchange.remove();
-                            Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
+                            final Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
                                     ROW_COUNT_ACCUMULATOR_INDEX);
                             rowCount.update(-1, txn);
                             update = -1;
@@ -295,11 +298,11 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
                     txn.commit();
                     counter.addAndGet(update);
                     break;
-                } catch (RollbackException re) {
+                } catch (final RollbackException re) {
                     retryCount++;
                     assertTrue(retryCount < 5);
                     System.out.println("(Acceptable) rollback in " + Thread.currentThread().getName());
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     exception = e;
                     throw e;
                 } finally {
@@ -315,7 +318,8 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         Exception exception = null;
         txn.begin();
         try {
-            Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM, ROW_COUNT_ACCUMULATOR_INDEX);
+            final Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
+                    ROW_COUNT_ACCUMULATOR_INDEX);
             final long accumulated = rowCount.getSnapshotValue(txn);
             long counted = 0;
             exchange.to(Key.BEFORE);
@@ -323,7 +327,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
                 counted++;
                 assertFalse(exchange.getValue().isAntiValue());
             }
-            long accumulated2 = rowCount.getSnapshotValue(txn);
+            final long accumulated2 = rowCount.getSnapshotValue(txn);
             if (accumulated != counted || accumulated != accumulated2) {
                 synchronized (this) {
                     System.out.printf("%s accumulated=%,d accumulated2=%,d counted=%,d\n", Thread.currentThread()
@@ -334,7 +338,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             }
             txn.commit();
             return counted;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             exception = e;
             throw e;
         } finally {

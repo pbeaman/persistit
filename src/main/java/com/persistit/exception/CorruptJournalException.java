@@ -26,7 +26,7 @@ package com.persistit.exception;
 public class CorruptJournalException extends PersistitIOException {
     private static final long serialVersionUID = -5397911019132612370L;
 
-    public CorruptJournalException(String msg) {
+    public CorruptJournalException(final String msg) {
         super(msg);
     }
 }

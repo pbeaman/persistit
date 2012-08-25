@@ -28,12 +28,12 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 public class KeyParser {
-    private String _source;
-    private StringBuilder _sb = new StringBuilder();
+    private final String _source;
+    private final StringBuilder _sb = new StringBuilder();
     boolean _dp;
     private int _index;
-    private int _start;
-    private int _end;
+    private final int _start;
+    private final int _end;
 
     private static class ProtoTerm {
         byte[] _leftBytes;
@@ -56,7 +56,7 @@ public class KeyParser {
      * @param source
      *            The string to be parsed.
      */
-    public KeyParser(String source) {
+    public KeyParser(final String source) {
         _source = source;
         _index = 0;
         _start = 0;
@@ -76,7 +76,7 @@ public class KeyParser {
      * @param size
      *            Size of the substring
      */
-    public KeyParser(String source, int offset, int size) {
+    public KeyParser(final String source, final int offset, final int size) {
         if (offset < 0 || offset + size > source.length()) {
             throw new IllegalArgumentException();
         }
@@ -96,15 +96,15 @@ public class KeyParser {
      *         href="Key.html#_stringRepresentation"> string representation</a>
      *         of a <code>Key</code>.
      */
-    public boolean parseKey(Key key) {
-        int index = _index;
+    public boolean parseKey(final Key key) {
+        final int index = _index;
         boolean result = false;
         boolean first = true;
 
         try {
             if (matchNonWhiteChar('{')) {
                 for (;;) {
-                    int c = getNonWhiteChar();
+                    final int c = getNonWhiteChar();
                     if (c == '}') {
                         result = true;
                         break;
@@ -138,15 +138,15 @@ public class KeyParser {
      *         representation</a> of a <code>KeyFilter</code>.
      */
     public KeyFilter parseKeyFilter() {
-        int saveIndex = _index;
-        ArrayList vector = new ArrayList(); // accumulate Terms
+        final int saveIndex = _index;
+        final ArrayList vector = new ArrayList(); // accumulate Terms
         boolean result = false;
         boolean minDepthSet = false;
         boolean maxDepthSet = false;
         int minDepth = 0;
         int maxDepth = Integer.MAX_VALUE;
-        Key workKey = new Key((Persistit) null);
-        ProtoTerm protoTerm = new ProtoTerm();
+        final Key workKey = new Key((Persistit) null);
+        final ProtoTerm protoTerm = new ProtoTerm();
         int depth = 0;
         try {
             if (matchNonWhiteChar('{')) {
@@ -169,14 +169,14 @@ public class KeyParser {
                         c = getNonWhiteChar();
                     }
                     if (c == '{') {
-                        KeyFilter.Term[] array = parseFilterTermArray(workKey, protoTerm);
+                        final KeyFilter.Term[] array = parseFilterTermArray(workKey, protoTerm);
                         if (array == null || !matchNonWhiteChar('}'))
                             break;
                         else
                             vector.add(KeyFilter.orTerm(array));
                     } else {
                         back();
-                        KeyFilter.Term term = parseFilterTerm(workKey, protoTerm);
+                        final KeyFilter.Term term = parseFilterTerm(workKey, protoTerm);
                         if (term == null)
                             break;
                         vector.add(term);
@@ -196,7 +196,7 @@ public class KeyParser {
         }
         if (!result)
             return null;
-        KeyFilter.Term[] terms = new KeyFilter.Term[vector.size()];
+        final KeyFilter.Term[] terms = new KeyFilter.Term[vector.size()];
         for (int index = 0; index < terms.length; index++) {
             terms[index] = (KeyFilter.Term) vector.get(index);
         }
@@ -220,9 +220,9 @@ public class KeyParser {
      * @param key
      * @return
      */
-    private boolean parseKeySegment(Key key) {
-        int index = _index;
-        int size = key.getEncodedSize();
+    private boolean parseKeySegment(final Key key) {
+        final int index = _index;
+        final int size = key.getEncodedSize();
         boolean result = false;
         try {
             int c = getNonWhiteChar();
@@ -321,8 +321,8 @@ public class KeyParser {
                     result = true;
                 }
             }
-        } catch (NumberFormatException nfe) {
-        } catch (ParseException pe) {
+        } catch (final NumberFormatException nfe) {
+        } catch (final ParseException pe) {
         } finally {
             if (!result) {
                 _index = index;
@@ -332,17 +332,17 @@ public class KeyParser {
         return result;
     }
 
-    private KeyFilter.Term[] parseFilterTermArray(Key workKey, ProtoTerm protoTerm) {
-        ArrayList<KeyFilter.Term> list = new ArrayList<KeyFilter.Term>();
+    private KeyFilter.Term[] parseFilterTermArray(final Key workKey, final ProtoTerm protoTerm) {
+        final ArrayList<KeyFilter.Term> list = new ArrayList<KeyFilter.Term>();
         for (;;) {
-            KeyFilter.Term term = parseFilterTerm(workKey, protoTerm);
+            final KeyFilter.Term term = parseFilterTerm(workKey, protoTerm);
             if (term == null)
                 return null;
             list.add(term);
-            int c = getNonWhiteChar();
+            final int c = getNonWhiteChar();
             if (c == '}') {
                 back();
-                KeyFilter.Term[] array = new KeyFilter.Term[list.size()];
+                final KeyFilter.Term[] array = new KeyFilter.Term[list.size()];
                 for (int index = 0; index < array.length; index++) {
                     array[index] = list.get(index);
                 }
@@ -352,7 +352,7 @@ public class KeyParser {
         }
     }
 
-    private KeyFilter.Term parseFilterTerm(Key workKey, ProtoTerm protoTerm) {
+    private KeyFilter.Term parseFilterTerm(final Key workKey, final ProtoTerm protoTerm) {
         int c = getNonWhiteChar();
         if (c == '*') {
             return KeyFilter.ALL;
@@ -385,7 +385,7 @@ public class KeyParser {
         return term;
     }
 
-    boolean parseKeyFilterRange(Key workKey, ProtoTerm protoTerm) {
+    boolean parseKeyFilterRange(final Key workKey, final ProtoTerm protoTerm) {
 
         workKey.clear();
         int c = getNonWhiteChar();
@@ -415,12 +415,12 @@ public class KeyParser {
         return true;
     }
 
-    static byte[] segmentBytes(Key key) {
-        int start = key.getIndex();
+    static byte[] segmentBytes(final Key key) {
+        final int start = key.getIndex();
         int end = key.nextElementIndex(start);
         if (end == -1)
             end = key.getEncodedSize();
-        byte[] bytes = new byte[end - start];
+        final byte[] bytes = new byte[end - start];
         System.arraycopy(key.getEncodedBytes(), start, bytes, 0, end - start);
         return bytes;
     }
@@ -433,11 +433,11 @@ public class KeyParser {
         return c;
     }
 
-    private boolean matchNonWhiteChar(int c) {
+    private boolean matchNonWhiteChar(final int c) {
         return getNonWhiteChar() == c ? true : back();
     }
 
-    private boolean matchUntil(int c1, int c2) {
+    private boolean matchUntil(final int c1, final int c2) {
         _sb.setLength(0);
         int c;
         while ((c = getChar()) != -1) {
@@ -475,7 +475,7 @@ public class KeyParser {
         return true;
     }
 
-    private boolean matchExactString(String s) {
+    private boolean matchExactString(final String s) {
         if (_source.regionMatches(_index, s, 0, s.length())) {
             _index += s.length();
             return true;
@@ -534,7 +534,7 @@ public class KeyParser {
     private int unicode() {
         if (_index + 4 > _end)
             return -1;
-        int u = Integer.parseInt(_source.substring(_index, _index + 4), 16);
+        final int u = Integer.parseInt(_source.substring(_index, _index + 4), 16);
         _index += 4;
         return u;
     }

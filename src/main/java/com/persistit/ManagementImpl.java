@@ -22,7 +22,6 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -71,21 +70,21 @@ class ManagementImpl implements Management {
 
     private boolean _registered = false;
     private String _registeredHostName;
-    private HashMap<Long, Task> _tasks = new HashMap<Long, Task>();
+    private final HashMap<Long, Task> _tasks = new HashMap<Long, Task>();
 
-    private TransactionInfo _transactionInfoCache = new TransactionInfo();
+    private final TransactionInfo _transactionInfoCache = new TransactionInfo();
 
-    public ManagementImpl(Persistit persistit) {
+    public ManagementImpl(final Persistit persistit) {
         _persistit = persistit;
         _displayFilter = new DisplayFilter() {
 
             @Override
-            public String toKeyDisplayString(Exchange exchange) {
+            public String toKeyDisplayString(final Exchange exchange) {
                 return exchange.getKey().toString();
             }
 
             @Override
-            public String toValueDisplayString(Exchange exchange) {
+            public String toValueDisplayString(final Exchange exchange) {
                 return exchange.getValue().toString();
             }
         };
@@ -194,7 +193,7 @@ class ManagementImpl implements Management {
      *            attempting to close; otherwise <code>false</code>.
      */
     @Override
-    public void setShutdownSuspended(boolean suspended) {
+    public void setShutdownSuspended(final boolean suspended) {
         _persistit.setShutdownSuspended(suspended);
     }
 
@@ -221,7 +220,7 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public void setUpdateSuspended(boolean suspended) {
+    public void setUpdateSuspended(final boolean suspended) {
         _persistit.setUpdateSuspended(suspended);
     }
 
@@ -235,7 +234,7 @@ class ManagementImpl implements Management {
             } else {
                 _persistit.getIOMeter().setLogFile(path);
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new WrappedRemoteException(e);
         }
     }
@@ -250,7 +249,7 @@ class ManagementImpl implements Management {
      *            journal copying; otherwise <code>false</code>.
      */
     @Override
-    public void setAppendOnly(boolean suspended) {
+    public void setAppendOnly(final boolean suspended) {
         _persistit.getJournalManager().setAppendOnly(suspended);
     }
 
@@ -266,7 +265,7 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public void setJournalCopyingFast(boolean fast) throws RemoteException {
+    public void setJournalCopyingFast(final boolean fast) throws RemoteException {
         _persistit.getJournalManager().setCopyingFast(fast);
     }
 
@@ -286,7 +285,7 @@ class ManagementImpl implements Management {
      *            name of the <code>CommitPolicy</code> to set.
      */
     @Override
-    public void setDefaultCommitPolicy(String policyName) {
+    public void setDefaultCommitPolicy(final String policyName) {
         _persistit.setDefaultTransactionCommitPolicy(policyName);
     }
 
@@ -302,7 +301,7 @@ class ManagementImpl implements Management {
         try {
             _persistit.close();
             return true;
-        } catch (PersistitException e) {
+        } catch (final PersistitException e) {
             throw new WrappedRemoteException(e);
         }
     }
@@ -318,7 +317,7 @@ class ManagementImpl implements Management {
         try {
             _persistit.flush();
             _persistit.force();
-        } catch (PersistitException e) {
+        } catch (final PersistitException e) {
             throw new WrappedRemoteException(e);
         }
     }
@@ -339,15 +338,15 @@ class ManagementImpl implements Management {
      */
     @Override
     public BufferPoolInfo[] getBufferPoolInfoArray() {
-        HashMap<Integer, BufferPool> bufferPoolTable = _persistit.getBufferPoolHashMap();
-        int size = bufferPoolTable.size();
-        BufferPoolInfo[] result = new BufferPoolInfo[size];
+        final HashMap<Integer, BufferPool> bufferPoolTable = _persistit.getBufferPoolHashMap();
+        final int size = bufferPoolTable.size();
+        final BufferPoolInfo[] result = new BufferPoolInfo[size];
         int index = 0;
         for (int bufferSize = Buffer.MIN_BUFFER_SIZE; bufferSize <= Buffer.MAX_BUFFER_SIZE; bufferSize *= 2) {
-            BufferPool pool = bufferPoolTable.get(new Integer(bufferSize));
+            final BufferPool pool = bufferPoolTable.get(new Integer(bufferSize));
 
             if (pool != null && index < size) {
-                BufferPoolInfo info = new BufferPoolInfo();
+                final BufferPoolInfo info = new BufferPoolInfo();
                 pool.populateBufferPoolInfo(info);
                 result[index++] = info;
             }
@@ -371,7 +370,7 @@ class ManagementImpl implements Management {
 
     @Override
     public TransactionInfo getTransactionInfo() {
-        TransactionInfo info = _transactionInfoCache;
+        final TransactionInfo info = _transactionInfoCache;
         if (System.currentTimeMillis() - info.getAcquisitionTime() > MAX_STALE) {
             final List<Transaction> transactions = new ArrayList<Transaction>();
             synchronized (info) {
@@ -391,17 +390,17 @@ class ManagementImpl implements Management {
     }
 
     @Override
-    public String transactionReport(int max) {
+    public String transactionReport(final int max) {
         return _persistit.transactionReport(max);
     }
 
     @Override
-    public LogicalRecord[] getLogicalRecordArray(String volumeName, String treeName, String keyFilterString,
-            KeyState fromKey, Key.Direction direction, int maxCount, int maxValueBytes, boolean decodeStrings)
-            throws RemoteException {
+    public LogicalRecord[] getLogicalRecordArray(final String volumeName, final String treeName,
+            final String keyFilterString, final KeyState fromKey, final Key.Direction direction, final int maxCount,
+            final int maxValueBytes, final boolean decodeStrings) throws RemoteException {
         LogicalRecord[] records = new LogicalRecord[maxCount];
         int count = 0;
-        boolean forward = direction == Key.GT || direction == Key.GTEQ;
+        final boolean forward = direction == Key.GT || direction == Key.GTEQ;
         Exchange exchange = null;
         try {
             if (treeName.equals(VolumeStructure.DIRECTORY_TREE_NAME)) {
@@ -419,7 +418,7 @@ class ManagementImpl implements Management {
                 if (!exchange.traverse(direction, filter, maxValueBytes)) {
                     break;
                 } else {
-                    LogicalRecord record = new LogicalRecord();
+                    final LogicalRecord record = new LogicalRecord();
                     record._key = new KeyState(exchange.getKey());
                     record._value = new ValueState(exchange.getValue(), maxValueBytes);
 
@@ -435,13 +434,13 @@ class ManagementImpl implements Management {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new WrappedRemoteException(e);
         } finally {
             exchange.ignoreMVCCFetch(false);
         }
         if (count < maxCount) {
-            LogicalRecord[] trimmed = new LogicalRecord[count];
+            final LogicalRecord[] trimmed = new LogicalRecord[count];
             System.arraycopy(records, forward ? 0 : maxCount - count, trimmed, 0, count);
             records = trimmed;
         }
@@ -449,8 +448,9 @@ class ManagementImpl implements Management {
     }
 
     @Override
-    public LogicalRecordCount getLogicalRecordCount(String volumeName, String treeName, String keyFilterString,
-            KeyState fromKey, Key.Direction direction, int maxCount) throws RemoteException {
+    public LogicalRecordCount getLogicalRecordCount(final String volumeName, final String treeName,
+            final String keyFilterString, final KeyState fromKey, final Key.Direction direction, final int maxCount)
+            throws RemoteException {
         int count = 0;
         Exchange exchange = null;
         KeyState endKeyState = null;
@@ -471,7 +471,7 @@ class ManagementImpl implements Management {
                 }
             }
             endKeyState = new KeyState(exchange.getAuxiliaryKey2());
-        } catch (Exception pe) {
+        } catch (final Exception pe) {
             throw new WrappedRemoteException(pe);
         } finally {
             if (exchange != null)
@@ -497,14 +497,14 @@ class ManagementImpl implements Management {
      * @return the array
      */
     @Override
-    public RecordInfo[] getRecordInfoArray(String volumeName, long pageAddress) throws RemoteException {
-        Volume volume = _persistit.getVolume(volumeName);
+    public RecordInfo[] getRecordInfoArray(final String volumeName, final long pageAddress) throws RemoteException {
+        final Volume volume = _persistit.getVolume(volumeName);
         if (volume == null)
             return new RecordInfo[0];
         try {
-            Buffer buffer = volume.getPool().getBufferCopy(volume, pageAddress);
+            final Buffer buffer = volume.getPool().getBufferCopy(volume, pageAddress);
             return buffer.getRecords();
-        } catch (PersistitException pe) {
+        } catch (final PersistitException pe) {
             throw new WrappedRemoteException(pe);
         }
     }
@@ -573,15 +573,16 @@ class ManagementImpl implements Management {
      * @return the array
      */
     @Override
-    public BufferInfo[] getBufferInfoArray(int bufferSize, int traversalType, String includeMask, String excludeMask) {
-        BufferPool pool = _persistit.getBufferPool(bufferSize);
+    public BufferInfo[] getBufferInfoArray(final int bufferSize, final int traversalType, final String includeMask,
+            final String excludeMask) {
+        final BufferPool pool = _persistit.getBufferPool(bufferSize);
         if (pool == null)
             return new BufferInfo[0];
         BufferInfo[] results = new BufferInfo[pool.getBufferCount()];
-        int count = pool.populateInfo(results, traversalType, makeStatus(includeMask), makeStatus(excludeMask));
+        final int count = pool.populateInfo(results, traversalType, makeStatus(includeMask), makeStatus(excludeMask));
 
         if (count < results.length) {
-            BufferInfo[] temp = new BufferInfo[count];
+            final BufferInfo[] temp = new BufferInfo[count];
             System.arraycopy(results, 0, temp, 0, count);
             results = temp;
         }
@@ -605,16 +606,16 @@ class ManagementImpl implements Management {
      *         <code>null</code> if there is none.
      */
     @Override
-    public BufferInfo getBufferInfo(String volumeName, long pageAddress) throws RemoteException {
-        Volume volume = _persistit.getVolume(volumeName);
+    public BufferInfo getBufferInfo(final String volumeName, final long pageAddress) throws RemoteException {
+        final Volume volume = _persistit.getVolume(volumeName);
         if (volume == null)
             return null;
         try {
-            Buffer buffer = volume.getPool().getBufferCopy(volume, pageAddress);
-            BufferInfo info = new BufferInfo();
+            final Buffer buffer = volume.getPool().getBufferCopy(volume, pageAddress);
+            final BufferInfo info = new BufferInfo();
             buffer.populateInfo(info);
             return info;
-        } catch (PersistitException pe) {
+        } catch (final PersistitException pe) {
             throw new WrappedRemoteException(pe);
         }
     }
@@ -662,12 +663,12 @@ class ManagementImpl implements Management {
             }
             key.copyTo(exchange.getKey());
             final Buffer buffer = exchange.fetchBufferCopy(level);
-            BufferInfo info = new BufferInfo();
+            final BufferInfo info = new BufferInfo();
             buffer.populateInfo(info);
             return info;
-        } catch (TreeNotFoundException tnfe) {
+        } catch (final TreeNotFoundException tnfe) {
             return null;
-        } catch (PersistitException pe) {
+        } catch (final PersistitException pe) {
             throw new WrappedRemoteException(pe);
         }
     }
@@ -747,16 +748,16 @@ class ManagementImpl implements Management {
      * @return the array
      */
     @Override
-    public int populateBufferInfoArray(BufferInfo[] results, int bufferSize, int traversalType, String includeMask,
-            String excludeMask) {
-        BufferPool pool = _persistit.getBufferPool(bufferSize);
+    public int populateBufferInfoArray(final BufferInfo[] results, final int bufferSize, final int traversalType,
+            final String includeMask, final String excludeMask) {
+        final BufferPool pool = _persistit.getBufferPool(bufferSize);
         if (pool == null)
             return -1;
-        int count = pool.populateInfo(results, traversalType, makeStatus(includeMask), makeStatus(excludeMask));
+        final int count = pool.populateInfo(results, traversalType, makeStatus(includeMask), makeStatus(excludeMask));
         return count;
     }
 
-    private static int makeStatus(String statusCode) {
+    private static int makeStatus(final String statusCode) {
         if (statusCode == null)
             return 0;
         int status = 0;
@@ -792,8 +793,8 @@ class ManagementImpl implements Management {
      */
     @Override
     public VolumeInfo[] getVolumeInfoArray() {
-        List<Volume> volumes = _persistit.getVolumes();
-        VolumeInfo[] result = new VolumeInfo[volumes.size()];
+        final List<Volume> volumes = _persistit.getVolumes();
+        final VolumeInfo[] result = new VolumeInfo[volumes.size()];
         for (int index = 0; index < volumes.size(); index++) {
             result[index] = new VolumeInfo(volumes.get(index));
         }
@@ -811,8 +812,8 @@ class ManagementImpl implements Management {
      * @return the <code>VolumeInfo</code>
      */
     @Override
-    public VolumeInfo getVolumeInfo(String volumeName) {
-        Volume volume = _persistit.getVolume(volumeName);
+    public VolumeInfo getVolumeInfo(final String volumeName) {
+        final Volume volume = _persistit.getVolume(volumeName);
         if (volume == null)
             return null;
         else
@@ -832,21 +833,21 @@ class ManagementImpl implements Management {
      * @return The array
      */
     @Override
-    public TreeInfo[] getTreeInfoArray(String volumeName) throws RemoteException {
+    public TreeInfo[] getTreeInfoArray(final String volumeName) throws RemoteException {
         if (volumeName == null) {
             return new TreeInfo[0];
         }
-        Volume volume = _persistit.getVolume(volumeName);
+        final Volume volume = _persistit.getVolume(volumeName);
         if (volume == null)
             return new TreeInfo[0];
 
         try {
-            String[] treeNames = volume.getTreeNames();
+            final String[] treeNames = volume.getTreeNames();
             TreeInfo[] results = new TreeInfo[treeNames.length + 1];
             int count = 0;
             results[count++] = new TreeInfo(volume.getDirectoryTree());
             for (int index = 0; index < treeNames.length; index++) {
-                TreeInfo info = volume.getTreeInfo(treeNames[index]);
+                final TreeInfo info = volume.getTreeInfo(treeNames[index]);
                 if (info != null) {
                     results[count++] = info;
                 }
@@ -857,7 +858,7 @@ class ManagementImpl implements Management {
                 results = temp;
             }
             return results;
-        } catch (PersistitException pe) {
+        } catch (final PersistitException pe) {
             throw new WrappedRemoteException(pe);
         }
     }
@@ -877,8 +878,8 @@ class ManagementImpl implements Management {
      * @return the <code>TreeInfo</code>
      */
     @Override
-    public TreeInfo getTreeInfo(String volumeName, String treeName) throws RemoteException {
-        Volume volume = _persistit.getVolume(volumeName);
+    public TreeInfo getTreeInfo(final String volumeName, final String treeName) throws RemoteException {
+        final Volume volume = _persistit.getVolume(volumeName);
         if (volume == null)
             return null;
         try {
@@ -890,7 +891,7 @@ class ManagementImpl implements Management {
             }
             if (tree != null)
                 return new TreeInfo(tree);
-        } catch (PersistitException pe) {
+        } catch (final PersistitException pe) {
             throw new WrappedRemoteException(pe);
         }
         return null;
@@ -911,23 +912,23 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public Class getRemoteClass(String className) throws RemoteException {
+    public Class getRemoteClass(final String className) throws RemoteException {
         //
         // Need a subclass with a public constructor.
         //
-        ClassLoader loader = new ClassLoader() {
+        final ClassLoader loader = new ClassLoader() {
         };
         try {
-            Class clazz = loader.loadClass(className);
+            final Class clazz = loader.loadClass(className);
             return clazz;
-        } catch (ClassNotFoundException cnfe) {
+        } catch (final ClassNotFoundException cnfe) {
             throw new WrappedRemoteException(cnfe);
         }
     }
 
     @Override
-    public int parseKeyFilterString(String keyFilterString) throws RemoteException {
-        KeyParser parser = new KeyParser(keyFilterString);
+    public int parseKeyFilterString(final String keyFilterString) throws RemoteException {
+        final KeyParser parser = new KeyParser(keyFilterString);
         if (parser.parseKeyFilter() != null)
             return -1;
         else
@@ -961,21 +962,21 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public Object[] decodeValueObjects(ValueState valueState, CoderContext context) throws RemoteException {
+    public Object[] decodeValueObjects(final ValueState valueState, final CoderContext context) throws RemoteException {
         try {
-            Value value = new Value(_persistit);
+            final Value value = new Value(_persistit);
             valueState.copyTo(value);
             value.setStreamMode(true);
-            Vector vector = new Vector();
+            final Vector vector = new Vector();
             while (value.hasMoreItems()) {
                 vector.addElement(value.get(null, context));
             }
-            Object[] result = new Object[vector.size()];
+            final Object[] result = new Object[vector.size()];
             for (int index = 0; index < result.length; index++) {
                 result[index] = vector.get(index);
             }
             return result;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new WrappedRemoteException(e);
         }
     }
@@ -995,17 +996,17 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public Object[] decodeKeyObjects(KeyState keyState, CoderContext context) throws RemoteException {
+    public Object[] decodeKeyObjects(final KeyState keyState, final CoderContext context) throws RemoteException {
         try {
-            Key key = new Key(_persistit);
+            final Key key = new Key(_persistit);
             keyState.copyTo(key);
-            int size = key.getDepth();
-            Object[] result = new Object[size];
+            final int size = key.getDepth();
+            final Object[] result = new Object[size];
             for (int index = 0; index < size; index++) {
                 result[index] = key.decode(null, context);
             }
             return result;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new WrappedRemoteException(e);
         }
     }
@@ -1036,20 +1037,20 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public synchronized long startTask(String description, String owner, String commandLine, long maximumTime,
-            int verbosity) throws RemoteException {
+    public synchronized long startTask(final String description, final String owner, final String commandLine,
+            final long maximumTime, final int verbosity) throws RemoteException {
         try {
-            Task task = CLI.parseTask(_persistit, commandLine);
+            final Task task = CLI.parseTask(_persistit, commandLine);
             if (task == null) {
                 throw new WrappedRemoteException(new IllegalArgumentException("Unknown task " + commandLine));
             }
-            long taskId = ++_taskIdCounter;
+            final long taskId = ++_taskIdCounter;
             task.setPersistit(_persistit);
             task.setup(taskId, description, owner, maximumTime, verbosity);
             _tasks.put(new Long(taskId), task);
             task.start();
             return taskId;
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             throw new WrappedRemoteException(ex);
         }
     }
@@ -1071,7 +1072,8 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public synchronized TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages) {
+    public synchronized TaskStatus[] queryTaskStatus(final long taskId, final boolean details,
+            final boolean clearMessages) {
         return queryTaskStatus(taskId, details, clearMessages, true);
     }
 
@@ -1095,15 +1097,15 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public synchronized TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages,
-            boolean clearTasks) {
+    public synchronized TaskStatus[] queryTaskStatus(final long taskId, final boolean details,
+            final boolean clearMessages, final boolean clearTasks) {
         if (taskId == -1) {
-            int size = _tasks.size();
+            final int size = _tasks.size();
             int index = 0;
-            TaskStatus[] result = new TaskStatus[size];
-            for (Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
-                Task task = (Task) iterator.next();
-                TaskStatus ts = new TaskStatus();
+            final TaskStatus[] result = new TaskStatus[size];
+            for (final Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
+                final Task task = iterator.next();
+                final TaskStatus ts = new TaskStatus();
                 task.populateTaskStatus(ts, details, clearMessages);
                 result[index++] = ts;
                 if (clearTasks && Task.isFinalStatus(task._state)) {
@@ -1112,11 +1114,11 @@ class ManagementImpl implements Management {
             }
             return result;
         } else {
-            Task task = _tasks.get(taskId);
+            final Task task = _tasks.get(taskId);
             if (task == null) {
                 return new TaskStatus[0];
             } else {
-                TaskStatus ts = new TaskStatus();
+                final TaskStatus ts = new TaskStatus();
                 task.populateTaskStatus(ts, details, clearMessages);
                 if (clearTasks && Task.isFinalStatus(task._state)) {
                     _tasks.remove(taskId);
@@ -1138,17 +1140,17 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public synchronized void setTaskSuspended(long taskId, boolean suspend) {
+    public synchronized void setTaskSuspended(final long taskId, final boolean suspend) {
         if (taskId == -1) {
-            for (Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
-                Task task = (Task) iterator.next();
+            for (final Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
+                final Task task = iterator.next();
                 if (suspend)
                     task.suspend();
                 else
                     task.resume();
             }
         } else {
-            Task task = _tasks.get(new Long(taskId));
+            final Task task = _tasks.get(new Long(taskId));
             if (task != null) {
                 if (suspend)
                     task.suspend();
@@ -1170,17 +1172,17 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public synchronized void stopTask(long taskId, boolean remove) {
+    public synchronized void stopTask(final long taskId, final boolean remove) {
         if (taskId == -1) {
-            for (Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
-                Task task = iterator.next();
+            for (final Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
+                final Task task = iterator.next();
                 task.stop();
             }
             if (remove) {
                 _tasks.clear();
             }
         } else {
-            Task task = _tasks.get(new Long(taskId));
+            final Task task = _tasks.get(new Long(taskId));
             if (task != null) {
                 task.stop();
                 if (remove) {
@@ -1200,17 +1202,17 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public synchronized void removeFinishedTasks(long taskId) {
+    public synchronized void removeFinishedTasks(final long taskId) {
         if (taskId == -1) {
-            for (Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
-                Task task = iterator.next();
+            for (final Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
+                final Task task = iterator.next();
                 if (Task.isFinalStatus(task._state)) {
                     iterator.remove();
                 }
             }
         } else {
-            Long key = Long.valueOf(taskId);
-            Task task = _tasks.get(key);
+            final Long key = Long.valueOf(taskId);
+            final Task task = _tasks.get(key);
             if (task != null && Task.isFinalStatus(task._state)) {
                 _tasks.remove(key);
             }
@@ -1223,25 +1225,25 @@ class ManagementImpl implements Management {
     }
 
     @Override
-    public void setDisplayFilter(DisplayFilter displayFilter) {
+    public void setDisplayFilter(final DisplayFilter displayFilter) {
         _displayFilter = displayFilter;
     }
 
-    void register(String hostName, int rmiPort, int serverPort) {
+    void register(String hostName, final int rmiPort, final int serverPort) {
 
         try {
-            ManagementImpl impl = (ManagementImpl) _persistit.getManagement();
+            final ManagementImpl impl = (ManagementImpl) _persistit.getManagement();
             if (hostName == null && rmiPort != -1) {
                 try {
                     if (hostName == null) {
-                        InetAddress addr = InetAddress.getLocalHost();
+                        final InetAddress addr = InetAddress.getLocalHost();
                         try {
                             hostName = addr.getHostName() + ":" + rmiPort;
-                        } catch (Exception e) {
+                        } catch (final Exception e) {
                             hostName = addr.getHostAddress() + ":" + rmiPort;
                         }
                     }
-                } catch (NumberFormatException nfe) {
+                } catch (final NumberFormatException nfe) {
                 }
             }
             if (rmiPort != -1 && _localRegistryPort != rmiPort) {
@@ -1250,7 +1252,7 @@ class ManagementImpl implements Management {
             }
 
             if (hostName != null && hostName.length() > 0) {
-                String name = "//" + hostName + "/PersistitManagementServer";
+                final String name = "//" + hostName + "/PersistitManagementServer";
                 UnicastRemoteObject.exportObject(impl, serverPort);
                 Naming.rebind(name, impl);
                 impl._registered = true;
@@ -1258,7 +1260,7 @@ class ManagementImpl implements Management {
                 _persistit.getLogBase().rmiServerRegistered.log(hostName);
 
             }
-        } catch (Exception exception) {
+        } catch (final Exception exception) {
             _persistit.getLogBase().rmiRegisterException.log(hostName, exception);
         }
     }
@@ -1266,12 +1268,12 @@ class ManagementImpl implements Management {
     void unregister() {
         if (_registered) {
             try {
-                ManagementImpl impl = (ManagementImpl) _persistit.getManagement();
+                final ManagementImpl impl = (ManagementImpl) _persistit.getManagement();
 
                 UnicastRemoteObject.unexportObject(impl, true);
                 _registered = false;
                 _persistit.getLogBase().rmiServerUnregister.log(_registeredHostName);
-            } catch (Exception exception) {
+            } catch (final Exception exception) {
                 _persistit.getLogBase().rmiUnregisterException.log(_registeredHostName, exception);
             }
         }
@@ -1280,7 +1282,7 @@ class ManagementImpl implements Management {
     @Override
     public String launch(final String commandLine) {
         try {
-            Task task = CLI.parseTask(_persistit, commandLine);
+            final Task task = CLI.parseTask(_persistit, commandLine);
             if (task == null) {
                 return "Invalid task " + commandLine;
             }
@@ -1290,11 +1292,12 @@ class ManagementImpl implements Management {
                 return task.getStatusDetail();
             }
             return launch(task, commandLine);
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             return "Failed: " + ex.toString();
         }
     }
 
+    @Override
     public VolumeInfo volumeByName(final String volumeName) throws RemoteException {
         return getVolumeInfo(volumeName);
     }
@@ -1302,12 +1305,12 @@ class ManagementImpl implements Management {
     @Override
     public synchronized String launch(final Task task, final String description) throws RemoteException {
         try {
-            long taskId = taskId();
+            final long taskId = taskId();
             task.setup(taskId, description, Thread.currentThread().getName(), 0, 5);
             _tasks.put(new Long(taskId), task);
             task.start();
             return Long.toString(taskId);
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             return "Failed: " + ex.toString();
         }
     }
@@ -1315,7 +1318,7 @@ class ManagementImpl implements Management {
     @Override
     public String execute(final String commandLine) {
         try {
-            Task task = CLI.parseTask(_persistit, commandLine);
+            final Task task = CLI.parseTask(_persistit, commandLine);
             if (task == null) {
                 return "Invalid task " + commandLine;
             }
@@ -1323,7 +1326,7 @@ class ManagementImpl implements Management {
             task.setPersistit(null);
             return task.getStatusDetail();
 
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             return "Failed: " + ex.toString();
         }
     }

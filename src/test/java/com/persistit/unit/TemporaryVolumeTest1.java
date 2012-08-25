@@ -114,7 +114,7 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
             sb.setLength(0);
             sb.append((char) (count / 20 + 64));
             sb.append((char) (count % 20 + 64));
-            String key = exchange.getKey().reset().decodeString();
+            final String key = exchange.getKey().reset().decodeString();
             assertEquals(sb.toString(), key);
         }
         assertEquals(400, count);
@@ -124,7 +124,7 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
             sb.setLength(0);
             sb.append((char) (count / 20 + 64));
             sb.append((char) (count % 20 + 64));
-            String key = exchange.getKey().reset().decodeString();
+            final String key = exchange.getKey().reset().decodeString();
             assertEquals(sb.toString(), key);
         }
         assertEquals(0, count);
@@ -286,8 +286,9 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
         value.putString(sb);
         exchange.store();
 
-        key.clear().append("B").append(
-                "... a pretty long key value. The goal is to get the the record "
+        key.clear()
+                .append("B")
+                .append("... a pretty long key value. The goal is to get the the record "
                         + "for this key into the penultimate slot of the left page, followed "
                         + "by a short key on the edge.  Then delete that short key, so that"
                         + "this becomes the edge key.");
@@ -396,10 +397,10 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
     @Test
     public void testLazyCreateFile() throws Exception {
         final Exchange ex = _persistit.getExchange(_volume, "T2", true);
-        FileFilter ff = new FileFilter() {
+        final FileFilter ff = new FileFilter() {
 
             @Override
-            public boolean accept(File pathname) {
+            public boolean accept(final File pathname) {
                 return pathname.getName().contains("persistit_tempvol_");
             }
 
@@ -417,7 +418,7 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
     @Test
     public void testMaxSize() throws Exception {
         _persistit.getConfiguration().setTmpVolMaxSize(64 * 1024 * 1024);
-        Volume volume2 = _persistit.createTemporaryVolume();
+        final Volume volume2 = _persistit.createTemporaryVolume();
         final Exchange ex1 = _persistit.getExchange(_volume, "T2", true);
         final Exchange ex2 = _persistit.getExchange(volume2, "T2", true);
         ex1.getValue().put(RED_FOX);
@@ -431,7 +432,7 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
                 full1 = false;
                 ex2.to(index).store();
                 full2 = false;
-            } catch (VolumeFullException e) {
+            } catch (final VolumeFullException e) {
                 assertTrue(!full1);
                 assertTrue(full2);
                 break;
@@ -492,11 +493,11 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
         for (int cycle = 1; cycle < 10; cycle++) {
             final Exchange exchange2 = _persistit.getExchange(_volume, "TemporaryVolumeTest1", true);
             exchange2.getValue().put(RED_FOX);
-            long startingEvictCount = management.getBufferPoolInfoArray()[0].getEvictCount();
+            final long startingEvictCount = management.getBufferPoolInfoArray()[0].getEvictCount();
             for (int k2 = 0; k2 < (key * cycle) / 10; k2++) {
                 exchange2.to(k2).store();
             }
-            long evictions = management.getBufferPoolInfoArray()[0].getEvictCount() - startingEvictCount;
+            final long evictions = management.getBufferPoolInfoArray()[0].getEvictCount() - startingEvictCount;
             System.out.println("Cycle=" + cycle + " had " + evictions + " evictions");
             assertTrue("Too many evictions in cycle " + cycle + ": " + evictions, evictions < bufferCount * 0.15);
             System.out.println("Invalidating " + _volume.getNextAvailablePage() + " pages in cycle " + cycle);

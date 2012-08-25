@@ -26,20 +26,20 @@ import java.io.IOException;
  */
 public class PersistitIOException extends PersistitException {
     private static final long serialVersionUID = 9108205596568958490L;
-    
+
     private final String _detail;
 
-    public PersistitIOException(IOException ioe) {
+    public PersistitIOException(final IOException ioe) {
         super(ioe);
         _detail = null;
     }
 
-    public PersistitIOException(String msg) {
+    public PersistitIOException(final String msg) {
         super(msg);
         _detail = null;
     }
 
-    public PersistitIOException(String msg, IOException exception) {
+    public PersistitIOException(final String msg, final IOException exception) {
         super(exception);
         _detail = msg;
     }

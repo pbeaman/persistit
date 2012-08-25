@@ -29,7 +29,7 @@ public class MalformedValueException extends RuntimeException {
         super();
     }
 
-    public MalformedValueException(String msg) {
+    public MalformedValueException(final String msg) {
         super(msg);
     }
 }

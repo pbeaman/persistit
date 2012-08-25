@@ -168,12 +168,12 @@ public class CLI {
     public static void registerCommands(final Class<?> clazz) {
         for (final Method method : clazz.getDeclaredMethods()) {
             if (method.isAnnotationPresent(Cmd.class)) {
-                String name = method.getAnnotation(Cmd.class).value();
-                Annotation[][] parameters = method.getParameterAnnotations();
-                String[] argTemplate = new String[parameters.length];
+                final String name = method.getAnnotation(Cmd.class).value();
+                final Annotation[][] parameters = method.getParameterAnnotations();
+                final String[] argTemplate = new String[parameters.length];
                 int index = 0;
-                for (Annotation[] annotations : parameters) {
-                    Arg argAnnotation = (Arg) annotations[0];
+                for (final Annotation[] annotations : parameters) {
+                    final Arg argAnnotation = (Arg) annotations[0];
                     argTemplate[index++] = argAnnotation.value();
                 }
                 COMMANDS.put(name, new Command(name, argTemplate, method));
@@ -228,7 +228,7 @@ public class CLI {
         int port = -1;
         String host = null;
 
-        String[] hostPieces = args[0].split(":");
+        final String[] hostPieces = args[0].split(":");
         switch (hostPieces.length) {
         case 1:
             port = Integer.parseInt(hostPieces[0]);
@@ -275,7 +275,7 @@ public class CLI {
      */
     public static void runScript(final Persistit persistit, final BufferedReader reader, final PrintWriter writer)
             throws Exception {
-        CLI cli = new CLI(persistit, reader, writer);
+        final CLI cli = new CLI(persistit, reader, writer);
         cli.commandLoop();
         cli.close(false);
         writer.println();
@@ -307,7 +307,7 @@ public class CLI {
 
         boolean quoted = false;
         for (int index = 0; index < commandLine.length(); index++) {
-            char c = commandLine.charAt(index);
+            final char c = commandLine.charAt(index);
             if (index == 0 && !Character.isLetter(c)) {
                 commandDelimiter = c;
                 continue;
@@ -342,17 +342,17 @@ public class CLI {
     }
 
     static Task parseTask(final Persistit persistit, final String line) throws Exception {
-        List<String> pieces = pieces(line);
+        final List<String> pieces = pieces(line);
         if (pieces.isEmpty()) {
             return null;
         }
         final String commandName = pieces.remove(0);
-        Command command = COMMANDS.get(commandName);
+        final Command command = COMMANDS.get(commandName);
         if (command == null) {
             return null;
         }
-        Task task = command.createTask(persistit, new ArgParser(commandName, pieces.toArray(new String[pieces.size()]),
-                command.argTemplate).strict());
+        final Task task = command.createTask(persistit,
+                new ArgParser(commandName, pieces.toArray(new String[pieces.size()]), command.argTemplate).strict());
         if (task != null) {
             task.setPersistit(persistit);
         }
@@ -433,14 +433,14 @@ public class CLI {
         private final BufferedReader _reader;
         private final PrintWriter _writer;
 
-        private ScriptReader(final BufferedReader reader, PrintWriter writer) {
+        private ScriptReader(final BufferedReader reader, final PrintWriter writer) {
             _reader = reader;
             _writer = writer;
         }
 
         @Override
         public String readLine() throws IOException {
-            String line = _reader.readLine();
+            final String line = _reader.readLine();
             if (line != null) {
                 _writer.println();
                 _writer.println(">> " + line);
@@ -476,10 +476,10 @@ public class CLI {
         private String execute(final CLI cli, final ArgParser ap) throws Exception {
             final Object[] args = invocationArgs(ap);
             if (method.getReturnType() == String.class) {
-                String result = (String) method.invoke(cli, args);
+                final String result = (String) method.invoke(cli, args);
                 return result;
             } else if (Task.class.isAssignableFrom(method.getReturnType())) {
-                Task task = (Task) method.invoke(cli, args);
+                final Task task = (Task) method.invoke(cli, args);
                 task.setPersistit(cli._persistit);
                 task.setMaximumTime(-1);
                 task.setMessageWriter(cli._writer);
@@ -493,9 +493,9 @@ public class CLI {
 
         private Task createTask(final Persistit persistit, final ArgParser ap) throws Exception {
             if (Task.class.isAssignableFrom(method.getReturnType())) {
-                CLI cli = persistit.getSessionCLI();
+                final CLI cli = persistit.getSessionCLI();
                 final Object[] args = invocationArgs(ap);
-                Task task = (Task) method.invoke(cli, args);
+                final Task task = (Task) method.invoke(cli, args);
                 return task;
             } else {
                 return null;
@@ -503,10 +503,10 @@ public class CLI {
         }
 
         private Object[] invocationArgs(final ArgParser ap) {
-            Class<?>[] types = method.getParameterTypes();
+            final Class<?>[] types = method.getParameterTypes();
             final Object[] args = new Object[types.length];
             for (int index = 0; index < types.length; index++) {
-                Class<?> type = types[index];
+                final Class<?> type = types[index];
                 if (String.class.equals(type)) {
                     args[index] = ap.stringValue(index);
                 } else if (int.class.equals(type)) {
@@ -525,7 +525,7 @@ public class CLI {
 
         @Override
         public String toString() {
-            StringBuilder sb = new StringBuilder(name);
+            final StringBuilder sb = new StringBuilder(name);
             sb.append(Util.NEW_LINE);
             sb.append(new ArgParser(name, new String[0], argTemplate).strict());
             return sb.toString();
@@ -540,7 +540,7 @@ public class CLI {
 
     private LineReader _lineReader;
     PrintWriter _writer = new PrintWriter(System.out);
-    private Stack<BufferedReader> _sourceStack = new Stack<BufferedReader>();
+    private final Stack<BufferedReader> _sourceStack = new Stack<BufferedReader>();
     private Persistit _persistit;
     private boolean _stop = false;
     private Volume _currentVolume;
@@ -635,19 +635,19 @@ public class CLI {
                         final String[] args = list.toArray(new String[list.size()]);
                         final ArgParser ap = new ArgParser(commandName, args, command.argTemplate).strict();
                         if (!ap.isUsageOnly()) {
-                            String result = command.execute(this, ap);
+                            final String result = command.execute(this, ap);
                             if (result != null) {
                                 _writer.println(result);
                             }
                             _lastStatus += " - done";
                         }
-                    } catch (InvocationTargetException e) {
+                    } catch (final InvocationTargetException e) {
                         _lastStatus += e.getTargetException();
                         _writer.println(e.getTargetException());
-                    } catch (RuntimeException e) {
+                    } catch (final RuntimeException e) {
                         _lastStatus += e;
                         e.printStackTrace(_writer);
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         _lastStatus += e;
                         _writer.println(e);
                     }
@@ -680,28 +680,28 @@ public class CLI {
      * @throws Exception
      */
     @Cmd("open")
-    String open(@Arg("datapath|string|Data path") String datapath,
-            @Arg("journalpath|string|Journal path") String journalpath,
-            @Arg("volumepath|string|Volume file") String volumepath,
-            @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport,
-            @Arg("_flag|y|Recover committed transactions") boolean y) throws Exception {
+    String open(@Arg("datapath|string|Data path") final String datapath,
+            @Arg("journalpath|string|Journal path") final String journalpath,
+            @Arg("volumepath|string|Volume file") final String volumepath,
+            @Arg("rmiport|int:1099:0:99999|RMI Management port") final int rmiport,
+            @Arg("_flag|y|Recover committed transactions") final boolean y) throws Exception {
 
         if (_live) {
             return "Cannot open another Persistit instance within a live system";
         }
         close(false);
 
-        String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath : journalpath));
-        List<VolumeSpecification> volumeSpecifications = volumeSpecifications(
+        final String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath : journalpath));
+        final List<VolumeSpecification> volumeSpecifications = volumeSpecifications(
                 filesOnPath(volumepath.isEmpty() ? datapath : volumepath), Long.MAX_VALUE);
-        Set<Integer> bufferSizes = new HashSet<Integer>();
+        final Set<Integer> bufferSizes = new HashSet<Integer>();
         for (final VolumeSpecification vs : volumeSpecifications) {
             bufferSizes.add(vs.getPageSize());
         }
         final Properties properties = new Properties();
-        long bpoolMemory = availableMemory() / 2;
+        final long bpoolMemory = availableMemory() / 2;
         for (final Integer size : bufferSizes) {
-            int alloc = (int) (size * 1.25);
+            final int alloc = (int) (size * 1.25);
             final int count = (int) ((bpoolMemory / bufferSizes.size()) / alloc);
             properties.put(Persistit.BUFFERS_PROPERTY_NAME + size, Integer.toString(count));
         }
@@ -755,7 +755,7 @@ public class CLI {
     }
 
     @Cmd("close")
-    String close(@Arg("_flag|f|Flush modifications to disk") boolean flush) throws Exception {
+    String close(@Arg("_flag|f|Flush modifications to disk") final boolean flush) throws Exception {
         if (_persistit != null) {
             try {
                 if (_live) {
@@ -764,7 +764,7 @@ public class CLI {
                     _persistit.shutdownGUI();
                     _persistit.close(flush);
                 }
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 return e.toString();
             } finally {
                 _persistit = null;
@@ -832,6 +832,7 @@ public class CLI {
             public void runTask() throws Exception {
                 final JournalTool jt = new JournalTool(_persistit);
                 jt.setAction(jt.new SimpleDumpAction() {
+                    @Override
                     protected void write(final String msg) {
                         postMessage(msg, LOG_NORMAL);
                     }
@@ -923,7 +924,7 @@ public class CLI {
                     return;
                 }
 
-                List<Object> selected = new ArrayList<Object>();
+                final List<Object> selected = new ArrayList<Object>();
                 final TreeSelector selector = TreeSelector.parseSelector(tstring, r, '\\');
 
                 for (final Volume volume : _persistit.getVolumes()) {
@@ -988,10 +989,10 @@ public class CLI {
                 if (!keyString.isEmpty()) {
                     new KeyParser(keyString).parseKey(exchange.getKey());
                 }
-                StringBuilder sb = new StringBuilder();
-                int depth = _currentTree.getDepth();
+                final StringBuilder sb = new StringBuilder();
+                final int depth = _currentTree.getDepth();
                 for (int level = depth; --level >= 0;) {
-                    Buffer copy = exchange.fetchBufferCopy(level);
+                    final Buffer copy = exchange.fetchBufferCopy(level);
                     if (sb.length() > 0) {
                         sb.append(Util.NEW_LINE);
                     }
@@ -1051,7 +1052,7 @@ public class CLI {
                     return;
                 }
                 if (index >= 0) {
-                    BufferPool pool = _persistit.getBufferPool(pageSize);
+                    final BufferPool pool = _persistit.getBufferPool(pageSize);
                     buffer = pool.getBufferCopy(index);
                 } else if (journalAddress >= 0) {
                     buffer = _persistit.getJournalManager().readPageBuffer(journalAddress);
@@ -1088,12 +1089,13 @@ public class CLI {
                 }
             }
 
+            @Override
             public String getStatus() {
                 return "";
             }
         };
     }
-    
+
     @Cmd("pviewchain")
     Task pviewchain(final @Arg("page|long:0:0:99999999999999999|Starting page address") long pageAddress,
             final @Arg("find|long:-1:0:99999999999999999|Optional page pointer to find") long findPointer,
@@ -1102,7 +1104,7 @@ public class CLI {
             final @Arg("maxvalue|int:42:4:100000|Maximum displayed value length") int maxvalue,
             final @Arg("context|int:3:0:100000|Context lines") int context,
             final @Arg("_flag|a|All lines") boolean allLines, final @Arg("_flag|s|Summary only") boolean summary) {
-        
+
         return new Task() {
 
             @Override
@@ -1121,15 +1123,15 @@ public class CLI {
                         postMessage(buffer.toStringDetail(findPointer, maxkey, maxvalue, context, allLines), LOG_NORMAL);
                     }
                     currentPage = buffer.getRightSibling();
-                }    
+                }
             }
 
             @Override
             public String getStatus() {
                 return "";
             }
-            
-        };   
+
+        };
     }
 
     @Cmd("jquery")
@@ -1140,6 +1142,7 @@ public class CLI {
             final @Arg("_flag|V|Show volume handle map") boolean showTreeMap,
             final @Arg("_flag|T|Show tree handle map") boolean showVolumeMap) {
         return new Task() {
+            @Override
             public void runTask() throws Exception {
                 if (!showVolumeMap && !showTreeMap && pageAddress == -1 && ts == -1) {
                     postMessage("No items requested", LOG_NORMAL);
@@ -1147,20 +1150,20 @@ public class CLI {
                 }
                 if (showVolumeMap) {
                     postMessage("Volume Handle Map", LOG_NORMAL);
-                    Map<Integer, Volume> map = _persistit.getJournalManager().queryVolumeMap();
+                    final Map<Integer, Volume> map = _persistit.getJournalManager().queryVolumeMap();
                     for (final Map.Entry<Integer, Volume> entry : map.entrySet()) {
                         postMessage(String.format("%,5d -> %s", entry.getKey(), entry.getValue()), LOG_NORMAL);
                     }
                 }
                 if (showVolumeMap) {
                     postMessage("Tree Handle Map", LOG_NORMAL);
-                    Map<Integer, TreeDescriptor> map = _persistit.getJournalManager().queryTreeMap();
+                    final Map<Integer, TreeDescriptor> map = _persistit.getJournalManager().queryTreeMap();
                     for (final Map.Entry<Integer, TreeDescriptor> entry : map.entrySet()) {
                         postMessage(String.format("%,5d -> %s", entry.getKey(), entry.getValue()), LOG_NORMAL);
                     }
                 }
                 if (ts != -1) {
-                    TransactionMapItem item = _persistit.getJournalManager().queryTransactionMap(ts);
+                    final TransactionMapItem item = _persistit.getJournalManager().queryTransactionMap(ts);
                     postMessage(String.format("TransactionMapItem for ts=%,d -> %s", ts, item), LOG_NORMAL);
                 }
                 if (pageAddress != -1) {
@@ -1168,7 +1171,7 @@ public class CLI {
                     if (volumeHandle != -1) {
                         queryPageNode(volumeHandle, pageAddress, verbose);
                     } else {
-                        Map<Integer, Volume> volumeMap = _persistit.getJournalManager().queryVolumeMap();
+                        final Map<Integer, Volume> volumeMap = _persistit.getJournalManager().queryVolumeMap();
                         for (final int handle : volumeMap.keySet()) {
                             queryPageNode(handle, pageAddress, verbose);
                         }
@@ -1202,6 +1205,7 @@ public class CLI {
             final @Arg("_flag|v|Verbose") boolean verbose) throws Exception {
 
         return new Task() {
+            @Override
             public void runTask() throws Exception {
                 final File target = new File(file);
                 if (target.exists() && !ovewrite) {
@@ -1255,12 +1259,12 @@ public class CLI {
                 zos.closeEntry();
                 bb.clear();
 
-                PrintWriter writer = new PrintWriter(zos);
+                final PrintWriter writer = new PrintWriter(zos);
                 ze = new ZipEntry(basePath + ".txt");
                 ze.setSize(Integer.MAX_VALUE);
                 ze.setTime(baseTime);
                 zos.putNextEntry(ze);
-                List<Volume> volumes = _persistit.getVolumes();
+                final List<Volume> volumes = _persistit.getVolumes();
 
                 writer.printf("@volumes=%d\n", volumes.size());
                 for (final Volume volume : volumes) {
@@ -1314,7 +1318,7 @@ public class CLI {
 
     @Cmd("cliserver")
     static Task cliserver(final @Arg("port|int:9999:1024:99999999") int port) throws Exception {
-        Task task = new Task() {
+        final Task task = new Task() {
             CLI _cli;
 
             @Override
@@ -1325,9 +1329,9 @@ public class CLI {
 
             @Override
             public String getStatus() {
-                CLI cli = _cli;
+                final CLI cli = _cli;
                 if (cli != null) {
-                    String status = cli._lastStatus;
+                    final String status = cli._lastStatus;
                     if (status != null) {
                         return status;
                     }
@@ -1339,12 +1343,12 @@ public class CLI {
         return task;
     }
 
-    private static String journalPath(List<String> files) {
+    private static String journalPath(final List<String> files) {
         String journalPath = null;
         for (final String file : files) {
-            Matcher matcher = JournalManager.PATH_PATTERN.matcher(file);
+            final Matcher matcher = JournalManager.PATH_PATTERN.matcher(file);
             if (matcher.matches()) {
-                String path = matcher.group(1);
+                final String path = matcher.group(1);
                 if (journalPath == null) {
                     journalPath = path;
                 } else if (!journalPath.equals(path)) {
@@ -1355,7 +1359,7 @@ public class CLI {
         return journalPath;
     }
 
-    private static List<VolumeSpecification> volumeSpecifications(List<String> files, long systemTimestamp) {
+    private static List<VolumeSpecification> volumeSpecifications(final List<String> files, final long systemTimestamp) {
         final List<VolumeSpecification> list = new ArrayList<VolumeSpecification>();
         for (final String path : files) {
             if (JournalManager.PATH_PATTERN.matcher(path).matches()) {
@@ -1366,7 +1370,7 @@ public class CLI {
                 if (VolumeHeader.verifyVolumeHeader(specification, systemTimestamp)) {
                     list.add(specification);
                 }
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 // ignore this file
             }
         }

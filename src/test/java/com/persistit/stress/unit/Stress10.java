@@ -16,9 +16,7 @@
 package com.persistit.stress.unit;
 
 import com.persistit.Key;
-import com.persistit.stress.TestResult;
 import com.persistit.util.ArgParser;
-import com.persistit.util.Debug;
 
 public class Stress10 extends StressBase {
 
@@ -31,7 +29,7 @@ public class Stress10 extends StressBase {
     int _seed;
     String _opflags;
 
-    public Stress10(String argsString) {
+    public Stress10(final String argsString) {
         super(argsString);
     }
 
@@ -124,8 +122,7 @@ public class Stress10 extends StressBase {
 
                         final int size2 = _exs.getValue().getEncodedSize();
                         if (size2 != size1) {
-                            fail("Value is size " + size2 + ", should be " + size1 + " key="
-                                    + _ex.getKey());
+                            fail("Value is size " + size2 + ", should be " + size1 + " key=" + _ex.getKey());
                         }
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -155,8 +152,7 @@ public class Stress10 extends StressBase {
                                 size1 = _ex.getValue().getInt();
                             }
                             if (size2 != size1) {
-                                fail("Value is size " + size2 + ", should be " + size1
-                                        + " key=" + _ex.getKey());
+                                fail("Value is size " + size2 + ", should be " + size1 + " key=" + _ex.getKey());
                             }
                             _exs.cut();
                         } catch (final Exception e) {

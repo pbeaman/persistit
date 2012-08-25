@@ -50,16 +50,16 @@ public class KeyFilterTest2 extends PersistitUnitTestCase {
             ex.store();
             if ((i % 2) == 0) {
                 // 500 unique keys
-                ex.clear().append(2).append(ks(i / 100)).append(3).append(ks((i / 10) % 10)).append(4).append(
-                        ks(i % 10));
+                ex.clear().append(2).append(ks(i / 100)).append(3).append(ks((i / 10) % 10)).append(4)
+                        .append(ks(i % 10));
                 ex.store();
                 // 500 unique keys
-                ex.clear().append(2).append(ks(i / 100)).append(3).append(ks((i / 10) % 10)).append(5).append(
-                        ks(i % 10));
+                ex.clear().append(2).append(ks(i / 100)).append(3).append(ks((i / 10) % 10)).append(5)
+                        .append(ks(i % 10));
                 ex.store();
                 // 500 unique keys
-                ex.clear().append(2).append(ks(i / 100)).append(3).append(ks((i / 10) % 10)).append(4).append(
-                        ks(i % 10)).append(5).append("x");
+                ex.clear().append(2).append(ks(i / 100)).append(3).append(ks((i / 10) % 10)).append(4)
+                        .append(ks(i % 10)).append(5).append("x");
                 ex.store();
             }
         }
@@ -83,7 +83,7 @@ public class KeyFilterTest2 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    private int countKeys(final Exchange ex, String kfString) throws PersistitException {
+    private int countKeys(final Exchange ex, final String kfString) throws PersistitException {
         ex.clear();
         int count = 0;
         final KeyFilter kf = new KeyFilter(kfString);

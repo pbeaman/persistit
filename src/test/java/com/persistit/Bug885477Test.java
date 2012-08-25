@@ -21,9 +21,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.persistit.Exchange;
-import com.persistit.Key;
-import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
 
 /**

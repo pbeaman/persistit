@@ -32,7 +32,7 @@ public class ApacheCommonsLogAdapter implements PersistitLogger {
     /**
      * The Log object wrapped by this adapter.
      */
-    private Log _logger;
+    private final Log _logger;
 
     /**
      * Wraps an Apache commons <code>Log</code> so that Persistit can write to
@@ -42,7 +42,7 @@ public class ApacheCommonsLogAdapter implements PersistitLogger {
      *            A <code>Log</code> to which Persistit log messages will be
      *            directed.
      */
-    public ApacheCommonsLogAdapter(Log log) {
+    public ApacheCommonsLogAdapter(final Log log) {
         _logger = log;
     }
 
@@ -54,7 +54,7 @@ public class ApacheCommonsLogAdapter implements PersistitLogger {
      *            The <code>level</code>
      */
     @Override
-    public boolean isLoggable(PersistitLevel level) {
+    public boolean isLoggable(final PersistitLevel level) {
         switch (level) {
         case NONE:
             return false;
@@ -83,7 +83,7 @@ public class ApacheCommonsLogAdapter implements PersistitLogger {
      *            The message to write to the log.
      */
     @Override
-    public void log(PersistitLevel level, String message) {
+    public void log(final PersistitLevel level, final String message) {
         switch (level) {
         case NONE:
             break;

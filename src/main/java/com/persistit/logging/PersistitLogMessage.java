@@ -125,6 +125,7 @@ public class PersistitLogMessage {
         private PersistitLevel _level;
         private LogItem _dispatch = new Disabled();
 
+        @Override
         public void configure(final PersistitLogger logger, final PersistitLevel level, final String message) {
             _level = level;
             _logger = logger;
@@ -141,17 +142,17 @@ public class PersistitLogMessage {
         }
 
         @Override
-        public String logMessage(Object... args) {
+        public String logMessage(final Object... args) {
             return _dispatch.logMessage(args);
         }
 
         @Override
-        public void log(Object... args) {
+        public void log(final Object... args) {
             _dispatch.log(args);
         }
 
         @Override
-        public void logRecurring(int count, long duration, Object... args) {
+        public void logRecurring(final int count, final long duration, final Object... args) {
             _dispatch.logRecurring(count, duration, args);
         }
 
@@ -163,6 +164,7 @@ public class PersistitLogMessage {
             return _logger;
         }
 
+        @Override
         public PersistitLevel getLevel() {
             return _level;
         }
@@ -183,16 +185,16 @@ public class PersistitLogMessage {
         }
 
         @Override
-        public String logMessage(Object... args) {
+        public String logMessage(final Object... args) {
             return null;
         }
 
         @Override
-        public void log(Object... args) {
+        public void log(final Object... args) {
         }
 
         @Override
-        public void logRecurring(int count, long duration, Object... args) {
+        public void logRecurring(final int count, final long duration, final Object... args) {
         }
 
         @Override
@@ -233,8 +235,9 @@ public class PersistitLogMessage {
         }
 
         @Override
-        public String logMessage(Object... args) {
-            StringBuilder sb = new StringBuilder(String.format("[%s] %s ", Thread.currentThread().getName(), _level));
+        public String logMessage(final Object... args) {
+            final StringBuilder sb = new StringBuilder(String.format("[%s] %s ", Thread.currentThread().getName(),
+                    _level));
             try {
                 for (int i = 0; i < args.length; i++) {
                     if (args[i] instanceof RuntimeException) {
@@ -242,7 +245,7 @@ public class PersistitLogMessage {
                     }
                 }
                 sb.append(String.format(_message, args));
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 sb.append("Bad log message ");
                 sb.append(_message);
                 sb.append(" [");
@@ -258,12 +261,12 @@ public class PersistitLogMessage {
         }
 
         @Override
-        public void log(Object... args) {
+        public void log(final Object... args) {
             _logger.log(_level, logMessage(args));
         }
 
         @Override
-        public void logRecurring(int count, long duration, Object... args) {
+        public void logRecurring(final int count, final long duration, final Object... args) {
             if (count == 1) {
                 log(args);
             } else {
@@ -275,6 +278,7 @@ public class PersistitLogMessage {
             return _logger;
         }
 
+        @Override
         public PersistitLevel getLevel() {
             return _level;
         }
@@ -299,4 +303,3 @@ public class PersistitLogMessage {
         return sb.toString();
     }
 }
-

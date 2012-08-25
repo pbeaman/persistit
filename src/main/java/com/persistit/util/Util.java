@@ -41,11 +41,11 @@ public class Util {
     public final static char[] HEX_DIGITS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
             'E', 'F' };
 
-    public static int getByte(byte[] bytes, int index) {
+    public static int getByte(final byte[] bytes, final int index) {
         return (bytes[index + 0] & 0xFF);
     }
 
-    public static int getShort(byte[] bytes, int index) {
+    public static int getShort(final byte[] bytes, final int index) {
         if (Persistit.BIG_ENDIAN) {
             return (bytes[index + 1] & 0xFF) | (bytes[index + 0]) << 8;
         } else {
@@ -53,7 +53,7 @@ public class Util {
         }
     }
 
-    public static int getChar(byte[] bytes, int index) {
+    public static int getChar(final byte[] bytes, final int index) {
         if (Persistit.BIG_ENDIAN) {
             return (bytes[index + 1] & 0xFF) | (bytes[index + 0] & 0xFF) << 8;
         } else {
@@ -61,7 +61,7 @@ public class Util {
         }
     }
 
-    public static int getInt(byte[] bytes, int index) {
+    public static int getInt(final byte[] bytes, final int index) {
         if (Persistit.BIG_ENDIAN) {
             return (bytes[index + 3] & 0xFF) | (bytes[index + 2] & 0xFF) << 8 | (bytes[index + 1] & 0xFF) << 16
                     | (bytes[index + 0] & 0xFF) << 24;
@@ -71,7 +71,7 @@ public class Util {
         }
     }
 
-    public static long getLong(byte[] bytes, int index) {
+    public static long getLong(final byte[] bytes, final int index) {
         if (Persistit.BIG_ENDIAN) {
             return (bytes[index + 7] & 0xFF) | (long) (bytes[index + 6] & 0xFF) << 8
                     | (long) (bytes[index + 5] & 0xFF) << 16 | (long) (bytes[index + 4] & 0xFF) << 24
@@ -85,11 +85,11 @@ public class Util {
         }
     }
 
-    public static void putByte(byte[] bytes, int index, int value) {
+    public static void putByte(final byte[] bytes, final int index, final int value) {
         bytes[index + 0] = (byte) (value);
     }
 
-    public static void putShort(byte[] bytes, int index, int value) {
+    public static void putShort(final byte[] bytes, final int index, final int value) {
         if (Persistit.BIG_ENDIAN) {
             bytes[index + 1] = (byte) (value);
             bytes[index + 0] = (byte) (value >>> 8);
@@ -99,7 +99,7 @@ public class Util {
         }
     }
 
-    public static void putChar(byte[] bytes, int index, int value) {
+    public static void putChar(final byte[] bytes, final int index, final int value) {
         if (Persistit.BIG_ENDIAN) {
             bytes[index + 1] = (byte) (value);
             bytes[index + 0] = (byte) (value >>> 8);
@@ -109,7 +109,7 @@ public class Util {
         }
     }
 
-    public static void putInt(byte[] bytes, int index, int value) {
+    public static void putInt(final byte[] bytes, final int index, final int value) {
         if (Persistit.BIG_ENDIAN) {
             bytes[index + 3] = (byte) (value);
             bytes[index + 2] = (byte) (value >>> 8);
@@ -123,7 +123,7 @@ public class Util {
         }
     }
 
-    public static void putLong(byte[] bytes, int index, long value) {
+    public static void putLong(final byte[] bytes, final int index, final long value) {
         if (Persistit.BIG_ENDIAN) {
             bytes[index + 7] = (byte) (value);
             bytes[index + 6] = (byte) (value >>> 8);
@@ -145,13 +145,13 @@ public class Util {
         }
     }
 
-    public static int putBytes(byte[] bytes, int index, byte[] value) {
+    public static int putBytes(final byte[] bytes, final int index, final byte[] value) {
         System.arraycopy(value, 0, bytes, index, value.length);
         return value.length;
     }
 
-    public static boolean changeBytes(byte[] bytes, int index, byte[] value) {
-        boolean same = equalsByteSubarray(bytes, index, value);
+    public static boolean changeBytes(final byte[] bytes, final int index, final byte[] value) {
+        final boolean same = equalsByteSubarray(bytes, index, value);
         if (same) {
             return false;
         } else {
@@ -160,7 +160,7 @@ public class Util {
         }
     }
 
-    public static boolean changeByte(byte[] bytes, int index, byte value) {
+    public static boolean changeByte(final byte[] bytes, final int index, final byte value) {
         if (getByte(bytes, index) == value) {
             return false;
         } else {
@@ -169,7 +169,7 @@ public class Util {
         }
     }
 
-    public static boolean changeChar(byte[] bytes, int index, char value) {
+    public static boolean changeChar(final byte[] bytes, final int index, final char value) {
         if (getChar(bytes, index) == value) {
             return false;
         } else {
@@ -178,7 +178,7 @@ public class Util {
         }
     }
 
-    public static boolean changeShort(byte[] bytes, int index, short value) {
+    public static boolean changeShort(final byte[] bytes, final int index, final short value) {
         if (getShort(bytes, index) == value) {
             return false;
         } else {
@@ -187,7 +187,7 @@ public class Util {
         }
     }
 
-    public static boolean changeInt(byte[] bytes, int index, int value) {
+    public static boolean changeInt(final byte[] bytes, final int index, final int value) {
         if (getInt(bytes, index) == value) {
             return false;
         } else {
@@ -196,7 +196,7 @@ public class Util {
         }
     }
 
-    public static boolean changeLong(byte[] bytes, int index, long value) {
+    public static boolean changeLong(final byte[] bytes, final int index, final long value) {
         if (getLong(bytes, index) == value) {
             return false;
         } else {
@@ -205,8 +205,8 @@ public class Util {
         }
     }
 
-    public static String format(String s, int width, boolean right) {
-        int pad = width - s.length();
+    public static String format(final String s, final int width, final boolean right) {
+        final int pad = width - s.length();
         if (pad < 0)
             return s.substring(0, width - 1) + "&";
         if (pad == 0)
@@ -217,15 +217,15 @@ public class Util {
             return s + SPACES.substring(0, pad);
     }
 
-    public static String format(int i) {
+    public static String format(final int i) {
         return format(i, 10);
     }
 
-    public static String format(long i) {
+    public static String format(final long i) {
         return format(i, 22);
     }
 
-    public static String format(long i, int width) {
+    public static String format(final long i, final int width) {
         return format(Long.toString(i), width, true);
     }
 
@@ -237,11 +237,12 @@ public class Util {
         }
     }
 
-    public static boolean equalsByteSubarray(byte[] source, int next, byte[] target) {
+    public static boolean equalsByteSubarray(final byte[] source, final int next, final byte[] target) {
         return equalsByteSubarray(source, next, target, 0, target.length);
     }
 
-    public static boolean equalsByteSubarray(byte[] source, int soffset, byte[] target, int toffset, int length) {
+    public static boolean equalsByteSubarray(final byte[] source, final int soffset, final byte[] target,
+            final int toffset, final int length) {
         for (int index = 0; index < length; index++) {
             if (source[soffset + index] != target[toffset + index])
                 return false;
@@ -249,29 +250,29 @@ public class Util {
         return true;
     }
 
-    public static void fill(StringBuilder sb, long value, int width) {
+    public static void fill(final StringBuilder sb, final long value, final int width) {
         fill(sb, Long.toString(value), width);
     }
 
-    public static void fill(StringBuilder sb, String s, int width) {
+    public static void fill(final StringBuilder sb, final String s, final int width) {
         for (int i = s.length(); i < width; i++)
             sb.append(' ');
         sb.append(s);
     }
 
-    public static String dump(KeyState ks) {
-        byte[] bytes = ks.getBytes();
+    public static String dump(final KeyState ks) {
+        final byte[] bytes = ks.getBytes();
         return dump(bytes, 0, bytes.length);
     }
 
-    public static String dump(ValueState vs) {
-        byte[] bytes = vs.getEncodedBytes();
+    public static String dump(final ValueState vs) {
+        final byte[] bytes = vs.getEncodedBytes();
         return dump(bytes, 0, bytes.length);
     }
 
-    public static String dump(byte[] b, int offset, int size) {
-        StringBuilder sb = new StringBuilder();
-        StringBuilder sb2 = new StringBuilder();
+    public static String dump(final byte[] b, final int offset, final int size) {
+        final StringBuilder sb = new StringBuilder();
+        final StringBuilder sb2 = new StringBuilder();
         for (int m = 0; m < size - offset; m += 16) {
             sb2.setLength(0);
             hex(sb, m, 4);
@@ -280,10 +281,10 @@ public class Util {
                 sb.append(" ");
                 if (i % 8 == 0)
                     sb.append(" ");
-                int j = m + i;
+                final int j = m + i;
                 if (j < size - offset) {
                     hex(sb, b[j + offset], 2);
-                    char c = (char) (b[j + offset] & 0xFF);
+                    final char c = (char) (b[j + offset] & 0xFF);
                     if (c >= 32 && c < 127)
                         sb2.append(c);
                     else
@@ -298,9 +299,9 @@ public class Util {
         return sb.toString();
     }
 
-    public static String dump(char[] c, int offset, int size) {
-        StringBuilder sb = new StringBuilder();
-        StringBuilder sb2 = new StringBuilder();
+    public static String dump(final char[] c, final int offset, final int size) {
+        final StringBuilder sb = new StringBuilder();
+        final StringBuilder sb2 = new StringBuilder();
         for (int m = 0; m < size - offset; m += 8) {
             sb2.setLength(0);
             hex(sb, m, 4);
@@ -309,7 +310,7 @@ public class Util {
                 sb.append("  ");
                 if (i % 4 == 0)
                     sb.append(" ");
-                int j = m + i;
+                final int j = m + i;
                 if (j < size - offset) {
                     hex(sb, c[j + offset], 4);
                     if (c[j + offset] >= 32 && c[j] < 127)
@@ -326,18 +327,18 @@ public class Util {
         return sb.toString();
     }
 
-    public static String hexDump(byte[] b) {
+    public static String hexDump(final byte[] b) {
         return hexDump(b, 0, b.length);
     }
 
-    public static String hexDump(byte[] b, int offset, int length) {
-        StringBuilder sb = new StringBuilder();
-        StringBuilder sb2 = new StringBuilder();
+    public static String hexDump(final byte[] b, final int offset, final int length) {
+        final StringBuilder sb = new StringBuilder();
+        final StringBuilder sb2 = new StringBuilder();
         sb2.setLength(0);
         for (int i = offset; i < offset + length; i++) {
             sb.append(" ");
             hex(sb, b[i], 2);
-            char c = (char) (b[i] & 0xFF);
+            final char c = (char) (b[i] & 0xFF);
             if (c >= 32 && c < 127)
                 sb2.append(c);
             else
@@ -348,24 +349,24 @@ public class Util {
         return sb.toString();
     }
 
-    public static Appendable hex(Appendable sb, long value, int length) {
+    public static Appendable hex(final Appendable sb, final long value, final int length) {
         for (int i = length - 1; i >= 0; i--) {
             append(sb, HEX_DIGITS[(int) (value >> (i * 4)) & 0xF]);
         }
         return sb;
     }
 
-    public static byte[] stringToBytes(String s) {
+    public static byte[] stringToBytes(final String s) {
         if (s == null)
             return new byte[0];
         try {
             return s.getBytes(UTF8);
-        } catch (UnsupportedEncodingException e) {
+        } catch (final UnsupportedEncodingException e) {
             return s.getBytes();
         }
     }
 
-    public static boolean isValidName(String s) {
+    public static boolean isValidName(final String s) {
         if (s == null || s.length() == 0)
             return false;
         if (!Character.isJavaIdentifierStart(s.charAt(0)))
@@ -377,13 +378,13 @@ public class Util {
         return true;
     }
 
-    public static String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
+    public static String bytesToHex(final byte[] bytes) {
+        final StringBuilder sb = new StringBuilder();
         bytesToHex(sb, bytes, 0, bytes.length);
         return sb.toString();
     }
 
-    public static void bytesToHex(Appendable sb, byte[] bytes, int offset, int length) {
+    public static void bytesToHex(final Appendable sb, final byte[] bytes, final int offset, int length) {
         length += offset;
         for (int i = offset; i < length; i++) {
             append(sb, HEX_DIGITS[(bytes[i] >>> 4) & 0x0F]);
@@ -391,10 +392,10 @@ public class Util {
         }
     }
 
-    public static byte[] hexToBytes(String hex) {
+    public static byte[] hexToBytes(final String hex) {
         int count = 0;
         for (int i = 0; i < hex.length(); i++) {
-            int c = hex.charAt(i);
+            final int c = hex.charAt(i);
             if (c == '/' || c == '}')
                 break;
             if (c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
@@ -405,12 +406,12 @@ public class Util {
         }
         if ((count % 2) == 1)
             throw new IllegalArgumentException();
-        byte[] result = new byte[count / 2];
+        final byte[] result = new byte[count / 2];
         int t = 0;
         count = 0;
 
         for (int i = 0; i < hex.length(); i++) {
-            int c = hex.charAt(i);
+            final int c = hex.charAt(i);
 
             if (c == '/' || c == '}')
                 break;
@@ -433,7 +434,7 @@ public class Util {
         return result;
     }
 
-    public static String replaceFileSuffix(String name, String suffix) {
+    public static String replaceFileSuffix(final String name, final String suffix) {
         //
         // If suffix is a full path, return it.
         //
@@ -449,7 +450,7 @@ public class Util {
         // right of the period.
         //
         if (suffix.startsWith(".")) {
-            int q = name.lastIndexOf('.');
+            final int q = name.lastIndexOf('.');
             if (q > p)
                 p = q - 1;
         }
@@ -459,7 +460,7 @@ public class Util {
             return name + suffix;
     }
 
-    public static void clearBytes(byte[] bytes, int from, int to) {
+    public static void clearBytes(final byte[] bytes, final int from, final int to) {
         for (int offset = from; offset < to; offset += NULLS.length) {
             int count = to - offset;
             if (count > NULLS.length)
@@ -468,31 +469,30 @@ public class Util {
         }
     }
 
-    public static void appendQuotedString(Appendable sb, String s, int start, int length) {
-        int end = Math.min(start + length, s.length());
+    public static void appendQuotedString(final Appendable sb, final String s, final int start, final int length) {
+        final int end = Math.min(start + length, s.length());
         for (int index = start; index < end; index++) {
             appendQuotedChar(sb, s.charAt(index));
         }
     }
 
-    public static void append(Appendable sb, char c) {
+    public static void append(final Appendable sb, final char c) {
         try {
             sb.append(c);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new AppendableIOException(e);
         }
     }
 
-
-    public static void append(Appendable sb, CharSequence s) {
+    public static void append(final Appendable sb, final CharSequence s) {
         try {
             sb.append(s);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new AppendableIOException(e);
         }
     }
 
-    public static void appendQuotedChar(Appendable sb, int c) {
+    public static void appendQuotedChar(final Appendable sb, final int c) {
         int q = 0;
         if (c == '\b')
             q = 'b';
@@ -539,7 +539,7 @@ public class Util {
      *            The target byte array
      * @return <code>true</code> if the byte subarrays are equal
      */
-    public static boolean bytesEqual(byte[] source, int offset, byte[] target) {
+    public static boolean bytesEqual(final byte[] source, final int offset, final byte[] target) {
         for (int index = 0; index < target.length; index++) {
             if (source[index + offset] != target[index]) {
                 return false;
@@ -551,7 +551,7 @@ public class Util {
     public static void sleep(final long millis) throws PersistitInterruptedException {
         try {
             Thread.sleep(millis);
-        } catch (InterruptedException ie) {
+        } catch (final InterruptedException ie) {
             throw new PersistitInterruptedException(ie);
         }
     }
@@ -560,7 +560,7 @@ public class Util {
         sleep(1);
     }
 
-    public static String toString(Object object) {
+    public static String toString(final Object object) {
         return object == null ? null : object.toString();
     }
 
@@ -597,7 +597,7 @@ public class Util {
                     value));
         }
     }
-    
+
     public static float rangeCheck(final float value, final float min, final float max) {
         if (value >= min && value <= max) {
             return value;
@@ -614,8 +614,7 @@ public class Util {
                     value));
         }
     }
-    
-    
+
     public static Pattern pattern(final String s, final boolean caseInsensitive) {
         final StringBuilder sb = new StringBuilder();
         if (s == null) {
@@ -635,7 +634,7 @@ public class Util {
                 }
             }
         }
-        return Pattern.compile(sb.toString(), caseInsensitive ? Pattern.CASE_INSENSITIVE : 0); 
+        return Pattern.compile(sb.toString(), caseInsensitive ? Pattern.CASE_INSENSITIVE : 0);
     }
-    
+
 }

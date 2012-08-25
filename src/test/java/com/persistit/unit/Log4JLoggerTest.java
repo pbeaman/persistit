@@ -40,7 +40,7 @@ public class Log4JLoggerTest extends PersistitUnitTestCase {
         final Logger logger = Logger.getLogger("com.persistit.unit.JDK14LoggerTest");
         // Set up a simple configuration that logs on the console.
         BasicConfigurator.configure();
-        Persistit persistit = new Persistit();
+        final Persistit persistit = new Persistit();
         persistit.setPersistitLogger(new Log4JAdapter(logger));
         persistit.initialize(UnitTestProperties.getAlternateProperties(true));
         try {
