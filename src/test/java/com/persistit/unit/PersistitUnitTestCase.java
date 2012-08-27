@@ -47,7 +47,8 @@ public abstract class PersistitUnitTestCase {
     protected Persistit _persistit = new Persistit();
 
     protected Properties getProperties(final boolean cleanup) {
-        return UnitTestProperties.getProperties(cleanup);
+        final Properties p = UnitTestProperties.getProperties(cleanup);
+        return p;
     }
 
     @Before

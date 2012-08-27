@@ -221,7 +221,7 @@ The following additional properties are defined for Persistit. Other properties 
   ``serialOverride``, ``constructorOverride``: (``com.persistit.Configuration#setSerialOverride`` ``com.persistit.Configuration#setConstructorOverride``) 
       Control aspects of object serialization. See :ref:`Serialization`.
 
-  ``showgui``: (``com.persistit.Configuration#setShowGUI``), True of False.  
+  ``showgui``: (``com.persistit.Configuration#setShowGUI``), True or False (default).  
       If true, Persistit attempts to create and display an instance of the AdminUI utility panel within the current JVM. 
       Alternatively, AdminUI uses RMI and can be launched and run remotely if ``rmiport`` or ``rmihost`` has been 
       specified.
@@ -230,6 +230,18 @@ The following additional properties are defined for Persistit. Other properties 
       Name of a log file to which Persistit’s default logger will write diagnostic log entries. Applications generally 
       install a logging adapter to reroute messages through Log4J, SLF4J or other logger. The ``logfile`` property is used 
       only when no adapter has been installed.
+
+  ``bufferinventory``: (``com.persistit.Configuration#setBufferInventoryEnabled``), True or False (default).
+      If true, Persistit periodically records an inventory of all the buffes in the buffers pools to the System Volume. The inventory
+      enables Persistit to preload the buffer pools then next time it starts up with approximately the same pages that were present
+      before shutdown. To enable buffer preloading, the bufferpreload property must also be true.
+      
+  ``bufferpreload``: (``com.persistit.Configuration#setBufferPreloadEnabled``), True or False (default).
+      If true, and if a buffer pool inventory was previously recorded, Persistit attempts to "warm up" the buffer pool
+      by preloading pages that were present in the buffer pool when Persistit last shut down. This may allow a freshly started
+      Persistit instance to begin service a workload similar to what it had previously been processing without incurring the
+      cost of many random disk reads to load pages.
+        
 
 For all integer-valued properties, the suffix “K” may be used to represent kilo, “M” for mega, “G” for giga and “T” for tera. For example, “2M” represents the value 2,097,152.
 
