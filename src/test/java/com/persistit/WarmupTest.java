@@ -37,7 +37,7 @@ public class WarmupTest extends PersistitUnitTestCase {
     @Test
     public void testWarmup() throws Exception {
         Exchange ex = _persistit.getExchange("persistit", "WarmupTest", true);
-        final BufferPool pool = ex.getBufferPool();
+        BufferPool pool = ex.getBufferPool();
         for (int i = 1; i <= 1000; i++) {
             ex.getValue().put(RED_FOX);
             ex.clear().append(i).store();
@@ -54,7 +54,9 @@ public class WarmupTest extends PersistitUnitTestCase {
 
         _persistit = new Persistit();
         _persistit.initialize(config);
-
+        ex = _persistit.getExchange("persistit", "WarmupTest", false);
+        pool = ex.getBufferPool();
+        
         for (int i = 0; i < pool.getBufferCount(); ++i) {
             final Buffer bufferCopy = pool.getBufferCopy(i);
             assertEquals(bufferCopy.getPageAddress(), buff[i].getPageAddress());
@@ -104,6 +106,7 @@ public class WarmupTest extends PersistitUnitTestCase {
         final Configuration config = _persistit.getConfiguration();
         ex = null;
         pool = null;
+        _persistit.copyBackPages();
         _persistit.close();
 
         _persistit = new Persistit();
@@ -117,6 +120,6 @@ public class WarmupTest extends PersistitUnitTestCase {
         pool = volume.getStructure().getPool();
         pool.preloadBufferInventory();
         assertTrue("Preload should have loaded pages from journal file", tfc.getReadPositionList().size() > 0);
-        tfc.assertSequential(true, true);
+        tfc.assertOrdered(true, true);
     }
 }
