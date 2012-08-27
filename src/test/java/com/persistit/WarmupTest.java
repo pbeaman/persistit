@@ -56,7 +56,7 @@ public class WarmupTest extends PersistitUnitTestCase {
         _persistit.initialize(config);
         ex = _persistit.getExchange("persistit", "WarmupTest", false);
         pool = ex.getBufferPool();
-        
+
         for (int i = 0; i < pool.getBufferCount(); ++i) {
             final Buffer bufferCopy = pool.getBufferCopy(i);
             assertEquals(bufferCopy.getPageAddress(), buff[i].getPageAddress());
@@ -110,6 +110,7 @@ public class WarmupTest extends PersistitUnitTestCase {
         _persistit.close();
 
         _persistit = new Persistit();
+        config.setBufferInventoryEnabled(false);
         config.setBufferPreloadEnabled(false);
         _persistit.initialize(config);
 
