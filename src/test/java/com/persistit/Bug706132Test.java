@@ -22,7 +22,6 @@ import java.util.Properties;
 import org.junit.Test;
 
 import com.persistit.policy.SplitPolicy;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /*
  * Stress10 with 1K pages exhibited a failure in which a value was simply not

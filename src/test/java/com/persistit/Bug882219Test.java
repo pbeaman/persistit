@@ -26,7 +26,6 @@ import org.junit.Test;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * Interrupting a thread while it is performing a read or write closes the

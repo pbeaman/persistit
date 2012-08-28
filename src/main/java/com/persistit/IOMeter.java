@@ -61,15 +61,16 @@ class IOMeter implements IOMeterMXBean {
 
     private final static int READ_PAGE_FROM_VOLUME = 1;
     private final static int READ_PAGE_FROM_JOURNAL = 2;
-    private final static int COPY_PAGE_TO_VOLUME = 3;
-    private final static int WRITE_PAGE_TO_JOURNAL = 4;
-    private final static int WRITE_TX_TO_JOURNAL = 5;
-    private final static int WRITE_OTHER_TO_JOURNAL = 6;
-    private final static int EVICT_PAGE_FROM_POOL = 7;
-    private final static int FLUSH_JOURNAL = 8;
-    private final static int GET_PAGE = 9;
+    private final static int COPY_PAGE_FROM_JOURNAL = 3;
+    private final static int COPY_PAGE_TO_VOLUME = 4;
+    private final static int WRITE_PAGE_TO_JOURNAL = 5;
+    private final static int WRITE_TX_TO_JOURNAL = 6;
+    private final static int WRITE_OTHER_TO_JOURNAL = 7;
+    private final static int EVICT_PAGE_FROM_POOL = 8;
+    private final static int FLUSH_JOURNAL = 9;
+    private final static int GET_PAGE = 10;
 
-    private final static int ITEM_COUNT = 10;
+    private final static int ITEM_COUNT = 11;
 
     private long _quiescentIOthreshold = DEFAULT_QUIESCENT_IO_THRESHOLD;
 
@@ -266,7 +267,7 @@ class IOMeter implements IOMeterMXBean {
 
                 if (analyzePages
                         && (op == WRITE_PAGE_TO_JOURNAL || op == READ_PAGE_FROM_JOURNAL || op == READ_PAGE_FROM_VOLUME
-                                || op == COPY_PAGE_TO_VOLUME || op == EVICT_PAGE_FROM_POOL)) {
+                                || op == COPY_PAGE_FROM_JOURNAL || op == COPY_PAGE_TO_VOLUME || op == EVICT_PAGE_FROM_POOL)) {
                     final long handle = (volumeHandle << 48) + pageAddress;
                     List<Event> list = events.get(handle);
                     if (list == null) {
@@ -289,6 +290,12 @@ class IOMeter implements IOMeterMXBean {
                 // normal end of processing
             }
         }
+    }
+
+    public void chargeCopyPageFromJournal(final Volume volume, final long pageAddress, final int size,
+            final long journalAddress, final int urgency) {
+        charge(size, COPY_PAGE_FROM_JOURNAL);
+        log(COPY_PAGE_FROM_JOURNAL, volume, pageAddress, size, journalAddress, 0);
     }
 
     public void chargeCopyPageToVolume(final Volume volume, final long pageAddress, final int size,

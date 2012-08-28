@@ -27,6 +27,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import com.persistit.Key;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.TestShim;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.KeyCoder;

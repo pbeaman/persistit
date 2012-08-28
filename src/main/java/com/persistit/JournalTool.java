@@ -688,7 +688,10 @@ class JournalTool {
         }
 
         protected void flush() {
-            write(sb.toString());
+            if (sb.length() > 0) {
+                write(sb.toString());
+                sb.setLength(0);
+            }
         }
 
         protected void write(final String msg) {
@@ -908,7 +911,6 @@ class JournalTool {
             long address = from + PM.OVERHEAD;
             int index = 0;
             int loaded = 0;
-            sb.setLength(0);
             long lastPage = Long.MAX_VALUE;
             int lastVolumeHandle = Integer.MAX_VALUE;
             for (int remaining = count; remaining > 0; remaining--) {
@@ -930,10 +932,7 @@ class JournalTool {
                 final long journalAddress = PM.getEntryJournalAddress(_readBuffer, index);
                 if (_selectedPages.isSelected(pageAddress) && _selectedTimestamps.isSelected(pageTimestamp)) {
                     if (pageAddress != lastPage || volumeHandle != lastVolumeHandle) {
-                        if (sb.length() > 0) {
-                            flush();
-                            sb.setLength(0);
-                        }
+                        flush();
                         lastPage = pageAddress;
                         lastVolumeHandle = volumeHandle;
                         appendf("-- %5d:%,12d: ", volumeHandle, pageAddress);
@@ -953,7 +952,6 @@ class JournalTool {
             long address = from + TM.OVERHEAD;
             int index = 0;
             int loaded = 0;
-            sb.setLength(0);
             for (int remaining = count; remaining > 0; remaining--) {
                 if (index == loaded) {
                     read(address, Math.min(_readBuffer.capacity(), remaining * TM.ENTRY_SIZE));
@@ -972,7 +970,6 @@ class JournalTool {
                 appendf("--  start %,12d  commit %,12d  @%,18d %s", startTimestamp, commitTimestamp, journalAddress,
                         isCommitted ? "committed" : "uncommitted");
                 flush();
-                sb.setLength(0);
                 index++;
             }
         }

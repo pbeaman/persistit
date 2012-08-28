@@ -27,7 +27,6 @@ import org.junit.Test;
 
 import com.persistit.StatisticsTask.Display;
 import com.persistit.StatisticsTask.Stat;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class StatisticsTaskTest extends PersistitUnitTestCase {
 

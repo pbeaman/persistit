@@ -747,7 +747,7 @@ public class CLI {
             }
         }
         if (sysvol != null) {
-            properties.put(Persistit.SYSTEM_VOLUME_PROPERTY, sysvol.getName());
+            persistit.getConfiguration().setSysVolume(sysvol.getName());
         }
 
         _persistit = persistit;

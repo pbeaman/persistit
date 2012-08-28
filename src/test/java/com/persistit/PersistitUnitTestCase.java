@@ -1,5 +1,5 @@
 /**
- * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright © 2005-2012 Akiban Technologies, Inc.  All rights reserved.
  * 
  * This program and the accompanying materials are made available
  * under the terms of the Eclipse Public License v1.0 which
@@ -13,7 +13,7 @@
  * Akiban Technologies, Inc.
  */
 
-package com.persistit.unit;
+package com.persistit;
 
 import java.lang.ref.WeakReference;
 import java.util.Map;
@@ -22,8 +22,8 @@ import java.util.Properties;
 import org.junit.After;
 import org.junit.Before;
 
-import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
+import com.persistit.unit.UnitTestProperties;
 
 public abstract class PersistitUnitTestCase {
 
@@ -47,14 +47,12 @@ public abstract class PersistitUnitTestCase {
     protected Persistit _persistit = new Persistit();
 
     protected Properties getProperties(final boolean cleanup) {
-        final Properties p = UnitTestProperties.getProperties(cleanup);
-        return p;
+        return UnitTestProperties.getProperties(cleanup);
     }
 
     @Before
     public void setUp() throws Exception {
         checkNoPersistitThreads();
-
         _persistit.initialize(getProperties(true));
     }
 
@@ -129,5 +127,10 @@ public abstract class PersistitUnitTestCase {
             Thread.sleep(10);
         }
         return ref.get() == null;
+    }
+
+    protected void disableBackgroundCleanup() {
+        _persistit.getCleanupManager().setPollInterval(-1);
+        _persistit.getJournalManager().setWritePagePruningEnabled(false);
     }
 }

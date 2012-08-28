@@ -34,7 +34,6 @@ import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 public class IOFailureTest extends PersistitUnitTestCase {

@@ -29,7 +29,6 @@ import java.io.StringWriter;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.util.Util;
 
 public class CommandLineTest extends PersistitUnitTestCase {

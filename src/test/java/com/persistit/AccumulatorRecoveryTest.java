@@ -31,7 +31,6 @@ import org.junit.Test;
 import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 public class AccumulatorRecoveryTest extends PersistitUnitTestCase {

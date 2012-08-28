@@ -26,8 +26,6 @@ import java.util.Properties;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
-
 public class Bug942669Test extends PersistitUnitTestCase {
 
     // See https://bugs.launchpad.net/akiban-persistit/+bug/942669

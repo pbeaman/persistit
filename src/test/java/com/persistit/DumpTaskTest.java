@@ -32,7 +32,6 @@ import org.junit.Test;
 import com.persistit.JournalRecord.IV;
 import com.persistit.JournalRecord.PA;
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class DumpTaskTest extends PersistitUnitTestCase {
 

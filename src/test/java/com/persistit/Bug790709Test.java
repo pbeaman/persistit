@@ -20,8 +20,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
-
 /**
  * Bug 790709 This happened on-site at XXX with the halo release. The server
  * process was running with assertions enabled. The DELETE statement that failed

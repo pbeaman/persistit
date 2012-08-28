@@ -27,6 +27,7 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
 

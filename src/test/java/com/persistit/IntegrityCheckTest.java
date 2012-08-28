@@ -25,7 +25,6 @@ import java.util.Properties;
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class IntegrityCheckTest extends PersistitUnitTestCase {
 
@@ -55,7 +54,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
     @Test
     public void testSimpleMvvTree() throws Exception {
         final Exchange ex = _persistit.getExchange(_volumeName, "mvv", true);
-        _persistit.getCleanupManager().setPollInterval(Integer.MAX_VALUE);
+        disableBackgroundCleanup();
 
         transactionalStore(ex);
 
@@ -76,7 +75,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
     @Test
     public void testBrokenKeySequence() throws Exception {
         final Exchange ex = _persistit.getExchange(_volumeName, "mvv", true);
-        _persistit.getCleanupManager().setPollInterval(Integer.MAX_VALUE);
+        disableBackgroundCleanup();
 
         transactionalStore(ex);
 
@@ -90,7 +89,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
     @Test
     public void testBrokenMVVs() throws Exception {
         final Exchange ex = _persistit.getExchange(_volumeName, "mvv", true);
-        _persistit.getCleanupManager().setPollInterval(Integer.MAX_VALUE);
+        disableBackgroundCleanup();
         transactionalStore(ex);
         corrupt2(ex);
         final IntegrityCheck icheck = icheck();
@@ -155,6 +154,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
     @Test
     public void testPruneRemovesAbortedTransactionStatus() throws Exception {
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
+        _persistit.getJournalManager().setWritePagePruningEnabled(false);
 
         for (int i = 0; i < 10; i++) {
             final Exchange ex = _persistit.getExchange(_volumeName, "mvv" + i, true);
@@ -179,9 +179,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
-        _persistit.getCleanupManager().setMinimumPruningDelay(0); // no
-                                                                  // background
-                                                                  // pruningIn
+        disableBackgroundCleanup();
         _persistit.initialize(properties);
 
         for (int i = 0; i < 10; i++) {

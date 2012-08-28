@@ -87,6 +87,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
             _accepted.incrementAndGet();
         } else {
             _refused.incrementAndGet();
+            kick();
         }
         return accepted;
     }
@@ -124,6 +125,15 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     @Override
     public void setMinimumPruningDelay(final long delay) {
         _minimumPruningDelay.set(delay);
+    }
+
+    @Override
+    public long getPollInterval() {
+        if (_cleanupActionQueue.size() < DEFAULT_QUEUE_SIZE / 2) {
+            return super.getPollInterval();
+        } else {
+            return 0;
+        }
     }
 
     @Override

@@ -27,7 +27,6 @@ import static org.junit.Assert.assertFalse;
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * https://bugs.launchpad.net/akiban-persistit/+bug/1003578

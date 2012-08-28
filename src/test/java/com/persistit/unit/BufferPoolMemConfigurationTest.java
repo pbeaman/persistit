@@ -24,6 +24,7 @@ import java.util.Properties;
 import org.junit.Test;
 
 import com.persistit.Management.BufferPoolInfo;
+import com.persistit.PersistitUnitTestCase;
 
 public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
 

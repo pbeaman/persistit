@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 import com.persistit.exception.RollbackException;
-import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * TableStatusRecoveryIT and RenameTableIT fail intermittently

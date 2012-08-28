@@ -20,8 +20,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
-
 /**
  * https://bugs.launchpad.net/akiban-persistit/+bug/912514
  * 

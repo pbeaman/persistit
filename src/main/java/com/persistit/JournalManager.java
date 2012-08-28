@@ -77,6 +77,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;
     final static int HALF_URGENT = 5;
+    final static int URGENT_COMMIT_DELAY_MILLIS = 50;
+    final static int GENTLE_COMMIT_DELAY_MILLIS = 12;
     private final static long NS_PER_MS = 1000000L;
     private final static int IO_MEASUREMENT_CYCLES = 8;
 
@@ -140,13 +142,13 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * requires more space than is available in the current journal file, it
      * will advance to the start of the next journal file.
      */
-    private long _currentAddress;
+    private volatile long _currentAddress;
 
     /**
      * Smallest journal address at which a record still needed is located.
      * Initially zero, increases as journal files are consumed and deleted.
      */
-    private long _baseAddress;
+    private volatile long _baseAddress;
 
     private final Map<Long, FileChannel> _journalFileChannels = new HashMap<Long, FileChannel>();
 
@@ -191,6 +193,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private final TransactionPlayerListener _listener = new ProactiveRollbackListener();
 
+    private final AtomicBoolean _writePagePruning = new AtomicBoolean(true);
+
     private final AtomicBoolean _rollbackPruning = new AtomicBoolean(true);
 
     /*
@@ -201,8 +205,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     private volatile long _copierInterval = DEFAULT_COPIER_INTERVAL;
 
     private volatile int _copiesPerCycle = DEFAULT_COPIES_PER_CYCLE;
-
-    private volatile int _pageListSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
 
     private volatile long _copierTimestampLimit = Long.MAX_VALUE;
 
@@ -423,6 +425,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         _rollbackPruning.set(rollbackPruning);
     }
 
+    @Override
+    public void setWritePagePruningEnabled(final boolean writePruning) {
+        _writePagePruning.set(writePruning);
+    }
+
     public JournalManager(final Persistit persistit) {
         _persistit = persistit;
     }
@@ -440,6 +447,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     @Override
     public boolean isRollbackPruningEnabled() {
         return _rollbackPruning.get();
+    }
+
+    @Override
+    public boolean isWritePagePruningEnabled() {
+        return _writePagePruning.get();
     }
 
     @Override
@@ -539,16 +551,31 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * @return the JOURNAL_COPIER urgency on a scale of 0 to 10
      */
     @Override
-    public synchronized int urgency() {
+    public int urgency() {
         if (_copyFast.get()) {
             return URGENT;
         }
-        int urgency = _pageList.size() / _pageListSizeBase;
-        final int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress / _blockSize);
-        if (!_appendOnly.get() && journalFileCount > 1) {
-            urgency += journalFileCount - 1;
+        final int journalFileCount = getJournalFileCount();
+        return Math.min(URGENT, journalFileCount);
+    }
+
+    /**
+     * Introduce delay into an application thread when JOURNAL_COPIER thread is
+     * behind. The amount of delay depends on the value returned by
+     * {@link #urgency()}. When that value is {@value #URGENT} then the delay is
+     * {@value #URGENT_COMMIT_DELAY_MILLIS} milliseconds.
+     * 
+     * @throws PersistitInterruptedException
+     */
+    public void throttle() throws PersistitInterruptedException {
+        final int urgency = urgency();
+        if (!_appendOnly.get()) {
+            if (urgency == URGENT) {
+                Util.sleep(URGENT_COMMIT_DELAY_MILLIS);
+            } else if (urgency >= ALMOST_URGENT) {
+                Util.sleep(GENTLE_COMMIT_DELAY_MILLIS);
+            }
         }
-        return Math.min(urgency, URGENT);
     }
 
     int handleForVolume(final Volume volume) throws PersistitException {
@@ -980,6 +1007,14 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         // writing this record.
         //
         force();
+        //
+        // Make sure all copied pages have been flushed to disk.
+        //
+        for (final Volume vol : _volumeToHandleMap.keySet()) {
+            if (vol.isOpened()) {
+                vol.getStorage().force();
+            }
+        }
         //
         // Prepare room for CP.OVERHEAD bytes in the journal. If doing so
         // started a new journal file then there's no need to write another
@@ -1743,6 +1778,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * three commit modes: SOFT, HARD and GROUP. The two parameters represent
      * time intervals in milliseconds.
      * 
+     * @param flushedTimestamp
+     *            a timestamp taken after the transaction buffer belonging to
+     *            the current transaction has been flushed.
      * @param leadTime
      *            time interval in milliseconds by which to anticipate I/O
      *            completion; the method will return as soon as the I/O
@@ -1757,10 +1795,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * @throws PersistitInterruptedException
      */
 
-    void waitForDurability(final long leadTime, final long stallTime) throws PersistitException {
+    void waitForDurability(final long flushedTimestamp, final long leadTime, final long stallTime)
+            throws PersistitException {
         final JournalFlusher flusher = _flusher;
         if (flusher != null) {
-            flusher.waitForDurability(leadTime, stallTime);
+            flusher.waitForDurability(flushedTimestamp, leadTime, stallTime);
         } else {
             throw new IllegalStateException("JOURNAL_FLUSHER is not running");
         }
@@ -2161,7 +2200,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             int divisor = 1;
 
             if (iom.recentCharge() < iom.getQuiescentIOthreshold()) {
-                divisor = URGENT - HALF_URGENT;
+                divisor = HALF_URGENT;
             } else if (urgency > HALF_URGENT) {
                 divisor = urgency - HALF_URGENT;
             }
@@ -2199,16 +2238,16 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
         /**
          * General method used to wait for durability. {@See
-         * JournalManager#waitForDurability(long, long)}.
+         * JournalManager#waitForDurability(long, long, long)}.
          * 
          * @throws PersistitInterruptedException
          */
-        private void waitForDurability(final long leadTime, final long stallTime) throws PersistitException {
+        private void waitForDurability(final long flushedTimestamp, final long leadTime, final long stallTime)
+                throws PersistitException {
             /*
              * Commit is known durable once the JOURNAL_FLUSHER thread has
-             * posted a timestamp value to _endTimestamp larger than this.
+             * posted an _endTimestamp larger than flushedTimestamp.
              */
-            final long timestamp = _persistit.getTimestampAllocator().getCurrentTimestamp();
             final long now = System.nanoTime();
 
             while (true) {
@@ -2231,7 +2270,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     endTimestamp = _endTimestamp;
                     startTime = _startTime;
                     endTime = _endTime;
-                    if (timestamp > startTimestamp && startTimestamp > endTimestamp) {
+                    if (flushedTimestamp > startTimestamp && startTimestamp > endTimestamp) {
                         estimatedRemainingIoNanos = Math.max(startTime + _expectedIoTime - now, 0);
                     }
                     if (startTimestamp == _startTimestamp && endTimestamp == _endTimestamp) {
@@ -2240,7 +2279,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     Util.spinSleep();
                 }
 
-                if (endTimestamp > timestamp && startTimestamp > timestamp) {
+                if (endTimestamp > flushedTimestamp && startTimestamp > flushedTimestamp) {
                     /*
                      * Done - commit is fully durable
                      */
@@ -2256,7 +2295,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 }
 
                 long estimatedNanosToFinish = Math.max(estimatedRemainingIoNanos, 0);
-                if (startTimestamp < timestamp) {
+                if (startTimestamp < flushedTimestamp) {
                     estimatedNanosToFinish += remainingSleepNanos + _expectedIoTime;
                 }
 
@@ -2285,7 +2324,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                             if (_lock.readLock().tryLock(NS_PER_MS, TimeUnit.NANOSECONDS)) {
                                 _lock.readLock().unlock();
                             }
-                        } catch (InterruptedException e) {
+                        } catch (final InterruptedException e) {
                             throw new PersistitInterruptedException(e);
                         }
                     }
@@ -2310,7 +2349,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     _waitLoopsWithNoDelay.incrementAndGet();
                 }
             }
-            if (_lastExceptionTimestamp > timestamp) {
+            if (_lastExceptionTimestamp > flushedTimestamp) {
                 final Exception e = _lastException;
                 if (e instanceof PersistitException) {
                     throw (PersistitException) e;
@@ -2451,6 +2490,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     continue;
                 }
                 pageAddress = readPageBufferFromJournal(stablePageNode, bb);
+                _persistit.getIOMeter().chargeCopyPageFromJournal(volumeRef, pageAddress, volume.getPageSize(),
+                        stablePageNode.getJournalAddress(), urgency());
             } catch (final PersistitException ioe) {
                 _persistit
                         .getAlertMonitor()
@@ -2477,8 +2518,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         Volume volumeRef = null;
         Volume volume = null;
         int handle = -1;
-
-        final HashSet<Volume> volumes = new HashSet<Volume>();
 
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
             if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
@@ -2535,15 +2574,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 throw ioe;
             }
 
-            volumes.add(volume);
             _copiedPageCount++;
             _persistit.getIOMeter().chargeCopyPageToVolume(volume, pageAddress, volume.getPageSize(),
-                    pageNode.getJournalAddress(), _copyFast.get() ? URGENT : urgency());
+                    pageNode.getJournalAddress(), urgency());
         }
 
-        for (final Volume vol : volumes) {
-            vol.getStorage().force();
-        }
     }
 
     private void cleanupForCopy(final List<PageNode> list) throws PersistitException {
@@ -2590,6 +2625,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             // Detect first journal address holding a mapped page
             // required for recovery
             //
+
             for (final PageNode pageNode : _pageMap.values()) {
                 //
                 // If there are multiple versions, we need to keep
@@ -2607,9 +2643,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             //
             for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator
                     .hasNext();) {
-                final TransactionMapItem ts = iterator.next();
-                if (ts.getStartAddress() < recoveryBoundary) {
-                    recoveryBoundary = ts.getStartAddress();
+                final TransactionMapItem item = iterator.next();
+                if (item.getStartAddress() < recoveryBoundary) {
+                    recoveryBoundary = item.getStartAddress();
                 }
             }
 
@@ -2772,7 +2808,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
         @Override
         public void store(final long address, final long timestamp, final Exchange exchange) throws PersistitException {
-            final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
             exchange.prune();
         }
 
@@ -2840,6 +2875,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     /**
      * Extend ArrayList to export the removeRange method.
      */
+    @SuppressWarnings("serial")
     static class RangeRemovingArrayList<T> extends ArrayList<T> {
         @Override
         public void removeRange(final int fromIndex, final int toIndex) {

@@ -22,8 +22,6 @@ import java.util.Properties;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
-
 /**
  * At a DP site experiencing very low insert rates the JournalManager was
  * failing to delete obsolete journal files. This was noticed just prior to the

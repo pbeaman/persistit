@@ -26,7 +26,6 @@ import java.util.TreeSet;
 import org.junit.Test;
 
 import com.persistit.BufferPool.BufferHolder;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class BufferPoolTest extends PersistitUnitTestCase {
 

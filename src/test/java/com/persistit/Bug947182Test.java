@@ -38,7 +38,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 public class Bug947182Test extends PersistitUnitTestCase {

@@ -34,6 +34,7 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.KeyFilter;
 import com.persistit.PersistitMap;
+import com.persistit.PersistitUnitTestCase;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.Util;
 

@@ -19,8 +19,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
-
 public class Bug920754Test extends PersistitUnitTestCase {
     /*
      * https://bugs.launchpad.net/akiban-persistit/+bug/920754

@@ -33,7 +33,6 @@ import java.util.Properties;
 import org.junit.Test;
 
 import com.persistit.Configuration.BufferPoolConfiguration;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class ConfigurationTest extends PersistitUnitTestCase {
 

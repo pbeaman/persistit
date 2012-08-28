@@ -19,8 +19,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
-
 public class IOMeterChargeBenchmark extends PersistitUnitTestCase {
 
     private final static long SECOND = 1000000000;

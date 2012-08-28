@@ -23,6 +23,7 @@ import org.junit.Test;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
 import com.persistit.KeyParser;
+import com.persistit.PersistitUnitTestCase;
 
 public class KeyParserTest2 extends PersistitUnitTestCase {
 

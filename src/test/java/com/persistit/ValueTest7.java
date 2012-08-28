@@ -23,7 +23,6 @@ import java.util.List;
 import org.junit.Test;
 
 import com.persistit.Value.Version;
-import com.persistit.unit.PersistitUnitTestCase;
 
 public class ValueTest7 extends PersistitUnitTestCase {
 

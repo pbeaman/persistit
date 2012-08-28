@@ -25,7 +25,6 @@ import com.persistit.RecoveryManager.DefaultRecoveryListener;
 import com.persistit.exception.MissingThreadException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TestException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 import com.persistit.util.Util;
 

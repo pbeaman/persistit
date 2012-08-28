@@ -31,7 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.junit.Test;
 
 import com.persistit.Transaction.CommitPolicy;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.util.Util;
 
 public class ClassIndexTest extends PersistitUnitTestCase {

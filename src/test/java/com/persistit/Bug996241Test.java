@@ -20,7 +20,6 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 public class Bug996241Test extends PersistitUnitTestCase {

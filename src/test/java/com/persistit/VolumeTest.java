@@ -32,7 +32,6 @@ import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.VolumeFullException;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 public class VolumeTest extends PersistitUnitTestCase {

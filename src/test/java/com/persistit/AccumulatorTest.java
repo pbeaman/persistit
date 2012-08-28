@@ -33,7 +33,6 @@ import com.persistit.Accumulator.Type;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.unit.ConcurrentUtil;
-import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 public class AccumulatorTest extends PersistitUnitTestCase {

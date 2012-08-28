@@ -19,6 +19,7 @@ import static com.persistit.Buffer.LONGREC_PAGE_OFFSET;
 import static com.persistit.Buffer.LONGREC_SIZE;
 import static com.persistit.Buffer.LONGREC_TYPE;
 import static com.persistit.TransactionIndex.vh2ts;
+import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.List;
@@ -307,7 +308,7 @@ class MVV {
          * simply replaced.
          */
         else {
-            Debug.$assert0.t(verify(target, targetOffset, targetLength));
+            assert verify(target, targetOffset, targetLength);
             /*
              * Search for the matching version.
              */
@@ -595,6 +596,37 @@ class MVV {
             if (vlength < 0 || from + vlength + LENGTH_PER_VERSION > offset + length) {
                 return false;
             }
+            from += vlength + LENGTH_PER_VERSION;
+        }
+        return true;
+    }
+
+    static boolean verify(final TransactionIndex ti, final byte[] bytes, final int offset, final int length) {
+        if (!isArrayMVV(bytes, offset, length)) {
+            /*
+             * Not an MVV
+             */
+            return true;
+        }
+        int from = offset + 1;
+        final long lastVersion = -1;
+        while (from < offset + length) {
+            final int vlength = getLength(bytes, from);
+            final long version = getVersion(bytes, from);
+            if (vlength < 0 || from + vlength + LENGTH_PER_VERSION > offset + length) {
+                return false;
+            }
+            if (version < lastVersion) {
+                try {
+                    final long lastVersionTc = ti.commitStatus(lastVersion, UNCOMMITTED, 0);
+                    assert lastVersionTc == ABORTED;
+                } catch (final InterruptedException e) {
+                    // ignore
+                } catch (final TimeoutException e) {
+                    // ignore
+                }
+            }
+            assert version != lastVersion;
             from += vlength + LENGTH_PER_VERSION;
         }
         return true;

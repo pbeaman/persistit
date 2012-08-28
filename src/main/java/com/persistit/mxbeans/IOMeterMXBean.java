@@ -59,12 +59,12 @@ public interface IOMeterMXBean {
      * 
      */
     public final static String[] OPERATION_NAMES = { "Unknown", "Read page from Volume", "Read page from Journal",
-            "Copy page from journal to volume", "Write page from Journal", "Write Transaction to Journal", "Other",
-            "Evict page from pool", "Flush journal", "Get page" };
+            "Copy page from journal", "Copy page to volume", "Write page from Journal", "Write Transaction to Journal",
+            "Other", "Evict page from pool", "Flush journal", "Get page" };
 
-    public final static String[] OPERATIONS = { "??", "RV", "RJ", "CC", "WJ", "TJ", "XX", "EV", "FJ", "GP" };
+    public final static String[] OPERATIONS = { "??", "RV", "RJ", "CJ", "CV", "WJ", "TJ", "XX", "EV", "FJ", "GP" };
 
-    public final static String[] SUMMARY_ITEMS = { "CC", "RV", "RJ", "WJ", "EV", "FJ" };
+    public final static String[] SUMMARY_ITEMS = { "CJ", "CV", "RV", "RJ", "WJ", "EV", "FJ" };
 
     /**
      * @return the quiescentIOthreshold

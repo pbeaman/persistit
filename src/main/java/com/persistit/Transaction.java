@@ -854,20 +854,26 @@ public class Transaction {
             sequence(COMMIT_FLUSH_A);
             _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
             sequence(COMMIT_FLUSH_C);
+            long flushedTimetimestamp = 0;
             boolean committed = false;
             try {
+
                 if (flushTransactionBuffer(false)) {
-                    _persistit.getJournalManager().waitForDurability(
-                            policy == CommitPolicy.SOFT ? _persistit.getTransactionCommitLeadTime() : 0,
-                            policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
+                    flushedTimetimestamp = _persistit.getTimestampAllocator().getCurrentTimestamp();
                 }
                 committed = true;
             } finally {
-
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
                         committed ? _commitTimestamp : TransactionStatus.ABORTED);
                 _commitCompleted = committed;
                 _rollbackPending = _rollbackCompleted = !committed;
+            }
+
+            _persistit.getJournalManager().throttle();
+            if (flushedTimetimestamp != 0) {
+                _persistit.getJournalManager().waitForDurability(flushedTimetimestamp,
+                        policy == CommitPolicy.SOFT ? _persistit.getTransactionCommitLeadTime() : 0,
+                        policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
             }
         }
     }

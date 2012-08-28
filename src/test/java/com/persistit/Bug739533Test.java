@@ -17,8 +17,6 @@ package com.persistit;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
-
 public class Bug739533Test extends PersistitUnitTestCase {
 
     private final String _volumeName = "persistit";

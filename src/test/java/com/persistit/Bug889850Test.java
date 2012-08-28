@@ -17,8 +17,6 @@ package com.persistit;
 
 import org.junit.Test;
 
-import com.persistit.unit.PersistitUnitTestCase;
-
 /**
  * 
  * From akiban-server 0.81:

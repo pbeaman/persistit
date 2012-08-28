@@ -144,7 +144,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
     @Test
     public void testPruneLongRecordsSimple() throws Exception {
-        _persistit.getCleanupManager().setPollInterval(-1);
+        disableBackgroundCleanup();
         trx1.begin();
         storeLongMVV(ex1, "x");
         trx1.commit();
@@ -156,7 +156,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
     @Test
     public void testPruneLongRecordsWithRollback() throws Exception {
-        _persistit.getCleanupManager().setPollInterval(-1);
+        disableBackgroundCleanup();
         /*
          * Start a concurrent transaction to prevent pruning during the store
          * operations.
@@ -182,7 +182,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
     @Test
     public void induceBug1006576() throws Exception {
-        _persistit.getCleanupManager().setPollInterval(-1);
+        disableBackgroundCleanup();
         trx1.begin();
         storeLongMVV(ex1, "x");
         storeLongMVV(ex1, "y");
@@ -203,7 +203,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
     @Test
     public void induceBug1005206() throws Exception {
-        _persistit.getCleanupManager().setPollInterval(-1);
+        disableBackgroundCleanup();
         trx1.begin();
         storeLongMVV(ex1, "x");
 
@@ -295,6 +295,27 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
             _persistit.checkpoint();
             Util.sleep(100);
         }
+    }
+
+    @Test
+    public void testWritePagePrune() throws Exception {
+        final Transaction txn = _persistit.getTransaction();
+        try {
+            txn.begin();
+            storeNewVersion(1);
+            txn.commit();
+        } finally {
+            txn.end();
+        }
+        final Volume volume = _persistit.getVolume(TEST_VOLUME_NAME);
+        final Buffer buffer = volume.getPool().get(volume, 3, true, true);
+        assertTrue("Should have multiple MVV records", buffer.getMvvCount() > 2);
+        _persistit.getJournalManager().setWritePagePruningEnabled(true);
+        _persistit.getTransactionIndex().updateActiveTransactionCache();
+        buffer.setDirtyAtTimestamp(_persistit.getCurrentTimestamp());
+        buffer.writePage();
+        assertTrue("Should no more than one MVV record", buffer.getMvvCount() < 2);
+        buffer.release();
     }
 
     private void storeNewVersion(final int cycle) throws Exception {
