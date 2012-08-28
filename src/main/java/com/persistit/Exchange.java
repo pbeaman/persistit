@@ -1529,8 +1529,7 @@ public class Exchange {
                             storedLength &= MVV.STORE_LENGTH_MASK;
                             spareValue.setEncodedSize(storedLength);
 
-                            // TODO remove after debugging
-                            MVV.verify(_persistit.getTransactionIndex(), spareBytes, 0, storedLength);
+                            Debug.$assert0.t(MVV.verify(_persistit.getTransactionIndex(), spareBytes, 0, storedLength));
 
                             if (spareValue.getEncodedSize() > maxSimpleValueSize) {
                                 newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(spareValue,

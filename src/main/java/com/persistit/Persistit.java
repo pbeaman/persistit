@@ -1912,9 +1912,9 @@ public class Persistit {
             checkFatal();
             throw new PersistitClosedException();
         }
-        // if (Thread.currentThread().isInterrupted()) {
-        // throw new PersistitInterruptedException(new InterruptedException());
-        // }
+        if (Thread.currentThread().isInterrupted()) {
+            throw new PersistitInterruptedException(new InterruptedException());
+        }
     }
 
     void checkFatal() throws FatalErrorException {

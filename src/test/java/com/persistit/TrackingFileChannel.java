@@ -161,7 +161,7 @@ class TrackingFileChannel extends FileChannel implements TestChannelInjector {
         return _readPositions;
     }
 
-    public void assertSequential(boolean read, boolean forward) {
+    public void assertOrdered(boolean read, boolean forward) {
         final List<Long> list = read ? _readPositions : _writePositions;
         long previous = forward ? -1 : Long.MAX_VALUE;
         for (final Long position : list) {

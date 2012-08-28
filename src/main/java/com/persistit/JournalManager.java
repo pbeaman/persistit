@@ -77,7 +77,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;
     final static int HALF_URGENT = 5;
-    final static int URGENT_COMMIT_DELAY = 50; // delay in ms
+    final static int URGENT_COMMIT_DELAY_MILLIS = 50;
+    final static int GENTLE_COMMIT_DELAY_MILLIS = 12;
     private final static long NS_PER_MS = 1000000L;
     private final static int IO_MEASUREMENT_CYCLES = 8;
 
@@ -566,7 +567,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * Introduce delay into an application thread when JOURNAL_COPIER thread is
      * behind. The amount of delay depends on the value returned by
      * {@link #urgency()}. When that value is {@value #URGENT} then the delay is
-     * {@value #URGENT_COMMIT_DELAY} milliseconds.
+     * {@value #URGENT_COMMIT_DELAY_MILLIS} milliseconds.
      * 
      * @throws PersistitInterruptedException
      */
@@ -574,9 +575,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         final int urgency = urgency();
         if (!_appendOnly.get()) {
             if (urgency == URGENT) {
-                Util.sleep(URGENT_COMMIT_DELAY);
+                Util.sleep(URGENT_COMMIT_DELAY_MILLIS);
             } else if (urgency >= ALMOST_URGENT) {
-                Util.sleep(URGENT_COMMIT_DELAY / 4);
+                Util.sleep(GENTLE_COMMIT_DELAY_MILLIS);
             }
         }
     }

@@ -1517,8 +1517,8 @@ public class Buffer extends SharedResource {
                 // limit
                 incCountIfMvv(_bytes, offset, storedLength & MVV.STORE_LENGTH_MASK);
 
-                // TODO - remove after debugging
-                MVV.verify(_persistit.getTransactionIndex(), _bytes, offset, storedLength & MVV.STORE_LENGTH_MASK);
+                Debug.$assert0.t(MVV.verify(_persistit.getTransactionIndex(), _bytes, offset, storedLength
+                        & MVV.STORE_LENGTH_MASK));
             }
             //
             // Correct not to call getFastIndex()
@@ -1649,8 +1649,8 @@ public class Buffer extends SharedResource {
                     _bytes.length); // TODO - limit
             isMVV = isValueMVV(_bytes, offset, storedLength & MVV.STORE_LENGTH_MASK);
 
-            // TODO - remove after debugging
-            MVV.verify(_persistit.getTransactionIndex(), _bytes, offset, storedLength & MVV.STORE_LENGTH_MASK);
+            Debug.$assert0.t(MVV.verify(_persistit.getTransactionIndex(), _bytes, offset, storedLength
+                    & MVV.STORE_LENGTH_MASK));
 
         }
         if (!wasMVV && isMVV) {
