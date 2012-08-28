@@ -555,12 +555,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         if (_copyFast.get()) {
             return URGENT;
         }
-
         final int journalFileCount = getJournalFileCount();
-        if (journalFileCount < HALF_URGENT) {
-            return journalFileCount;
-        }
-        return Math.min(URGENT, journalFileCount - HALF_URGENT);
+        return Math.min(URGENT, journalFileCount);
     }
 
     /**
