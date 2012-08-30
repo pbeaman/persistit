@@ -24,6 +24,7 @@ import org.junit.Before;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.UnitTestProperties;
+import com.persistit.util.ThreadSequencer;
 
 public abstract class PersistitUnitTestCase {
 
@@ -58,6 +59,8 @@ public abstract class PersistitUnitTestCase {
 
     @After
     public void tearDown() throws Exception {
+        // Ensure sequencer is disabled after each test.
+        ThreadSequencer.disableSequencer();
         final WeakReference<Persistit> ref = new WeakReference<Persistit>(_persistit);
         _persistit.close(false);
         _persistit = null;
