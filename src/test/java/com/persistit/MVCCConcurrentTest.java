@@ -74,7 +74,7 @@ public class MVCCConcurrentTest extends MVCCTestBase {
             }
         });
 
-        startAndJoinAssertSuccess(5000, readThread, writeThread, removeThread);
+        startAndJoinAssertSuccess(25000, readThread, writeThread, removeThread);
     }
 
     //

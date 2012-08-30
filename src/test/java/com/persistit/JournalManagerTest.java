@@ -677,7 +677,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
          */
         enableSequencer(true);
         addSchedules(PAGE_MAP_READ_INVALIDATE_SCHEDULE);
-        startAndJoinAssertSuccess(5000, thread1, thread2);
+        startAndJoinAssertSuccess(25000, thread1, thread2);
         disableSequencer();
     }
 

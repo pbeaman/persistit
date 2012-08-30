@@ -479,7 +479,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
 
     @Test
     public void testDeltasCombineMultiAccumMultiThread() throws Exception {
-        final long RUN_TIME_MAX = 10000;
+        final long RUN_TIME_MAX = 50000;
         final int THREAD_COUNT = 20;
         final int ACCUM_COUNT = 10;
         final int STEP_COUNT = 5;
