@@ -595,7 +595,7 @@ public class Persistit {
                 startTransactionIndexPollTask();
                 flush();
                 _checkpointManager.checkpoint();
-                _journalManager.pruneObsoleteTransactions(true);
+                _journalManager.pruneObsoleteTransactions();
 
                 startCleanupManager();
                 _initialized.set(true);
