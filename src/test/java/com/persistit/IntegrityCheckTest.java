@@ -179,8 +179,8 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
-        disableBackgroundCleanup();
         _persistit.initialize(properties);
+        disableBackgroundCleanup();
 
         for (int i = 0; i < 10; i++) {
             final Exchange ex = _persistit.getExchange(_volumeName, "mvv" + i, true).append(Key.BEFORE);
