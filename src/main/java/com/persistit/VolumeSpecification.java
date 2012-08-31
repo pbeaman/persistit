@@ -126,7 +126,7 @@ public class VolumeSpecification {
      * 
      * <dt><code>create</code></dt>
      * <dd>Creates the volume if it does not exist. Requires
-     * <code>bufferSize</code>, <code>initialPagesM</code>,
+     * <code>pageSize</code>, <code>initialPagesM</code>,
      * <code>extensionPages</code> and <code>maximumPages</code> to be
      * specified.</dd>
      * 
@@ -138,7 +138,7 @@ public class VolumeSpecification {
      * <dd>Creates the a new, empty volume regardless of whether an existing
      * volume file already exists.</dd>
      * 
-     * <dt><code>bufferSize:<i>NNN</i></code></dt>
+     * <dt><code>pageSize:<i>NNN</i></code></dt>
      * <dd>Specifies <i>NNN</i> as the volume's buffer size when creating a new
      * volume. <i>NNN</i> must be 1024, 2048, 4096, 8192 or 16384.</dd>
      * 
