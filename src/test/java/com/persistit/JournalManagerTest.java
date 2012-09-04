@@ -664,8 +664,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         /*
          * Make sure all pages are in journal
          */
-        _persistit.checkpoint();
         _persistit.flush();
+        _persistit.checkpoint();
         /*
          * Invalidate so next read must go from disk and check if in journal
          */

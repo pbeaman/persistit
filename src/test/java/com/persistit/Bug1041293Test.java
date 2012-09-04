@@ -37,11 +37,10 @@ public class Bug1041293Test extends PersistitUnitTestCase {
         Volume volume = _persistit.loadVolume(vspec);
         volume.open(_persistit);
     }
-    
+
     @Test(expected = IllegalStateException.class)
     public void mismatchedTemporaryVolumePageSize() throws Exception {
-       _persistit.createTemporaryVolume(2048);
+        _persistit.createTemporaryVolume(2048);
     }
-    
-    
+
 }
