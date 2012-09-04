@@ -83,7 +83,11 @@ public interface JournalManagerMXBean {
      * copier method.
      */
     final static long DEFAULT_COPIER_INTERVAL = 10000;
-
+    /**
+     * Default journal file count at which transactions are throttle to allow
+     * copier to catch up.
+     */
+    final static int DEFAULT_THROTTLE_FILE_COUNT = 15;
     /**
      * Default value for maximum pages to be copied per cycle.
      */

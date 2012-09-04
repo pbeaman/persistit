@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
@@ -215,6 +216,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     private boolean _allowHandlesForTempVolumesAndTrees;
 
     private final AtomicLong _waitLoopsWithNoDelay = new AtomicLong();
+
+    private volatile int _journalFileCountThrottle = DEFAULT_THROTTLE_FILE_COUNT;
 
     /**
      * <p>
@@ -569,10 +572,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      */
     public void throttle() throws PersistitInterruptedException {
         final int urgency = urgency();
-        if (!_appendOnly.get()) {
-            if (urgency == URGENT) {
+        if (!_appendOnly.get() && urgency == URGENT) {
+            final int fileCount = getJournalFileCount();
+            if (fileCount > _journalFileCountThrottle) {
                 Util.sleep(URGENT_COMMIT_DELAY_MILLIS);
-            } else if (urgency >= ALMOST_URGENT) {
+            } else if (fileCount == _journalFileCountThrottle) {
                 Util.sleep(GENTLE_COMMIT_DELAY_MILLIS);
             }
         }
@@ -2518,6 +2522,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         Volume volumeRef = null;
         Volume volume = null;
         int handle = -1;
+        final Set<Volume> volumes = new HashSet<Volume>();
 
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
             if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
@@ -2568,6 +2573,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             try {
                 volume.getStorage().writePage(bb, pageAddress);
+                volumes.add(volume);
             } catch (final PersistitException ioe) {
                 _persistit.getLogBase().copyException.log(ioe, volume, pageNode.getPageAddress(),
                         pageNode.getJournalAddress());
@@ -2577,6 +2583,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             _copiedPageCount++;
             _persistit.getIOMeter().chargeCopyPageToVolume(volume, pageAddress, volume.getPageSize(),
                     pageNode.getJournalAddress(), urgency());
+        }
+
+        for (final Volume vol : volumes) {
+            vol.getStorage().force();
         }
 
     }
