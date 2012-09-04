@@ -57,7 +57,7 @@ class IOMeter implements IOMeterMXBean {
     private final static String DUMP_FORMAT = "time=%,12d op=%2s vol=%4s page=%,16d addr=%,16d size=%,8d index=%,7d";
     private final static int DUMP_RECORD_LENGTH = 37;
 
-    private final static int DEFAULT_QUIESCENT_IO_THRESHOLD = 100000;
+    private final static int DEFAULT_QUIESCENT_IO_THRESHOLD = 100;
 
     private final static int READ_PAGE_FROM_VOLUME = 1;
     private final static int READ_PAGE_FROM_JOURNAL = 2;

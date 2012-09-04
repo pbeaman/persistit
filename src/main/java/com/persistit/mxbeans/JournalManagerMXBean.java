@@ -76,7 +76,7 @@ public interface JournalManagerMXBean {
      * Default time interval (in milliseconds) between calls to the
      * FileChannel.force() method.
      */
-    final static long DEFAULT_FLUSH_INTERVAL = 100;
+    final static long DEFAULT_FLUSH_INTERVAL = 500;
 
     /**
      * Default time interval (in milliseconds) between calls to the journal

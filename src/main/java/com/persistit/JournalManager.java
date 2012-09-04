@@ -82,9 +82,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     final static int GENTLE_COMMIT_DELAY_MILLIS = 12;
     private final static long NS_PER_MS = 1000000L;
     private final static int IO_MEASUREMENT_CYCLES = 8;
-
     private final static int TOO_MANY_WARN_THRESHOLD = 15;
     private final static int TOO_MANY_ERROR_THRESHOLD = 20;
+    private final static long KILO = 1024;
 
     /**
      * REGEX expression that recognizes the name of a journal file.
@@ -1682,11 +1682,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             }
         }
         //
-        // Remove the page list entries too.
-        //
-        _droppedPageCount += cleanupPageList();
-
-        //
         // Remove any PageNode from the branchMap having a timestamp less
         // than the checkpoint. Generally all such entries are removed after
         // the first checkpoint that has been established after recovery.
@@ -2203,7 +2198,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             int divisor = 1;
 
-            if (iom.recentCharge() < iom.getQuiescentIOthreshold()) {
+            if (iom.recentCharge() < iom.getQuiescentIOthreshold() * KILO) {
                 divisor = HALF_URGENT;
             } else if (urgency > HALF_URGENT) {
                 divisor = urgency - HALF_URGENT;
@@ -2218,8 +2213,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     private class JournalFlusher extends IOTaskRunnable {
-
-        final ReentrantReadWriteLock _lock = new ReentrantReadWriteLock(true);
 
         volatile long _lastExceptionTimestamp = 0;
         volatile Exception _lastException = null;
@@ -2324,30 +2317,15 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     kick();
                     if (delay <= 0) {
                         didWait = true;
-                        try {
-                            if (_lock.readLock().tryLock(NS_PER_MS, TimeUnit.NANOSECONDS)) {
-                                _lock.readLock().unlock();
-                            }
-                        } catch (final InterruptedException e) {
-                            throw new PersistitInterruptedException(e);
-                        }
+                        Util.spinSleep();
                     }
                 } else {
                     /*
                      * Otherwise, wait until the I/O is about half done and then
                      * retry.
                      */
-                    final long delay = ((estimatedNanosToFinish - leadTime * NS_PER_MS) / 2) + NS_PER_MS;
-                    try {
-                        if (delay > 0) {
-                            didWait = true;
-                            if (_lock.readLock().tryLock(delay, TimeUnit.NANOSECONDS)) {
-                                _lock.readLock().unlock();
-                            }
-                        }
-                    } catch (final InterruptedException e) {
-                        throw new PersistitInterruptedException(e);
-                    }
+                    final long delay = Math.max((estimatedNanosToFinish / NS_PER_MS - leadTime) / 2, 1);
+                    Util.sleep(delay);
                 }
                 if (!didWait) {
                     _waitLoopsWithNoDelay.incrementAndGet();
@@ -2375,7 +2353,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                      * waitForDurability to know when the I/O operation has
                      * finished.
                      */
-                    _lock.writeLock().lock();
                     try {
                         _startTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
                         _startTime = System.nanoTime();
@@ -2387,7 +2364,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     } finally {
                         _endTime = System.nanoTime();
                         _endTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                        _lock.writeLock().unlock();
                     }
 
                     final long elapsed = _endTime - _startTime;
@@ -2431,14 +2407,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     synchronized void selectForCopy(final List<PageNode> list) {
         list.clear();
-        _droppedPageCount += cleanupPageList();
         if (!_appendOnly.get()) {
             final long timeStampUpperBound = Math.min(getLastValidCheckpointTimestamp(), _copierTimestampLimit);
             for (final Iterator<PageNode> iterator = _pageList.iterator(); iterator.hasNext();) {
                 final PageNode pageNode = iterator.next();
-                for (PageNode pn = pageNode; pn != null; pn = pn.getPrevious()) {
+                for (PageNode pn = pageNode; pn != null && !pn.isInvalid(); pn = pn.getPrevious()) {
                     if (pn.getTimestamp() < timeStampUpperBound) {
-                        assert !pn.isInvalid();
                         list.add(pn);
                         break;
                     }
