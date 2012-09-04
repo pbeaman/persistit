@@ -42,6 +42,8 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     final static int WORKLIST_LENGTH = 500;
 
+    final static long MINIMUM_MAINTENANCE_INTERVAL = 500;
+
     private final static long DEFAULT_MINIMUM_PRUNING_DELAY = 1000;
 
     final Queue<CleanupAction> _cleanupActionQueue = new ArrayBlockingQueue<CleanupAction>(DEFAULT_QUEUE_SIZE);
@@ -58,12 +60,15 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     private final AtomicLong _minimumPruningDelay = new AtomicLong(DEFAULT_MINIMUM_PRUNING_DELAY);
 
+    private long _lastMaintenance;
+
     CleanupManager(final Persistit persistit) {
         super(persistit);
     }
 
     public void start() {
         _closed.set(false);
+        _lastMaintenance = System.nanoTime();
         start("CLEANUP_MANAGER", DEFAULT_CLEANUP_INTERVAL);
     }
 
@@ -138,9 +143,15 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     @Override
     public void poll() throws Exception {
-        _persistit.getIOMeter().poll();
-        _persistit.cleanup();
-        _persistit.getJournalManager().pruneObsoleteTransactions();
+
+        final long now = System.nanoTime();
+        if (now - _lastMaintenance > MINIMUM_MAINTENANCE_INTERVAL) {
+            _persistit.getIOMeter().poll();
+            _persistit.cleanup();
+            _persistit.getJournalManager().pruneObsoleteTransactions();
+            _lastMaintenance = now;
+        }
+
         final List<CleanupAction> workList = new ArrayList<CleanupAction>(WORKLIST_LENGTH);
         synchronized (this) {
             while (workList.size() < WORKLIST_LENGTH) {
