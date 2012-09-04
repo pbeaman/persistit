@@ -2215,7 +2215,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private class JournalFlusher extends IOTaskRunnable {
 
-        final ReentrantReadWriteLock _lock = new ReentrantReadWriteLock();
+        final ReentrantReadWriteLock _lock = new ReentrantReadWriteLock(true);
 
         volatile long _lastExceptionTimestamp = 0;
         volatile Exception _lastException = null;
@@ -2270,10 +2270,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     endTimestamp = _endTimestamp;
                     startTime = _startTime;
                     endTime = _endTime;
-                    if (flushedTimestamp > startTimestamp && startTimestamp > endTimestamp) {
-                        estimatedRemainingIoNanos = Math.max(startTime + _expectedIoTime - now, 0);
-                    }
                     if (startTimestamp == _startTimestamp && endTimestamp == _endTimestamp) {
+                        if (flushedTimestamp > startTimestamp && startTimestamp > endTimestamp) {
+                            estimatedRemainingIoNanos = Math.max(startTime + _expectedIoTime - now, 0);
+                        }
                         break;
                     }
                     Util.spinSleep();
@@ -2306,7 +2306,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                      * immediately. This handles the "soft" commit case.
                      */
                     break;
-                } else if (estimatedRemainingIoNanos == -1) {
+                } else if (estimatedRemainingIoNanos == -1 && leadTime == 0) {
                     /*
                      * If there is no I/O in progress, then wait as long as
                      * possible (determined by stallTime) before kicking the
@@ -2924,11 +2924,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         _liveTransactionMap.clear();
     }
 
-    synchronized long getCurrentJournalSize() {
+    long getCurrentJournalSize() {
         return _currentAddress % _blockSize;
     }
 
-    synchronized int getJournalFileCount() {
+    int getJournalFileCount() {
         return (int) (_currentAddress / _blockSize - _baseAddress / _blockSize) + 1;
     }
 
