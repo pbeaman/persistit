@@ -1447,6 +1447,8 @@ public class Persistit {
          */
         for (int i = 0; i < 5; ++i) {
             if (!_closed.get() && _initialized.get()) {
+                _transactionIndex.updateActiveTransactionCache();
+                _journalManager.pruneObsoleteTransactions();
                 _checkpointManager.checkpoint();
                 _journalManager.copyBack();
                 final int fileCount = _journalManager.getJournalFileCount();
