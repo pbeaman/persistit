@@ -2214,8 +2214,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private class JournalFlusher extends IOTaskRunnable {
 
-        final ReentrantReadWriteLock _lock = new ReentrantReadWriteLock();
-
         volatile long _lastExceptionTimestamp = 0;
         volatile Exception _lastException = null;
 
@@ -2324,23 +2322,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                         didWait = true;
                     }
                 } else {
-                    /*
-                     * Otherwise, wait until the I/O is predicted to be half
-                     * done and then retry.
-                     */
-                    final long delay = (estimatedNanosToFinish - leadTime * NS_PER_MS) / 2;
-                    try {
-                        if (delay > 0) {
-                            if (_lock.readLock().tryLock(delay, TimeUnit.NANOSECONDS)) {
-                                _lock.readLock().unlock();
-                                didWait = true;
-                            }
-                        } else {
-                            Util.spinSleep();
-                        }
-                    } catch (final InterruptedException e) {
-                        throw new PersistitInterruptedException(e);
-                    }
+                    Util.spinSleep();
                 }
                 if (!didWait) {
                     _waitLoopsWithNoDelay.incrementAndGet();
@@ -2368,7 +2350,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                      * waitForDurability to know when the I/O operation has
                      * finished.
                      */
-                    _lock.writeLock().lock();
                     try {
                         _startTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
                         _startTime = System.nanoTime();
@@ -2380,22 +2361,23 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     } finally {
                         _endTime = System.nanoTime();
                         _endTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                        _lock.writeLock().unlock();
                     }
 
                     final long elapsed = _endTime - _startTime;
                     _totalFlushCycles.incrementAndGet();
                     _totalFlushIoTime.addAndGet(elapsed);
                     _ioTimes[_ioCycle] = elapsed;
-                    _ioCycle = (_ioCycle + 1) % _ioTimes.length;
+                    _ioCycle = (_ioCycle + 1) % IO_MEASUREMENT_CYCLES;
 
                     long avg = 0;
-                    for (int index = 0; index < _ioTimes.length; index++) {
+                    for (int index = 0; index < IO_MEASUREMENT_CYCLES; index++) {
                         avg += _ioTimes[index];
                     }
+                    avg /= IO_MEASUREMENT_CYCLES;
+                    
                     _expectedIoTime = avg;
                     if (elapsed > _slowIoAlertThreshold * NS_PER_MS) {
-                        _persistit.getLogBase().longJournalIO.log(elapsed / NS_PER_MS, avg / NS_PER_MS);
+                        _persistit.getLogBase().longJournalIO.log(elapsed / NS_PER_MS, IO_MEASUREMENT_CYCLES, avg / NS_PER_MS);
                     }
 
                 } catch (final Exception e) {
