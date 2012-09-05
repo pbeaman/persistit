@@ -2335,6 +2335,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                                 _lock.readLock().unlock();
                                 didWait = true;
                             }
+                        } else {
+                            Util.spinSleep();
                         }
                     } catch (final InterruptedException e) {
                         throw new PersistitInterruptedException(e);
