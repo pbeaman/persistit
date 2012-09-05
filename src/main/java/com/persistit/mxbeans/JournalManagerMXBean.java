@@ -245,7 +245,7 @@ public interface JournalManagerMXBean {
 
     @Description("Journal file count threshold for throttling transactions")
     int getUrgentFileCountThreshold();
-    
+
     @Description("Journal file count threshold for throttling transactions")
     void setUrgentFileCountThreshold(int threshold);
 }

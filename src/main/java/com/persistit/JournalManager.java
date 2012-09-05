@@ -571,7 +571,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             return URGENT;
         }
         final int remainingFiles = _urgentFileCountThreshold - getJournalFileCount();
-        return Math.max(0, Math.min(remainingFiles, URGENT));
+        return Math.max(0, Math.min(URGENT - remainingFiles, URGENT));
     }
 
     /**
