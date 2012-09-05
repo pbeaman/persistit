@@ -232,7 +232,7 @@ public class LogBase {
     @Message("WARNING|Crash retried %,d times on %s")
     public final LogItem crashRetry = PersistitLogMessage.empty();
 
-    @Message("WARNING|Journal flush operation took %,dms")
+    @Message("WARNING|Journal flush operation took %,dms last 10 cycles average is %,dms")
     public final LogItem longJournalIO = PersistitLogMessage.empty();
 
     @Message("INFO|Normal journal file count %,d")

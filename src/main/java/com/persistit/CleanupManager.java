@@ -40,13 +40,15 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     final static int DEFAULT_QUEUE_SIZE = 50000;
 
-    final static int WORKLIST_LENGTH = 500;
+    private final static int WORKLIST_LENGTH = 500;
 
-    final static long MINIMUM_MAINTENANCE_INTERVAL = 1000;
+    private final static long MINIMUM_MAINTENANCE_INTERVAL = 1000000000L;
+
+    private final static long MINIMUM_PRUNE_OBSOLETE_TRANSACTIONS_INTERVAL = 50000000000L;
 
     private final static long DEFAULT_MINIMUM_PRUNING_DELAY = 1000;
 
-    final Queue<CleanupAction> _cleanupActionQueue = new ArrayBlockingQueue<CleanupAction>(DEFAULT_QUEUE_SIZE);
+    private final Queue<CleanupAction> _cleanupActionQueue = new ArrayBlockingQueue<CleanupAction>(DEFAULT_QUEUE_SIZE);
 
     private final AtomicBoolean _closed = new AtomicBoolean();
 
@@ -62,13 +64,17 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     private long _lastMaintenance;
 
+    private long _lastPruneObsoleteTransactions;
+
     CleanupManager(final Persistit persistit) {
         super(persistit);
     }
 
     public void start() {
         _closed.set(false);
-        _lastMaintenance = System.nanoTime();
+        final long now = System.nanoTime();
+        _lastMaintenance = now;
+        _lastPruneObsoleteTransactions = now;
         start("CLEANUP_MANAGER", DEFAULT_CLEANUP_INTERVAL);
     }
 
@@ -148,8 +154,12 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         if (now - _lastMaintenance > MINIMUM_MAINTENANCE_INTERVAL) {
             _persistit.getIOMeter().poll();
             _persistit.cleanup();
-            _persistit.getJournalManager().pruneObsoleteTransactions();
             _lastMaintenance = now;
+        }
+
+        if (now - _lastPruneObsoleteTransactions > MINIMUM_PRUNE_OBSOLETE_TRANSACTIONS_INTERVAL) {
+            _persistit.getJournalManager().pruneObsoleteTransactions();
+            _lastPruneObsoleteTransactions = now;
         }
 
         final List<CleanupAction> workList = new ArrayList<CleanupAction>(WORKLIST_LENGTH);

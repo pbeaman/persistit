@@ -82,8 +82,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     final static int GENTLE_COMMIT_DELAY_MILLIS = 12;
     private final static long NS_PER_MS = 1000000L;
     private final static int IO_MEASUREMENT_CYCLES = 8;
-    private final static int TOO_MANY_WARN_THRESHOLD = 15;
-    private final static int TOO_MANY_ERROR_THRESHOLD = 20;
+    private final static int TOO_MANY_WARN_THRESHOLD = 5;
+    private final static int TOO_MANY_ERROR_THRESHOLD = 10;
     private final static long KILO = 1024;
 
     /**
@@ -106,7 +106,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     private final Map<TreeDescriptor, Integer> _treeToHandleMap = new HashMap<TreeDescriptor, Integer>();
 
     private final Map<Integer, TreeDescriptor> _handleToTreeMap = new HashMap<Integer, TreeDescriptor>();
-
     private final Map<Long, TransactionMapItem> _liveTransactionMap = new HashMap<Long, TransactionMapItem>();
 
     private final Persistit _persistit;
@@ -1235,7 +1234,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     static long fileToGeneration(final File file) {
         final Matcher matcher = PATH_PATTERN.matcher(file.getName());
         if (matcher.matches()) {
-            // TODO - validate range
             return Long.parseLong(matcher.group(2));
         } else {
             return -1;
@@ -1245,7 +1243,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     static String fileToPath(final File file) {
         final Matcher matcher = PATH_PATTERN.matcher(file.getPath());
         if (matcher.matches()) {
-            // TODO - validate range
             return matcher.group(1);
         } else {
             return null;
@@ -2251,6 +2248,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
              * posted an _endTimestamp larger than flushedTimestamp.
              */
             final long now = System.nanoTime();
+            long remainingStallTime = stallTime;
 
             while (true) {
                 /*
@@ -2283,7 +2281,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
                 if (endTimestamp > flushedTimestamp && startTimestamp > flushedTimestamp) {
                     /*
-                     * Done - commit is fully durable
+                     * Done - commit is durable
                      */
                     break;
                 }
@@ -2296,9 +2294,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     remainingSleepNanos = _flushInterval;
                 }
 
-                long estimatedNanosToFinish = Math.max(estimatedRemainingIoNanos, 0);
+                long estimatedNanosToFinish;
                 if (startTimestamp < flushedTimestamp) {
-                    estimatedNanosToFinish += remainingSleepNanos + _expectedIoTime;
+                    estimatedNanosToFinish = remainingSleepNanos + _expectedIoTime;
+                } else {
+                    estimatedNanosToFinish = estimatedRemainingIoNanos;
                 }
 
                 if (leadTime > 0 && leadTime * NS_PER_MS >= estimatedNanosToFinish) {
@@ -2314,20 +2314,19 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                      * possible (determined by stallTime) before kicking the
                      * JOURNAL_FLUSHER to write the caller's transaction.
                      */
-                    final long delay = stallTime * NS_PER_MS - estimatedNanosToFinish;
-                    if (delay > 0) {
-                        Util.sleep(delay / NS_PER_MS);
+                    if (remainingStallTime > 0) {
+                        Util.sleep(remainingStallTime);
+                        remainingStallTime = 0;
                         didWait = true;
-                    }
-                    kick();
-                    if (delay <= 0) {
-                        didWait = true;
+                    } else {
+                        kick();
                         Util.spinSleep();
+                        didWait = true;
                     }
                 } else {
                     /*
-                     * Otherwise, wait until the I/O is about half done and then
-                     * retry.
+                     * Otherwise, wait until the I/O is predicted to be half
+                     * done and then retry.
                      */
                     final long delay = (estimatedNanosToFinish - leadTime * NS_PER_MS) / 2;
                     try {
@@ -2388,13 +2387,13 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     _ioTimes[_ioCycle] = elapsed;
                     _ioCycle = (_ioCycle + 1) % _ioTimes.length;
 
-                    long max = 0;
+                    long avg = 0;
                     for (int index = 0; index < _ioTimes.length; index++) {
-                        max = Math.max(max, _ioTimes[index]);
+                        avg += _ioTimes[index];
                     }
-                    _expectedIoTime = max;
+                    _expectedIoTime = avg;
                     if (elapsed > _slowIoAlertThreshold * NS_PER_MS) {
-                        _persistit.getLogBase().longJournalIO.log(elapsed / NS_PER_MS);
+                        _persistit.getLogBase().longJournalIO.log(elapsed / NS_PER_MS, avg / NS_PER_MS);
                     }
 
                 } catch (final Exception e) {
@@ -2745,11 +2744,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
          */
         final int journalFileCount = getJournalFileCount();
         if (journalFileCount != _lastReportedJournalFileCount) {
-            if (journalFileCount > TOO_MANY_ERROR_THRESHOLD) {
+            if (journalFileCount > TOO_MANY_ERROR_THRESHOLD + _urgentFileCountThreshold) {
                 _persistit.getAlertMonitor()
                         .post(new Event(AlertLevel.ERROR, _persistit.getLogBase().tooManyJournalFilesError,
                                 journalFileCount), AlertMonitor.MANY_JOURNAL_FILES);
-            } else if (journalFileCount > TOO_MANY_WARN_THRESHOLD) {
+            } else if (journalFileCount > TOO_MANY_WARN_THRESHOLD + _urgentFileCountThreshold) {
                 _persistit.getAlertMonitor()
                         .post(new Event(AlertLevel.WARN, _persistit.getLogBase().tooManyJournalFilesWarning,
                                 journalFileCount), AlertMonitor.MANY_JOURNAL_FILES);
