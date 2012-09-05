@@ -42,7 +42,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     final static int WORKLIST_LENGTH = 500;
 
-    final static long MINIMUM_MAINTENANCE_INTERVAL = 500;
+    final static long MINIMUM_MAINTENANCE_INTERVAL = 1000;
 
     private final static long DEFAULT_MINIMUM_PRUNING_DELAY = 1000;
 

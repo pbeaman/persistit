@@ -217,7 +217,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private final AtomicLong _waitLoopsWithNoDelay = new AtomicLong();
 
-    private volatile int _journalFileCountThrottle = DEFAULT_THROTTLE_FILE_COUNT;
+    private volatile int _urgentFileCountThreshold = DEFAULT_URGENT_FILE_COUNT_THRESHOLD;
 
     /**
      * <p>
@@ -545,6 +545,18 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         _slowIoAlertThreshold = slowIoAlertThreshold;
     }
 
+    @Override
+    public int getUrgentFileCountThreshold() {
+        return _urgentFileCountThreshold;
+    }
+
+    @Override
+    public void setUrgentFileCountThreshold(int threshold) {
+        Util.rangeCheck(threshold, MINIMUM_URGENT_FILE_COUNT_THRESHOLD, MAXIMUM_URGENT_FILE_COUNT_THRESHOLD);
+        _urgentFileCountThreshold = threshold;
+
+    }
+
     /**
      * Compute an "urgency" factor that determines how vigorously the
      * JOURNAL_COPIER thread should perform I/O. This number is computed on a
@@ -558,8 +570,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         if (_copyFast.get()) {
             return URGENT;
         }
-        final int journalFileCount = getJournalFileCount();
-        return Math.min(URGENT, journalFileCount);
+        final int remainingFiles = _urgentFileCountThreshold - getJournalFileCount();
+        return Math.max(0, Math.min(remainingFiles, URGENT));
     }
 
     /**
@@ -571,12 +583,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * @throws PersistitInterruptedException
      */
     public void throttle() throws PersistitInterruptedException {
-        final int urgency = urgency();
-        if (!_appendOnly.get() && urgency == URGENT) {
-            final int fileCount = getJournalFileCount();
-            if (fileCount > _journalFileCountThrottle) {
+        if (!_appendOnly.get()) {
+            final int urgency = urgency();
+            if (urgency == URGENT) {
                 Util.sleep(URGENT_COMMIT_DELAY_MILLIS);
-            } else if (fileCount == _journalFileCountThrottle) {
+            } else if (urgency > ALMOST_URGENT) {
                 Util.sleep(GENTLE_COMMIT_DELAY_MILLIS);
             }
         }
@@ -1011,14 +1022,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         // writing this record.
         //
         force();
-        //
-        // Make sure all copied pages have been flushed to disk.
-        //
-        for (final Volume vol : _volumeToHandleMap.keySet()) {
-            if (vol.isOpened()) {
-                vol.getStorage().force();
-            }
-        }
         //
         // Prepare room for CP.OVERHEAD bytes in the journal. If doing so
         // started a new journal file then there's no need to write another
@@ -2175,14 +2178,14 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             return _closed.get() || _shouldStop;
         }
 
-        @Override
         /**
-         * Return a nice interval, in milliseconds, to wait between
-         * copierCycle invocations. The interval decreases as interval 
-         * goes up, and becomes zero when the urgency is 10. The interval
-         * is also zero if there has be no recent I/O activity invoked
-         * by other activities.
+         * Return a nice interval, in milliseconds, to wait between copierCycle
+         * invocations. The interval decreases as interval goes up, and becomes
+         * zero when the urgency is greater than or equal to 8. The interval is
+         * also zero if there has be no recent I/O activity invoked by other
+         * activities.
          */
+        @Override
         public long getPollInterval() {
             final IOMeter iom = _persistit.getIOMeter();
             final long pollInterval = super.getPollInterval();
@@ -2213,6 +2216,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     private class JournalFlusher extends IOTaskRunnable {
+
+        final ReentrantReadWriteLock _lock = new ReentrantReadWriteLock();
 
         volatile long _lastExceptionTimestamp = 0;
         volatile Exception _lastException = null;
@@ -2324,8 +2329,17 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                      * Otherwise, wait until the I/O is about half done and then
                      * retry.
                      */
-                    final long delay = Math.max((estimatedNanosToFinish / NS_PER_MS - leadTime) / 2, 1);
-                    Util.sleep(delay);
+                    final long delay = (estimatedNanosToFinish - leadTime * NS_PER_MS) / 2;
+                    try {
+                        if (delay > 0) {
+                            if (_lock.readLock().tryLock(delay, TimeUnit.NANOSECONDS)) {
+                                _lock.readLock().unlock();
+                                didWait = true;
+                            }
+                        }
+                    } catch (final InterruptedException e) {
+                        throw new PersistitInterruptedException(e);
+                    }
                 }
                 if (!didWait) {
                     _waitLoopsWithNoDelay.incrementAndGet();
@@ -2353,6 +2367,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                      * waitForDurability to know when the I/O operation has
                      * finished.
                      */
+                    _lock.writeLock().lock();
                     try {
                         _startTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
                         _startTime = System.nanoTime();
@@ -2364,6 +2379,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     } finally {
                         _endTime = System.nanoTime();
                         _endTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                        _lock.writeLock().unlock();
                     }
 
                     final long elapsed = _endTime - _startTime;

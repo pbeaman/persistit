@@ -87,7 +87,9 @@ public interface JournalManagerMXBean {
      * Default journal file count at which transactions are throttle to allow
      * copier to catch up.
      */
-    final static int DEFAULT_THROTTLE_FILE_COUNT = 15;
+    final static int DEFAULT_URGENT_FILE_COUNT_THRESHOLD = 15;
+    final static int MINIMUM_URGENT_FILE_COUNT_THRESHOLD = 5;
+    final static int MAXIMUM_URGENT_FILE_COUNT_THRESHOLD = 100;
     /**
      * Default value for maximum pages to be copied per cycle.
      */
@@ -118,12 +120,6 @@ public interface JournalManagerMXBean {
      * Format expression defining the name of a journal file.
      */
     final static String PATH_FORMAT = "%s.%012d";
-
-    /**
-     * Default setting for number of pages in the page map before the urgency of
-     * copying starts to increase.
-     */
-    final static int DEFAULT_PAGE_MAP_SIZE_BASE = 250000;
 
     final static int MAXIMUM_CONCURRENT_TRANSACTIONS = 10000;
 
@@ -247,4 +243,9 @@ public interface JournalManagerMXBean {
     @Description("Threshold in  milliseconds for warnings of long duration flush cycles")
     void setSlowIoAlertThreshold(long slowIoAlertThreshold);
 
+    @Description("Journal file count threshold for throttling transactions")
+    int getUrgentFileCountThreshold();
+    
+    @Description("Journal file count threshold for throttling transactions")
+    void setUrgentFileCountThreshold(int threshold);
 }
