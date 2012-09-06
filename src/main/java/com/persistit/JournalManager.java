@@ -2316,9 +2316,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     }
                 } else {
                     /*
-                     * Otherwise wait for concurrent I/O operation to finish. Do this by
-                     * polling because our experiments with using locks here showed
-                     * significant excess CPU consumption.
+                     * Otherwise wait for concurrent I/O operation to finish. Do
+                     * this by polling because our experiments with using locks
+                     * here showed significant excess CPU consumption.
                      */
                     Util.spinSleep();
                 }

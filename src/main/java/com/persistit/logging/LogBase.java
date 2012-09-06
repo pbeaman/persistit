@@ -247,7 +247,7 @@ public class LogBase {
     @Message("INFO|Preloading buffer pool inventory recorded at %tc")
     public final LogItem bufferInventoryLoad = PersistitLogMessage.empty();
 
-    @Message("INFO|Preloaded %,d of %,d buffers")
+    @Message("INFO|Preloaded %,d of %,d buffers in %,d seconds")
     public final LogItem bufferInventoryProgress = PersistitLogMessage.empty();
 
     @Message("WARNING|Exception while writing buffer pool inventory %s")

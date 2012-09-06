@@ -97,10 +97,11 @@ public class BufferPool {
      */
     private final static int INVENTORY_VERSIONS = 3;
 
+    private final static long NS_PER_SEC = 1000000000;
     /**
-     * Preload log multiple
+     * Preload log message interval, in seconds
      */
-    private final static int INVENTORY_PRELOAD_LOG_MESSAGE_MULTIPLE = 10000;
+    private final static long INVENTORY_PRELOAD_LOG_MESSAGE_NS = 30L * NS_PER_SEC;
 
     /**
      * The Persistit instance that references this BufferPool.
@@ -1451,6 +1452,9 @@ public class BufferPool {
     void preloadBufferInventory() {
         int count = 0;
         int total = 0;
+        final long startTime = System.nanoTime();
+        long reportTime = startTime;
+
         try {
             final JournalManager jman = _persistit.getJournalManager();
             final Exchange exchange = getBufferInventoryExchange();
@@ -1496,8 +1500,11 @@ public class BufferPool {
                     final Buffer buff = get(vol, pn.getPageAddress(), false, true);
                     buff.release();
                     count++;
-                    if ((count % INVENTORY_PRELOAD_LOG_MESSAGE_MULTIPLE) == 0) {
-                        _persistit.getLogBase().bufferInventoryProgress.log(count, total);
+                    final long now = System.nanoTime();
+                    if (now - reportTime > INVENTORY_PRELOAD_LOG_MESSAGE_NS) {
+                        _persistit.getLogBase().bufferInventoryProgress.log(count, total, (now - reportTime)
+                                / NS_PER_SEC);
+                        reportTime = now;
                     }
                     if (count >= _bufferCount) {
                         //
@@ -1513,7 +1520,8 @@ public class BufferPool {
         } catch (final PersistitException e) {
             _persistit.getLogBase().bufferInventoryException.log(e);
         } finally {
-            _persistit.getLogBase().bufferInventoryProgress.log(count, total);
+            final long now = System.nanoTime();
+            _persistit.getLogBase().bufferInventoryProgress.log(count, total, (now - reportTime) / NS_PER_SEC);
         }
     }
 
