@@ -101,7 +101,7 @@ public class BufferPool {
     /**
      * Preload log message interval, in seconds
      */
-    private final static long INVENTORY_PRELOAD_LOG_MESSAGE_NS = 30L * NS_PER_SEC;
+    private final static long INVENTORY_PRELOAD_LOG_MESSAGE_NS = 60L * NS_PER_SEC;
 
     /**
      * The Persistit instance that references this BufferPool.
@@ -1501,7 +1501,7 @@ public class BufferPool {
                     buff.release();
                     count++;
                     final long now = System.nanoTime();
-                    if (now - reportTime > INVENTORY_PRELOAD_LOG_MESSAGE_NS) {
+                    if (now - reportTime >= INVENTORY_PRELOAD_LOG_MESSAGE_NS) {
                         _persistit.getLogBase().bufferInventoryProgress.log(count, total, (now - reportTime)
                                 / NS_PER_SEC);
                         reportTime = now;
