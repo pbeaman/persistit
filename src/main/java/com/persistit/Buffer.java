@@ -3858,7 +3858,7 @@ public class Buffer extends SharedResource {
                 boolean elision = false;
                 for (int index = 0; index < records.length; index++) {
                     final RecordInfo r = records[index];
-                    r.getKeyState().copyTo(key);
+
                     String mark = " ";
                     boolean selected = all | index < contextLines || index >= records.length - contextLines;
                     if (foundPointerRecord >= 0) {
@@ -3870,21 +3870,40 @@ public class Buffer extends SharedResource {
                     }
 
                     if (selected) {
+                        final String keyString;
+                        final String valueString;
+
+                        if (r.getKeyState() != null) {
+                            r.getKeyState().copyTo(key);
+                            keyString = Util.abridge(key.toString(), maxKeyDisplayLength);
+                        } else {
+                            keyString = "*error*";
+                        }
+
+                        if (isDataPage() && r.getValueState() != null) {
+                            r.getValueState().copyTo(value);
+                            valueString = Util.abridge(value.toString(), maxValueDisplayLength);
+                        } else {
+                            valueString = "*error*";
+                        }
+
                         if (elision) {
                             sb.append(String.format("\n     ..."));
                             elision = false;
                         }
+
                         if (isDataPage()) {
                             r.getValueState().copyTo(value);
-                            sb.append(String.format("\n%s   %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s", mark, r
-                                    .getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), Util
-                                    .abridge(key.toString(), maxKeyDisplayLength),
-                                    r.getValueState().getEncodedBytes().length, Util.abridge(value.toString(),
-                                            maxValueDisplayLength)));
+                            sb.append(String.format("\n%s   %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s", mark,
+                                    r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), keyString,
+                                    r.getValueState().getEncodedBytes().length, valueString));
                         } else {
-                            sb.append(String.format("\n%s  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d", mark,
-                                    r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(),
-                                    Util.abridge(key.toString(), maxKeyDisplayLength), r.getPointerValue()));
+                            sb.append(String.format("\n%s  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d %s", mark,
+                                    r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), keyString,
+                                    r.getPointerValue()));
+                        }
+                        if (r.getError() != null) {
+                            sb.append(String.format(" !! %s", r.getError()));
                         }
                     } else {
                         elision = true;
@@ -3954,43 +3973,54 @@ public class Buffer extends SharedResource {
             result = new ManagementImpl.RecordInfo[count];
             int n = 0;
             for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
-                final int kbData = getInt(p);
-                final int db = decodeKeyBlockDb(kbData);
-                final int ebc = decodeKeyBlockEbc(kbData);
-                final int tail = decodeKeyBlockTail(kbData);
-                final int tbData = tail != 0 ? getInt(tail) : 0;
-                final int size = decodeTailBlockSize(tbData);
-                final int klength = decodeTailBlockKLength(tbData);
-                final boolean inUse = decodeTailBlockInUse(tbData);
-
                 final ManagementImpl.RecordInfo rec = new ManagementImpl.RecordInfo();
-                rec._kbOffset = p;
-                rec._tbOffset = tail;
-                rec._ebc = ebc;
-                rec._db = db;
-                rec._klength = klength;
-                rec._size = size;
-                rec._inUse = inUse;
+                try {
+                    rec._kbOffset = p;
 
-                final byte[] kbytes = key.getEncodedBytes();
-                kbytes[ebc] = (byte) db;
-                System.arraycopy(_bytes, tail + _tailHeaderSize, kbytes, ebc + 1, klength);
-                key.setEncodedSize(ebc + 1 + klength);
-                rec._key = new KeyState(key);
+                    final int kbData = getInt(p);
+                    final int db = decodeKeyBlockDb(kbData);
+                    final int ebc = decodeKeyBlockEbc(kbData);
+                    final int tail = decodeKeyBlockTail(kbData);
+                    rec._tbOffset = tail;
+                    rec._ebc = ebc;
+                    rec._db = db;
 
-                if (isIndexPage()) {
-                    rec._pointerValue = getInt(tail + 4);
-                } else {
-                    int vsize = size - _tailHeaderSize - klength;
-                    if (vsize < 0)
-                        vsize = 0;
-                    value.putEncodedBytes(_bytes, tail + _tailHeaderSize + klength, vsize);
-                    if (value.isDefined() && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE) {
-                        value.setLongRecordMode(true);
+                    final int tbData = tail != 0 ? getInt(tail) : 0;
+                    final int size = decodeTailBlockSize(tbData);
+                    final int klength = decodeTailBlockKLength(tbData);
+                    final boolean inUse = decodeTailBlockInUse(tbData);
+                    rec._klength = klength;
+                    rec._size = size;
+                    rec._inUse = inUse;
+
+                    final byte[] kbytes = key.getEncodedBytes();
+                    kbytes[ebc] = (byte) db;
+                    System.arraycopy(_bytes, tail + _tailHeaderSize, kbytes, ebc + 1, klength);
+                    key.setEncodedSize(ebc + 1 + klength);
+                    rec._key = new KeyState(key);
+
+                    if (isIndexPage()) {
+                        rec._pointerValue = getInt(tail + 4);
                     } else {
-                        value.setLongRecordMode(false);
+                        int vsize = size - _tailHeaderSize - klength;
+                        if (vsize < 0)
+                            vsize = 0;
+                        value.putEncodedBytes(_bytes, tail + _tailHeaderSize + klength, vsize);
+                        if (value.isDefined() && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE) {
+                            value.setLongRecordMode(true);
+                        } else {
+                            value.setLongRecordMode(false);
+                        }
+                        rec._value = new ValueState(value);
                     }
-                    rec._value = new ValueState(value);
+                } catch (final Exception e) {
+                    rec._error = e.toString();
+                    if (rec._key == null) {
+                        rec._key = new KeyState(new Key(_persistit));
+                    }
+                    if (rec._value == null) {
+                        rec._value = new ValueState(new Value(_persistit));
+                    }
                 }
                 result[n++] = rec;
             }

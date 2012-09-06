@@ -817,6 +817,7 @@ public interface Management extends Remote, ManagementMXBean {
         boolean _inUse;
         KeyState _key;
         ValueState _value;
+        String _error;
         //
         // Only used for index pages.
         //
@@ -878,6 +879,10 @@ public interface Management extends Remote, ManagementMXBean {
 
         public long getGarbageRightPage() {
             return _garbageRightPage;
+        }
+
+        public String getError() {
+            return _error;
         }
     }
 

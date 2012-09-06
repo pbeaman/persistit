@@ -430,6 +430,9 @@ public class Volume {
         if (_storage != null) {
             throw new IllegalStateException("This volume has already been opened");
         }
+        if (persistit.getBufferPool(_specification.getPageSize()) == null) {
+            throw new IllegalStateException("There is no buffer pool for pages of volume " + _specification);
+        }
         final boolean exists = VolumeHeader.verifyVolumeHeader(_specification, persistit.getCurrentTimestamp());
 
         _structure = new VolumeStructure(persistit, this, _specification.getPageSize());
@@ -456,6 +459,10 @@ public class Volume {
         if (_storage != null) {
             throw new IllegalStateException("This volume has already been opened");
         }
+        if (persistit.getBufferPool(pageSize) == null) {
+            throw new IllegalStateException("There is no buffer pool for pages of size " + pageSize);
+        }
+
         _structure = new VolumeStructure(persistit, this, pageSize);
         _storage = new VolumeStorageT2(persistit, this);
         _statistics = new VolumeStatistics();

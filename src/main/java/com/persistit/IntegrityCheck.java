@@ -831,26 +831,27 @@ public class IntegrityCheck extends Task {
                 }
                 _currentTree = null;
             }
-            if (_counters._indexHoleCount > 0) {
-                postMessage(
-                        "  Tree " + resourceName(tree) + " has "
-                                + plural((int) _counters._indexHoleCount, "unindexed page"), LOG_NORMAL);
-                if (_fixHoles) {
-                    int offered = 0;
-                    for (final CleanupIndexHole hole : _holes) {
-                        if (_persistit.getCleanupManager().offer(hole)) {
-                            offered++;
-                        }
-                    }
-                    postMessage("    - enqueued " + offered + " for repair", LOG_NORMAL);
-                }
-            }
         } finally {
             tree.release();
         }
 
         faults = _faults.size() - faults;
         treeCounters.difference(_counters);
+
+        if (_counters._indexHoleCount > 0) {
+            postMessage(
+                    "  Tree " + resourceName(tree) + " has "
+                            + plural((int) _counters._indexHoleCount, "unindexed page"), LOG_NORMAL);
+            if (_fixHoles) {
+                int offered = 0;
+                for (final CleanupIndexHole hole : _holes) {
+                    if (_persistit.getCleanupManager().offer(hole)) {
+                        offered++;
+                    }
+                }
+                postMessage("    - enqueued " + offered + " for repair", LOG_NORMAL);
+            }
+        }
 
         if (_csv) {
             postMessage(String.format("%s,%d,%s", messageStart, faults, treeCounters.toCSV()), LOG_NORMAL);
@@ -1136,26 +1137,29 @@ public class IntegrityCheck extends Task {
             addFault("Buffer contains wrong page " + buffer.getPageAddress(), page, level, 0);
             return false;
         }
-
-        if (buffer.isDataPage() || buffer.isIndexPage()) {
-            final long mvvCount = _counters._mvvCount;
-            final PersistitException ipse = buffer.verify(key, _visitor);
-            if (ipse != null) {
-                addFault(ipse.getMessage(), page, level, 0);
-                key.clear();
-                return false;
-            }
-            if (_counters._mvvCount > mvvCount) {
-                _counters._mvvPageCount++;
-                if (_prune && !_currentVolume.isReadOnly() && _counters._pruningErrorCount < MAX_PRUNING_ERRORS) {
-                    try {
-                        buffer.pruneMvvValues(tree, true);
-                        _counters._prunedPageCount++;
-                    } catch (final PersistitException e) {
-                        _counters._pruningErrorCount++;
+        try {
+            if (buffer.isDataPage() || buffer.isIndexPage()) {
+                final long mvvCount = _counters._mvvCount;
+                final PersistitException ipse = buffer.verify(key, _visitor);
+                if (ipse != null) {
+                    addFault(ipse.getMessage(), page, level, 0);
+                    key.clear();
+                    return false;
+                }
+                if (_counters._mvvCount > mvvCount) {
+                    _counters._mvvPageCount++;
+                    if (_prune && !_currentVolume.isReadOnly() && _counters._pruningErrorCount < MAX_PRUNING_ERRORS) {
+                        try {
+                            buffer.pruneMvvValues(tree, true);
+                            _counters._prunedPageCount++;
+                        } catch (final PersistitException e) {
+                            _counters._pruningErrorCount++;
+                        }
                     }
                 }
             }
+        } catch (Exception e) {
+            addFault(e.toString(), page, level, 0);
         }
         return true;
     }
@@ -1209,6 +1213,9 @@ public class IntegrityCheck extends Task {
 
                 fromPage = longPage;
                 longPage = longBuffer.getRightSibling();
+            } catch (Exception e) {
+                addFault(e.toString() + " while verifying long record page " + longPage, page, 0, foundAt);
+                break;
             } finally {
                 if (longBuffer != null)
                     longBuffer.release();
