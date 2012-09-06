@@ -36,10 +36,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -213,8 +211,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     private volatile long _earliestAbortedTimestamp = Long.MAX_VALUE;
 
     private boolean _allowHandlesForTempVolumesAndTrees;
-
-    private final AtomicLong _waitLoopsWithNoDelay = new AtomicLong();
 
     private volatile int _urgentFileCountThreshold = DEFAULT_URGENT_FILE_COUNT_THRESHOLD;
 
@@ -550,7 +546,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     @Override
-    public void setUrgentFileCountThreshold(int threshold) {
+    public void setUrgentFileCountThreshold(final int threshold) {
         Util.rangeCheck(threshold, MINIMUM_URGENT_FILE_COUNT_THRESHOLD, MAXIMUM_URGENT_FILE_COUNT_THRESHOLD);
         _urgentFileCountThreshold = threshold;
 
@@ -2285,7 +2281,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 }
 
                 long remainingSleepNanos;
-                boolean didWait = false;
                 if (estimatedRemainingIoNanos == -1) {
                     remainingSleepNanos = Math.max(0, _flushInterval - (now - endTime));
                 } else {
@@ -2306,7 +2301,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                      * immediately. This handles the "soft" commit case.
                      */
                     break;
-                } else if (estimatedRemainingIoNanos == -1 && leadTime == 0) {
+                } else if (estimatedRemainingIoNanos == -1) {
                     /*
                      * If there is no I/O in progress, then wait as long as
                      * possible (determined by stallTime) before kicking the
@@ -2315,17 +2310,17 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     if (remainingStallTime > 0) {
                         Util.sleep(remainingStallTime);
                         remainingStallTime = 0;
-                        didWait = true;
                     } else {
                         kick();
                         Util.spinSleep();
-                        didWait = true;
                     }
                 } else {
+                    /*
+                     * Otherwise wait for concurrent I/O operation to finish. Do this by
+                     * polling because our experiments with using locks here showed
+                     * significant excess CPU consumption.
+                     */
                     Util.spinSleep();
-                }
-                if (!didWait) {
-                    _waitLoopsWithNoDelay.incrementAndGet();
                 }
             }
             if (_lastExceptionTimestamp > flushedTimestamp) {
@@ -2374,10 +2369,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                         avg += _ioTimes[index];
                     }
                     avg /= IO_MEASUREMENT_CYCLES;
-                    
+
                     _expectedIoTime = avg;
                     if (elapsed > _slowIoAlertThreshold * NS_PER_MS) {
-                        _persistit.getLogBase().longJournalIO.log(elapsed / NS_PER_MS, IO_MEASUREMENT_CYCLES, avg / NS_PER_MS);
+                        _persistit.getLogBase().longJournalIO.log(elapsed / NS_PER_MS, IO_MEASUREMENT_CYCLES, avg
+                                / NS_PER_MS);
                     }
 
                 } catch (final Exception e) {
@@ -2972,9 +2968,5 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     public SortedMap<Integer, TreeDescriptor> queryTreeMap() {
         return new TreeMap<Integer, TreeDescriptor>(_handleToTreeMap);
-    }
-
-    long getWaitLoopsWithNoDelay() {
-        return _waitLoopsWithNoDelay.get();
     }
 }

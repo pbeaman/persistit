@@ -538,24 +538,6 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 .getIgnoredUpdates() > 0);
     }
 
-    @Test
-    public void waitForDurabilitySoaksCPU() throws Exception {
-        _persistit.setDefaultTransactionCommitPolicy(CommitPolicy.HARD);
-        final JournalManager jman = _persistit.getJournalManager();
-        long waitLoopsWithoutDelay = jman.getWaitLoopsWithNoDelay();
-        final Exchange exchange = _persistit.getExchange("persistit", "JournalManagerTest", true);
-        final Transaction txn = exchange.getTransaction();
-        for (int count = 0; count < 1000; count++) {
-            txn.begin();
-            exchange.getValue().put(RED_FOX + count);
-            exchange.to(count).store();
-            txn.commit();
-            txn.end();
-        }
-        waitLoopsWithoutDelay = jman.getWaitLoopsWithNoDelay() - waitLoopsWithoutDelay;
-        assertEquals("Wait loops without delay", 0, waitLoopsWithoutDelay);
-    }
-
     private List<PageNode> testCleanupPageListSource(final int size) {
         final List<PageNode> source = new ArrayList<PageNode>(size);
         for (int index = 0; index < 1000000; index++) {
