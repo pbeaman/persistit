@@ -1290,7 +1290,7 @@ public class Exchange {
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
-        if (!_transaction.isActive()) {
+        if (!_ignoreTransactions && !_transaction.isActive()) {
             _persistit.getJournalManager().throttle();
         }
         // TODO: directoryExchange, and lots of tests, don't use transactions.
@@ -3004,6 +3004,7 @@ public class Exchange {
         // Special case for empty key
         if (keySize == 0) {
             if (selection == EQ) {
+                assertCorrectThread(true);
                 return false;
             }
             _spareKey3.append(BEFORE);
@@ -3096,7 +3097,7 @@ public class Exchange {
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
-        if (!_transaction.isActive()) {
+        if (!_ignoreTransactions && !_transaction.isActive()) {
             _persistit.getJournalManager().throttle();
         }
 

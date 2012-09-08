@@ -300,7 +300,9 @@ class TransactionPlayer {
         if (VolumeStructure.DIRECTORY_TREE_NAME.equals(td.getTreeName())) {
             return volume.getStructure().directoryExchange();
         } else {
-            return _support.getPersistit().getExchange(volume, td.getTreeName(), true);
+            final Exchange exchange = _support.getPersistit().getExchange(volume, td.getTreeName(), true);
+            exchange.ignoreTransactions();
+            return exchange;
         }
     }
 
