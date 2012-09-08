@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -43,7 +44,6 @@ import org.junit.Test;
 
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
-import com.persistit.Transaction.CommitPolicy;
 import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
@@ -440,7 +440,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
          * Randomly invalidated PageNodes
          */
         {
-            final int SIZE = 5000;
+            final int SIZE = 1000000;
             final Random random = new Random(1);
             final List<PageNode> source = testCleanupPageListSource(SIZE);
             int next = -1;
@@ -448,8 +448,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 if (index < next) {
                     source.get(index).invalidate();
                 } else {
-                    index += random.nextInt(50);
-                    next = random.nextInt(50) + index;
+                    index += random.nextInt(5);
+                    next = random.nextInt(5) + index;
                 }
             }
             testCleanupPageListHelper(source);
@@ -540,14 +540,14 @@ public class JournalManagerTest extends PersistitUnitTestCase {
 
     private List<PageNode> testCleanupPageListSource(final int size) {
         final List<PageNode> source = new ArrayList<PageNode>(size);
-        for (int index = 0; index < 1000000; index++) {
+        for (int index = 0; index < size; index++) {
             source.add(new PageNode(0, index, index * 10, index));
         }
         return source;
     }
 
     private void testCleanupPageListHelper(final List<PageNode> source) throws Exception {
-        final List<PageNode> cleaned = new ArrayList<PageNode>(source);
+        final List<PageNode> cleaned = new LinkedList<PageNode>(source);
         for (final Iterator<PageNode> iterator = cleaned.iterator(); iterator.hasNext();) {
             if (iterator.next().isInvalid()) {
                 iterator.remove();

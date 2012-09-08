@@ -214,6 +214,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private volatile int _urgentFileCountThreshold = DEFAULT_URGENT_FILE_COUNT_THRESHOLD;
 
+    private volatile long _throttleSleepInterval;
+
     /**
      * <p>
      * Initialize the new journal. This method takes its information from the
@@ -578,13 +580,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * @throws PersistitInterruptedException
      */
     public void throttle() throws PersistitInterruptedException {
-        if (!_appendOnly.get()) {
-            final int urgency = urgency();
-            if (urgency == URGENT) {
-                Util.sleep(URGENT_COMMIT_DELAY_MILLIS);
-            } else if (urgency > ALMOST_URGENT) {
-                Util.sleep(GENTLE_COMMIT_DELAY_MILLIS);
-            }
+        final long interval = _throttleSleepInterval;
+        if (interval > 0) {
+            Util.sleep(interval);
         }
     }
 
@@ -2164,6 +2162,20 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             } finally {
                 _copying.set(false);
             }
+
+            long throttleInterval = 0;
+            if (!_appendOnly.get()) {
+                final int urgency = urgency();
+                if (urgency == URGENT) {
+                    throttleInterval = URGENT_COMMIT_DELAY_MILLIS;
+                } else if (urgency > ALMOST_URGENT) {
+                    throttleInterval = GENTLE_COMMIT_DELAY_MILLIS;
+                }
+            }
+            if (throttleInterval != _throttleSleepInterval) {
+                _throttleSleepInterval = throttleInterval;
+            }
+
         }
 
         @Override
@@ -2392,6 +2404,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             } finally {
                 _flushing.set(false);
             }
+
         }
 
         @Override
@@ -2695,26 +2708,21 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * @return Count of removed PageNode instances.
      */
     int cleanupPageList() {
-        int to = -1;
-        int count = 0;
-        for (int index = _pageList.size(); --index >= 0;) {
-            if (_pageList.get(index).isInvalid()) {
-                if (to == -1) {
-                    to = index;
-                }
-            } else {
-                if (to != -1) {
-                    _pageList.removeRange(index + 1, to + 1);
-                    count += to - index;
-                    to = -1;
-                }
+        final int size = _pageList.size();
+        int from;
+        for (from = 0; from < size && !_pageList.get(from).isInvalid(); from++)
+            ;
+        int to = from;
+        for (from = from + 1; from < size; from++) {
+            final PageNode pn = _pageList.get(from);
+            if (!pn.isInvalid()) {
+                _pageList.set(to++, pn);
             }
         }
-        if (to != -1) {
-            _pageList.removeRange(0, to + 1);
-            count += to + 1;
+        if (size > to) {
+            _pageList.removeRange(to, size);
         }
-        return count;
+        return size - to;
     }
 
     private void reportJournalFileCount() {
