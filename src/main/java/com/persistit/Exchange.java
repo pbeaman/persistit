@@ -3092,14 +3092,13 @@ public class Exchange {
 
         assertCorrectThread(true);
         _persistit.checkClosed();
-        
+
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
         if (!_transaction.isActive()) {
             _persistit.getJournalManager().throttle();
         }
-
 
         if (_ignoreTransactions || !_transaction.isActive()) {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);

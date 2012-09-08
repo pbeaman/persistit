@@ -1158,7 +1158,7 @@ public class IntegrityCheck extends Task {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             addFault(e.toString(), page, level, 0);
         }
         return true;
@@ -1213,7 +1213,7 @@ public class IntegrityCheck extends Task {
 
                 fromPage = longPage;
                 longPage = longBuffer.getRightSibling();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 addFault(e.toString() + " while verifying long record page " + longPage, page, 0, foundAt);
                 break;
             } finally {

@@ -85,11 +85,11 @@ public class CommitBench extends PersistitUnitTestCase {
                     /*
                      * Damage the file so that there's no keystone checkpoint
                      */
-                    RandomAccessFile raf = new RandomAccessFile(file, "rws");
+                    final RandomAccessFile raf = new RandomAccessFile(file, "rws");
                     raf.seek(0);
                     raf.write(new byte[256]);
                     raf.close();
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     throw new RuntimeException(e);
                 }
             } else {

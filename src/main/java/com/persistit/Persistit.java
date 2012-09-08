@@ -725,7 +725,7 @@ public class Persistit {
             for (final BufferPool pool : _bufferPoolTable.values()) {
                 try {
                     pool.recordBufferInventory(timestamp);
-                } catch (PersistitException e) {
+                } catch (final PersistitException e) {
                     getLogBase().bufferInventoryException.log(e);
                 }
             }
