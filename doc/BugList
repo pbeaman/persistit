@@ -1,0 +1,145 @@
+1044513 : 3.1.7
+
+`AssertionError in IntegrityCheckTest`
+
+A bug in unit test code caused spurious assertion errors.
+
+1044397 : 3.1.7
+
+`IntegrityCheck throws ArrayIndexOutOfBoundsException`
+
+IntegrityCheck and the CLI ``pview`` command were not immune to
+certain inconsistent byte patterns in a corrupt page, making them
+inadequate for diagnosing a severely corrupted database.
+
+1041293 : 3.1.7
+
+`Mismatched buffer pool sizes and volume page size results in NPE`
+
+Attempting to open a Volume with a valid page size S resulted in a
+NullPointerException if there was no buffer pool having page size
+S specified. This same condition how throws an IllegalStateException.
+
+1043536 : 3.1.7
+
+`Build fails: persistit-coverage hangs with deadlock`
+
+A bug in a unit test left a deadlock condition under certain race
+conditions. Speed variations caused by clover instrumentation
+triggered frequent occurrences.
+
+1036422 : 3.1.6
+
+`CommitPolicy HARD can soak CPU`
+
+With CommitPolicy HARD we observed a CPU-soaking loop in the commit
+logic.
+
+1032701 : 3.1.5
+
+`Interrupt causes Thread to exit without releasing claims`
+
+If a thread was interrupted at an inopportune time (for example,
+by query cancellation in Akiban Server), a page in the buffer pool
+could be left in a locked state blocking all further progress. The
+only remedy was to stop and restart the JVM.
+
+1028016 : 3.1.4
+
+`Old Journal Files Not Being Deleted`
+
+If a volume was removed from the configuration and Persistit was
+then restarted, the associated journal files would not be removed
+due to internal safety checks. To support intentional removal of a
+volume, a new configuration option was added.
+
+See the ``Detecting and Ignoring Missing Volumes`` feature description
+for more details.
+
+
+1024857,1026207 : 3.1.4
+
+`Class Index Updates Causing Write-Write Dependencies`
+
+Custom classes that are serialized into keys or values through a
+custom KeyCoder or ValueCoder are given a unique identifier.  The
+identifier was determined within an application transaction the
+first time a class was written and stored in an internal tree.  This
+would cause seemingly spurious aborts if multiple application threads
+simultaneously attempted to store the first instance of a given
+class. The identifier is now committed within an independent
+transaction.
+
+1028050,1028134 : 3.1.4
+
+`Accumulator Memory Usage and Transaction Step Policy`
+
+Each individual change to an Accumulator was previously stored as
+an individual Delta object. For long running transactions that
+heavily utilized Accumulators, this would cause excessive memory
+usage. These unique instances are now eliminated in most scenarios,
+resulting in stable memory utilization in all but pathological
+cases.
+
+Additionally, the Accumulator handling of the Transaction step value
+was inconsistent with how it was treated through an Exchange.  Now,
+both classes allow a transaction at a given step N to see any update
+created by that transaction at a step less N.
+
+
+1005206 : 3.1.2
+
+`Infinite Loop When Repacking Buffer`
+
+This could occur if a buffer required restructuring during pruning
+of a long value that was previously stored under a transaction.
+Upon the next save of this buffer to disk (e.g.  shutdown), an
+infinite loop would occur.
+
+
+1010079 : 3.1.2
+
+`Corruption Exceptions During Various Operations`
+
+NOTE: Only the message indicates a database corruption. The data
+volume is actually correct and intact.
+
+This could occur if pruning a buffer containing a long record
+previously stored under a transaction required removal of keys and
+then that buffer was reused without further modification. A parallel
+structure associated with the every Buffer, the FastIndex, was not
+maintained during this operation.
+
+1012856 : 3.1.2
+
+`Slow Accumulator Operations`
+
+If a thread starting a new transaction was interrupted during the
+call to begin(), there was a chance for an internal object to wind
+up in an invalid state. This invalid state caused no visible
+consequences other than slower than expected Accumulator actions
+if this had occurred many times.
+
+
+1017957 : 3.1.2
+
+`B+Tree Corruption in Stress Test`
+
+An extremely rare combination of events corrupted memory structures
+causing an incorrect key-pointer pair to be inserted while deleting
+records in a key range. The bug was detected in an 8-hour stress
+test run.
+
+1018526 : 3.1.2
+
+`Very long recovery time due to many temporary tree IT records`
+
+Every Tree created in a temporary volume was being assigned a tree
+handle recorded permanently in the journal.  In one case the result
+was a journal containing millions of IT (Identify Tree) records,
+and these caused normal recovery to take a very long time. The fix
+keeps temporary trees out of the journal and removes IT records
+which may have been added previously.
+
+
+
