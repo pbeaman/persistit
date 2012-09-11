@@ -185,7 +185,24 @@ Recommendations for Physical Media
 
 The journal is written by appending records to the end of the highest-numbered file. Read operations occur while copying page images from the journal to their home volume files. While copying, Persistit attempts to perform large sequential read operations from the journal. Read operations also occur at random when Persistit needs to reload the image of a previously evicted page.
 
-Because of these characteristics a modern SSD (solid disk drive) is ideally suited for maintaining the journal. If no SSD is available in the server, placing the journal on a different physical disk drive than the volume file(s) can significantly improve performance.
+Because of these characteristics a modern enterprise SSD (solid disk drive) is ideally suited for maintaining the journal. If no SSD is available in the server, placing the journal on a different physical disk drive than the volume file(s) can significantly improve performance.
+
+However, beware of consumer-grade SSDs. Some may cache writes and record them on non-volatile storage much later. In a power failure event, committed transactions recorded only in the write cache can be lost. The durability of committed transactions can only be guaranteed if the hardware stack cooperates in making sure all writes are durable.
+
+Buffer Pool Preload
+-------------------
+
+Persistit includes an optional facility to record periodically an inventory of pages in the buffer pool. When Persistit starts up it attempts to re-read the same pages that were previously in the buffer pool so that performance after restart on a similar workload (e.g., queries that exhibit a moderate or strong degree of locality-of-reference) will run at full speed. This facility can be especially important in large buffer pool configurations in which under normal workloads a server may otherwise require minutes to hours to reach optimal speed due to a large number of random reads. Re-reading the inventory at startup can be much faster since pages are read in approximate physical order.
+
+This facility is controlled by two configuration parameters:
+
+- ``com.persistit.Configuration#setBufferInventoryEnabled`` controls whether Persistit records the inventory. If enabled, the recording happens once per Checkpoint and once at normal shutdown.  The inventory is stored in the system volume.
+
+- ``com.persistit.Configuration#setBufferPreloadEnabled`` controls whether Persistit attempts to preload the buffer pool during startup. If there is a recorded inventory Persistit attempts to re-read the pages that were previously present; otherwise it silently continues the startup.
+
+If upon restart the buffer pool has become smaller so that the inventory is larger than the current buffer pool, Persistit only loads as many pages as there currently are buffers.
+
+Although by default these configuration properties are false, we recommend enabling them for production servers because the inventory process takes very little time, and buffer preload can restore the buffer pool to a useful working set orders of magnitude faster than warming it up through normal load.
 
 Other Configuration Parameters
 ------------------------------
@@ -232,14 +249,14 @@ The following additional properties are defined for Persistit. Other properties 
       only when no adapter has been installed.
 
   ``bufferinventory``: (``com.persistit.Configuration#setBufferInventoryEnabled``), True or False (default).
-      If true, Persistit periodically records an inventory of all the buffes in the buffers pools to the System Volume. The inventory
+      If true, Persistit periodically records an inventory of all the pages in the buffers pools to the System Volume. The inventory
       enables Persistit to preload the buffer pools then next time it starts up with approximately the same pages that were present
       before shutdown. To enable buffer preloading, the bufferpreload property must also be true.
       
   ``bufferpreload``: (``com.persistit.Configuration#setBufferPreloadEnabled``), True or False (default).
       If true, and if a buffer pool inventory was previously recorded, Persistit attempts to "warm up" the buffer pool
       by preloading pages that were present in the buffer pool when Persistit last shut down. This may allow a freshly started
-      Persistit instance to begin service a workload similar to what it had previously been processing without incurring the
+      Persistit instance to begin servicing a workload similar to what it had previously been handling without incurring the
       cost of many random disk reads to load pages.
         
 
