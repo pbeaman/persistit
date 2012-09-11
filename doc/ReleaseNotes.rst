@@ -44,207 +44,81 @@ For optimal performance, proper configuration of the Persistit buffer pool is re
 |
 |
 
+Version History
+===============
 
-************************************
-3.1.6
-************************************
-
-Release Date
-============
-August 24, 2012
-
-Overview
-========
-This version of Persistit fixes one bug.
-
-Fixed Issues
-============
-
-https://bugs.launchpad.net/akiban-persistit/+bug/1036422
-
-With CommitPolicy HARD we observed a CPU-soaking loop in the commit logic.
-
-************************************
-3.1.5
-************************************
-
-Release Date
-============
-August 6, 2012
-
-Overview
-========
-This version of Persistit changes the pom.xml to a form compatible with the Maven central repository and includes one bug fix.
-
-Fixed Issue
-===========
-
-https://launchpad.net/akiban-persistit/+bug/1032701
-
-If a thread was interrupted at an inopportune time (for example, by query cancellation in Akiban Server), a page in the buffer pool could be left in a locked state blocking all further progress. The only remedy was to stop and restart the JVM.
-
-|
-|
-
-************************************
-3.1.4
-************************************
-
-Release Date
-============
-August 3, 2012
-
-Overview
-========
-This version of Persistit changes the licensing to Eclipse Public License (EPL) and includes minor enhancements and bug fixes.
-
-New Features
-============
-
-Detection and Ignoring of Missing Volumes
------------------------------------------
-
-Warnings are now issues when a previously existing volume is missing, and an option to allow a system to continue by ignoring pages and transactions in the journal from missing volumes.
-
-Every time Persistit writes a modified page to disk, it does so first to the journal.  During recovery processing, the page images from the journal are analyzed and reinserted into volumes in such a way that all B+Trees are restored to a consistent state. The issue addressed in this change is how Persistit behaves during recovery if it discovers that a volume referred to by a page in the journal no longer exists.
-
-Recognizing that under some circumstances an administrator may indeed wish to remove a volume from an existing Database, this change provides a configurable switch to optionally allow pages from missing volumes to be skipped (with logged warning messages) during recovery processing.  The switch can be enabled by setting the configuration parameter ignoreMissingVolumes to true, see com.persistit.Configuration#setIgnoreMissingViolumes.
++---------+--------------------+--------------------------------------------------------------------------+
+| Version | Release Date       |  Summary                                                                 |
++=========+====================+==========================================================================+
+| 3.1.7   | September 11, 2012 | Fix several bugs, add buffer pool preload ("warm-up"),                   |
+|         |                    | reformat code base                                                       |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.6   | August 24, 2012    | Fix bug 1036422                                                          |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.5   | August 6, 2012     | Fix bug 1032701, modify pom.xml for Eclipse Juno                         |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.4   | August 3, 2012     | License changed to Eclipse Public License, various other enhancements    |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.2   | July 13, 2012      | Fix several bugs                                                         |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.1   | May 31, 2012       | First open source release of Akiban Persistit                            |
++---------+--------------------+--------------------------------------------------------------------------+
 
 
-Reduce KeyCoder Serialized Object Size
---------------------------------------
+Resolved Issues
+===============
+
+{{bug-list}}
+
+Changes and New Features
+========================
+
+Persistit 3.1.7 - Code Base Reformatted
+---------------------------------------
+
+To simplify diffs and improve legibility, the entire code base was reformatted and "cleaned up" by the Eclipse code formatting tool. The maven build now automatically formats all
+source to ensure coherent diffs in the future.  The settings for formatting and code style cleanup by Eclipse are found in the ``src/etc`` directory.
+
+Persistit 3.1.7 - Buffer Pool Preload
+-------------------------------------
+
+On a server with a large buffer pool (many gigabytes), a Persistit instance can run for a long time before the buffer pool becomes populated with a suitable working set of database pages. Until then performance is degraded due to a potentially large number of random reads. For a production server the result may be poor performance for minutes to hours after restart.
+
+The preload facility periodically records an inventory of the pages currently in the buffer pool(s) and optionally reloads the same set of pages when Persistit is restarted. During the preload process Persistit attempts to read pages in approximate file-address order to accelerate reads. In one of our experiments Persistit preloads a buffer pool with over 800,000 16Kbyte buffers in about a minute, which is orders of magnitude faster than the same process would take with reads performed incrementally at random.
+
+Two new configuration properties com.persistit.Configuration#setBufferInventoryEnabled and com.persistit#setBufferPreloadEnabled control this behavior. These settings are turned off by default in version 3.1.7.
+
+Persistit 3.1.4 - Detecting and Ignoring Missing Volumes
+--------------------------------------------------------
+
+Every time Persistit writes a modified page to disk, it does so first to the journal. During recovery processing, the page images from the journal are analyzed and reinserted into volumes in such a way that all B+Trees are restored to a consistent state. The issue addressed in this change is how Persistit behaves during recovery if it discovers that a volume referred to by a page in the journal no longer exists.
+
+Recognizing that under some circumstances an administrator may indeed wish to remove a volume from an existing Database, this change provides a configurable switch to optionally allow pages from missing volumes to be skipped (with logged warning messages) during recovery processing.  The switch can be enabled by setting the configuration parameter com.persistit.Configuration#setIgnoreMissingViolumes to true.
+
+
+Persistit 3.1.4 - Reduce KeyCoder Serialized Object Size
+--------------------------------------------------------
 
 .. note::
    Any Database containing objects serialized by a custom KeyCoder from a previous version of Persistit is incompatible with this change
 
 Minimize the per-instance overhead for application objects written into Persistit Keys by reducing the size of the internal identifier.
 
-Persistit has rich support for serializing standard Java primitive and object types into a Key. Additionally, the KeyCoder class allows for any application level object to also be appended to a Key right next to any other type. This is tagged internally with per-class handles. This change lowers the initial offset to, in many cases, halve the serialized size. 
+Persistit has rich support for serializing standard Java primitive and object types into a Key. Additionally, the KeyCoder class allows for any application level object to also be appended to a Key right next to any other type. This is tagged internally with per-class handles. This change lowers the initial offset to reduce and in many cases halve the serialized size. 
 
-Maven POM Changes For Eclipse Juno
-----------------------------------
+Persistit 3.1.4 - Maven POM Changes For Eclipse Juno 
+----------------------------------------------------
 
 The latest version of Eclipse, code named Juno, features a wide array of changes, including a new release of the m2eclipse plugin. In an effort to make getting started with Persistit as easy as possible, we have included the required m2e configuration sections in our pom.
 
 Please contact Akiban if you have encounter any issues getting up and running with Persistit.   
 
-Fixed Issues
-============
-
-Old Journal Files Not Being Deleted
------------------------------------
-
-https://launchpad.net/akiban-persistit/+bug/1028016
-
-If a volume was removed from the configuration and Persistit was restarted the associated journal files would not be removed due to internal safety checks. In the event that the missing volume is intended behavior, a new configuration option was added. See the ``Detection and Ignoring of Missing Volumes`` feature description for more details.
-
-Class Index Updates Causing Write-Write Dependencies
-----------------------------------------------------
-
-https://launchpad.net/akiban-persistit/+bug/1024857
-
-https://launchpad.net/akiban-persistit/+bug/1026207
-
-Custom classes that are serialized into keys or values, through a custom KeyCoder or ValueCoder, are given a unique identifier. The identifier is determined transactionally the first time a class is written and stored in an internal tree. This would cause seemingly spurious aborts if more than one application threads simultaneously attempt to store the first instance of a given class.
-
-Accumulator Memory Usage and Transaction Step Policy
-----------------------------------------------------
-
-https://launchpad.net/akiban-persistit/+bug/1028050
-
-https://launchpad.net/akiban-persistit/+bug/1028134
-
-Changes to Accumulators are stored were previously stored as individual Delta objects. For long running transactions that heavily utilized Accumulators, this would cause excessive memory usage. These unique instances are no eliminated in most scenarios, resulting in no memory growth in all but pathological cases.
-
-Additionally, the Accumulator handling of the Transaction step value was inconsistent with how it was treated through an Exchange. Now, both classes allow a given step x to see any change that occurred at a step less than or equal to itself.
-
-
-Known Issues
-============
-As described in the *3.1.1 Known Issues*.
-
-|
-|
-
-************************************
-3.1.2
-************************************
-
-Release Date
-============
-July 13, 2012
-
-Overview
-========
-This is a bug fix release of the Persistit project (https://launchpad.net/akiban-persistit).  
-
-Fixed Issues
-============
-
-Infinite Loop When Repacking Buffer
------------------------------------
-
-https://bugs.launchpad.net/bugs/1005206
-
-This was introduced late into the 3.1.1 development cycle. This could occur if a buffer required restructuring during pruning of a long value that was previously stored under a transaction. Upon the next save of this buffer to disk (e.g. shutdown), an infinite loop would occur.
-
-Corruption Exceptions During Various Operations
------------------------------------------------
-
-https://bugs.launchpad.net/bugs/1010079
-
-.. note::
-   Only the message indicates a database corruption. The data volume is actually correct and intact.
-
-This was introduced late into the 3.1.1 development cycle. This could occur if pruning a buffer containing a long record previously stored under a transaction required removal of keys and then that buffer was reused without further modification. A parallel structure associated with the every ``Buffer``, the ``FastIndex``, was not maintained during this operation.
-
-Slow Accumulator Operations
----------------------------
-
-https://bugs.launchpad.net/bugs/1012859
-
-This bug preexisted but was unknown to the 3.1.1 release. If a thread starting a new transaction was interrupted during the call to ``begin()``, there was a chance for an internal object to wind up in an invalid state. This invalid state caused no visible consequences other than slower than expected ``Accumulator`` actions if this had occurred many times.
-
-B+Tree Corruption in Stress Test
---------------------------------
-
-https://bugs.launchpad.net/akiban-persistit/+bug/1017957
-
-This bug preexisted but was unknown to the 3.1.1 release. An extremely rare combination of events corrupted memory structures causing an incorrect key-pointer pair to be inserted while deleting records in a key range. The bug was detected in an 8-hour stress test run.
-
-
-Slow Recovery Due to Temporary Tree IT Records
-----------------------------------------------
-
-https://bugs.launchpad.net/akiban-persistit/+bug/1018526
-
-This bug preexisted but was unknown to the 3.1.1 release. Every Tree created in a temporary volume was being assigned a tree handle recorded permanently in the journal. In one case the result was a journal containing millions of IT (Identify Tree) records, and these caused normal recovery to take a very long time.  The fix keeps temporary trees out of the journal and removes IT records which may have been added previously. 
-
-
-Asserts Added to Check for Correct Exchange Thread Behavior
------------------------------------------------------------
+Persistit 3.1.2 - Asserts Added to Check for Correct Exchange Thread Behavior
+-----------------------------------------------------------------------------
 
 A bug in the Akiban Server code caused an Exchange to be used concurrently by two Threads, causing serious and seemingly unrelated failures in Persistit including instances of IllegalMonitorException and IllegalStateException. To guard against future occurrences, asserts were added to catch such concurrent use by multiple threads.  Applications should be tested with asserts enabled to verify correct thread usage.
- 
 
-Known Issues
-============
-As described in the *3.1.1 Known Issues*.
 
-|
-|
-
-************************************
-3.1.1
-************************************
-
-Release Date
-============
-May 31, 2012
-
-Overview
-========
-This is the first open source release of the Persistit project (https://launchpad.net/akiban-persistit).  
 
 Known Issues
 ============
@@ -283,7 +157,8 @@ Multi-Version-Values sometimes not fully pruned
 https://bugs.launchpad.net/akiban-persistit/+bug/1000331
 
 Multi-version values are not always pruned properly causing volume growth.  The number of MVV records and their overhead size can be obtaining by running the IntegrityCheck task. 
+
 * Workaround 1: Run the IntegrityCheck task (CLI command icheck) with the -P option which will prune the MVVs. This will remove obsolete MVV instances and in many cases free up pages in which new data can be stored.  However, it will not reduce the actual size of the volume file.
 
-* Workaround 2: To reduce the size of the volume you can use the CLI commands save  and load to offload and then reload the data into a newly created volume file. See http://www.akiban.com/ak-docs/admin/persistit/Management.html#management for more information about these operations.
+* Workaround 2: To reduce the size of the volume you can use the CLI commands ``save`` and ``load`` to reload the data into a newly created volume file. See http://www.akiban.com/ak-docs/admin/persistit/Management.html#management for more information about these operations.
 
