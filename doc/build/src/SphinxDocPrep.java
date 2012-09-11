@@ -149,7 +149,7 @@ public class SphinxDocPrep {
 
     private void prepareBugList() throws IOException {
         List<String[]> rows = new ArrayList<String[]>();
-        rows.add(new String[] { "Bug Reference", "Fix in|Version", "Summary" });
+        rows.add(new String[] { "Bug Reference", "Fixed in|Version", "Summary" });
         BufferedReader reader = null;
         try {
             String urls = "";
