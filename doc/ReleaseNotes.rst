@@ -86,7 +86,7 @@ On a server with a large buffer pool (many gigabytes), a Persistit instance can 
 
 The preload facility periodically records an inventory of the pages currently in the buffer pool(s) and optionally reloads the same set of pages when Persistit is restarted. During the preload process Persistit attempts to read pages in approximate file-address order to accelerate reads. In one of our experiments Persistit preloads a buffer pool with over 800,000 16Kbyte buffers in about a minute, which is orders of magnitude faster than the same process would take with reads performed incrementally at random.
 
-Two new configuration properties com.persistit.Configuration#setBufferInventoryEnabled and com.persistit#setBufferPreloadEnabled control this behavior. These settings are turned off by default in version 3.1.7.
+Two new configuration properties com.persistit.Configuration#setBufferInventoryEnabled and com.persistit.Configuration#setBufferPreloadEnabled control this behavior. These settings are turned off by default in version 3.1.7.
 
 Persistit 3.1.4 - Detecting and Ignoring Missing Volumes
 --------------------------------------------------------
