@@ -15,9 +15,8 @@
 
 package com.persistit;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -161,9 +160,9 @@ class TrackingFileChannel extends FileChannel implements TestChannelInjector {
         return _readPositions;
     }
 
-    public void assertOrdered(boolean read, boolean forward) {
+    public void assertOrdered(final boolean read, final boolean forward) {
         final List<Long> list = read ? _readPositions : _writePositions;
-        long previous = forward ? -1 : Long.MAX_VALUE;
+        final long previous = forward ? -1 : Long.MAX_VALUE;
         for (final Long position : list) {
             if (forward) {
                 assertTrue("Position should be larger", position > previous);

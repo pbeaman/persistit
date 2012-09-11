@@ -123,7 +123,7 @@ public class JournalManagerBench {
                 }
                 if (remaining > buffer.capacity()) {
                     remaining = buffer.capacity();
-                    long unaligned = fc.size() % 16384;
+                    final long unaligned = fc.size() % 16384;
                     if (unaligned > 0) {
                         remaining = remaining - (16384 - unaligned);
                     }
@@ -139,12 +139,12 @@ public class JournalManagerBench {
 
     private void doOneCycle(final long time, final int align, final long extension, final int size) throws Exception {
         // Make a fake transaction record
-        String header = String.format("\nsize=%06d count=%06d time=%012d\n", size, count, time);
-        byte[] b = header.getBytes();
+        final String header = String.format("\nsize=%06d count=%06d time=%012d\n", size, count, time);
+        final byte[] b = header.getBytes();
         System.arraycopy(b, 0, bytes, 0, b.length);
 
         // Add the record, possibly offset to maintaining alignment
-        int toRewrite = (int) (currentAddress - writeAddress);
+        final int toRewrite = (int) (currentAddress - writeAddress);
         buffer.position(toRewrite);
         buffer.put(bytes, 0, size);
         boolean extended = false;

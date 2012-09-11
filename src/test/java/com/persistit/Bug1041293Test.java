@@ -34,7 +34,7 @@ public class Bug1041293Test extends PersistitUnitTestCase {
         final Configuration config = _persistit.getConfiguration();
         final VolumeSpecification vspec = config.volumeSpecification("${datapath}/test,pageSize:2048,create,"
                 + "initialPages:100,extensionPages:100,maximumPages:25000");
-        Volume volume = _persistit.loadVolume(vspec);
+        final Volume volume = _persistit.loadVolume(vspec);
         volume.open(_persistit);
     }
 
