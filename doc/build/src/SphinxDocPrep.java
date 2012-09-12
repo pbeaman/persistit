@@ -2,7 +2,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.SortedMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -68,7 +71,10 @@ public class SphinxDocPrep {
     }
 
     private void processLine(final String line) throws Exception {
-        if (line.contains(".. code-block:") || line.endsWith("::")) {
+        if (line.contains("{{bug-list}}")) {
+            prepareBugList();
+            return;
+        } else if (line.contains(".. code-block:") || line.endsWith("::")) {
             block = BlockState.WAIT_FIRST_BLANK_LINE;
         } else if (line.isEmpty()) {
             switch (block) {
@@ -134,14 +140,132 @@ public class SphinxDocPrep {
                 text = text.replace("com.persistit.", "");
                 text = text.replace("java.lang.", "");
                 text = text.replace("java.util.", "");
-                replacement= "`" + text + " <" + url + ">`_";
+                replacement = "`" + text + " <" + url + ">`_";
             }
         }
 
         matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
     }
 
+    private void prepareBugList() throws IOException {
+        List<String[]> rows = new ArrayList<String[]>();
+        rows.add(new String[] { "Bug Reference", "Fixed in|Version", "Summary" });
+        BufferedReader reader = null;
+        try {
+            String urls = "";
+            String version = "";
+            reader = new BufferedReader(new FileReader("../BugList"));
+            StringBuilder sb = new StringBuilder();
+            String line = null;
+            while ((line = reader.readLine()) != null) {
+                if (line.isEmpty()) {
+                    if (sb.length() > 0) {
+                        sb.append('|');
+                    }
+                } else if (Character.isDigit(line.charAt(0))) {
+                    if (!urls.isEmpty()) {
+                        rows.add(new String[] { urls, version, sb.toString() });
+                        urls = "";
+                        version = "";
+                        sb.setLength(0);
+                    }
+                    String[] split = line.split("\\:");
+                    for (final String bug : split[0].trim().split(",")) {
+                        if (urls.length() > 0) {
+                            urls += '|';
+                        }
+                        urls = urls + "https://launchpad.net/bugs/" + bug;
+                    }
+                    version = split[1].trim();
+                } else {
+                    sb.append(line.trim());
+                    if (sb.length() > 0) {
+                        sb.append('|');
+                    }
+                }
+            }
+            if (!urls.isEmpty()) {
+                rows.add(new String[] { urls, version, sb.toString() });
+            }
+
+            int[] maxWidth = new int[3];
+            for (final String[] row : rows) {
+                for (int i = 0; i < 3; i++) {
+                    for (String s : row[i].split("\\|")) {
+                        maxWidth[i] = Math.max(s.length(), maxWidth[i]);
+                    }
+                }
+            }
+
+            bugTableLine(sb, false, maxWidth);
+            for (int l = 0;; l++) {
+                if (bugTableText(sb, rows.get(0), maxWidth, l)) {
+                    break;
+                }
+            }
+            bugTableLine(sb, true, maxWidth);
+            for (int i = 1; i < rows.size(); i++) {
+                String[] text = rows.get(i);
+                for (int l = 0;; l++) {
+                    if (bugTableText(sb, text, maxWidth, l)) {
+                        break;
+                    }
+                }
+                bugTableLine(sb, false, maxWidth);
+            }
+        } catch (IOException e) {
+            System.out.println(e + " while trying to read BugList");
+        } finally {
+            if (reader != null) {
+                reader.close();
+            }
+        }
+    }
+
+    private void bugTableLine(StringBuilder sb, boolean dline, int[] width) {
+        sb.setLength(0);
+        sb.append('+');
+        for (int j = 0; j < 3; j++) {
+            for (int i = 0; i < width[j] + 2; i++) {
+                sb.append(dline ? '=' : '-');
+            }
+            sb.append('+');
+        }
+        writer.println(sb);
+        writer.flush();
+    }
+
+    private boolean bugTableText(StringBuilder sb, String[] text, int[] width, int line) {
+        String[] s = new String[3];
+        boolean done = true;
+        for (int j = 0; j < 3; j++) {
+            String[] split = text[j].split("\\|");
+            if (split.length > line) {
+                done = false;
+                s[j] = split[line];
+            }
+        }
+        if (!done) {
+            sb.setLength(0);
+            sb.append("|");
+            for (int j = 0; j < 3; j++) {
+                if (s[j] == null) {
+                    s[j] = "";
+                }
+                sb.append(' ');
+                sb.append(s[j]);
+                for (int i = s[j].length() + 1; i < width[j] + 2; i++) {
+                    sb.append(' ');
+                }
+                sb.append('|');
+            }
+            writer.println(sb);
+        }
+        writer.flush();
+        return done;
+    }
+
     public static void main(final String[] args) throws Exception {
-        new SphinxDocPrep().prepare(args);
+         new SphinxDocPrep().prepare(args);
     }
 }
