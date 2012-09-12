@@ -69,7 +69,7 @@ public interface IOMeterMXBean {
     /**
      * @return the quiescentIOthreshold
      */
-    @Description("Disk I/O scheduling parameter in bytes per second specifying threshold "
+    @Description("Disk I/O scheduling parameter in KBytes per second specifying threshold "
             + "between \"quiescent\" and \"busy\" states")
     public long getQuiescentIOthreshold();
 
@@ -77,7 +77,7 @@ public interface IOMeterMXBean {
      * @param quiescentIO
      *            the quiescentIOthreshold to set
      */
-    @Description("Disk I/O scheduling parameter in bytes per second specifying threshold "
+    @Description("Disk I/O scheduling parameter in KBytes per second specifying threshold "
             + "between \"quiescent\" and \"busy\" states")
     public void setQuiescentIOthreshold(long quiescentIO);
 

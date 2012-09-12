@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.persistit.mxbeans.IOMeterMXBean;
 import com.persistit.util.ArgParser;
+import com.persistit.util.Util;
 
 /**
  * 
@@ -57,7 +58,9 @@ class IOMeter implements IOMeterMXBean {
     private final static String DUMP_FORMAT = "time=%,12d op=%2s vol=%4s page=%,16d addr=%,16d size=%,8d index=%,7d";
     private final static int DUMP_RECORD_LENGTH = 37;
 
-    private final static int DEFAULT_QUIESCENT_IO_THRESHOLD = 100;
+    private final static int DEFAULT_QUIESCENT_IO_THRESHOLD_KBYTES_PER_SEC = 100;
+    private final static int MINIMUM_QUIESCENT_IO_THRESHOLD_KBYTES_PER_SEC = 0;
+    private final static int MAXIMUM_QUIESCENT_IO_THRESHOLD_KBYTES_PER_SEC = 1000000;
 
     private final static int READ_PAGE_FROM_VOLUME = 1;
     private final static int READ_PAGE_FROM_JOURNAL = 2;
@@ -72,7 +75,7 @@ class IOMeter implements IOMeterMXBean {
 
     private final static int ITEM_COUNT = 11;
 
-    private long _quiescentIOthreshold = DEFAULT_QUIESCENT_IO_THRESHOLD;
+    private long _quiescentIOthreshold = DEFAULT_QUIESCENT_IO_THRESHOLD_KBYTES_PER_SEC;
 
     private final AtomicReference<DataOutputStream> _logStream = new AtomicReference<DataOutputStream>();
 
@@ -149,6 +152,7 @@ class IOMeter implements IOMeterMXBean {
 
     /**
      * @return the quiescentIOthreshold
+     * @see #setQuiescentIOthreshold(long)
      */
     @Override
     public synchronized long getQuiescentIOthreshold() {
@@ -156,12 +160,18 @@ class IOMeter implements IOMeterMXBean {
     }
 
     /**
+     * Persistit monitors the rate at which new I/O operations are created. When
+     * the IORate falls below the quiescentIOthreshold, expressed in KBytes per
+     * second, the JOURNAL_COPIER accelerates its work to try to clean up older
+     * journal files.
+     * 
      * @param quiescentIOthreshold
      *            the quiescentIOthreshold to set
      */
     @Override
-    public synchronized void setQuiescentIOthreshold(final long quiescentIO) {
-        _quiescentIOthreshold = quiescentIO;
+    public synchronized void setQuiescentIOthreshold(final long quiescentIOthreshold) {
+        _quiescentIOthreshold = Util.rangeCheck(quiescentIOthreshold, MINIMUM_QUIESCENT_IO_THRESHOLD_KBYTES_PER_SEC,
+                MAXIMUM_QUIESCENT_IO_THRESHOLD_KBYTES_PER_SEC);
     }
 
     /**

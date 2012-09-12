@@ -36,17 +36,17 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         void performAction(Persistit persistit) throws PersistitException;
     }
 
-    final static long DEFAULT_CLEANUP_INTERVAL = 1000;
+    final static long DEFAULT_CLEANUP_INTERVAL_MS = 1000;
 
     final static int DEFAULT_QUEUE_SIZE = 50000;
 
     private final static int WORKLIST_LENGTH = 500;
 
-    private final static long MINIMUM_MAINTENANCE_INTERVAL = 1000000000L;
+    private final static long MINIMUM_MAINTENANCE_INTERVAL_NS = 1000000000L;
 
-    private final static long MINIMUM_PRUNE_OBSOLETE_TRANSACTIONS_INTERVAL = 50000000000L;
+    private final static long MINIMUM_PRUNE_OBSOLETE_TRANSACTIONS_INTERVAL_NS = 50000000000L;
 
-    private final static long DEFAULT_MINIMUM_PRUNING_DELAY = 1000;
+    private final static long DEFAULT_MINIMUM_PRUNING_DELAY_NS = 1000;
 
     private final Queue<CleanupAction> _cleanupActionQueue = new ArrayBlockingQueue<CleanupAction>(DEFAULT_QUEUE_SIZE);
 
@@ -60,7 +60,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     private final AtomicLong _errors = new AtomicLong();
 
-    private final AtomicLong _minimumPruningDelay = new AtomicLong(DEFAULT_MINIMUM_PRUNING_DELAY);
+    private final AtomicLong _minimumPruningDelay = new AtomicLong(DEFAULT_MINIMUM_PRUNING_DELAY_NS);
 
     private long _lastMaintenance;
 
@@ -75,7 +75,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         final long now = System.nanoTime();
         _lastMaintenance = now;
         _lastPruneObsoleteTransactions = now;
-        start("CLEANUP_MANAGER", DEFAULT_CLEANUP_INTERVAL);
+        start("CLEANUP_MANAGER", DEFAULT_CLEANUP_INTERVAL_MS);
     }
 
     public void close(final boolean flush) throws PersistitException {
@@ -151,13 +151,13 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     public void poll() throws Exception {
 
         final long now = System.nanoTime();
-        if (now - _lastMaintenance > MINIMUM_MAINTENANCE_INTERVAL) {
+        if (now - _lastMaintenance > MINIMUM_MAINTENANCE_INTERVAL_NS) {
             _persistit.getIOMeter().poll();
             _persistit.cleanup();
             _lastMaintenance = now;
         }
 
-        if (now - _lastPruneObsoleteTransactions > MINIMUM_PRUNE_OBSOLETE_TRANSACTIONS_INTERVAL) {
+        if (now - _lastPruneObsoleteTransactions > MINIMUM_PRUNE_OBSOLETE_TRANSACTIONS_INTERVAL_NS) {
             _persistit.getJournalManager().pruneObsoleteTransactions();
             _lastPruneObsoleteTransactions = now;
         }
