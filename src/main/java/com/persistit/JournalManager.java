@@ -183,9 +183,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private final AtomicLong _totalFlushIoTime = new AtomicLong();
 
-    private volatile long _flushInterval = DEFAULT_FLUSH_INTERVAL;
+    private volatile long _flushInterval = DEFAULT_FLUSH_INTERVAL_MS;
 
-    private volatile long _slowIoAlertThreshold = DEFAULT_SLOW_IO_ALERT_THRESHOLD;
+    private volatile long _slowIoAlertThreshold = DEFAULT_SLOW_IO_ALERT_THRESHOLD_MS;
 
     private final TransactionPlayer _player = new TransactionPlayer(new JournalTransactionPlayerSupport());
 
@@ -200,7 +200,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      * performs I/O. Hopefully we can set good defaults and not expose these as
      * knobs.
      */
-    private volatile long _copierInterval = DEFAULT_COPIER_INTERVAL;
+    private volatile long _copierInterval = DEFAULT_COPIER_INTERVAL_MS;
 
     private volatile int _copiesPerCycle = DEFAULT_COPIES_PER_CYCLE;
 
@@ -538,7 +538,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     @Override
     public void setSlowIoAlertThreshold(final long slowIoAlertThreshold) {
-        Util.rangeCheck(slowIoAlertThreshold, MINIMUM_SLOW_ALERT_THRESHOLD, MAXIMUM_SLOW_ALERT_THRESHOLD);
+        Util.rangeCheck(slowIoAlertThreshold, MINIMUM_SLOW_ALERT_THRESHOLD_MS, MAXIMUM_SLOW_ALERT_THRESHOLD_MS);
         _slowIoAlertThreshold = slowIoAlertThreshold;
     }
 

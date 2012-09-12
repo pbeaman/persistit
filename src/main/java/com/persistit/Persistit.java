@@ -327,11 +327,11 @@ public class Persistit {
     private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
     private final static CommitPolicy DEFAULT_TRANSACTION_COMMIT_POLICY = CommitPolicy.SOFT;
-    private final static long DEFAULT_COMMIT_LEAD_TIME = 500;
-    private final static long DEFAULT_COMMIT_STALL_TIME = 1;
-    private final static long MAX_COMMIT_LEAD_TIME = 5000;
-    private final static long MAX_COMMIT_STALL_TIME = 5000;
-    private final static long FLUSH_DELAY_INTERVAL = 5000;
+    private final static long DEFAULT_COMMIT_LEAD_TIME_MS = 100;
+    private final static long DEFAULT_COMMIT_STALL_TIME_MS = 1;
+    private final static long MAX_COMMIT_LEAD_TIME_MS = 5000;
+    private final static long MAX_COMMIT_STALL_TIME_MS = 5000;
+    private final static long LOG_FLUSH_DELAY_INTERVAL_MS = 5000;
 
     private final static int MAX_FATAL_ERROR_MESSAGES = 10;
 
@@ -365,7 +365,7 @@ public class Persistit {
         public void run() {
             while (!_stop) {
                 try {
-                    Util.sleep(FLUSH_DELAY_INTERVAL);
+                    Util.sleep(LOG_FLUSH_DELAY_INTERVAL_MS);
                 } catch (final PersistitInterruptedException ie) {
                     break;
                 }
@@ -458,9 +458,9 @@ public class Persistit {
 
     private volatile CommitPolicy _defaultCommitPolicy = DEFAULT_TRANSACTION_COMMIT_POLICY;
 
-    private volatile long _commitLeadTime = DEFAULT_COMMIT_LEAD_TIME;
+    private volatile long _commitLeadTime = DEFAULT_COMMIT_LEAD_TIME_MS;
 
-    private volatile long _commitStallTime = DEFAULT_COMMIT_STALL_TIME;
+    private volatile long _commitStallTime = DEFAULT_COMMIT_STALL_TIME_MS;
 
     private final ThreadLocal<SoftReference<int[]>> _intArrayThreadLocal = new ThreadLocal<SoftReference<int[]>>();
 
@@ -2053,7 +2053,7 @@ public class Persistit {
     }
 
     void setTransactionCommitleadTime(final long time) {
-        _commitLeadTime = Util.rangeCheck(time, 0, MAX_COMMIT_LEAD_TIME);
+        _commitLeadTime = Util.rangeCheck(time, 0, MAX_COMMIT_LEAD_TIME_MS);
     }
 
     long getTransactionCommitStallTime() {
@@ -2061,7 +2061,7 @@ public class Persistit {
     }
 
     void setTransactionCommitStallTime(final long time) {
-        _commitStallTime = Util.rangeCheck(time, 0, MAX_COMMIT_STALL_TIME);
+        _commitStallTime = Util.rangeCheck(time, 0, MAX_COMMIT_STALL_TIME_MS);
     }
 
 /**

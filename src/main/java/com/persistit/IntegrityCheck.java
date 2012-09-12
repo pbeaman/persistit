@@ -386,6 +386,26 @@ public class IntegrityCheck extends Task {
     }
 
     /**
+     * Control output format. When CSV mode is enabled, the output is organized
+     * as comma-separated-variable text that can be imported into a spreadsheet.
+     * 
+     * @param csvMode
+     */
+    public void setCsvMode(final boolean csvMode) {
+        _csv = csvMode;
+    }
+
+    /**
+     * Indicate whether CSV mode is enabled. If so the output is organized as
+     * comma-separated-variable text that can be imported into a spreadsheet.
+     * 
+     * @return <code>true<c/code> if CSV mode is enabled.
+     */
+    public boolean isCsvMode() {
+        return _csv;
+    }
+
+    /**
      * Indicate whether missing index pages should be added when an index "hole"
      * is discovered.
      * 
