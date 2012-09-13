@@ -76,14 +76,20 @@ public interface JournalManagerMXBean {
      * Default time interval (in milliseconds) between calls to the
      * FileChannel.force() method.
      */
-    final static long DEFAULT_FLUSH_INTERVAL = 100;
+    final static long DEFAULT_FLUSH_INTERVAL_MS = 100;
 
     /**
      * Default time interval (in milliseconds) between calls to the journal
      * copier method.
      */
-    final static long DEFAULT_COPIER_INTERVAL = 10000;
-
+    final static long DEFAULT_COPIER_INTERVAL_MS = 10000;
+    /**
+     * Default journal file count at which transactions are throttled to allow
+     * copier to catch up.
+     */
+    final static int DEFAULT_URGENT_FILE_COUNT_THRESHOLD = 15;
+    final static int MINIMUM_URGENT_FILE_COUNT_THRESHOLD = 5;
+    final static int MAXIMUM_URGENT_FILE_COUNT_THRESHOLD = 100;
     /**
      * Default value for maximum pages to be copied per cycle.
      */
@@ -94,17 +100,17 @@ public interface JournalManagerMXBean {
      * exceptions on attempts to write to the journal. Prevents excessively
      * verbose log on repeated failures.
      */
-    final static long DEFAULT_LOG_REPEAT_INTERVAL = 60000L;
-    final static long MINIMUM_LOG_REPEAT_INTERVAL = 1000L;
-    final static long MAXIMUM_LOG_REPEAT_INTERVAL = Long.MAX_VALUE;
+    final static long DEFAULT_LOG_REPEAT_INTERVAL_MS = 60000L;
+    final static long MINIMUM_LOG_REPEAT_INTERVAL_MS = 1000L;
+    final static long MAXIMUM_LOG_REPEAT_INTERVAL_MS = Long.MAX_VALUE;
     /**
      * Default threshold time in milliseconds for JournalManager flush
      * operations. If a flush operation takes longer than this time, a WARNING
      * message is written to the log.
      */
-    final static long DEFAULT_SLOW_IO_ALERT_THRESHOLD = 2000L;
-    final static long MINIMUM_SLOW_ALERT_THRESHOLD = 100L;
-    final static long MAXIMUM_SLOW_ALERT_THRESHOLD = Long.MAX_VALUE;
+    final static long DEFAULT_SLOW_IO_ALERT_THRESHOLD_MS = 2000L;
+    final static long MINIMUM_SLOW_ALERT_THRESHOLD_MS = 100L;
+    final static long MAXIMUM_SLOW_ALERT_THRESHOLD_MS = Long.MAX_VALUE;
 
     /**
      * File name appended when journal path specifies only a directory
@@ -114,12 +120,6 @@ public interface JournalManagerMXBean {
      * Format expression defining the name of a journal file.
      */
     final static String PATH_FORMAT = "%s.%012d";
-
-    /**
-     * Default setting for number of pages in the page map before the urgency of
-     * copying starts to increase.
-     */
-    final static int DEFAULT_PAGE_MAP_SIZE_BASE = 250000;
 
     final static int MAXIMUM_CONCURRENT_TRANSACTIONS = 10000;
 
@@ -243,4 +243,9 @@ public interface JournalManagerMXBean {
     @Description("Threshold in  milliseconds for warnings of long duration flush cycles")
     void setSlowIoAlertThreshold(long slowIoAlertThreshold);
 
+    @Description("Journal file count threshold for throttling transactions")
+    int getUrgentFileCountThreshold();
+
+    @Description("Journal file count threshold for throttling transactions")
+    void setUrgentFileCountThreshold(int threshold);
 }

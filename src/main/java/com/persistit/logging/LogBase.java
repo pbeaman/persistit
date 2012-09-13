@@ -232,7 +232,7 @@ public class LogBase {
     @Message("WARNING|Crash retried %,d times on %s")
     public final LogItem crashRetry = PersistitLogMessage.empty();
 
-    @Message("WARNING|Journal flush operation took %,dms")
+    @Message("WARNING|Journal flush operation took %,dms last %,d cycles average is %,dms")
     public final LogItem longJournalIO = PersistitLogMessage.empty();
 
     @Message("INFO|Normal journal file count %,d")
@@ -247,7 +247,7 @@ public class LogBase {
     @Message("INFO|Preloading buffer pool inventory recorded at %tc")
     public final LogItem bufferInventoryLoad = PersistitLogMessage.empty();
 
-    @Message("INFO|Preloaded %,d of %,d buffers")
+    @Message("INFO|Preloaded %,d of %,d buffers in %,d seconds")
     public final LogItem bufferInventoryProgress = PersistitLogMessage.empty();
 
     @Message("WARNING|Exception while writing buffer pool inventory %s")

@@ -1290,6 +1290,9 @@ public class Exchange {
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
+        if (!_ignoreTransactions && !_transaction.isActive()) {
+            _persistit.getJournalManager().throttle();
+        }
         // TODO: directoryExchange, and lots of tests, don't use transactions.
         // Skip MVCC for now.
         int options = StoreOptions.WAIT;
@@ -2990,13 +2993,9 @@ public class Exchange {
     }
 
     private boolean removeInternal(final Direction selection, final boolean fetchFirst) throws PersistitException {
-        assertCorrectThread(true);
-        _persistit.checkClosed();
-
         if (selection != EQ && selection != GTEQ && selection != GT) {
             throw new IllegalArgumentException("Invalid mode " + selection);
         }
-
         final int keySize = _key.getEncodedSize();
 
         _key.copyTo(_spareKey3);
@@ -3005,6 +3004,7 @@ public class Exchange {
         // Special case for empty key
         if (keySize == 0) {
             if (selection == EQ) {
+                assertCorrectThread(true);
                 return false;
             }
             _spareKey3.append(BEFORE);
@@ -3093,6 +3093,13 @@ public class Exchange {
 
         assertCorrectThread(true);
         _persistit.checkClosed();
+
+        if (!isDirectoryExchange()) {
+            _persistit.checkSuspended();
+        }
+        if (!_ignoreTransactions && !_transaction.isActive()) {
+            _persistit.getJournalManager().throttle();
+        }
 
         if (_ignoreTransactions || !_transaction.isActive()) {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
