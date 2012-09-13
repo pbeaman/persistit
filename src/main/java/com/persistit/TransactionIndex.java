@@ -699,10 +699,25 @@ class TransactionIndex implements TransactionIndexMXBean {
          * These values are all visible to us with respect to a particular tsv
          * because we could not have seen the tsv without its corresponding
          * transaction status having been registered.
+         * 
+         * Note: if tsv >= floor it is not sufficient to look only in current.
+         * This is because the TransactionIndexBucket#reduce() method moves the
+         * TransactionStatus to longRunning or aborted before it changes the
+         * floor. But the converse is okay: if tsv < floor, then the
+         * TransactionStatus must be in longRunning or aborted if present at
+         * all.
          */
-        if ((bucket.getCurrent() == null || tsv < bucket.getFloor()) && bucket.getLongRunning() == null
+        final long floor = bucket.getFloor();
+        if ((tsv >= floor && bucket.getCurrent() == null || tsv < floor) && bucket.getLongRunning() == null
                 && bucket.getAborted() == null) {
-            return null;
+            /*
+             * Ensure the floor was stable while reading these variables.
+             * Otherwise lock and retry safely. Tests show this is almost always
+             * the case, but there are very occasional misses.
+             */
+            if (floor == bucket.getFloor()) {
+                return null;
+            }
         }
 
         /*
@@ -806,6 +821,8 @@ class TransactionIndex implements TransactionIndexMXBean {
              */
             return 0;
         }
+
+        final long tcommit = target.getTc();
         if (target.getTs() != tsv) {
             /*
              * By the time the selected TransactionStatus has been found, it may
@@ -817,9 +834,9 @@ class TransactionIndex implements TransactionIndexMXBean {
             return 0;
         }
 
-        if (target.getTc() > 0 && target.getTc() < source.getTs() || target.getTc() == ABORTED) {
+        if (tcommit > 0 && tcommit < source.getTs() || tcommit == ABORTED) {
             /*
-             * Target is committed or aborted
+             * Target committed and is not concurrent or it aborted
              */
             return 0;
         }
