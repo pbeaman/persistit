@@ -440,13 +440,10 @@ class VolumeStructure {
                         garbageBuffer = null;
                     } else {
                         _persistit.getLogBase().allocateFromGarbageChain.log(page, garbageBufferInfo(garbageBuffer));
-                        final boolean solitaire = rightPage == -1;
-                        buffer = _pool.get(_volume, page, true, !solitaire);
-                        buffer.writePageOnCheckpoint(timestamp);
-
+                        buffer = _pool.get(_volume, page, true, true);
                         Debug.$assert0.t(buffer.getPageAddress() > 0);
-
-                        final long nextGarbagePage = solitaire ? -1 : buffer.getRightSibling();
+                        buffer.writePageOnCheckpoint(timestamp);
+                        final long nextGarbagePage = buffer.getRightSibling();
 
                         if (nextGarbagePage == rightPage || nextGarbagePage == 0) {
                             _persistit.getLogBase().garbageChainDone.log(garbageBufferInfo(garbageBuffer), rightPage);
@@ -520,16 +517,15 @@ class VolumeStructure {
                     garbageBuffer = releaseBuffer(garbageBuffer);
                 }
             }
-            final boolean solitaire = (right == -1);
-            garbageBuffer = _pool.get(_volume, left, true, !solitaire);
+            garbageBuffer = _pool.get(_volume, left, true, true);
             garbageBuffer.writePageOnCheckpoint(timestamp);
 
             Debug.$assert0.t((garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())
-                    || garbageBuffer.isLongRecordPage() || (solitaire && garbageBuffer.isUnallocatedPage()));
+                    || garbageBuffer.isLongRecordPage());
 
-            final long nextGarbagePage = solitaire ? 0 : garbageBuffer.getRightSibling();
+            final long nextGarbagePage = garbageBuffer.getRightSibling();
 
-            Debug.$assert0.t(nextGarbagePage > 0 || right == 0 || solitaire);
+            Debug.$assert0.t(nextGarbagePage > 0 || right == 0);
 
             harvestLongRecords(garbageBuffer, 0, Integer.MAX_VALUE);
 
@@ -537,7 +533,7 @@ class VolumeStructure {
 
             _persistit.getLogBase().newGarbageRoot.log(garbageBufferInfo(garbageBuffer));
 
-            if (!solitaire && nextGarbagePage != right) {
+            if (nextGarbagePage != right) {
                 // Will always fit because this is a freshly initialized page
                 garbageBuffer.addGarbageChain(nextGarbagePage, right, -1);
                 _persistit.getLogBase().newGarbageChain.log(nextGarbagePage, right, garbageBufferInfo(garbageBuffer));
@@ -555,6 +551,7 @@ class VolumeStructure {
 
     // TODO - no one needs the return value
     boolean harvestLongRecords(final Buffer buffer, final int start, final int end) throws PersistitException {
+        assert buffer.isMine();
         boolean anyLongRecords = false;
         if (buffer.isDataPage()) {
             final int p1 = buffer.toKeyBlock(start);

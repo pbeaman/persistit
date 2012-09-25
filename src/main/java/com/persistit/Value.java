@@ -1022,9 +1022,9 @@ public final class Value {
     private String toStringLongMode() {
         final StringBuilder sb = new StringBuilder();
         sb.append("LongRec size=");
-        sb.append(Util.getLong(_bytes, Buffer.LONGREC_SIZE_OFFSET));
+        sb.append(Buffer.decodeLongRecordDescriptorSize(_bytes, 0));
         sb.append(" page=");
-        sb.append(Util.getLong(_bytes, Buffer.LONGREC_PAGE_OFFSET));
+        sb.append(Buffer.decodeLongRecordDescriptorPointer(_bytes, 0));
         return sb.toString();
     }
 

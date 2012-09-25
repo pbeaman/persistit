@@ -426,6 +426,7 @@ public class Buffer extends SharedResource {
      * Initializes the buffer so that it contains no keys or data.
      */
     void init(final int type) {
+        assert isMine();
         _type = type;
         setKeyBlockEnd(KEY_BLOCK_START);
         _tailHeaderSize = isIndexPage() ? TAILBLOCK_HDR_SIZE_INDEX : TAILBLOCK_HDR_SIZE_DATA;
@@ -3898,7 +3899,7 @@ public class Buffer extends SharedResource {
                                     r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), keyString,
                                     r.getValueState().getEncodedBytes().length, valueString));
                         } else {
-                            sb.append(String.format("\n%s  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d %s", mark,
+                            sb.append(String.format("\n%s  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d", mark,
                                     r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), keyString,
                                     r.getPointerValue()));
                         }

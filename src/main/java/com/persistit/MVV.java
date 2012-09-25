@@ -493,7 +493,7 @@ class MVV {
                     final long version = getVersion(bytes, from);
                     long longRecordPage = 0;
                     if (vlength == LONGREC_SIZE && (bytes[from + LENGTH_PER_VERSION] & 0xFF) == LONGREC_TYPE) {
-                        longRecordPage = Util.getLong(bytes, from + LENGTH_PER_VERSION + LONGREC_PAGE_OFFSET);
+                        longRecordPage = Buffer.decodeLongRecordDescriptorPointer(bytes, from + LENGTH_PER_VERSION);
                     }
                     if (version != PRIMORDIAL_VALUE_VERSION || longRecordPage != 0) {
                         final PrunedVersion pv = new PrunedVersion(version, longRecordPage);

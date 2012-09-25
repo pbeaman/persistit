@@ -28,6 +28,7 @@ import com.persistit.AlertMonitor.AlertLevel;
 import com.persistit.AlertMonitor.Event;
 import com.persistit.exception.PersistitException;
 import com.persistit.mxbeans.CleanupManagerMXBean;
+import com.persistit.util.Util;
 
 class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
@@ -149,7 +150,14 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     @Override
     public void poll() throws Exception {
-
+        /*
+         * Unit tests use a negative poll interval to prevent processing here
+         */
+        if (super.getPollInterval() < 0) {
+            Util.spinSleep();
+            return;
+        }
+        
         final long now = System.nanoTime();
         if (now - _lastMaintenance > MINIMUM_MAINTENANCE_INTERVAL_NS) {
             _persistit.getIOMeter().poll();
