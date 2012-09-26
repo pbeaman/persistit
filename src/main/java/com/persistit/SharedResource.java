@@ -299,7 +299,7 @@ class SharedResource {
     }
 
     boolean isOther() {
-        Thread t = _sync.writerThread();
+        final Thread t = _sync.writerThread();
         return t != null && t != Thread.currentThread();
     }
 

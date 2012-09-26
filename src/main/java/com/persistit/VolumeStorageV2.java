@@ -68,7 +68,6 @@ import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeFullException;
 import com.persistit.exception.VolumeNotFoundException;
-import com.persistit.util.Debug;
 
 /**
  * Manage all details of file I/O for a <code>Volume</code> backing file for

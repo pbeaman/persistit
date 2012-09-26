@@ -4076,7 +4076,7 @@ public class Buffer extends SharedResource {
             return false;
         } else {
             for (int p = _alloc; p < _bufferSize; p += GARBAGE_BLOCK_SIZE) {
-                long oldLeft = getGarbageChainLeftPage(p);
+                final long oldLeft = getGarbageChainLeftPage(p);
                 assert oldLeft != left;
             }
             _alloc -= GARBAGE_BLOCK_SIZE;
