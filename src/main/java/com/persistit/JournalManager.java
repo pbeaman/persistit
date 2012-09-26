@@ -1175,8 +1175,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
      */
     synchronized long writeTransactionToJournal(final ByteBuffer buffer, final long startTimestamp,
             final long commitTimestamp, final long backchainAddress) throws PersistitException {
-        buffer.flip();
-        final int recordSize = TX.OVERHEAD + buffer.remaining();
+        final int recordSize = TX.OVERHEAD + buffer.position();
         prepareWriteBuffer(recordSize);
         final long address = _currentAddress;
         TX.putLength(_writeBuffer, recordSize);
@@ -1187,6 +1186,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         _persistit.getIOMeter().chargeWriteTXtoJournal(recordSize, _currentAddress);
         advance(TX.OVERHEAD);
         try {
+            buffer.flip();
             _writeBuffer.put(buffer);
         } finally {
             buffer.clear();
