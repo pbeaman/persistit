@@ -2191,7 +2191,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
          * activities.
          */
         @Override
-        public long getPollInterval() {
+        public long pollInterval() {
             final IOMeter iom = _persistit.getIOMeter();
             final long pollInterval = super.getPollInterval();
             final int urgency = urgency();

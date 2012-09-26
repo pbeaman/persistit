@@ -44,6 +44,8 @@ class VolumeStructure {
     final static String TREE_STATS = "stats";
     final static String TREE_ACCUMULATOR = "totals";
 
+    final static long INVALID_PAGE_ADDRESS = -1;
+
     private final Persistit _persistit;
     private final Volume _volume;
     private final int _pageSize;
@@ -54,6 +56,31 @@ class VolumeStructure {
 
     private final Map<String, WeakReference<Tree>> _treeNameHashMap = new HashMap<String, WeakReference<Tree>>();
     private Tree _directoryTree;
+
+    private static class Chain {
+        final long _left;
+        final long _right;
+
+        private Chain(final long left, final long right) {
+            _left = left;
+            _right = right;
+        }
+
+        private long getLeft() {
+            return _left;
+        }
+
+        private long getRight() {
+            return _right;
+
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%,d->%,d", _left, _right);
+        }
+
+    }
 
     VolumeStructure(final Persistit persistit, final Volume volume, final int pageSize) {
         _persistit = persistit;
@@ -417,19 +444,19 @@ class VolumeStructure {
         Buffer buffer = null;
         _volume.getStorage().claimHeadBuffer();
         try {
+            final List<Chain> chains = new ArrayList<Chain>();
             final long garbageRoot = getGarbageRoot();
             if (garbageRoot != 0) {
                 Buffer garbageBuffer = _pool.get(_volume, garbageRoot, true, true);
                 try {
                     final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                     garbageBuffer.writePageOnCheckpoint(timestamp);
-                    Debug.$assert0.t(garbageBuffer.isGarbagePage());
-                    Debug.$assert0.t((garbageBuffer.getStatus() & Buffer.CLAIMED_MASK) == 1);
+                    assert garbageBuffer.isGarbagePage();
 
                     final long page = garbageBuffer.getGarbageChainLeftPage();
                     final long rightPage = garbageBuffer.getGarbageChainRightPage();
 
-                    Debug.$assert0.t(page != 0);
+                    assert page != 0 && page != garbageRoot;
 
                     if (page == -1) {
                         final long newGarbageRoot = garbageBuffer.getRightSibling();
@@ -440,9 +467,11 @@ class VolumeStructure {
                         garbageBuffer = null;
                     } else {
                         _persistit.getLogBase().allocateFromGarbageChain.log(page, garbageBufferInfo(garbageBuffer));
+                        assert rightPage != -1;
                         buffer = _pool.get(_volume, page, true, true);
                         Debug.$assert0.t(buffer.getPageAddress() > 0);
                         buffer.writePageOnCheckpoint(timestamp);
+
                         final long nextGarbagePage = buffer.getRightSibling();
 
                         if (nextGarbagePage == rightPage || nextGarbagePage == 0) {
@@ -462,13 +491,14 @@ class VolumeStructure {
                                     && buffer.getPageAddress() != _garbageRoot
                                     && buffer.getPageAddress() != _directoryRootPage);
 
-                    harvestLongRecords(buffer, 0, Integer.MAX_VALUE);
+                    harvestLongRecords(buffer, 0, Integer.MAX_VALUE, chains);
 
                     buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
                     buffer.clear();
                     return buffer;
                 } finally {
                     garbageBuffer = releaseBuffer(garbageBuffer);
+                    deallocateGarbageChain(chains);
                 }
             }
         } finally {
@@ -487,84 +517,111 @@ class VolumeStructure {
     }
 
     void deallocateGarbageChain(final long left, final long right) throws PersistitException {
-        Debug.$assert0.t(left > 0);
+        final List<Chain> list = new ArrayList<Chain>();
+        list.add(new Chain(left, right));
+        deallocateGarbageChain(list);
+    }
+
+    private void deallocateGarbageChain(final List<Chain> chains) throws PersistitException {
 
         _volume.getStorage().claimHeadBuffer();
-
-        Buffer garbageBuffer = null;
-        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-
         try {
-            final long garbagePage = getGarbageRoot();
-            if (garbagePage != 0) {
-                if (left == garbagePage || right == garbagePage) {
-                    Debug.$assert0.t(false);
-                    throw new IllegalStateException("De-allocating page that is already garbage: " + "root="
-                            + garbagePage + " left=" + left + " right=" + right);
-                }
+            while (!chains.isEmpty()) {
+                final Chain chain = chains.remove(chains.size() - 1);
+                final long left = chain.getLeft();
+                final long right = chain.getRight();
 
-                garbageBuffer = _pool.get(_volume, garbagePage, true, true);
-                garbageBuffer.writePageOnCheckpoint(timestamp);
+                Debug.$assert0.t(left > 0);
 
-                final boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
+                Buffer garbageBuffer = null;
+                final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
 
-                if (fits) {
-                    _persistit.getLogBase().newGarbageChain.log(left, right, garbageBufferInfo(garbageBuffer));
+                try {
+                    final long garbagePage = getGarbageRoot();
+                    if (garbagePage != 0) {
+                        if (left == garbagePage || right == garbagePage) {
+                            Debug.$assert0.t(false);
+                            throw new IllegalStateException("De-allocating page that is already garbage: " + "root="
+                                    + garbagePage + " left=" + left + " right=" + right);
+                        }
+
+                        garbageBuffer = _pool.get(_volume, garbagePage, true, true);
+                        garbageBuffer.writePageOnCheckpoint(timestamp);
+
+                        final boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
+
+                        if (fits) {
+                            _persistit.getLogBase().newGarbageChain.log(left, right, garbageBufferInfo(garbageBuffer));
+                            garbageBuffer.setDirtyAtTimestamp(timestamp);
+                            continue;
+                        } else {
+                            _persistit.getLogBase().garbagePageFull.log(left, right, garbageBufferInfo(garbageBuffer));
+                            garbageBuffer = releaseBuffer(garbageBuffer);
+                        }
+                    }
+                    assert right != -1;
+                    garbageBuffer = _pool.get(_volume, left, true, true);
+                    garbageBuffer.writePageOnCheckpoint(timestamp);
+
+                    assert garbageBuffer.isDataPage() || garbageBuffer.isIndexPage()
+                            || garbageBuffer.isLongRecordPage();
+
+                    final long nextGarbagePage = garbageBuffer.getRightSibling();
+
+                    Debug.$assert0.t(nextGarbagePage > 0 || right == 0);
+
+                    harvestLongRecords(garbageBuffer, 0, Integer.MAX_VALUE, chains);
+
+                    garbageBuffer.init(Buffer.PAGE_TYPE_GARBAGE);
+
+                    _persistit.getLogBase().newGarbageRoot.log(garbageBufferInfo(garbageBuffer));
+
+                    if (nextGarbagePage != right) {
+                        // Will always fit because this is a freshly initialized
+                        // page
+                        garbageBuffer.addGarbageChain(nextGarbagePage, right, -1);
+                        _persistit.getLogBase().newGarbageChain.log(nextGarbagePage, right,
+                                garbageBufferInfo(garbageBuffer));
+                    }
+                    garbageBuffer.setRightSibling(garbagePage);
                     garbageBuffer.setDirtyAtTimestamp(timestamp);
-                    return;
-                } else {
-                    _persistit.getLogBase().garbagePageFull.log(left, right, garbageBufferInfo(garbageBuffer));
-                    garbageBuffer = releaseBuffer(garbageBuffer);
+                    setGarbageRoot(garbageBuffer.getPageAddress());
+                } finally {
+                    if (garbageBuffer != null) {
+                        garbageBuffer.releaseTouched();
+                    }
                 }
             }
-            garbageBuffer = _pool.get(_volume, left, true, true);
-            garbageBuffer.writePageOnCheckpoint(timestamp);
-
-            Debug.$assert0.t((garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())
-                    || garbageBuffer.isLongRecordPage());
-
-            final long nextGarbagePage = garbageBuffer.getRightSibling();
-
-            Debug.$assert0.t(nextGarbagePage > 0 || right == 0);
-
-            harvestLongRecords(garbageBuffer, 0, Integer.MAX_VALUE);
-
-            garbageBuffer.init(Buffer.PAGE_TYPE_GARBAGE);
-
-            _persistit.getLogBase().newGarbageRoot.log(garbageBufferInfo(garbageBuffer));
-
-            if (nextGarbagePage != right) {
-                // Will always fit because this is a freshly initialized page
-                garbageBuffer.addGarbageChain(nextGarbagePage, right, -1);
-                _persistit.getLogBase().newGarbageChain.log(nextGarbagePage, right, garbageBufferInfo(garbageBuffer));
-            }
-            garbageBuffer.setRightSibling(garbagePage);
-            garbageBuffer.setDirtyAtTimestamp(timestamp);
-            setGarbageRoot(garbageBuffer.getPageAddress());
         } finally {
-            if (garbageBuffer != null) {
-                garbageBuffer.releaseTouched();
-            }
             _volume.getStorage().releaseHeadBuffer();
         }
     }
 
-    // TODO - no one needs the return value
-    boolean harvestLongRecords(final Buffer buffer, final int start, final int end) throws PersistitException {
+    void harvestLongRecords(final Buffer buffer, final int start, final int end) throws PersistitException {
+        final List<Chain> chains = new ArrayList<Chain>();
+        harvestLongRecords(buffer, start, end, chains);
+        deallocateGarbageChain(chains);
+    }
+
+    private void harvestLongRecords(final Buffer buffer, final int start, final int end, final List<Chain> chains)
+            throws PersistitException {
         assert buffer.isMine();
-        boolean anyLongRecords = false;
         if (buffer.isDataPage()) {
             final int p1 = buffer.toKeyBlock(start);
             final int p2 = buffer.toKeyBlock(end);
             for (int p = p1; p < p2 && p != -1; p = buffer.nextKeyBlock(p)) {
                 final long pointer = buffer.fetchLongRecordPointer(p);
+                assert pointer != INVALID_PAGE_ADDRESS;
                 if (pointer != 0) {
-                    deallocateGarbageChain(pointer, 0);
-                    anyLongRecords |= true;
+                    chains.add(new Chain(pointer, 0));
+                    /*
+                     * Detects whether and prevents same pointer from being read
+                     * and deallocated twice.
+                     */
+                    buffer.setLongRecordPointer(p, INVALID_PAGE_ADDRESS);
                 }
             }
         }
-        return anyLongRecords;
     }
 
     private Buffer releaseBuffer(final Buffer buffer) {

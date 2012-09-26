@@ -143,14 +143,35 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     }
 
     @Test
-    public void testPruneLongRecordsSimple() throws Exception {
+    public void testPruneLongRecordsSplit() throws Exception {
         disableBackgroundCleanup();
+        ex1.to("x").store();
         trx1.begin();
-        storeLongMVV(ex1, "x");
+        for (int k = 2;; k += 2) {
+            if (ex1.fetchBufferCopy(0).getAvailableSize() < 200) {
+                break;
+            }
+            trx1.setStep(0);
+            storeLongMVV(ex1, k);
+            trx1.setStep(1);
+            store(ex1, k, RED_FOX);
+        }
         trx1.commit();
         trx1.end();
+
+        trx1.begin();
+        for (int k = 1; k < 20; k += 2) {
+            store(ex1, k, RED_FOX.toUpperCase());
+        }
+        trx1.commit();
+        trx1.end();
+
+        ex1.to(Key.BEFORE);
+        while (ex1.next()) {
+            System.out.println(String.format("%10s  %s", ex1.getKey(), ex1.getValue()));
+        }
+
         _persistit.getTransactionIndex().cleanup();
-        ex1.prune();
         assertTrue("Should no longer be an MVV", !ex1.isValueLongMVV());
     }
 

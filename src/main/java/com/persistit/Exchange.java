@@ -3721,6 +3721,7 @@ public class Exchange {
 
     private void checkPageType(final Buffer buffer, final int expectedType, final boolean releaseOnFailure)
             throws PersistitException {
+        assert !buffer.isOther();
         final int type = buffer.getPageType();
         if (type != expectedType) {
             if (releaseOnFailure) {

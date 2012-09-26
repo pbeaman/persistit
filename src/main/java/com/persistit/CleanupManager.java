@@ -140,7 +140,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     }
 
     @Override
-    public long getPollInterval() {
+    public long pollInterval() {
         if (_cleanupActionQueue.size() < DEFAULT_QUEUE_SIZE / 2) {
             return super.getPollInterval();
         } else {
@@ -150,14 +150,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     @Override
     public void poll() throws Exception {
-        /*
-         * Unit tests use a negative poll interval to prevent processing here
-         */
-        if (super.getPollInterval() < 0) {
-            Util.spinSleep();
-            return;
-        }
-        
+
         final long now = System.nanoTime();
         if (now - _lastMaintenance > MINIMUM_MAINTENANCE_INTERVAL_NS) {
             _persistit.getIOMeter().poll();

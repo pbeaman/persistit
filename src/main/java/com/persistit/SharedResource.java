@@ -196,7 +196,7 @@ class SharedResource {
                 if ((state & CLAIMED_MASK) == 1) {
                     final int newState = (state - count) & ~WRITER_MASK;
                     // Do this first so that another thread setting
-                    // a writer claim does not lose it's copy.
+                    // a writer claim does not lose its copy.
                     setExclusiveOwnerThread(null);
                     if (compareAndSetState(state, newState)) {
                         return newState;
@@ -296,6 +296,11 @@ class SharedResource {
      */
     boolean isMine() {
         return (_sync.writerThread() == Thread.currentThread());
+    }
+
+    boolean isOther() {
+        Thread t = _sync.writerThread();
+        return t != null && t != Thread.currentThread();
     }
 
     boolean claim(final boolean writer) throws PersistitInterruptedException {

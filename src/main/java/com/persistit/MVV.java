@@ -15,7 +15,6 @@
 
 package com.persistit;
 
-import static com.persistit.Buffer.LONGREC_PAGE_OFFSET;
 import static com.persistit.Buffer.LONGREC_SIZE;
 import static com.persistit.Buffer.LONGREC_TYPE;
 import static com.persistit.TransactionIndex.vh2ts;

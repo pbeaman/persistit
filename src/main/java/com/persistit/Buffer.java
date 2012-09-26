@@ -515,7 +515,7 @@ public class Buffer extends SharedResource {
         writePage(_persistit.getJournalManager().isWritePagePruningEnabled());
     }
 
-    private void writePage(final boolean prune) throws PersistitException {
+    void writePage(final boolean prune) throws PersistitException {
         assert isMine();
         _persistit.checkFatal();
         final Volume volume = getVolume();
@@ -1180,6 +1180,27 @@ public class Buffer extends SharedResource {
 
         final long pointer = getLong(tail + _tailHeaderSize + klength + LONGREC_PAGE_OFFSET);
         return pointer;
+    }
+
+    void setLongRecordPointer(final int foundAt, final long pointer) {
+        if (!isDataPage()) {
+            return;
+        }
+        final int kbData = getInt(foundAt & P_MASK);
+        final int tail = decodeKeyBlockTail(kbData);
+        final int tbData = getInt(tail);
+        final int klength = decodeTailBlockKLength(tbData);
+        final int size = decodeTailBlockSize(tbData);
+        final int valueSize = size - klength - _tailHeaderSize;
+        if (valueSize != LONGREC_SIZE) {
+            return;
+        }
+        if ((_bytes[tail + _tailHeaderSize + klength] & 0xFF) != LONGREC_TYPE) {
+            return;
+        }
+
+        putLong(tail + _tailHeaderSize + klength + LONGREC_PAGE_OFFSET, (int) pointer);
+
     }
 
     long getPointer(final int foundAt) throws PersistitException {
@@ -4054,6 +4075,10 @@ public class Buffer extends SharedResource {
         if (_alloc - GARBAGE_BLOCK_SIZE < _keyBlockEnd) {
             return false;
         } else {
+            for (int p = _alloc; p < _bufferSize; p += GARBAGE_BLOCK_SIZE) {
+                long oldLeft = getGarbageChainLeftPage(p);
+                assert oldLeft != left;
+            }
             _alloc -= GARBAGE_BLOCK_SIZE;
             putInt(_alloc + GARBAGE_BLOCK_STATUS, 0);
             putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
