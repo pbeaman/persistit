@@ -137,7 +137,7 @@ abstract class IOTaskRunnable implements Runnable {
                  * Unit tests use a negative poll interval to prevent processing
                  * here
                  */
-                if (_pollInterval < 0) {
+                if (getPollInterval() < 0) {
                     Util.spinSleep();
                 } else {
                     runTask();
@@ -157,7 +157,7 @@ abstract class IOTaskRunnable implements Runnable {
                 }
 
                 while (!shouldStop()) {
-                    final long pollInterval = getPollInterval();
+                    final long pollInterval = pollInterval();
                     if (_notified && pollInterval >= 0) {
                         break;
                     }

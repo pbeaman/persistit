@@ -226,8 +226,10 @@ public class Stress2txn extends StressBase {
                         _ex.remove();
                         addWork(2);
                     } catch (final RebalanceException e) {
-                        // TODO - fix code so that RebalanceExceptions don't occur.
-                        // For now this is a known problem so don't make the stress test fail
+                        // TODO - fix code so that RebalanceExceptions don't
+                        // occur.
+                        // For now this is a known problem so don't make the
+                        // stress test fail
                         System.err.println(e + " at " + _exs);
                     } catch (final Exception e) {
                         handleThrowable(e);
