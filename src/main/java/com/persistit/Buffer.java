@@ -4073,10 +4073,8 @@ public class Buffer extends SharedResource {
         if (_alloc - GARBAGE_BLOCK_SIZE < _keyBlockEnd) {
             return false;
         } else {
-            for (int p = _alloc; p < _bufferSize; p += GARBAGE_BLOCK_SIZE) {
-                final long oldLeft = getGarbageChainLeftPage(p);
-                assert oldLeft != left : "Adding the same garbage page " + left + " to garbage page=" + this;
-            }
+            assert !chainIsRedundant(left) : "Attempting to add a redundate garbage chain " + left + "->" + right
+                    + " to " + this;
             _alloc -= GARBAGE_BLOCK_SIZE;
             putInt(_alloc + GARBAGE_BLOCK_STATUS, 0);
             putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
@@ -4085,6 +4083,16 @@ public class Buffer extends SharedResource {
             bumpGeneration();
             return true;
         }
+    }
+
+    private boolean chainIsRedundant(final long left) {
+        for (int p = _alloc; p < _bufferSize; p += GARBAGE_BLOCK_SIZE) {
+            final long oldLeft = getGarbageChainLeftPage(p);
+            if (oldLeft == left) {
+                return true;
+            }
+        }
+        return false;
     }
 
     int getGarbageChainStatus() {
