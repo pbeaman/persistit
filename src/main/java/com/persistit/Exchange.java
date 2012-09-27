@@ -3388,7 +3388,8 @@ public class Exchange {
                             _volume.getStructure().harvestLongRecords(buffer1, foundAt1, Integer.MAX_VALUE);
                             _volume.getStructure().harvestLongRecords(buffer2, 0, foundAt2);
 
-                            Debug.$assert0.t(_tree.isOwnedAsWriterByMe() && buffer1.isOwnedAsWriterByMe() && buffer2.isOwnedAsWriterByMe());
+                            Debug.$assert0.t(_tree.isOwnedAsWriterByMe() && buffer1.isOwnedAsWriterByMe()
+                                    && buffer2.isOwnedAsWriterByMe());
                             final boolean rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1,
                                     _spareKey2, _joinPolicy);
                             if (buffer1.isDataPage()) {

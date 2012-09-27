@@ -1183,7 +1183,7 @@ public class Buffer extends SharedResource {
     }
 
     void setLongRecordPointer(final int foundAt, final long pointer) {
-        assert isDataPage(): "Invalid page type for long records: " + this;
+        assert isDataPage() : "Invalid page type for long records: " + this;
         final int kbData = getInt(foundAt & P_MASK);
         final int tail = decodeKeyBlockTail(kbData);
         final int tbData = getInt(tail);
@@ -4075,7 +4075,7 @@ public class Buffer extends SharedResource {
         } else {
             for (int p = _alloc; p < _bufferSize; p += GARBAGE_BLOCK_SIZE) {
                 final long oldLeft = getGarbageChainLeftPage(p);
-                assert oldLeft != left: "Adding the same garbage page " + left + " to garbage page=" + this;
+                assert oldLeft != left : "Adding the same garbage page " + left + " to garbage page=" + this;
             }
             _alloc -= GARBAGE_BLOCK_SIZE;
             putInt(_alloc + GARBAGE_BLOCK_STATUS, 0);
@@ -4130,8 +4130,8 @@ public class Buffer extends SharedResource {
     }
 
     void setGarbageLeftPage(final long left) {
-        Debug.$assert1.t(isOwnedAsWriterByMe() && isGarbagePage() && left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page
-                && _alloc + GARBAGE_BLOCK_SIZE <= _bufferSize && _alloc >= _keyBlockEnd);
+        Debug.$assert1.t(isOwnedAsWriterByMe() && isGarbagePage() && left > 0 && left <= MAX_VALID_PAGE_ADDR
+                && left != _page && _alloc + GARBAGE_BLOCK_SIZE <= _bufferSize && _alloc >= _keyBlockEnd);
         putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
         bumpGeneration();
     }
