@@ -77,4 +77,13 @@ public class SessionId {
         _owner.set(Thread.currentThread());
     }
 
+    public String ownerName() {
+        final Thread t = _owner.get();
+        if (t == null) {
+            return "null";
+        } else {
+            return t.getName();
+        }
+    }
+
 }

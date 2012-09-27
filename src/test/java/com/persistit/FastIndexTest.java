@@ -27,7 +27,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
 
     private Buffer getABuffer() throws Exception {
         final Exchange exchange = _persistit.getExchange("persistit", "FastIndexTest", true);
-        return exchange.getBufferPool().get(exchange.getVolume(), 1, false, true);
+        return exchange.getBufferPool().get(exchange.getVolume(), 1, true, true);
     }
 
     @Test

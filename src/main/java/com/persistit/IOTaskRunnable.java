@@ -16,6 +16,7 @@
 package com.persistit;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.util.Util;
 
 /**
  * Base class for the background threads that perform various IO tasks.
@@ -62,20 +63,20 @@ abstract class IOTaskRunnable implements Runnable {
         }
     }
 
-    public synchronized long getPollInterval() {
+    public final synchronized long getPollInterval() {
         return _pollInterval;
     }
 
-    public synchronized void setPollInterval(final long pollInterval) {
+    public final synchronized void setPollInterval(final long pollInterval) {
         _pollInterval = pollInterval;
         kick();
     }
 
-    public synchronized Exception getLastException() {
+    public final synchronized Exception getLastException() {
         return _lastException;
     }
 
-    public synchronized int getExceptionCount() {
+    public final synchronized int getExceptionCount() {
         return _exceptionCount;
     }
 
@@ -132,7 +133,15 @@ abstract class IOTaskRunnable implements Runnable {
                 _notified = false;
             }
             try {
-                runTask();
+                /*
+                 * Unit tests use a negative poll interval to prevent processing
+                 * here
+                 */
+                if (getPollInterval() < 0) {
+                    Util.spinSleep();
+                } else {
+                    runTask();
+                }
             } catch (final Exception e) {
                 if (lastException(e)) {
                     _persistit.getLogBase().exception.log(e);

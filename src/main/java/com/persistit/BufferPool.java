@@ -631,7 +631,7 @@ public class BufferPool {
     }
 
     private void invalidate(final Buffer buffer) {
-        Debug.$assert0.t(buffer.isValid() && buffer.isMine());
+        Debug.$assert0.t(buffer.isValid() && buffer.isOwnedAsWriterByMe());
 
         while (!detach(buffer)) {
             //
@@ -723,6 +723,7 @@ public class BufferPool {
                         if (buffer.claim(writer, 0)) {
                             vol.getStatistics().bumpGetCounter();
                             bumpHitCounter();
+                            assert !buffer.isOwnedAsWriterByOther();
                             return buffer;
                         } else {
                             mustClaim = true;
@@ -763,32 +764,42 @@ public class BufferPool {
                 _hashLocks[hash % HASH_LOCKS].unlock();
             }
             if (mustClaim) {
-                /*
-                 * We're here because we found the page we want, but another
-                 * thread has an incompatible claim on it. Here we wait, then
-                 * recheck to make sure the buffer still represents the same
-                 * page.
-                 */
-                if (!buffer.claim(writer)) {
-                    throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to acquire "
-                            + (writer ? "writer" : "reader") + " claim on " + buffer);
-                }
-
-                //
-                // Test whether the buffer we picked out is still valid
-                //
-                if (buffer.isValid() && buffer.getPageAddress() == page && buffer.getVolume() == vol) {
+                boolean claimed = false;
+                boolean same = true;
+                final long expires = System.currentTimeMillis() + SharedResource.DEFAULT_MAX_WAIT_TIME;
+                while (same && !claimed && System.currentTimeMillis() < expires) {
+                    /*
+                     * We're here because we found the page we want, but another
+                     * thread has an incompatible claim on it. Here we wait,
+                     * then recheck to make sure the buffer still represents the
+                     * same page.
+                     */
+                    claimed = buffer.claim(writer, Persistit.SHORT_DELAY);
                     //
-                    // If so, then we're done.
+                    // Test whether the buffer we picked out is still valid
                     //
-                    vol.getStatistics().bumpGetCounter();
-                    bumpHitCounter();
-                    return buffer;
+                    same = buffer.isValid() && buffer.getPageAddress() == page && buffer.getVolume() == vol;
+                    /*
+                     * Loop will terminate if we got the claim if the page
+                     * changed.
+                     */
                 }
-                //
-                // If not, release the claim and retry.
-                //
-                buffer.release();
+                if (same) {
+                    if (claimed) {
+                        //
+                        // If so, then we're done.
+                        //
+                        vol.getStatistics().bumpGetCounter();
+                        bumpHitCounter();
+                        assert !buffer.isOwnedAsWriterByOther();
+                        return buffer;
+                    } else {
+                        throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to acquire "
+                                + (writer ? "writer" : "reader") + " claim on " + buffer);
+                    }
+                } else if (claimed) {
+                    buffer.release();
+                }
                 continue;
             } else {
                 /*
@@ -976,9 +987,10 @@ public class BufferPool {
                             return buffer;
                         }
                         // A dirty valid buffer needs to be written and then
-                        // marked invalid
+                        // marked invalid. Can't prune it before writing it in
+                        // this context
                         try {
-                            buffer.writePage();
+                            buffer.writePage(false);
                             if (detach(buffer)) {
                                 buffer.clearValid();
                                 _forcedWriteCounter.incrementAndGet();

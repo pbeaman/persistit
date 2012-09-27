@@ -68,7 +68,6 @@ import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeFullException;
 import com.persistit.exception.VolumeNotFoundException;
-import com.persistit.util.Debug;
 
 /**
  * Manage all details of file I/O for a <code>Volume</code> backing file for
@@ -548,7 +547,7 @@ class VolumeStorageV2 extends VolumeStorage {
     @Override
     void flushMetaData() throws PersistitException {
         if (!isReadOnly()) {
-            Debug.$assert1.t(_headBuffer.isMine());
+            assert _headBuffer.isOwnedAsWriterByMe();
             final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
             _volume.getStatistics().setLastGlobalTimestamp(timestamp);
             _headBuffer.writePageOnCheckpoint(timestamp);

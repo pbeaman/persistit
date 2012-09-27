@@ -139,7 +139,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     }
 
     @Override
-    public long getPollInterval() {
+    public long pollInterval() {
         if (_cleanupActionQueue.size() < DEFAULT_QUEUE_SIZE / 2) {
             return super.getPollInterval();
         } else {

@@ -426,6 +426,7 @@ public class Buffer extends SharedResource {
      * Initializes the buffer so that it contains no keys or data.
      */
     void init(final int type) {
+        assert isOwnedAsWriterByMe();
         _type = type;
         setKeyBlockEnd(KEY_BLOCK_START);
         _tailHeaderSize = isIndexPage() ? TAILBLOCK_HDR_SIZE_INDEX : TAILBLOCK_HDR_SIZE_DATA;
@@ -462,7 +463,7 @@ public class Buffer extends SharedResource {
     }
 
     void load() throws InvalidPageStructureException {
-        Debug.$assert0.t(isMine());
+        Debug.$assert0.t(isOwnedAsWriterByMe());
 
         _timestamp = getLong(TIMESTAMP_OFFSET);
 
@@ -502,7 +503,7 @@ public class Buffer extends SharedResource {
     }
 
     void writePageOnCheckpoint(final long timestamp) throws PersistitException {
-        Debug.$assert0.t(isMine());
+        Debug.$assert0.t(isOwnedAsWriterByMe());
         final long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
         if (isDirty() && !isTemporary() && getTimestamp() < checkpointTimestamp && timestamp > checkpointTimestamp) {
             writePage(false);
@@ -514,8 +515,8 @@ public class Buffer extends SharedResource {
         writePage(_persistit.getJournalManager().isWritePagePruningEnabled());
     }
 
-    private void writePage(final boolean prune) throws PersistitException {
-        assert isMine();
+    void writePage(final boolean prune) throws PersistitException {
+        assert isOwnedAsWriterByMe();
         _persistit.checkFatal();
         final Volume volume = getVolume();
         if (volume != null) {
@@ -546,7 +547,7 @@ public class Buffer extends SharedResource {
     }
 
     void setDirtyAtTimestamp(final long timestamp) {
-        if (!isMine()) {
+        if (!isOwnedAsWriterByMe()) {
             throw new IllegalStateException("Exclusive claim required " + this);
         }
         if (super.setDirty()) {
@@ -748,7 +749,7 @@ public class Buffer extends SharedResource {
      *            the sibling's address
      */
     void setRightSibling(final long pageAddress) {
-        Debug.$assert0.t(isMine());
+        Debug.$assert0.t(isOwnedAsWriterByMe());
         _rightSibling = pageAddress;
     }
 
@@ -1179,6 +1180,25 @@ public class Buffer extends SharedResource {
 
         final long pointer = getLong(tail + _tailHeaderSize + klength + LONGREC_PAGE_OFFSET);
         return pointer;
+    }
+
+    void setLongRecordPointer(final int foundAt, final long pointer) {
+        assert isDataPage() : "Invalid page type for long records: " + this;
+        final int kbData = getInt(foundAt & P_MASK);
+        final int tail = decodeKeyBlockTail(kbData);
+        final int tbData = getInt(tail);
+        final int klength = decodeTailBlockKLength(tbData);
+        final int size = decodeTailBlockSize(tbData);
+        final int valueSize = size - klength - _tailHeaderSize;
+        if (valueSize != LONGREC_SIZE) {
+            return;
+        }
+        if ((_bytes[tail + _tailHeaderSize + klength] & 0xFF) != LONGREC_TYPE) {
+            return;
+        }
+
+        putLong(tail + _tailHeaderSize + klength + LONGREC_PAGE_OFFSET, (int) pointer);
+
     }
 
     long getPointer(final int foundAt) throws PersistitException {
@@ -3041,7 +3061,7 @@ public class Buffer extends SharedResource {
      * Repacks the tail blocks so that they are contiguous.
      */
     private void repack() {
-        Debug.$assert0.t(isMine());
+        Debug.$assert0.t(isOwnedAsWriterByMe());
 
         final int[] plan = getRepackPlanBuffer();
         //
@@ -3564,7 +3584,7 @@ public class Buffer extends SharedResource {
         try {
             boolean hasLongMvvRecords = false;
 
-            if (!isMine()) {
+            if (!isOwnedAsWriterByMe()) {
                 throw new IllegalStateException("Exclusive claim required " + this);
             }
             if (isDataPage() && _mvvCount != 0) {
@@ -3898,7 +3918,7 @@ public class Buffer extends SharedResource {
                                     r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), keyString,
                                     r.getValueState().getEncodedBytes().length, valueString));
                         } else {
-                            sb.append(String.format("\n%s  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d %s", mark,
+                            sb.append(String.format("\n%s  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d", mark,
                                     r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), keyString,
                                     r.getPointerValue()));
                         }
@@ -4053,6 +4073,8 @@ public class Buffer extends SharedResource {
         if (_alloc - GARBAGE_BLOCK_SIZE < _keyBlockEnd) {
             return false;
         } else {
+            assert !chainIsRedundant(left) : "Attempting to add a redundate garbage chain " + left + "->" + right
+                    + " to " + this;
             _alloc -= GARBAGE_BLOCK_SIZE;
             putInt(_alloc + GARBAGE_BLOCK_STATUS, 0);
             putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
@@ -4061,6 +4083,16 @@ public class Buffer extends SharedResource {
             bumpGeneration();
             return true;
         }
+    }
+
+    private boolean chainIsRedundant(final long left) {
+        for (int p = _alloc; p < _bufferSize; p += GARBAGE_BLOCK_SIZE) {
+            final long oldLeft = getGarbageChainLeftPage(p);
+            if (oldLeft == left) {
+                return true;
+            }
+        }
+        return false;
     }
 
     int getGarbageChainStatus() {
@@ -4106,8 +4138,8 @@ public class Buffer extends SharedResource {
     }
 
     void setGarbageLeftPage(final long left) {
-        Debug.$assert1.t(isMine() && isGarbagePage() && left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page
-                && _alloc + GARBAGE_BLOCK_SIZE <= _bufferSize && _alloc >= _keyBlockEnd);
+        Debug.$assert1.t(isOwnedAsWriterByMe() && isGarbagePage() && left > 0 && left <= MAX_VALID_PAGE_ADDR
+                && left != _page && _alloc + GARBAGE_BLOCK_SIZE <= _bufferSize && _alloc >= _keyBlockEnd);
         putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
         bumpGeneration();
     }
