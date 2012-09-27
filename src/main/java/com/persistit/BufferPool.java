@@ -631,7 +631,7 @@ public class BufferPool {
     }
 
     private void invalidate(final Buffer buffer) {
-        Debug.$assert0.t(buffer.isValid() && buffer.isMine());
+        Debug.$assert0.t(buffer.isValid() && buffer.isOwnedAsWriterByMe());
 
         while (!detach(buffer)) {
             //
@@ -723,7 +723,7 @@ public class BufferPool {
                         if (buffer.claim(writer, 0)) {
                             vol.getStatistics().bumpGetCounter();
                             bumpHitCounter();
-                            assert !buffer.isOther();
+                            assert !buffer.isOwnedAsWriterByOther();
                             return buffer;
                         } else {
                             mustClaim = true;
@@ -791,7 +791,7 @@ public class BufferPool {
                         //
                         vol.getStatistics().bumpGetCounter();
                         bumpHitCounter();
-                        assert !buffer.isOther();
+                        assert !buffer.isOwnedAsWriterByOther();
                         return buffer;
                     } else {
                         throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to acquire "

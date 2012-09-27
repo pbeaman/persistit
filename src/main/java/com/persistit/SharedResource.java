@@ -294,11 +294,11 @@ class SharedResource {
      * 
      * @return <i>true</i> if this Thread has a writer claim on this page.
      */
-    boolean isMine() {
+    boolean isOwnedAsWriterByMe() {
         return (_sync.writerThread() == Thread.currentThread());
     }
 
-    boolean isOther() {
+    boolean isOwnedAsWriterByOther() {
         final Thread t = _sync.writerThread();
         return t != null && t != Thread.currentThread();
     }

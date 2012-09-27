@@ -451,12 +451,13 @@ class VolumeStructure {
                 try {
                     final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                     garbageBuffer.writePageOnCheckpoint(timestamp);
-                    assert garbageBuffer.isGarbagePage();
+                    assert garbageBuffer.isGarbagePage() : "Garbage root page wrong type: " + garbageBuffer;
 
                     final long page = garbageBuffer.getGarbageChainLeftPage();
                     final long rightPage = garbageBuffer.getGarbageChainRightPage();
 
-                    assert page != 0 && page != garbageRoot;
+                    assert page != 0 && page != garbageRoot : "Garbage chain in garbage page + " + garbageBuffer
+                            + " has invalid left page address " + page;
 
                     if (page == -1) {
                         final long newGarbageRoot = garbageBuffer.getRightSibling();
@@ -467,9 +468,9 @@ class VolumeStructure {
                         garbageBuffer = null;
                     } else {
                         _persistit.getLogBase().allocateFromGarbageChain.log(page, garbageBufferInfo(garbageBuffer));
-                        assert rightPage != -1;
+                        assert rightPage != -1 : "Garbage chain in garbage page + " + garbageBuffer
+                                + " has invalid right page address " + rightPage;
                         buffer = _pool.get(_volume, page, true, true);
-                        Debug.$assert0.t(buffer.getPageAddress() > 0);
                         buffer.writePageOnCheckpoint(timestamp);
 
                         final long nextGarbagePage = buffer.getRightSibling();
@@ -480,7 +481,8 @@ class VolumeStructure {
                         } else {
                             _persistit.getLogBase().garbageChainUpdate.log(garbageBufferInfo(garbageBuffer),
                                     nextGarbagePage, rightPage);
-                            Debug.$assert0.t(nextGarbagePage > 0);
+                            assert nextGarbagePage > 0 : "Deallocated page has invalid right pointer "
+                                    + nextGarbagePage + " in " + buffer;
                             garbageBuffer.setGarbageLeftPage(nextGarbagePage);
                         }
                         garbageBuffer.setDirtyAtTimestamp(timestamp);
@@ -531,7 +533,7 @@ class VolumeStructure {
                 final long left = chain.getLeft();
                 final long right = chain.getRight();
 
-                Debug.$assert0.t(left > 0);
+                assert left > 0 || right < 0 : "Attempt to deallocate invalid garbage chain " + chain;
 
                 Buffer garbageBuffer = null;
                 final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
@@ -559,15 +561,17 @@ class VolumeStructure {
                             garbageBuffer = releaseBuffer(garbageBuffer);
                         }
                     }
-                    assert right != -1;
                     garbageBuffer = _pool.get(_volume, left, true, true);
                     garbageBuffer.writePageOnCheckpoint(timestamp);
 
                     assert garbageBuffer.isDataPage() || garbageBuffer.isIndexPage()
-                            || garbageBuffer.isLongRecordPage();
+                            || garbageBuffer.isLongRecordPage() : "Attempt to allocate invalid type of page: "
+                            + garbageBuffer;
 
                     final long nextGarbagePage = garbageBuffer.getRightSibling();
 
+                    assert nextGarbagePage > 0 || right == 0 : "Attempt to deallcoate broken chain " + chain
+                            + " starting at left page " + garbageBuffer;
                     Debug.$assert0.t(nextGarbagePage > 0 || right == 0);
 
                     harvestLongRecords(garbageBuffer, 0, Integer.MAX_VALUE, chains);
@@ -605,13 +609,14 @@ class VolumeStructure {
 
     private void harvestLongRecords(final Buffer buffer, final int start, final int end, final List<Chain> chains)
             throws PersistitException {
-        assert buffer.isMine();
+        assert buffer.isOwnedAsWriterByMe() : "Harvesting from page owned by another thread: " + buffer;
         if (buffer.isDataPage()) {
             final int p1 = buffer.toKeyBlock(start);
             final int p2 = buffer.toKeyBlock(end);
             for (int p = p1; p < p2 && p != -1; p = buffer.nextKeyBlock(p)) {
                 final long pointer = buffer.fetchLongRecordPointer(p);
-                assert pointer != INVALID_PAGE_ADDRESS;
+                assert pointer != INVALID_PAGE_ADDRESS : "Long record at keyblock " + p
+                        + " was already harvested from " + buffer;
                 if (pointer != 0) {
                     chains.add(new Chain(pointer, 0));
                     /*

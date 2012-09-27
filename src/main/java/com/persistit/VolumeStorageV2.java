@@ -547,7 +547,7 @@ class VolumeStorageV2 extends VolumeStorage {
     @Override
     void flushMetaData() throws PersistitException {
         if (!isReadOnly()) {
-            assert _headBuffer.isMine();
+            assert _headBuffer.isOwnedAsWriterByMe();
             final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
             _volume.getStatistics().setLastGlobalTimestamp(timestamp);
             _headBuffer.writePageOnCheckpoint(timestamp);

@@ -3388,7 +3388,7 @@ public class Exchange {
                             _volume.getStructure().harvestLongRecords(buffer1, foundAt1, Integer.MAX_VALUE);
                             _volume.getStructure().harvestLongRecords(buffer2, 0, foundAt2);
 
-                            Debug.$assert0.t(_tree.isMine() && buffer1.isMine() && buffer2.isMine());
+                            Debug.$assert0.t(_tree.isOwnedAsWriterByMe() && buffer1.isOwnedAsWriterByMe() && buffer2.isOwnedAsWriterByMe());
                             final boolean rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1,
                                     _spareKey2, _joinPolicy);
                             if (buffer1.isDataPage()) {
@@ -3721,7 +3721,7 @@ public class Exchange {
 
     private void checkPageType(final Buffer buffer, final int expectedType, final boolean releaseOnFailure)
             throws PersistitException {
-        assert !buffer.isOther();
+        assert !buffer.isOwnedAsWriterByOther();
         final int type = buffer.getPageType();
         if (type != expectedType) {
             if (releaseOnFailure) {
