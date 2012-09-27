@@ -252,6 +252,9 @@ class MVV {
             final int sourceLength) {
         int existedMask = 0;
         int to = targetOffset;
+        int remainder = 0;
+        int end = targetOffset + targetLength;
+
         if (targetLimit > target.length) {
             throw new IllegalArgumentException("Target limit exceed target array length: " + targetLimit + " > "
                     + target.length);
@@ -314,8 +317,7 @@ class MVV {
              */
             to++;
             int next = to;
-            int end = targetOffset + targetLength;
-
+            
             while (next < end) {
                 final long curVersion = getVersion(target, to);
                 final int vlength = getLength(target, to);
@@ -340,20 +342,30 @@ class MVV {
                         end -= (next - to);
                         next = to;
                     }
+                } else if (curVersion > versionHandle) {
+                    if  (vh2ts(versionHandle) != vh2ts(curVersion)) {
+                        throw new IllegalStateException("Versions out of order");
+                    }
+                    remainder = end - to;
+                    break;
                 }
                 to = next;
             }
         }
-        assertCapacity(targetLimit, to + LENGTH_PER_VERSION + sourceLength);
+        assertCapacity(targetLimit, end + LENGTH_PER_VERSION + sourceLength);
+        // Move same-transaction steps that are higher
+        if (remainder > 0) {
+            System.arraycopy(target, to, target, to + sourceLength + LENGTH_PER_VERSION, remainder);
+        }
         // Append new value
         putVersion(target, to, versionHandle);
         putLength(target, to, sourceLength);
         to += LENGTH_PER_VERSION;
         System.arraycopy(source, sourceOffset, target, to, sourceLength);
         to += sourceLength;
-        Debug.$assert0.t(verify(target, targetOffset, to - targetOffset));
+        Debug.$assert0.t(verify(target, targetOffset, to - targetOffset + remainder));
 
-        return (to - targetOffset) | existedMask;
+        return (to - targetOffset + remainder) | existedMask;
     }
 
     /**
