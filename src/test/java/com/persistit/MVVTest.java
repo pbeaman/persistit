@@ -179,8 +179,8 @@ public class MVVTest {
         storedLength &= STORE_LENGTH_MASK;
         assertEquals(targetLength - 1, storedLength);
         assertArrayEqualsLen(
-                newArray(TYPE_MVV, 0, 0, 0, 0, 0, 0, 0, vh1, 0, 2, 0x4, 0x5, 0, 0, 0, 0, 0, 0, 0, vh3, 0, 4, 0x6, 0x7,
-                        0x8, 0x9, 0, 0, 0, 0, 0, 0, 0, vh2, 0, 2, 0xD, 0xE), target, storedLength);
+                newArray(TYPE_MVV, 0, 0, 0, 0, 0, 0, 0, vh1, 0, 2, 0x4, 0x5, 0, 0, 0, 0, 0, 0, 0, vh2, 0, 2, 0xD, 0xE,
+                        0, 0, 0, 0, 0, 0, 0, vh3, 0, 4, 0x6, 0x7, 0x8, 0x9), target, storedLength);
     }
 
     @Test
@@ -197,8 +197,8 @@ public class MVVTest {
 
         assertEquals(targetLength + 1, storedLength);
         assertArrayEqualsLen(
-                newArray(TYPE_MVV, 0, 0, 0, 0, 0, 0, 0, vh1, 0, 2, 0x4, 0x5, 0, 0, 0, 0, 0, 0, 0, vh3, 0, 4, 0x6, 0x7,
-                        0x8, 0x9, 0, 0, 0, 0, 0, 0, 0, vh2, 0, 4, 0xC, 0xD, 0xE, 0xF), target, storedLength);
+                newArray(TYPE_MVV, 0, 0, 0, 0, 0, 0, 0, vh1, 0, 2, 0x4, 0x5, 0, 0, 0, 0, 0, 0, 0, vh2, 0, 4, 0xC, 0xD,
+                        0xE, 0xF, 0, 0, 0, 0, 0, 0, 0, vh3, 0, 4, 0x6, 0x7, 0x8, 0x9), target, storedLength);
     }
 
     @Test
@@ -220,15 +220,8 @@ public class MVVTest {
 
     @Test
     public void storeBigVersions() {
-        final long versions[] = { Integer.MAX_VALUE, 10, 1844674407370955161L /*
-                                                                               * MAX
-                                                                               * /
-                                                                               * 5
-                                                                               * -
-                                                                               * ish
-                                                                               */, Short.MAX_VALUE, Long.MAX_VALUE,
-                8301034833169298227L /* MAX*0.9-ish */
-        };
+        final long versions[] = { 10, Short.MAX_VALUE, Integer.MAX_VALUE, 1844674407370955161L, 8301034833169298227L,
+                Long.MAX_VALUE };
         final byte contents[][] = { newArray(0xA0), newArray(0xB0, 0xB1), newArray(0xC0, 0xC1, 0xC2),
                 newArray(0xD0, 0xD1, 0xD2, 0xD3), newArray(0xE0, 0xE1, 0xE2, 0xE3, 0xE4),
                 newArray(0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5) };
