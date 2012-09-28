@@ -45,11 +45,11 @@ import com.persistit.util.ThreadSequencer.Condition;
  * at com.persistit.VolumeStructure.deallocateGarbageChain(VolumeStructure.java:
  * 510)
  * 
- * As it turns out, the condition being asserted is a rare but legitimate state and
- * the bug fix it to remove a conditional clause from the assert statement in
- * VolumeStructure#deallocateGarbageChain.  The recreate1022567 method below
- * reproduces the legitimate case, and without the change in VolumeStructure cuases
- * a the IllegalStateException.
+ * As it turns out, the condition being asserted is a rare but legitimate state
+ * and the bug fix it to remove a conditional clause from the assert statement
+ * in VolumeStructure#deallocateGarbageChain. The recreate1022567 method below
+ * reproduces the legitimate case, and without the change in VolumeStructure
+ * cuases a the IllegalStateException.
  */
 
 public class Bug1022567Test extends PersistitUnitTestCase {
@@ -82,6 +82,7 @@ public class Bug1022567Test extends PersistitUnitTestCase {
 
             final long mainThreadId = Thread.currentThread().getId();
             setCondition(DEALLOCATE_CHAIN_A, new Condition() {
+                @Override
                 public boolean enabled() {
                     return Thread.currentThread().getId() == mainThreadId;
                 }
@@ -117,7 +118,8 @@ public class Bug1022567Test extends PersistitUnitTestCase {
                 // deallocating
                 // them.
 
-                Thread t = new Thread(new Runnable() {
+                final Thread t = new Thread(new Runnable() {
+                    @Override
                     public void run() {
                         try {
                             sequence(DEALLOCATE_CHAIN_B);
@@ -127,7 +129,7 @@ public class Bug1022567Test extends PersistitUnitTestCase {
                                 ex2.remove();
                             }
                             sequence(DEALLOCATE_CHAIN_C);
-                        } catch (PersistitException e) {
+                        } catch (final PersistitException e) {
                             e.printStackTrace();
                         }
                     }
@@ -168,6 +170,7 @@ public class Bug1022567Test extends PersistitUnitTestCase {
         for (int i = 2; i < 480; i++) {
             final int offset = i;
             final Thread t = new Thread(new Runnable() {
+                @Override
                 public void run() {
                     try {
                         final Key key1 = new Key(_persistit);
@@ -176,7 +179,7 @@ public class Bug1022567Test extends PersistitUnitTestCase {
                         keys.get(500 + offset).copyTo(key2);
                         final Exchange exchange = _persistit.getExchange(VOLUME_NAME, TREE_NAME, false);
                         exchange.removeKeyRange(key1, key2);
-                    } catch (PersistitException e) {
+                    } catch (final PersistitException e) {
                         e.printStackTrace();
                     }
                 }
@@ -219,7 +222,7 @@ public class Bug1022567Test extends PersistitUnitTestCase {
                 keys.get(500 + offset).copyTo(key2);
                 final Exchange exchange = _persistit.getExchange(VOLUME_NAME, TREE_NAME, false);
                 exchange.removeKeyRange(key1, key2);
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 e.printStackTrace();
             }
         }
