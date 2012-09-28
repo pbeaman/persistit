@@ -93,4 +93,14 @@ public interface SequencerConstants {
     int[][] LONG_RECORD_ALLOCATE_SCHEDULED = new int[][] { array(LONG_RECORD_ALLOCATE_B),
             array(LONG_RECORD_ALLOCATE_A, LONG_RECORD_ALLOCATE_B) };
 
+    /*
+     * Used in testing delete/deallocate sequence in Bug1022567Test
+     */
+    int DEALLOCATE_CHAIN_A = allocate("DEALLOCATE_CHAIN_A");
+    int DEALLOCATE_CHAIN_B = allocate("DEALLOCATE_CHAIN_B");
+    int DEALLOCATE_CHAIN_C = allocate("DEALLOCATE_CHAIN_C");
+    int[][] DEALLOCATE_CHAIN_SCHEDULED = new int[][] { array(DEALLOCATE_CHAIN_A, DEALLOCATE_CHAIN_B),
+            array(DEALLOCATE_CHAIN_B), array(DEALLOCATE_CHAIN_A, DEALLOCATE_CHAIN_C),
+            array(DEALLOCATE_CHAIN_A, DEALLOCATE_CHAIN_C) };
+
 }

@@ -109,8 +109,16 @@ public class ThreadSequencer implements SequencerConstants {
     private static volatile Sequencer _sequencer = DISABLED_SEQUENCER;
 
     private final static List<String> LOCATIONS = new ArrayList<String>();
+    
+    private final static List<Condition> CONDITIONS = new ArrayList<Condition>();
 
     private final static int MAX_LOCATIONS = 64;
+    
+    public static class Condition {
+        public boolean enabled() {
+            return true;
+        }
+    }
 
     public synchronized static int allocate(final String locationName) {
         for (final String alreadyRegistered : LOCATIONS) {
@@ -119,6 +127,7 @@ public class ThreadSequencer implements SequencerConstants {
         final int value = LOCATIONS.size();
         assert value < MAX_LOCATIONS : "Too many ThreadSequence locations";
         LOCATIONS.add(locationName);
+        CONDITIONS.add(new Condition());
         return value;
     }
 
@@ -167,6 +176,10 @@ public class ThreadSequencer implements SequencerConstants {
         }
     }
 
+    public static void setCondition(final int location, final Condition condition) {
+        CONDITIONS.set(location, condition);
+    }
+    
     public static String sequencerHistory() {
         return ENABLED_SEQUENCER.history();
     }
@@ -368,6 +381,10 @@ public class ThreadSequencer implements SequencerConstants {
         public void sequence(final int location) {
             assert location >= 0 && location < MAX_LOCATIONS : "Location must be between 0 and 63, inclusive";
             Semaphore semaphore = null;
+            
+            if (!CONDITIONS.get(location).enabled()) {
+                return;
+            }
 
             synchronized (this) {
                 if ((_enabled & (1L << location)) == 0) {
