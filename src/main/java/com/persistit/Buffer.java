@@ -2461,6 +2461,7 @@ public class Buffer extends SharedResource {
              * Since pages are not contiguous, we need to extract the max key
              * from the current page and compute the ebc from it.
              */
+            keyAt(foundAt1, indexKey);
             final int firstUnique = indexKey.firstUniqueByteIndex(spareKey);
             newEbc = Math.min(Math.min(oldEbc, firstUnique),
                     Math.min((int) (measureLeft >>> 32), (int) (measureRight >>> 32)));
