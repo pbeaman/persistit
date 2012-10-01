@@ -53,6 +53,15 @@ public class VolumeSpecification {
     private boolean readOnly = false;
     private boolean create = false;
     private boolean createOnly = false;
+    private boolean aliased = false;
+
+    public void setInitialSize(long initialSize) {
+        this.initialSize = initialSize;
+    }
+
+    public void setMaximumSize(long maximumSize) {
+        this.maximumSize = maximumSize;
+    }
 
     private int pageSize = -1;
     private int version = -1;
@@ -99,7 +108,11 @@ public class VolumeSpecification {
             final long maximumPages, final long extensionPages, final boolean create, final boolean createOnly,
             final boolean readOnly) {
         this.path = path;
-        this.name = name == null ? nameFromFile(new File(path)) : name;
+        if (name == null) {
+            this.name = nameFromFile(new File(path));
+        } else {
+            setName(name);
+        }
         this.pageSize = pageSize;
         this.initialPages = initialPages;
         this.maximumPages = maximumPages;
@@ -154,6 +167,9 @@ public class VolumeSpecification {
      * <dd><i>NNN</i> is the maximum number of pages to which this volume can
      * extend.</dd>
      * 
+     * <dt><code>id:<i>NNN</i></code></dt>
+     * <dd><i>NNN</i> is the permanent internal identifier for this Volume.</dd>
+     * 
      * </dl>
      * <p>
      * 
@@ -181,7 +197,7 @@ public class VolumeSpecification {
                 } else if (ATTR_NAME.equals(attr) || ATTR_ALIAS.equals(attr)) {
                     final String valueString = innerTokenizer.nextToken().trim();
                     if (valueString != null && !valueString.isEmpty()) {
-                        name = valueString;
+                        setName(valueString);
                     }
                 } else {
                     final String valueString = innerTokenizer.nextToken().trim();
@@ -302,6 +318,10 @@ public class VolumeSpecification {
         return path;
     }
 
+    public void setPath(String path) {
+        this.path = path;
+    }
+
     public File getAbsoluteFile() {
         return new File(path).getAbsoluteFile();
     }
@@ -310,16 +330,37 @@ public class VolumeSpecification {
         return name;
     }
 
+    public void setName(String name) {
+        this.aliased = nameFromFile(new File(path)).equals(name); 
+        this.name = name;
+    }
+
     public boolean isReadOnly() {
         return readOnly;
+    }
+
+    public void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
+    }
+    
+    public boolean isAliased() {
+        return aliased;
     }
 
     public boolean isCreate() {
         return create || createOnly;
     }
 
+    public void setCreate(boolean create) {
+        this.create = create;
+    }
+
     public boolean isCreateOnly() {
         return createOnly;
+    }
+
+    public void setCreateOnly(boolean createOnly) {
+        this.createOnly = createOnly;
     }
 
     public int getPageSize() {
@@ -362,9 +403,12 @@ public class VolumeSpecification {
     public String toString() {
         final StringBuilder sb = new StringBuilder();
         sb.append(path);
-        sb.append(',').append(ATTR_NAME).append(':').append(name);
-        sb.append(',').append(ATTR_PAGE_SIZE).append(':').append(pageSize);
-
+        if (aliased) {
+            sb.append(',').append(ATTR_NAME).append(':').append(name);
+        }
+        if (pageSize > 0) {
+            sb.append(',').append(ATTR_PAGE_SIZE).append(':').append(pageSize);
+        }
         if (initialPages >= 0) {
             sb.append(',').append(ATTR_INITIAL_SIZE).append(':').append(ds(initialPages));
         }
@@ -407,6 +451,10 @@ public class VolumeSpecification {
      */
     void setExtensionPages(final long extensionPages) {
         this.extensionPages = extensionPages;
+    }
+
+    public void setExtensionSize(long extensionSize) {
+        this.extensionSize = extensionSize;
     }
 
     /**

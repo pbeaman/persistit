@@ -289,7 +289,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             _journalCreatedTime = System.currentTimeMillis();
         }
         _closed.set(false);
-
     }
 
     public void startJournal() throws PersistitException {
@@ -661,7 +660,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         if (volume == null) {
             return null;
         }
-        return _persistit.getVolume(volume.getName());
+        return _persistit.loadVolume(volume.getSpecification());
     }
 
     @Override
@@ -1124,7 +1123,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         IV.putHandle(_writeBuffer, handle);
         IV.putVolumeId(_writeBuffer, volume.getId());
         JournalRecord.putTimestamp(_writeBuffer, epochalTimestamp());
-        IV.putVolumeName(_writeBuffer, volume.getName());
+        IV.putVolumeName(_writeBuffer, volume.getSpecification().toString());
         final int recordSize = JournalRecord.getLength(_writeBuffer);
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize, _currentAddress);
         advance(recordSize);

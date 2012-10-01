@@ -316,7 +316,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     @Test
     public void testLargePageMap() throws Exception {
-        final Volume vd = new Volume("foo", 123);
+        final Volume vd = new Volume(new VolumeSpecification("foo"));
+        vd.setId(123);
         final Map<Integer, Volume> volumeMap = new TreeMap<Integer, Volume>();
         volumeMap.put(1, vd);
         // sorted to make reading hex dumps easier
@@ -362,7 +363,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
     public void testVolumeMetadataValid() throws Exception {
         // create a junk volume to make sure the internal handle count is bumped
         // up
-        final Volume vd = new Volume("foo", 123);
+        final Volume vd = new Volume(new VolumeSpecification("foo"));
+        vd.setId(123);
         final int volumeHandle = _persistit.getJournalManager().handleForVolume(vd);
         // retrieve the value of the handle counter before crashing
         final int initialHandleValue = _persistit.getJournalManager().getHandleCount();

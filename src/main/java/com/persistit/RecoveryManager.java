@@ -986,14 +986,18 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
         read(address, recordSize);
         final Integer handle = Integer.valueOf(IV.getHandle(_readBuffer));
-        final String name = IV.getVolumeName(_readBuffer);
-        final long volumeId = IV.getVolumeId(_readBuffer);
-        final Volume volume = new Volume(name, volumeId);
+        final long id = IV.getVolumeId(_readBuffer);
+        final String specification = IV.getVolumeName(_readBuffer);
+        final VolumeSpecification vs = new VolumeSpecification(specification);
+        vs.setCreate(false);
+        vs.setCreateOnly(false);
+        final Volume volume = new Volume(vs);
+        volume.setId(id);
 
         _handleToVolumeMap.put(handle, volume);
         _volumeToHandleMap.put(volume, handle);
 
-        _persistit.getLogBase().recoveryRecord.log("IV", addressToString(address, timestamp), name, timestamp);
+        _persistit.getLogBase().recoveryRecord.log("IV", addressToString(address, timestamp), vs.getName(), timestamp);
     }
 
     /**

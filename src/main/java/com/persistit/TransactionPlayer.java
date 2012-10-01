@@ -36,8 +36,8 @@ import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.SR;
 import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
-import com.persistit.exception.MissingVolumeException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.VolumeNotFoundException;
 
 class TransactionPlayer {
 
@@ -245,7 +245,7 @@ class TransactionPlayer {
                             + addressToString(address));
                 }
                 }
-            } catch (final MissingVolumeException mve) {
+            } catch (final VolumeNotFoundException vnfe) {
                 final Persistit db = _support.getPersistit();
                 if (db.getJournalManager().isIgnoreMissingVolumes()) {
                     /*
@@ -253,13 +253,16 @@ class TransactionPlayer {
                      * Alert, but allow recovery or rollback to continue.
                      */
                     db.getAlertMonitor().post(
-                            new Event(AlertLevel.WARN, db.getLogBase().missingVolume, mve.getVolumeName(), address
+                            new Event(AlertLevel.WARN, db.getLogBase().missingVolume, vnfe.getMessage(), address
                                     + position - start), AlertMonitor.MISSING_VOLUME_CATEGORY);
                     ignoredUpdates.incrementAndGet();
                 } else {
                     failedUpdates.incrementAndGet();
-                    throw mve;
+                    throw vnfe;
                 }
+            } catch (final PersistitException e) {
+                failedUpdates.incrementAndGet();
+                throw e;
             }
             position += innerSize;
         }
@@ -289,11 +292,7 @@ class TransactionPlayer {
         if (volumeRef.isOpened()) {
             volume = volumeRef;
         } else {
-            volume = _support.getPersistit().getVolume(volumeRef.getName());
-            if (volume == null) {
-                throw new MissingVolumeException("No matching Volume found for journal reference " + volumeRef + " at "
-                        + addressToString(from, timestamp), volumeRef.getName());
-            }
+            volume = _support.getPersistit().loadVolume(volumeRef.getSpecification());
         }
         volume.verifyId(volume.getId());
 
