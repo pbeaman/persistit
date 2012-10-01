@@ -27,6 +27,7 @@ import com.persistit.exception.CorruptValueException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.exception.VersionsOutOfOrderException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -343,7 +344,7 @@ class MVV {
                     }
                 } else if (curVersion > versionHandle) {
                     if  (vh2ts(versionHandle) != vh2ts(curVersion)) {
-                        throw new IllegalStateException("Versions out of order");
+                        throw new VersionsOutOfOrderException("Versions out of order");
                     }
                     remainder = end - to;
                     break;

@@ -51,6 +51,7 @@ import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TreeNotFoundException;
+import com.persistit.exception.VersionsOutOfOrderException;
 import com.persistit.exception.WWRetryException;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
@@ -249,6 +250,8 @@ public class Exchange {
     private final static int LEFT_CLAIMED = 1;
 
     private final static int RIGHT_CLAIMED = 2;
+
+    private final static int VERSIONS_OUT_OF_ORDER_RETRY_COUNT = 3;
 
     private Persistit _persistit;
 
@@ -1487,56 +1490,71 @@ public class Exchange {
                         if (doMVCC) {
                             valueToStore = spareValue;
                             final int valueSize = value.getEncodedSize();
-                            /*
-                             * If key didn't exist the value is truly
-                             * non-existent and not just undefined/zero length
-                             */
-                            byte[] spareBytes = spareValue.getEncodedBytes();
-                            int spareSize = keyExisted ? spareValue.getEncodedSize() : -1;
-                            spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false,
-                                    prunedVersions);
+                            int retries = VERSIONS_OUT_OF_ORDER_RETRY_COUNT;
 
-                            final TransactionStatus tStatus = _transaction.getTransactionStatus();
-                            final int tStep = _transaction.getStep();
+                            while (true) {
+                                try {
+                                    /*
+                                     * If key didn't exist the value is truly
+                                     * non-existent and not just undefined/zero
+                                     * length
+                                     */
+                                    byte[] spareBytes = spareValue.getEncodedBytes();
+                                    int spareSize = keyExisted ? spareValue.getEncodedSize() : -1;
+                                    spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(),
+                                            false, prunedVersions);
 
-                            if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
-                                /*
-                                 * Could be single visit of all versions but
-                                 * current TI would still require calls to both
-                                 * commitStatus() and wwDependency()
-                                 */
-                                _mvvVisitor.initInternal(tStatus, tStep, MvvVisitor.Usage.FETCH);
-                                MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
-                                final int offset = _mvvVisitor.getOffset();
-                                if (!_mvvVisitor.foundVersion()
-                                        || (_mvvVisitor.getLength() > 0 && spareBytes[offset] == MVV.TYPE_ANTIVALUE)) {
-                                    // Completely done, nothing to store
-                                    keyExisted = false;
+                                    final TransactionStatus tStatus = _transaction.getTransactionStatus();
+                                    final int tStep = _transaction.getStep();
+
+                                    if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
+                                        /*
+                                         * Could be single visit of all versions
+                                         * but current TI would still require
+                                         * calls to both commitStatus() and
+                                         * wwDependency()
+                                         */
+                                        _mvvVisitor.initInternal(tStatus, tStep, MvvVisitor.Usage.FETCH);
+                                        MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
+                                        final int offset = _mvvVisitor.getOffset();
+                                        if (!_mvvVisitor.foundVersion()
+                                                || (_mvvVisitor.getLength() > 0 && spareBytes[offset] == MVV.TYPE_ANTIVALUE)) {
+                                            // Completely done, nothing to store
+                                            keyExisted = false;
+                                            break;
+                                        }
+                                    }
+
+                                    // Visit all versions for ww detection
+                                    _mvvVisitor.initInternal(tStatus, tStep, MvvVisitor.Usage.STORE);
+                                    MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
+
+                                    final int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
+                                    spareValue.ensureFit(mvvSize);
+                                    spareBytes = spareValue.getEncodedBytes();
+
+                                    final long versionHandle = TransactionIndex.tss2vh(
+                                            _transaction.getStartTimestamp(), tStep);
+                                    int storedLength = MVV.storeVersion(spareBytes, 0, spareSize, spareBytes.length,
+                                            versionHandle, value.getEncodedBytes(), 0, valueSize);
+
+                                    incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
+                                    storedLength &= MVV.STORE_LENGTH_MASK;
+                                    spareValue.setEncodedSize(storedLength);
+
+                                    Debug.$assert0.t(MVV.verify(_persistit.getTransactionIndex(), spareBytes, 0,
+                                            storedLength));
+
+                                    if (spareValue.getEncodedSize() > maxSimpleValueSize) {
+                                        newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(spareValue,
+                                                _transaction.isActive());
+                                    }
                                     break;
+                                } catch (final VersionsOutOfOrderException e) {
+                                    if (retries <= 0) {
+                                        throw e;
+                                    }
                                 }
-                            }
-
-                            // Visit all versions for ww detection
-                            _mvvVisitor.initInternal(tStatus, tStep, MvvVisitor.Usage.STORE);
-                            MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
-
-                            final int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
-                            spareValue.ensureFit(mvvSize);
-                            spareBytes = spareValue.getEncodedBytes();
-
-                            final long versionHandle = TransactionIndex.tss2vh(_transaction.getStartTimestamp(), tStep);
-                            int storedLength = MVV.storeVersion(spareBytes, 0, spareSize, spareBytes.length,
-                                    versionHandle, value.getEncodedBytes(), 0, valueSize);
-
-                            incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
-                            storedLength &= MVV.STORE_LENGTH_MASK;
-                            spareValue.setEncodedSize(storedLength);
-
-                            Debug.$assert0.t(MVV.verify(_persistit.getTransactionIndex(), spareBytes, 0, storedLength));
-
-                            if (spareValue.getEncodedSize() > maxSimpleValueSize) {
-                                newLongRecordPointerMVV = getLongRecordHelper().storeLongRecord(spareValue,
-                                        _transaction.isActive());
                             }
                         }
                     }

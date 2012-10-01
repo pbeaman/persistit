@@ -74,15 +74,15 @@ public class Bug1041003Test extends PersistitUnitTestCase {
     @Test
     public void leaveTransactionBufferFlipped() throws Exception {
         /*
-         * Need first journal file almost full so that an attempt to write a transaction
-         * will force a rollover.
+         * Need first journal file almost full so that an attempt to write a
+         * transaction will force a rollover.
          */
         final Exchange exchange = _persistit.getExchange(_volumeName, "Bug1041003Test", true);
         _persistit.flush();
         final JournalManager jman = _persistit.getJournalManager();
         ByteBuffer bb = ByteBuffer.allocate(BLOCKSIZE);
         long size = BLOCKSIZE - JE.OVERHEAD - jman.getCurrentAddress() - 1;
-        bb.position((int)(size - JournalRecord.TX.OVERHEAD));
+        bb.position((int) (size - JournalRecord.TX.OVERHEAD));
         jman.writeTransactionToJournal(bb, 1, 2, 0);
         final Transaction txn = _persistit.getTransaction();
         final ErrorInjectingFileChannel eifc = errorInjectingChannel(_persistit.getJournalManager().getFileChannel(
@@ -115,7 +115,8 @@ public class Bug1041003Test extends PersistitUnitTestCase {
         try {
             exchange.getValue().put(RED_FOX + RED_FOX);
             /*
-             * Bug 1041003 causes the following line to throw an IllegalStateException.
+             * Bug 1041003 causes the following line to throw an
+             * IllegalStateException.
              */
             exchange.to(1).store();
             txn.commit(CommitPolicy.HARD);
