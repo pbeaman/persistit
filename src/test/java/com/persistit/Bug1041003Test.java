@@ -15,26 +15,17 @@
 
 package com.persistit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Properties;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import org.junit.Test;
 
 import com.persistit.JournalRecord.JE;
 import com.persistit.Transaction.CommitPolicy;
-import com.persistit.exception.CorruptJournalException;
-import com.persistit.exception.CorruptVolumeException;
-import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.unit.UnitTestProperties;
 
@@ -80,8 +71,8 @@ public class Bug1041003Test extends PersistitUnitTestCase {
         final Exchange exchange = _persistit.getExchange(_volumeName, "Bug1041003Test", true);
         _persistit.flush();
         final JournalManager jman = _persistit.getJournalManager();
-        ByteBuffer bb = ByteBuffer.allocate(BLOCKSIZE);
-        long size = BLOCKSIZE - JE.OVERHEAD - jman.getCurrentAddress() - 1;
+        final ByteBuffer bb = ByteBuffer.allocate(BLOCKSIZE);
+        final long size = BLOCKSIZE - JE.OVERHEAD - jman.getCurrentAddress() - 1;
         bb.position((int) (size - JournalRecord.TX.OVERHEAD));
         jman.writeTransactionToJournal(bb, 1, 2, 0);
         final Transaction txn = _persistit.getTransaction();
@@ -120,7 +111,7 @@ public class Bug1041003Test extends PersistitUnitTestCase {
              */
             exchange.to(1).store();
             txn.commit(CommitPolicy.HARD);
-        } catch (IllegalStateException e) {
+        } catch (final IllegalStateException e) {
             fail("Bug 1041003 strikes: " + e);
         } finally {
             txn.end();

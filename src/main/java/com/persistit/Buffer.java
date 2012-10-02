@@ -2448,7 +2448,25 @@ public class Buffer extends SharedResource {
         final long measureRight = buffer.joinMeasure(KEY_BLOCK_START, foundAt2);
         kbData = buffer.getInt(foundAt2);
         final int oldEbc = decodeKeyBlockEbc(kbData);
-        final int newEbc = Math.min(oldEbc, Math.min((int) (measureLeft >>> 32), (int) (measureRight >>> 32)));
+
+        final int newEbc;
+        if (_rightSibling == buffer._page) {
+            /*
+             * Pages are are contiguous so first key of right sibling is
+             * identical to max key of the current page.
+             */
+            newEbc = Math.min(oldEbc, Math.min((int) (measureLeft >>> 32), (int) (measureRight >>> 32)));
+        } else {
+            /*
+             * Since pages are not contiguous, we need to extract the max key
+             * from the current page and compute the ebc from it.
+             */
+            keyAt(foundAt1, indexKey);
+            final int firstUnique = indexKey.firstUniqueByteIndex(spareKey);
+            newEbc = Math.min(Math.min(oldEbc, firstUnique),
+                    Math.min((int) (measureLeft >>> 32), (int) (measureRight >>> 32)));
+        }
+
         tail = decodeKeyBlockTail(kbData);
         tbData = buffer.getInt(tail);
 

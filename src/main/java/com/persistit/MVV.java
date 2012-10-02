@@ -317,7 +317,7 @@ class MVV {
              */
             to++;
             int next = to;
-            
+
             while (next < end) {
                 final long curVersion = getVersion(target, to);
                 final int vlength = getLength(target, to);

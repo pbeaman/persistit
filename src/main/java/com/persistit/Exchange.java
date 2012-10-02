@@ -33,6 +33,7 @@ import static com.persistit.Key.LT;
 import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
+import static com.persistit.util.SequencerConstants.DEALLOCATE_CHAIN_A;
 import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_A;
 import static com.persistit.util.ThreadSequencer.sequence;
 
@@ -3547,6 +3548,7 @@ public class Exchange {
                     left = lc._deallocLeftPage;
                     right = lc._deallocRightPage;
                     if (left != 0) {
+                        sequence(DEALLOCATE_CHAIN_A);
                         _volume.getStructure().deallocateGarbageChain(left, right);
                         lc._deallocLeftPage = 0;
                         lc._deallocRightPage = 0;
