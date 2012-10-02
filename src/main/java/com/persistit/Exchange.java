@@ -1384,7 +1384,8 @@ public class Exchange {
         try {
 
             Value valueToStore = value;
-            for (;;) {
+
+            mainRetryLoop: for (;;) {
                 Debug.$assert0.t(buffer == null);
                 if (Debug.ENABLED) {
                     Debug.suspend();
@@ -1429,7 +1430,7 @@ public class Exchange {
 
                         Debug.$assert0.t(valueToStore.getPointerValue() > 0);
                         insertIndexLevel(key, valueToStore);
-                        break;
+                        break mainRetryLoop;
                     }
 
                     Debug.$assert0.t(buffer == null);
@@ -1500,9 +1501,14 @@ public class Exchange {
                                      * length
                                      */
                                     byte[] spareBytes = spareValue.getEncodedBytes();
-                                    int spareSize = keyExisted ? spareValue.getEncodedSize() : -1;
-                                    spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(),
-                                            false, prunedVersions);
+                                    int spareSize;
+                                    if (keyExisted) {
+                                        spareSize = MVV.prune(spareBytes, 0, spareValue.getEncodedSize(),
+                                                _persistit.getTransactionIndex(), false, prunedVersions);
+                                        spareValue.setEncodedSize(spareSize);
+                                    } else {
+                                        spareSize = -1;
+                                    }
 
                                     final TransactionStatus tStatus = _transaction.getTransactionStatus();
                                     final int tStep = _transaction.getStep();
@@ -1521,7 +1527,7 @@ public class Exchange {
                                                 || (_mvvVisitor.getLength() > 0 && spareBytes[offset] == MVV.TYPE_ANTIVALUE)) {
                                             // Completely done, nothing to store
                                             keyExisted = false;
-                                            break;
+                                            break mainRetryLoop;
                                         }
                                     }
 
