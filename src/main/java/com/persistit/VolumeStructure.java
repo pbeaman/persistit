@@ -541,8 +541,7 @@ class VolumeStructure {
                 try {
                     final long garbagePage = getGarbageRoot();
                     if (garbagePage != 0) {
-                        if (left == garbagePage || right == garbagePage) {
-                            Debug.$assert0.t(false);
+                        if (left == garbagePage) {
                             throw new IllegalStateException("De-allocating page that is already garbage: " + "root="
                                     + garbagePage + " left=" + left + " right=" + right);
                         }

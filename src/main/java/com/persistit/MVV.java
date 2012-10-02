@@ -316,7 +316,7 @@ class MVV {
              */
             to++;
             int next = to;
-            
+
             while (next < end) {
                 final long curVersion = getVersion(target, to);
                 final int vlength = getLength(target, to);
@@ -342,7 +342,7 @@ class MVV {
                         next = to;
                     }
                 } else if (curVersion > versionHandle) {
-                    if  (vh2ts(versionHandle) != vh2ts(curVersion)) {
+                    if (vh2ts(versionHandle) != vh2ts(curVersion)) {
                         throw new IllegalStateException("Versions out of order");
                     }
                     remainder = end - to;
