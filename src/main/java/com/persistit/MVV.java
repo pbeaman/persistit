@@ -343,7 +343,7 @@ class MVV {
                         next = to;
                     }
                 } else if (curVersion > versionHandle) {
-                    if  (vh2ts(versionHandle) != vh2ts(curVersion)) {
+                    if (vh2ts(versionHandle) != vh2ts(curVersion)) {
                         throw new VersionsOutOfOrderException("Versions out of order");
                     }
                     remainder = end - to;
