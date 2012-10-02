@@ -1493,7 +1493,7 @@ public class Exchange {
                             final int valueSize = value.getEncodedSize();
                             int retries = VERSIONS_OUT_OF_ORDER_RETRY_COUNT;
 
-                            while (true) {
+                            for (;;) {
                                 try {
                                     /*
                                      * If key didn't exist the value is truly
