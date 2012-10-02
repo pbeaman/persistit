@@ -55,11 +55,11 @@ public class VolumeSpecification {
     private boolean createOnly = false;
     private boolean aliased = false;
 
-    public void setInitialSize(long initialSize) {
+    public void setInitialSize(final long initialSize) {
         this.initialSize = initialSize;
     }
 
-    public void setMaximumSize(long maximumSize) {
+    public void setMaximumSize(final long maximumSize) {
         this.maximumSize = maximumSize;
     }
 
@@ -318,7 +318,7 @@ public class VolumeSpecification {
         return path;
     }
 
-    public void setPath(String path) {
+    public void setPath(final String path) {
         this.path = path;
     }
 
@@ -330,8 +330,8 @@ public class VolumeSpecification {
         return name;
     }
 
-    public void setName(String name) {
-        this.aliased = nameFromFile(new File(path)).equals(name); 
+    public void setName(final String name) {
+        this.aliased = nameFromFile(new File(path)).equals(name);
         this.name = name;
     }
 
@@ -339,10 +339,10 @@ public class VolumeSpecification {
         return readOnly;
     }
 
-    public void setReadOnly(boolean readOnly) {
+    public void setReadOnly(final boolean readOnly) {
         this.readOnly = readOnly;
     }
-    
+
     public boolean isAliased() {
         return aliased;
     }
@@ -351,7 +351,7 @@ public class VolumeSpecification {
         return create || createOnly;
     }
 
-    public void setCreate(boolean create) {
+    public void setCreate(final boolean create) {
         this.create = create;
     }
 
@@ -359,7 +359,7 @@ public class VolumeSpecification {
         return createOnly;
     }
 
-    public void setCreateOnly(boolean createOnly) {
+    public void setCreateOnly(final boolean createOnly) {
         this.createOnly = createOnly;
     }
 
@@ -453,7 +453,7 @@ public class VolumeSpecification {
         this.extensionPages = extensionPages;
     }
 
-    public void setExtensionSize(long extensionSize) {
+    public void setExtensionSize(final long extensionSize) {
         this.extensionSize = extensionSize;
     }
 

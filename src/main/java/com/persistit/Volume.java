@@ -94,6 +94,7 @@ public class Volume {
     Volume(final String name, final long id) {
         _name = name;
         _id = id;
+        _specification = new VolumeSpecification(name);
     }
 
     /**

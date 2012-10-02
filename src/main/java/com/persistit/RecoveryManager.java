@@ -987,7 +987,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         read(address, recordSize);
         final Integer handle = Integer.valueOf(IV.getHandle(_readBuffer));
         final long id = IV.getVolumeId(_readBuffer);
-        final String specification = IV.getVolumeName(_readBuffer);
+        final String specification = IV.getVolumeSpecification(_readBuffer);
         final VolumeSpecification vs = new VolumeSpecification(specification);
         vs.setCreate(false);
         vs.setCreateOnly(false);

@@ -1123,7 +1123,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         IV.putHandle(_writeBuffer, handle);
         IV.putVolumeId(_writeBuffer, volume.getId());
         JournalRecord.putTimestamp(_writeBuffer, epochalTimestamp());
-        IV.putVolumeName(_writeBuffer, volume.getSpecification().toString());
+        if (_persistit.getConfiguration().isUseOldVSpec()) {
+            IV.putVolumeSpecification(_writeBuffer, volume.getName());
+        } else {
+            IV.putVolumeSpecification(_writeBuffer, volume.getSpecification().toString());
+        }
         final int recordSize = JournalRecord.getLength(_writeBuffer);
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize, _currentAddress);
         advance(recordSize);
