@@ -46,13 +46,13 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
         int remainingJournalFiles = 0;
 
         for (int i = 10; --i >= 0;) {
-            Persistit db = new Persistit();
+            final Persistit db = new Persistit();
             try {
                 db.initialize(configuration);
                 volumeSpec = new VolumeSpecification(DATA_PATH + "/hwdemo" + i, null, 16384, 1, 1000, 1, true, false,
                         false);
                 db.loadVolume(volumeSpec);
-                Exchange dbex = db.getExchange("hwdemo" + i, "greetings", true);
+                final Exchange dbex = db.getExchange("hwdemo" + i, "greetings", true);
                 dbex.getKey().append("Hello");
                 dbex.getValue().put("World");
                 dbex.store();
@@ -107,17 +107,17 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
         final Configuration configuration = _persistit.getConfiguration();
         _persistit.close();
 
-        Persistit db = new Persistit();
+        final Persistit db = new Persistit();
 
         for (int i = 0; i < 2; i++) {
             try {
                 db.initialize(configuration);
                 volumeSpec = new VolumeSpecification(DATA_PATH + "/truncated", null, 16384, 1, 1000, 1, true, false,
                         false);
-                Volume volume = db.loadVolume(volumeSpec);
+                final Volume volume = db.loadVolume(volumeSpec);
                 volume.truncate();
                 // the following may be omitted, and the problem still exhibited
-                Exchange dbex = db.getExchange("truncated", "greetings", true);
+                final Exchange dbex = db.getExchange("truncated", "greetings", true);
                 dbex.getKey().append("ave");
                 dbex.getValue().put("mundus");
                 dbex.store();

@@ -2456,8 +2456,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         int handle = -1;
 
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
-            Volume volumeRef = null;
-
             if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
                 list.clear();
                 break;
@@ -2492,7 +2490,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     continue;
                 }
                 pageAddress = readPageBufferFromJournal(stablePageNode, bb);
-                _persistit.getIOMeter().chargeCopyPageFromJournal(volumeRef, pageAddress, volume.getPageSize(),
+                _persistit.getIOMeter().chargeCopyPageFromJournal(volume, pageAddress, volume.getPageSize(),
                         stablePageNode.getJournalAddress(), urgency());
             } catch (final PersistitException ioe) {
                 _persistit
@@ -2517,7 +2515,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     void writeForCopy(final List<PageNode> list, final ByteBuffer bb) throws PersistitException {
         Collections.sort(list, PageNode.WRITE_COMPARATOR);
-        Volume volumeRef = null;
         Volume volume = null;
         int handle = -1;
         final Set<Volume> volumes = new HashSet<Volume>();
@@ -2537,12 +2534,12 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                     if (volume != null) {
                         handle = pageNode.getVolumeHandle();
                     }
-                } catch (VolumeNotFoundException vnfe) {
+                } catch (final VolumeNotFoundException vnfe) {
                     _persistit.getAlertMonitor().post(
-                            new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volumeRef,
+                            new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volume,
                                     pageNode.getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
                     if (_ignoreMissingVolume.get()) {
-                        _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), volumeRef,
+                        _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), volume,
                                 pageNode.getJournalAddress());
                         // Not removing the page from the List here will cause
                         // cleanupForCopy to remove it from
