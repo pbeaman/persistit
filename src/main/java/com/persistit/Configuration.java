@@ -1916,6 +1916,7 @@ public class Configuration {
      * 
      * @return <code>true</code>to enable ignore-missing-volumes mode
      */
+    @Deprecated
     public boolean isUseOldVSpec() {
         return useOldVSpec;
     }
@@ -1945,6 +1946,7 @@ public class Configuration {
      *            <code>true</code> to write only the volume name into the
      *            journal.
      */
+    @Deprecated
     public void setUseOldVSpec(final boolean useOldVSpec) {
         this.useOldVSpec = useOldVSpec;
     }

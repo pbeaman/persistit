@@ -282,20 +282,11 @@ class TransactionPlayer {
             throw new CorruptJournalException("Tree handle " + treeHandle + " is undefined at "
                     + addressToString(from, timestamp));
         }
-        final Volume volumeRef = _support.handleToVolume(td.getVolumeHandle());
-        Volume volume;
-        if (volumeRef == null) {
+        final Volume volume = _support.handleToVolume(td.getVolumeHandle());
+        if (volume == null) {
             throw new CorruptJournalException("Volume handle " + td.getVolumeHandle() + " is undefined at "
                     + addressToString(from, timestamp));
         }
-
-        if (volumeRef.isOpened()) {
-            volume = volumeRef;
-        } else {
-            volume = _support.getPersistit().loadVolume(volumeRef.getSpecification());
-        }
-        volume.verifyId(volume.getId());
-
         if (VolumeStructure.DIRECTORY_TREE_NAME.equals(td.getTreeName())) {
             return volume.getStructure().directoryExchange();
         } else {

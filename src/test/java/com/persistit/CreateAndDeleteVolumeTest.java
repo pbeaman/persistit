@@ -57,9 +57,6 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
                 dbex.getValue().put("World");
                 dbex.store();
                 dbex.getKey().to(Key.BEFORE);
-                while (dbex.next()) {
-                    System.out.println(i + ": " + dbex.getKey().reset().decode() + " " + dbex.getValue().get());
-                }
                 db.releaseExchange(dbex);
             } finally {
                 if (i == 0) {

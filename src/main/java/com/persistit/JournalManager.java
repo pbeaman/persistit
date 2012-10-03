@@ -60,6 +60,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RebalanceException;
+import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.mxbeans.JournalManagerMXBean;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
@@ -660,7 +661,19 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         if (volume == null) {
             return null;
         }
-        return _persistit.loadVolume(volume.getSpecification());
+        if (!volume.isOpened()) {
+            volume.open(_persistit);
+        }
+        return volume;
+    }
+
+    synchronized Volume getVolumeByName(final String volumeName) {
+        for (final Volume v : _handleToVolumeMap.values()) {
+            if (volumeName.equals(v.getName())) {
+                return v;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -2454,15 +2467,15 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 iterator.remove();
                 continue;
             }
+            pageNode.setOffset(-1);
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
-                volume = null;
-                // Possibly hollow volume
-                volumeRef = _handleToVolumeMap.get(pageNode.getVolumeHandle());
-                if (volumeRef != null) {
-                    // Opened volume, if present
-                    volume = _persistit.loadVolume(volumeRef.getSpecification());
-                    handle = pageNode.getVolumeHandle();
+                try {
+                    volume = volumeForHandle(pageNode.getVolumeHandle());
+                    handle = volume.getHandle();
+                } catch (final VolumeNotFoundException vnfe) {
+                    // Deal with this in writeForCopy
+                    continue;
                 }
             }
             if (volume == null) {
@@ -2519,27 +2532,23 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
-                volume = null;
-                // Possibly hollow volume
-                volumeRef = _handleToVolumeMap.get(pageNode.getVolumeHandle());
-                if (volumeRef != null) {
-                    // Opened volume, if present
-                    volume = _persistit.loadVolume(volumeRef.getSpecification());
-                    volume.setId(volumeRef.getId());
-                    handle = pageNode.getVolumeHandle();
-                }
-            }
-            if (volume == null) {
-                _persistit.getAlertMonitor().post(
-                        new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volumeRef,
-                                pageNode.getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
-                if (_ignoreMissingVolume.get()) {
-                    _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), volumeRef,
-                            pageNode.getJournalAddress());
-                    // Not removing the page from the List here will cause
-                    // cleanupForCopy to remove it from
-                    // the page map.
-                    continue;
+                try {
+                    volume = volumeForHandle(pageNode.getVolumeHandle());
+                    if (volume != null) {
+                        handle = pageNode.getVolumeHandle();
+                    }
+                } catch (VolumeNotFoundException vnfe) {
+                    _persistit.getAlertMonitor().post(
+                            new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volumeRef,
+                                    pageNode.getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
+                    if (_ignoreMissingVolume.get()) {
+                        _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), volumeRef,
+                                pageNode.getJournalAddress());
+                        // Not removing the page from the List here will cause
+                        // cleanupForCopy to remove it from
+                        // the page map.
+                        continue;
+                    }
                 }
             }
             if (volume == null || volume.isClosed()) {
@@ -2548,8 +2557,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 iterator.remove();
                 continue;
             }
-
-            volumeRef.verifyId(volume.getId());
 
             final long pageAddress = pageNode.getPageAddress();
             volume.getStorage().extend(pageAddress);
