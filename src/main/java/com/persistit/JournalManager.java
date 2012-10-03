@@ -2632,7 +2632,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 // the most recent one that has been checkpointed.
                 //
                 for (PageNode pn = pageNode; pn != null; pn = pn.getPrevious()) {
-                    if (pn.getJournalAddress() < recoveryBoundary) {
+                    if (!pn.isInvalid() && pn.getJournalAddress() < recoveryBoundary) {
                         recoveryBoundary = pn.getJournalAddress();
                     }
                 }
