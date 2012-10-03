@@ -17,6 +17,7 @@ package com.persistit;
 
 import static com.persistit.unit.UnitTestProperties.DATA_PATH;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Ignore;
 import org.junit.Test;
@@ -45,7 +46,7 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
         _persistit.close();
         int remainingJournalFiles = 0;
 
-        for (int i = 10; --i >= 0;) {
+        for (int i = 5; --i >= 0;) {
             final Persistit db = new Persistit();
             try {
                 db.initialize(configuration);
@@ -67,6 +68,39 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
             }
         }
         assertEquals("Should be only one remaining journal file", 1, remainingJournalFiles);
+    }
+    
+    @Test
+    public void useOldVSpecInducesExpectedFailure() throws Exception {
+        VolumeSpecification volumeSpec;
+        final Configuration configuration = _persistit.getConfiguration();
+        _persistit.close();
+        int remainingJournalFiles = 0;
+        configuration.setUseOldVSpec(true);
+        
+        for (int i = 5; --i >= 0;) {
+            final Persistit db = new Persistit();
+            try {
+                db.initialize(configuration);
+                volumeSpec = new VolumeSpecification(DATA_PATH + "/hwdemo" + i, null, 16384, 1, 1000, 1, true, false,
+                        false);
+                db.loadVolume(volumeSpec);
+                final Exchange dbex = db.getExchange("hwdemo" + i, "greetings", true);
+                dbex.getKey().append("Hello");
+                dbex.getValue().put("World");
+                dbex.store();
+                dbex.getKey().to(Key.BEFORE);
+                db.releaseExchange(dbex);
+            } finally {
+                if (i == 0) {
+                    db.copyBackPages();
+                }
+                remainingJournalFiles = db.getJournalManager().getJournalFileCount();
+                db.close();
+            }
+        }
+        assertTrue("Should be only one remaining journal file", remainingJournalFiles > 1);
+        
     }
 
     /**

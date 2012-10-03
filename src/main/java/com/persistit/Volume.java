@@ -24,6 +24,7 @@ import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.TruncateVolumeException;
+import com.persistit.exception.UnderSpecifiedVolumeException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeNotFoundException;
@@ -436,7 +437,7 @@ public class Volume {
             throw new IllegalStateException("This volume has already been opened");
         }
         if (persistit.getBufferPool(_specification.getPageSize()) == null) {
-            throw new IllegalStateException("There is no buffer pool for pages of volume " + _specification);
+            throw new UnderSpecifiedVolumeException(getName());
         }
         final boolean exists = VolumeHeader.verifyVolumeHeader(_specification, persistit.getCurrentTimestamp());
 

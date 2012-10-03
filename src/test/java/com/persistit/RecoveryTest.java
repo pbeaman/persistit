@@ -18,6 +18,7 @@ package com.persistit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -316,8 +317,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     @Test
     public void testLargePageMap() throws Exception {
-        final Volume vd = new Volume(new VolumeSpecification("foo"));
-        vd.setId(123);
+        final Volume vd = new Volume("foo", 123);
         final Map<Integer, Volume> volumeMap = new TreeMap<Integer, Volume>();
         volumeMap.put(1, vd);
         // sorted to make reading hex dumps easier
@@ -363,8 +363,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     public void testVolumeMetadataValid() throws Exception {
         // create a junk volume to make sure the internal handle count is bumped
         // up
-        final Volume vd = new Volume(new VolumeSpecification("foo"));
-        vd.setId(123);
+        final Volume vd = new Volume("foo", 123);
         final int volumeHandle = _persistit.getJournalManager().handleForVolume(vd);
         // retrieve the value of the handle counter before crashing
         final int initialHandleValue = _persistit.getJournalManager().getHandleCount();
@@ -500,7 +499,57 @@ public class RecoveryTest extends PersistitUnitTestCase {
         for (int i = 0; i < count + 100; i++) {
             assertEquals(i < count, exchange.to(i).isValueDefined());
         }
+    }
 
+    /*
+     * Deprecated because the useOldVSpec param will go away soon.
+     */
+    @Test
+    @Deprecated
+    public void testNormalRestartUseOldVSpec() throws Exception {
+        final Configuration config = _persistit.getConfiguration();
+        _persistit.close();
+        UnitTestProperties.cleanUpDirectory(new File(UnitTestProperties.DATA_PATH));
+        config.setUseOldVSpec(true);
+        _persistit = new Persistit();
+        _persistit.initialize(config);
+        
+        final JournalManager jman = _persistit.getJournalManager();
+        Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
+        exchange.getValue().put(RED_FOX);
+        int count = 0;
+        long checkpointAddr = 0;
+        for (; jman.getCurrentAddress() < jman.getBlockSize() * 1.25;) {
+            if (jman.getCurrentAddress() - checkpointAddr > jman.getBlockSize() * 0.8) {
+                _persistit.checkpoint();
+                checkpointAddr = jman.getCurrentAddress();
+            }
+            exchange.to(count).store();
+            count++;
+        }
+        for (int i = 0; i < count + 100; i++) {
+            assertEquals(i < count, exchange.to(i).isValueDefined());
+        }
+        _persistit.close();
+
+        _persistit = new Persistit();
+        _persistit.initialize(config);
+        exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
+        for (int i = 0; i < count + 100; i++) {
+            if (i < count && !exchange.to(i).isValueDefined()) {
+                System.out.println("i=" + i + " count=" + count);
+                break;
+            }
+            assertEquals(i < count, exchange.to(i).isValueDefined());
+        }
+
+        _persistit.close();
+        _persistit = new Persistit();
+        _persistit.initialize(config);
+        exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
+        for (int i = 0; i < count + 100; i++) {
+            assertEquals(i < count, exchange.to(i).isValueDefined());
+        }
     }
 
     private void store0() throws PersistitException {

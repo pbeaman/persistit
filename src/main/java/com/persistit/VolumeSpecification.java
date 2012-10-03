@@ -167,9 +167,6 @@ public class VolumeSpecification {
      * <dd><i>NNN</i> is the maximum number of pages to which this volume can
      * extend.</dd>
      * 
-     * <dt><code>id:<i>NNN</i></code></dt>
-     * <dd><i>NNN</i> is the permanent internal identifier for this Volume.</dd>
-     * 
      * </dl>
      * <p>
      * 

@@ -2529,17 +2529,23 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
+                volume = null;
+                Volume candidate = null;
                 try {
-                    volume = volumeForHandle(pageNode.getVolumeHandle());
-                    if (volume != null) {
+                    candidate = lookupVolumeHandle(pageNode.getVolumeHandle());
+                    if (candidate != null) {
+                        if (!candidate.isOpened()) {
+                            candidate.open(_persistit);
+                        }
                         handle = pageNode.getVolumeHandle();
+                        volume = candidate;
                     }
                 } catch (final VolumeNotFoundException vnfe) {
                     _persistit.getAlertMonitor().post(
-                            new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, volume,
+                            new Event(AlertLevel.WARN, _persistit.getLogBase().missingVolume, candidate,
                                     pageNode.getJournalAddress()), AlertMonitor.MISSING_VOLUME_CATEGORY);
                     if (_ignoreMissingVolume.get()) {
-                        _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), volume,
+                        _persistit.getLogBase().lostPageFromMissingVolume.log(pageNode.getPageAddress(), candidate,
                                 pageNode.getJournalAddress());
                         // Not removing the page from the List here will cause
                         // cleanupForCopy to remove it from
