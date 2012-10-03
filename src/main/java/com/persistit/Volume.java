@@ -239,8 +239,7 @@ public class Volume {
                     //
                     // BufferPool#invalidate may fail and return false if other
                     // threads hold claims on pages of this volume. In that case
-                    // we
-                    // need to back off all locks and retry
+                    // we need to back off all locks and retry
                     //
                     if (getStructure().getPool().invalidate(this)) {
                         getStructure().truncate();

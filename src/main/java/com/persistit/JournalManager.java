@@ -2461,7 +2461,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 volumeRef = _handleToVolumeMap.get(pageNode.getVolumeHandle());
                 if (volumeRef != null) {
                     // Opened volume, if present
-                    volume = _persistit.getVolume(volumeRef.getName());
+                    volume = _persistit.loadVolume(volumeRef.getSpecification());
                     handle = pageNode.getVolumeHandle();
                 }
             }
@@ -2524,7 +2524,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
                 volumeRef = _handleToVolumeMap.get(pageNode.getVolumeHandle());
                 if (volumeRef != null) {
                     // Opened volume, if present
-                    volume = _persistit.getVolume(volumeRef.getName());
+                    volume = _persistit.loadVolume(volumeRef.getSpecification());
+                    volume.setId(volumeRef.getId());
                     handle = pageNode.getVolumeHandle();
                 }
             }
@@ -2726,6 +2727,18 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             _pageList.removeRange(to, size);
         }
         return size - to;
+    }
+
+    synchronized void truncate(final Volume volume, final long timestamp) {
+        for (final PageNode lastPageNode : _pageMap.values()) {
+            PageNode pageNode = lastPageNode;
+            while (pageNode != null) {
+                if (volume.getHandle() == pageNode.getVolumeHandle() && pageNode.getTimestamp() < timestamp) {
+                    pageNode.invalidate();
+                }
+                pageNode = pageNode.getPrevious();
+            }
+        }
     }
 
     private void reportJournalFileCount() {
