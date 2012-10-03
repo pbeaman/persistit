@@ -1884,7 +1884,8 @@ public class Configuration {
     /**
      * Return the value defined by {@link #setIgnoreMissingVolumes(boolean)}
      * 
-     * @return <code>true</code>to enable ignore-missing-volumes mode
+     * @return <code>true</code> indicates that <i>ignore-missing-volumes</i>
+     *         mode is enabled
      */
     public boolean isIgnoreMissingVolumes() {
         return ignoreMissingVolumes;
@@ -1914,7 +1915,8 @@ public class Configuration {
     /**
      * Return the value defined by {@link #setUseOldVSpec(boolean)}
      * 
-     * @return <code>true</code>to enable ignore-missing-volumes mode
+     * @return <code>true</code> indicates that <i>use-old-vspec</i> mode is
+     *         enabled
      */
     @Deprecated
     public boolean isUseOldVSpec() {
@@ -1929,12 +1931,13 @@ public class Configuration {
      * rather than just a volume name. This is preferable in almost all cases.
      * However, journals written in this new format cannot be read by earlier
      * versions of Persistit. To retain the ability to drop back to an earlier
-     * version of Persistit this flag causes Persistit to write only the volume
-     * name rather than the entire VolumeSpecification. Journal files created by
-     * version 3.1.8 with this property enabled can be used by earlier versions
-     * of Persistit. However, the ability to recover volumes created dynamically
-     * using {@link Persistit#loadVolume(VolumeSpecification))} is lost when
-     * this property is enabled.
+     * version of Persistit, enabling <i>use-old-vspec</i> mode causes Persistit
+     * to write only the volume name rather than the entire VolumeSpecification.
+     * Journal files created by version 3.1.8 with this mode enabled can be used
+     * by earlier versions of Persistit. However, doing so prevents volumes
+     * created dynamically using
+     * {@link Persistit#loadVolume(VolumeSpecification))} from being recovered
+     * properly. (See https://bugs.launchpad.net/akiban-persistit/+bug/1045971)
      * </p>
      * <p>
      * This method and configuration parameter is deprecated and will be removed
