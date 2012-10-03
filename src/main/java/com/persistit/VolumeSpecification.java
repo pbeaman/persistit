@@ -331,7 +331,7 @@ public class VolumeSpecification {
     }
 
     public void setName(final String name) {
-        this.aliased = nameFromFile(new File(path)).equals(name);
+        this.aliased = !nameFromFile(new File(path)).equals(name);
         this.name = name;
     }
 

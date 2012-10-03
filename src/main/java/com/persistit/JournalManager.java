@@ -2799,17 +2799,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         public Persistit getPersistit() {
             return _persistit;
         }
-
-        @Override
-        public TreeDescriptor handleToTreeDescriptor(final int treeHandle) {
-            return _handleToTreeMap.get(treeHandle);
-        }
-
-        @Override
-        public Volume handleToVolume(final int volumeHandle) {
-            return _handleToVolumeMap.get(volumeHandle);
-        }
-
     }
 
     class ProactiveRollbackListener implements TransactionPlayerListener {

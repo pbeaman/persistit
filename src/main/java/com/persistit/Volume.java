@@ -145,11 +145,16 @@ public class Volume {
         if (_specification != null) {
             throw new IllegalStateException("Volume " + this + " already has a VolumeSpecification");
         }
-        if (specification.getName().equals(_name) && specification.getId() == _id) {
+        if (specification.getName().equals(_name) && (specification.getId() == _id || specification.getId() == 0)) {
             _specification = specification;
         } else {
             throw new IllegalStateException("Volume " + this + " is incompatible with " + specification);
         }
+    }
+
+    void overwriteSpecification(final VolumeSpecification specification) {
+        _specification = null;
+        setSpecification(specification);
     }
 
     void closing() {
@@ -439,17 +444,27 @@ public class Volume {
         _storage = new VolumeStorageV2(persistit, this);
         _statistics = new VolumeStatistics();
 
-        if (exists) {
-            if (_specification.isCreateOnly()) {
-                throw new VolumeAlreadyExistsException(_specification.getPath());
+        boolean opened = false;
+        try {
+            if (exists) {
+                if (_specification.isCreateOnly()) {
+                    throw new VolumeAlreadyExistsException(_specification.getPath());
+                }
+                _storage.open();
+                opened = true;
+            } else {
+                if (!_specification.isCreate()) {
+                    throw new VolumeNotFoundException(_specification.getPath());
+                }
+                _storage.create();
+                opened = true;
             }
-            _storage.open();
-        } else {
-            if (!_specification.isCreate()) {
-                throw new VolumeNotFoundException(_specification.getPath());
+        } finally {
+            if (!opened) {
+                _structure = null;
+                _storage = null;
+                _statistics = null;
             }
-            _storage.create();
-
         }
         persistit.addVolume(this);
     }

@@ -667,7 +667,7 @@ public class Persistit {
             if (volume == null) {
                 volume = new Volume(volumeSpecification);
             } else {
-                volume.setSpecification(volumeSpecification);
+                volume.overwriteSpecification(volumeSpecification);
             }
             _logBase.openVolume.log(volumeSpecification.getName(), volumeSpecification.getAbsoluteFile());
             volume.open(this);

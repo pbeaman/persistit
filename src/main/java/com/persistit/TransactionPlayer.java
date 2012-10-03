@@ -277,12 +277,12 @@ class TransactionPlayer {
     }
 
     private Exchange getExchange(final int treeHandle, final long from, final long timestamp) throws PersistitException {
-        final TreeDescriptor td = _support.handleToTreeDescriptor(treeHandle);
+        final TreeDescriptor td = _support.getPersistit().getJournalManager().lookupTreeHandle(treeHandle);
         if (td == null) {
             throw new CorruptJournalException("Tree handle " + treeHandle + " is undefined at "
                     + addressToString(from, timestamp));
         }
-        final Volume volume = _support.handleToVolume(td.getVolumeHandle());
+        final Volume volume = _support.getPersistit().getJournalManager().volumeForHandle(td.getVolumeHandle());
         if (volume == null) {
             throw new CorruptJournalException("Volume handle " + td.getVolumeHandle() + " is undefined at "
                     + addressToString(from, timestamp));
@@ -311,4 +311,5 @@ class TransactionPlayer {
     long getFailedUpdates() {
         return failedUpdates.get();
     }
+
 }

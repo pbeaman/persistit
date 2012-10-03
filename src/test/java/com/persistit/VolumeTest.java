@@ -51,11 +51,6 @@ public class VolumeTest extends PersistitUnitTestCase {
             // ok
         }
         try {
-            assertNull(volume.getSpecification());
-        } catch (final IllegalStateException e) {
-            // ok
-        }
-        try {
             assertNull(volume.getStructure());
         } catch (final IllegalStateException e) {
             // ok

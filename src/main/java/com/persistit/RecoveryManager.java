@@ -360,17 +360,6 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         public Persistit getPersistit() {
             return _persistit;
         }
-
-        @Override
-        public TreeDescriptor handleToTreeDescriptor(final int treeHandle) {
-            return _handleToTreeMap.get(treeHandle);
-        }
-
-        @Override
-        public Volume handleToVolume(final int volumeHandle) {
-            return _handleToVolumeMap.get(volumeHandle);
-        }
-
     }
 
     static File[] files(final String pathName) {
