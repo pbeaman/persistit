@@ -1729,7 +1729,7 @@ public class Persistit {
 
     private void interruptActiveThreads(final long timeout) {
         final long expires = System.currentTimeMillis() + timeout;
-        boolean remaining = false;
+        final boolean remaining = false;
         do {
             final Set<SessionId> sessionIds;
             synchronized (_transactionSessionMap) {

@@ -244,19 +244,20 @@ public class TransactionTest2 extends PersistitUnitTestCase {
     @Test
     public void transactionsConcurrentWithPersistitClose() throws Exception {
         new Thread(new Runnable() {
+            @Override
             public void run() {
                 try {
                     transactions();
-                } catch (PersistitClosedException e) {
+                } catch (final PersistitClosedException e) {
                     // expected sometimes
                     System.out.println(e);
-                } catch (InterruptedException e) {
+                } catch (final InterruptedException e) {
                     // expected sometimes
                     System.out.println(e);
-                } catch (PersistitInterruptedException e) {
+                } catch (final PersistitInterruptedException e) {
                     // expected sometimes
                     System.out.println(e);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     fail(e.toString());
                 }
             }
