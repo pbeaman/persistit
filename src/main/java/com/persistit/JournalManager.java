@@ -1255,11 +1255,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         return address % _blockSize;
     }
 
-    void stopCopier() {
-        _copier.setShouldStop(true);
-        _persistit.waitForIOTaskStop(_copier);
-    }
-
     void setWriteBufferSize(final int size) {
         if (size < MINIMUM_BUFFER_SIZE || size > MAXIMUM_BUFFER_SIZE) {
             throw new IllegalArgumentException("Invalid write buffer size: " + size);

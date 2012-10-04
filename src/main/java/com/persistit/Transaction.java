@@ -506,6 +506,10 @@ public class Transaction {
     void close() throws PersistitException {
         if (_nestedDepth > 0 && !_commitCompleted && !_rollbackCompleted) {
             final TransactionStatus ts = _transactionStatus;
+            final TransactionStatus copy = new TransactionStatus(ts); // TODO
+                                                                      // remove
+            final boolean copyCommitCompleted = _commitCompleted;
+            final boolean copyRollbackCompleted = _rollbackCompleted;
             if (ts != null && ts.getTs() == _startTimestamp && !_commitCompleted && !_rollbackCompleted) {
                 rollback();
                 _persistit.getLogBase().txnAbandoned.log(this);
@@ -725,7 +729,6 @@ public class Transaction {
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
                         _persistit.getTimestampAllocator().getCurrentTimestamp());
                 _rollbackCompleted = true;
-
             }
         }
     }

@@ -1509,7 +1509,7 @@ public class Persistit {
         return _bufferPoolTable;
     }
 
-    public void cleanup() {
+    void cleanup() {
         final Set<SessionId> sessionIds;
         synchronized (_transactionSessionMap) {
             sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
@@ -1654,12 +1654,8 @@ public class Persistit {
             }
             recordBufferPoolInventory();
 
-            /*
-             * The copier is responsible for background pruning of aborted
-             * transactions. Halt it so Transaction#close() can be called
-             * without being concerned about its state changing.
-             */
-            _journalManager.stopCopier();
+            _cleanupManager.close(flush);
+            waitForIOTaskStop(_cleanupManager);
 
             getTransaction().close();
             cleanup();
@@ -1676,9 +1672,6 @@ public class Persistit {
                 }
             }
 
-            _cleanupManager.close(flush);
-            waitForIOTaskStop(_cleanupManager);
-
             _checkpointManager.close(flush);
             waitForIOTaskStop(_checkpointManager);
 
@@ -1688,25 +1681,12 @@ public class Persistit {
                 pool.close();
             }
 
-            /*
-             * Close (and abort) all remaining transactions.
-             */
-            Set<Transaction> transactions;
-            synchronized (_transactionSessionMap) {
-                transactions = new HashSet<Transaction>(_transactionSessionMap.values());
-                _transactionSessionMap.clear();
-            }
-            for (final Transaction txn : transactions) {
-                try {
-                    txn.close();
-                } catch (final PersistitException e) {
-                    _logBase.exception.log(e);
-                }
-            }
-
             _journalManager.close();
             final IOTaskRunnable task = _transactionIndex.close();
             waitForIOTaskStop(task);
+
+            interruptActiveThreads(SHORT_DELAY);
+            closeZombieTransactions();
 
             for (final Volume volume : volumes) {
                 volume.close();
@@ -1723,6 +1703,45 @@ public class Persistit {
             pollAlertMonitors(true);
         }
         releaseAllResources();
+    }
+
+    private void closeZombieTransactions() {
+        final Set<SessionId> sessionIds;
+        synchronized (_transactionSessionMap) {
+            sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
+        }
+        for (final SessionId sessionId : sessionIds) {
+            Transaction transaction = null;
+            synchronized (_transactionSessionMap) {
+                transaction = _transactionSessionMap.remove(sessionId);
+            }
+            if (!sessionId.isAlive()) {
+                if (transaction != null) {
+                    try {
+                        transaction.close();
+                    } catch (final Exception e) {
+                        _logBase.exception.log(e);
+                    }
+                }
+            }
+        }
+    }
+
+    private void interruptActiveThreads(final long timeout) {
+        final long expires = System.currentTimeMillis() + timeout;
+        boolean remaining = false;
+        do {
+            final Set<SessionId> sessionIds;
+            synchronized (_transactionSessionMap) {
+                sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
+            }
+            for (final SessionId sessionId : sessionIds) {
+                if (sessionId.isAlive()) {
+                    _logBase.interruptedAtClose.log(sessionId.ownerName());
+                    sessionId.interrupt();
+                }
+            }
+        } while (remaining && System.currentTimeMillis() < expires);
     }
 
     /**

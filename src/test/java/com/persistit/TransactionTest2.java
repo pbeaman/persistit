@@ -17,6 +17,7 @@ package com.persistit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.InterruptedIOException;
 import java.io.PrintStream;
@@ -29,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 import com.persistit.Transaction.CommitPolicy;
+import com.persistit.exception.PersistitClosedException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
@@ -56,6 +58,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
     static AtomicInteger _retriedTransactionCount = new AtomicInteger();
     static AtomicInteger _completedTransactionCount = new AtomicInteger();
     static AtomicInteger _failedTransactionCount = new AtomicInteger();
+    static AtomicInteger _strandedThreads = new AtomicInteger();
 
     static int _threadCounter = 0;
 
@@ -238,7 +241,36 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         txn.begin();
     }
 
+    @Test
+    public void transactionsConcurrentWithPersistitClose() throws Exception {
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    transactions();
+                } catch (PersistitClosedException e) {
+                    // expected sometimes
+                    System.out.println(e);
+                } catch (InterruptedException e) {
+                    // expected sometimes
+                    System.out.println(e);
+                } catch (PersistitInterruptedException e) {
+                    // expected sometimes
+                    System.out.println(e);
+                } catch (Exception e) {
+                    fail(e.toString());
+                }
+            }
+        }).start();
+        /*
+         * Let the threads crank up
+         */
+        Thread.sleep(1000);
+        _persistit.close();
+        assertEquals("All threads should have exited correctly", 0, _strandedThreads.get());
+    }
+
     public void runIt() {
+        _strandedThreads.incrementAndGet();
         try {
             final Exchange accountEx = _persistit.getExchange("persistit", "account", true);
             //
@@ -261,9 +293,14 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 }
             }
         } catch (final PersistitInterruptedException exception) {
+            _strandedThreads.decrementAndGet();
+            // expected
+        } catch (final PersistitClosedException exception) {
+            _strandedThreads.decrementAndGet();
             // expected
         } catch (final PersistitIOException exception) {
             if (InterruptedIOException.class.equals(exception.getCause().getClass())) {
+                _strandedThreads.decrementAndGet();
                 // expected
             } else {
                 exception.printStackTrace();

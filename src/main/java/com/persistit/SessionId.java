@@ -77,6 +77,13 @@ public class SessionId {
         _owner.set(Thread.currentThread());
     }
 
+    void interrupt() {
+        final Thread t = _owner.get();
+        if (t != null && t != Thread.currentThread()) {
+            t.interrupt();
+        }
+    }
+
     public String ownerName() {
         final Thread t = _owner.get();
         if (t == null) {
