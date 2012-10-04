@@ -14,6 +14,7 @@
  */
 
 package com.persistit;
+import static com.persistit.util.Util.NS_PER_S;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -1899,7 +1900,7 @@ public class Persistit {
             }
             final long now = System.currentTimeMillis();
             if (now > _nextCloseTime) {
-                _logBase.waitForClose.log((_nextCloseTime - _beginCloseTime) / 1000);
+                _logBase.waitForClose.log((_nextCloseTime - _beginCloseTime) / NS_PER_S);
                 _nextCloseTime += CLOSE_LOG_INTERVAL;
             }
         }

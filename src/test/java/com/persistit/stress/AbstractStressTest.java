@@ -15,6 +15,8 @@
 
 package com.persistit.stress;
 
+import static com.persistit.util.Util.NS_PER_S;
+
 import com.persistit.Persistit;
 
 /**
@@ -128,7 +130,7 @@ public abstract class AbstractStressTest implements Runnable {
             _result = new TestResult(false, throwable);
         }
         forceStop();
-        final long elapsed = (System.nanoTime() - _startTime) / AbstractSuite.NS_PER_S;
+        final long elapsed = (System.nanoTime() - _startTime) / NS_PER_S;
         System.err.printf("\n%s at %,d seconds: %s\n", this, elapsed, _result);
     }
 

@@ -15,6 +15,8 @@
 
 package com.persistit.stress;
 
+import static com.persistit.util.Util.NS_PER_S;
+
 import com.persistit.IntegrityCheck;
 import com.persistit.Persistit;
 import com.persistit.Transaction.CommitPolicy;

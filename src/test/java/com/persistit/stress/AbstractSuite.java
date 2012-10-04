@@ -15,6 +15,10 @@
 
 package com.persistit.stress;
 
+import static com.persistit.util.Util.MS_PER_S;
+import static com.persistit.util.Util.NS_PER_MS;
+import static com.persistit.util.Util.NS_PER_S;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -41,10 +45,6 @@ public abstract class AbstractSuite {
             "progress|int:60:1:|Progress message interval in seconds", "_flag|S|Save on failure", };
 
     protected final static long PROGRESS_LOG_INTERVAL = 600000;
-
-    protected final static long NS_PER_MS = 1000000;
-    protected final static long MS_PER_S = 1000;
-    protected final static long NS_PER_S = NS_PER_MS * MS_PER_S;
 
     private long _nextReport;
     private long _accumulatedWork;
