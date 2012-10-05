@@ -382,7 +382,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         assertTrue("Journal should grow once more disk space is available",
                 jman.getWriteBufferAddress() > BLOCKSIZE + 100000);
     }
-    
+
     @Test
     public void diskFullForExtendVolume() throws Exception {
         final Volume volume = _persistit.getVolume(_volumeName);
@@ -402,7 +402,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         _persistit.flush();
 
     }
-    
+
     private int storeUntilDiskFull() throws Exception {
         final Exchange exchange = _persistit.getExchange(_volumeName, "IOFailureTest", true);
         exchange.getValue().put(RED_FOX);
@@ -422,7 +422,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
         _persistit.releaseExchange(exchange);
         return at;
     }
-    
+
     private void storeContinueAndCheck(final int from) throws Exception {
         final Exchange exchange = _persistit.getExchange(_volumeName, "IOFailureTest", true);
         exchange.getValue().put(RED_FOX);

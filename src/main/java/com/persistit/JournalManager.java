@@ -2914,7 +2914,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     long getCurrentJournalSize() {
         return _currentAddress % _blockSize;
     }
-        
+
     long getWriteBufferAddress() {
         return _writeBufferAddress;
     }
