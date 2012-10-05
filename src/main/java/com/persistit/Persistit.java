@@ -1728,9 +1728,9 @@ public class Persistit {
         }
     }
 
-    private void interruptActiveThreads(final long timeout) {
+    private void interruptActiveThreads(final long timeout) throws PersistitInterruptedException {
         final long expires = System.currentTimeMillis() + timeout;
-        final boolean remaining = false;
+        boolean remaining = false;
         do {
             final Set<SessionId> sessionIds;
             synchronized (_transactionSessionMap) {
@@ -1738,9 +1738,14 @@ public class Persistit {
             }
             for (final SessionId sessionId : sessionIds) {
                 if (sessionId.isAlive()) {
-                    _logBase.interruptedAtClose.log(sessionId.ownerName());
-                    sessionId.interrupt();
+                    if (sessionId.interrupt()) {
+                        _logBase.interruptedAtClose.log(sessionId.ownerName());
+                    }
+                    remaining = true;
                 }
+            }
+            if (remaining) {
+                Util.spinSleep();
             }
         } while (remaining && System.currentTimeMillis() < expires);
     }
