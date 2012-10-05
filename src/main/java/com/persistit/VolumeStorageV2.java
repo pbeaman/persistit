@@ -651,8 +651,8 @@ class VolumeStorageV2 extends VolumeStorage {
             _extendedPageCount = pageCount;
         } catch (final IOException ioe) {
             _persistit.getAlertMonitor().post(
-                    new Event(AlertLevel.ERROR, _persistit.getLogBase().extendException, ioe, currentSize, newSize),
-                    AlertMonitor.EXTEND_VOLUME_CATEGORY);
+                    new Event(AlertLevel.ERROR, _persistit.getLogBase().extendException, ioe, _volume.getName(),
+                            currentSize, newSize), AlertMonitor.EXTEND_VOLUME_CATEGORY);
             throw new PersistitIOException(ioe);
         }
     }
