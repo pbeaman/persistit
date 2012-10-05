@@ -337,6 +337,7 @@ class TransactionStatus {
         boolean locked = false;
         try {
             locked = wwLock(TransactionIndex.SHORT_TIMEOUT);
+        } catch (final InterruptedException ie) {
             Thread.currentThread().interrupt();
         } finally {
             if (locked) {
