@@ -49,10 +49,11 @@ public class TransactionTest2 extends PersistitUnitTestCase {
 
     final static CommitPolicy policy = CommitPolicy.SOFT;
 
-    final static long TIMEOUT = 20000; // 20 seconds
+    final static long TIMEOUT = 10000; // 10 seconds
+    final static int ITERATIONS_PER_THREAD = 25000;
 
     static int _threadCount = 8;
-    static int _iterationsPerThread = 25000;
+    static int _iterationsPerThread = ITERATIONS_PER_THREAD;
     static int _accounts = 5000;
 
     static AtomicInteger _retriedTransactionCount = new AtomicInteger();
@@ -121,7 +122,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
             threadArray[index] = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    runIt();
+                    runIt(_iterationsPerThread);
                 }
             }, "TransactionThread_" + index);
 
@@ -185,7 +186,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 final Thread thread = new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        runIt();
+                        runIt(Integer.MAX_VALUE);
                     }
                 }, "TransactionThread_" + ++index);
                 threads.add(thread);
@@ -246,19 +247,17 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                try {
-                    transactions();
-                } catch (final PersistitClosedException e) {
-                    // expected sometimes
-                    System.out.println(e);
-                } catch (final InterruptedException e) {
-                    // expected sometimes
-                    System.out.println(e);
-                } catch (final PersistitInterruptedException e) {
-                    // expected sometimes
-                    System.out.println(e);
-                } catch (final Exception e) {
-                    fail(e.toString());
+                final Thread[] threadArray = new Thread[_threadCount];
+                for (int index = 0; index < _threadCount; index++) {
+                    threadArray[index] = new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            runIt(Integer.MAX_VALUE);
+                        }
+                    }, "TransactionThread_" + index);
+                }
+                for (int index = 0; index < _threadCount; index++) {
+                    threadArray[index].start();
                 }
             }
         }).start();
@@ -270,20 +269,17 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         assertEquals("All threads should have exited correctly", 0, _strandedThreads.get());
     }
 
-    public void runIt() {
+    public void runIt(final int limit) {
         _strandedThreads.incrementAndGet();
         try {
             final Exchange accountEx = _persistit.getExchange("persistit", "account", true);
             //
             final Random random = new Random();
-            for (int iterations = 1; iterations <= _iterationsPerThread; iterations++) {
+            for (int iterations = 1; iterations <= limit; iterations++) {
                 final int accountNo1 = random.nextInt(_accounts);
-                // int accountNo2 = random.nextInt(_accounts - 1);
-                // if (accountNo2 == accountNo1) accountNo2++;
                 final int accountNo2 = random.nextInt(_accounts);
 
                 final int delta = random.nextInt(10000);
-                // final int delta = 1;
 
                 transfer(accountEx, accountNo1, accountNo2, delta);
                 _completedTransactionCount.incrementAndGet();
@@ -293,6 +289,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                     System.out.flush();
                 }
             }
+            _strandedThreads.decrementAndGet();
         } catch (final PersistitInterruptedException exception) {
             _strandedThreads.decrementAndGet();
             // expected
