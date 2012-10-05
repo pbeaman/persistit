@@ -24,6 +24,7 @@ import java.util.StringTokenizer;
 
 import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.VolumeAlreadyExistsException;
+import com.persistit.util.Util;
 
 /**
  * A structure holding all the specification details for a {@link Volume}.
@@ -54,14 +55,6 @@ public class VolumeSpecification {
     private boolean create = false;
     private boolean createOnly = false;
     private boolean aliased = false;
-
-    public void setInitialSize(final long initialSize) {
-        this.initialSize = initialSize;
-    }
-
-    public void setMaximumSize(final long maximumSize) {
-        this.maximumSize = maximumSize;
-    }
 
     private int pageSize = -1;
     private int version = -1;
@@ -368,24 +361,54 @@ public class VolumeSpecification {
         return initialPages;
     }
 
+    void setInitialPages(final long initialPages) {
+        this.initialSize = sizeFromPages(initialPages);
+        this.initialPages = initialPages;
+    }
+
     public long getExtensionPages() {
         return extensionPages;
+    }
+
+    void setExtensionPages(final long extensionPages) {
+        this.extensionSize = sizeFromPages(extensionPages);
+        this.extensionPages = extensionPages;
     }
 
     public long getMaximumPages() {
         return maximumPages;
     }
 
+    void setMaximumPages(final long maximumPages) {
+        this.maximumSize = sizeFromPages(maximumPages);
+        this.maximumPages = maximumPages;
+    }
+
     public long getInitialSize() {
         return initialSize;
+    }
+
+    public void setInitialSize(final long initialSize) {
+        this.initialPages = pagesFromSize(initialSize);
+        this.initialSize = roundSize(initialSize);
     }
 
     public long getExtensionSize() {
         return extensionSize;
     }
 
+    public void setExtensionSize(final long extensionSize) {
+        this.extensionPages = pagesFromSize(extensionSize);
+        this.extensionSize = roundSize(extensionSize);
+    }
+
     public long getMaximumSize() {
         return maximumSize;
+    }
+
+    public void setMaximumSize(final long maximumSize) {
+        this.maximumPages = pagesFromSize(maximumSize);
+        this.maximumSize = roundSize(maximumSize);
     }
 
     public int getVersion() {
@@ -406,15 +429,11 @@ public class VolumeSpecification {
         if (pageSize > 0) {
             sb.append(',').append(ATTR_PAGE_SIZE).append(':').append(pageSize);
         }
-        if (initialPages >= 0) {
-            sb.append(',').append(ATTR_INITIAL_SIZE).append(':').append(ds(initialPages));
-        }
-        if (maximumPages >= 0) {
-            sb.append(',').append(ATTR_MAXIMUM_SIZE).append(':').append(ds(maximumPages));
-        }
-        if (extensionPages >= 0) {
-            sb.append(',').append(ATTR_EXTENSION_SIZE).append(':').append(ds(extensionPages));
-        }
+
+        appendSize(sb, ATTR_INITIAL_SIZE, ATTR_INITIAL_PAGES, initialSize, initialPages);
+        appendSize(sb, ATTR_MAXIMUM_SIZE, ATTR_MAXIMUM_PAGES, maximumSize, maximumPages);
+        appendSize(sb, ATTR_EXTENSION_SIZE, ATTR_EXTENSION_PAGES, extensionSize, extensionPages);
+
         if (readOnly) {
             sb.append(',').append(ATTR_READONLY);
         }
@@ -426,40 +445,57 @@ public class VolumeSpecification {
         return sb.toString();
     }
 
-    private String ds(final long pages) {
-        return Configuration.displayableLongValue(pages * pageSize);
+    private void appendSize(final StringBuilder sb, final String sizeName, final String pagesName, final long size,
+            final long pages) {
+        if (pageSize <= 0) {
+            if (pages > 0) {
+                sb.append(',').append(pagesName).append(':').append(ds(pages));
+            } else if (size > 0) {
+                sb.append(',').append(sizeName).append(':').append(ds(size));
+            }
+        } else if (pages > 0) {
+            sb.append(',').append(sizeName).append(':').append(ds(pages * pageSize));
+        } else if (size > 0) {
+            sb.append(',').append(sizeName).append(':').append(ds(size));
+        }
+    }
+
+    @Override
+    public boolean equals(final Object object) {
+        if (!(object instanceof VolumeSpecification)) {
+            return false;
+        }
+        final VolumeSpecification v = (VolumeSpecification) object;
+        return path.equals(v.path) && name.equals(v.name) && readOnly == v.readOnly && create == v.create
+                && createOnly == v.createOnly && aliased == v.aliased && pageSize == v.pageSize && version == v.version
+                && id == v.id && initialPages == v.initialPages && initialSize == v.initialSize
+                && extensionPages == v.extensionPages && extensionSize == v.extensionSize
+                && maximumPages == v.maximumPages && maximumSize == v.maximumSize;
+    }
+
+    private String ds(final long s) {
+        return Configuration.displayableLongValue(s);
     }
 
     public String summary() {
         return name + "(" + path + ")";
     }
 
-    /**
-     * @param initialPages
-     *            the initialPages to set
-     */
-    void setInitialPages(final long initialPages) {
-        this.initialPages = initialPages;
+    private long sizeFromPages(final long pages) {
+        Util.rangeCheck(pages, 0, Long.MAX_VALUE / Buffer.MAX_BUFFER_SIZE);
+        return pageSize > 0 ? pages * pageSize : 0;
     }
 
-    /**
-     * @param extensionPages
-     *            the extensionPages to set
-     */
-    void setExtensionPages(final long extensionPages) {
-        this.extensionPages = extensionPages;
+    private long pagesFromSize(final long size) {
+        Util.rangeCheck(size, 0, Long.MAX_VALUE);
+        return pageSize > 0 ? size / pageSize : 0;
     }
 
-    public void setExtensionSize(final long extensionSize) {
-        this.extensionSize = extensionSize;
+    private long roundSize(final long size) {
+        if (pageSize > 0) {
+            return (size / pageSize) * pageSize;
+        } else {
+            return size;
+        }
     }
-
-    /**
-     * @param maximumPages
-     *            the maximumPages to set
-     */
-    void setMaximumPages(final long maximumPages) {
-        this.maximumPages = maximumPages;
-    }
-
 }

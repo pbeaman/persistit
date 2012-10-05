@@ -133,6 +133,7 @@ public class VolumeTest extends PersistitUnitTestCase {
     @Test
     public void testVolumeSpecification() throws Exception {
         VolumeSpecification vs;
+        VolumeSpecification vs2;
 
         vs = validVolumeSpecification("/a/b/c,name: crabcake, pageSize: 16384, initialSize: 10m, maximumSize: 100m, extensionSize: 10m, create");
         vs = validVolumeSpecification("/a/b/c,name:crabcake,pageSize:16384,initialSize:10m,maximumSize:100m,extensionSize:10m,create");
@@ -141,8 +142,11 @@ public class VolumeTest extends PersistitUnitTestCase {
         assertEquals(10 * 1024 * 1024 / 16384, vs.getInitialPages());
         assertEquals(10 * 1024 * 1024, vs.getInitialSize());
         assertTrue(vs.isCreate());
+        assertTrue(vs.isAliased());
         assertFalse(vs.isCreateOnly());
         assertFalse(vs.isReadOnly());
+        vs2 = validVolumeSpecification(vs.toString());
+        assertEquals("Parse of toString should be equal", vs, vs2);
 
         vs = validVolumeSpecification("/a/b/c");
         assertEquals("c", vs.getName());
@@ -150,16 +154,43 @@ public class VolumeTest extends PersistitUnitTestCase {
         assertFalse(vs.isCreate());
         assertFalse(vs.isCreateOnly());
         assertFalse(vs.isReadOnly());
+        vs2 = validVolumeSpecification(vs.toString());
+        assertEquals("Parse of toString should be equal", vs, vs2);
 
         vs = validVolumeSpecification("/a/b/c.v01");
         assertEquals("c", vs.getName());
+        vs2 = validVolumeSpecification(vs.toString());
+        assertEquals("Parse of toString should be equal", vs, vs2);
+
         vs = validVolumeSpecification("/a/b/c.d.v01");
         assertEquals("c.d", vs.getName());
+        vs2 = validVolumeSpecification(vs.toString());
+        assertEquals("Parse of toString should be equal", vs, vs2);
 
         invalidVolumeSpecification("/a/b/c,name:crabcake,pagesize:16383,initialsize:10m,maximumsize:100m,extensionsize:10m,create");
         invalidVolumeSpecification("/a/b/c;name:crabcake,pagesize:16384,initialsize:10m,maximumsize:100m,extensionsize:10m,create");
         invalidVolumeSpecification("/a/b/c,name:crabcake,pagesize:16384,initialsize:10p,maximumsize:100p,extensionsize:10p,create");
         invalidVolumeSpecification("/a/b/c,name:crabcake,pagesize:16384,initialsize:10m,maximumsize:100m,extensionsize:10m,create,readOnly");
+
+        vs = validVolumeSpecification("/a/b/c,pageSize: 16384, initialSize: 10m, maximumSize: 100m, extensionSize: 10m, create");
+        assertEquals(10 * 1024 * 1024 / 16384, vs.getInitialPages());
+        assertEquals(10 * 1024 * 1024, vs.getInitialSize());
+        vs.setInitialPages(42);
+        vs.setExtensionPages(58);
+        vs.setMaximumPages(Integer.MAX_VALUE);
+
+        vs2 = validVolumeSpecification(vs.toString());
+        assertEquals("Parse of toString should be equal", vs, vs2);
+
+        vs.setMaximumSize(Long.MAX_VALUE);
+        vs.setInitialSize(Long.MAX_VALUE / 7);
+        vs.setExtensionSize(Long.MAX_VALUE / 23);
+
+        assertEquals(Long.MAX_VALUE / 23 / 16384, vs.getExtensionPages());
+
+        vs2 = validVolumeSpecification(vs.toString());
+        assertEquals("Parse of toString should be equal", vs, vs2);
+
     }
 
     @Test

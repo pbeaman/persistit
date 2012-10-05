@@ -69,7 +69,7 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
         }
         assertEquals("Should be only one remaining journal file", 1, remainingJournalFiles);
     }
-    
+
     @Test
     public void useOldVSpecInducesExpectedFailure() throws Exception {
         VolumeSpecification volumeSpec;
@@ -77,7 +77,7 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
         _persistit.close();
         int remainingJournalFiles = 0;
         configuration.setUseOldVSpec(true);
-        
+
         for (int i = 5; --i >= 0;) {
             final Persistit db = new Persistit();
             try {
@@ -100,7 +100,7 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
             }
         }
         assertTrue("Should be only one remaining journal file", remainingJournalFiles > 1);
-        
+
     }
 
     /**

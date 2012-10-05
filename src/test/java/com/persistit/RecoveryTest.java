@@ -513,7 +513,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         config.setUseOldVSpec(true);
         _persistit = new Persistit();
         _persistit.initialize(config);
-        
+
         final JournalManager jman = _persistit.getJournalManager();
         Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
         exchange.getValue().put(RED_FOX);

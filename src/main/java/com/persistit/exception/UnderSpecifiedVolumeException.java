@@ -15,6 +15,8 @@
 
 package com.persistit.exception;
 
+import com.persistit.VolumeSpecification;
+
 /**
  * Thrown when the Persistit attempts to open a Volume with an incomplete
  * {@link VolumeSpecification}, for example, with a missing page size.
