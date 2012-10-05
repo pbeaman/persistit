@@ -14,6 +14,7 @@
  */
 
 package com.persistit;
+
 import static com.persistit.util.Util.NS_PER_S;
 
 import java.io.BufferedReader;

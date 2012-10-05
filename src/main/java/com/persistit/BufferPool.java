@@ -1515,8 +1515,8 @@ public class BufferPool {
                     count++;
                     final long now = System.nanoTime();
                     if (now - reportTime >= INVENTORY_PRELOAD_LOG_MESSAGE_NS) {
-                        _persistit.getLogBase().bufferInventoryProgress.log(count, total, (now - reportTime)
-                                / NS_PER_S);
+                        _persistit.getLogBase().bufferInventoryProgress
+                                .log(count, total, (now - reportTime) / NS_PER_S);
                         reportTime = now;
                     }
                     if (count >= _bufferCount) {

@@ -373,15 +373,16 @@ public class ExchangeTest extends PersistitUnitTestCase {
      * 
      * traverse(EQ, false, 0) returns incorrect result
      * 
-     * This method returns true even when the tree is empty. traverse(EQ, true, 0) returns the correct value.
+     * This method returns true even when the tree is empty. traverse(EQ, true,
+     * 0) returns the correct value.
+     * 
      * @throws Exception
      */
     @Test
     public void traverseEQfalse0() throws Exception {
-        
+
         final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
 
-        
         ex.removeAll();
         ex.clear();
         assertTrue("Should be false", !ex.traverse(Key.EQ, false, -1));
@@ -394,7 +395,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         ex.clear();
         assertTrue("Should be false", !ex.traverse(Key.LT, false, -1));
         ex.clear();
-        
+
         ex.append(1).append(2).store();
         ex.clear().append(Key.BEFORE);
         assertTrue("Should be false", !ex.traverse(Key.EQ, false, -1));
@@ -408,7 +409,6 @@ public class ExchangeTest extends PersistitUnitTestCase {
         ex.clear().append(Key.AFTER);
         assertTrue("Should be true", ex.traverse(Key.LTEQ, false, -1));
         assertTrue("Should be true", ex.traverse(Key.LTEQ, false, -1));
-    
 
         ex.removeAll();
         ex.clear();
@@ -427,7 +427,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertTrue("Should be false", !ex.traverse(Key.LT, false, 0));
         assertEquals("Key should be {{after}}", "{{after}}", ex.getKey().toString());
         ex.clear();
-        
+
         ex.append(1).append(2).store();
         ex.clear().append(Key.BEFORE);
         assertTrue("Should be false", !ex.traverse(Key.EQ, false, 0));
@@ -449,7 +449,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals("Key should be {1}", "{1}", ex.getKey().toString());
         assertTrue("Should be true", ex.traverse(Key.EQ, false, 0));
         assertEquals("Key should be {1}", "{1}", ex.getKey().toString());
-    
+
     }
 
 }
