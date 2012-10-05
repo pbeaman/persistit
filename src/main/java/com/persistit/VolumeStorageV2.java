@@ -608,13 +608,13 @@ class VolumeStorageV2 extends VolumeStorage {
         changed |= changeReadCounter(bytes, stat.getReadCounter());
         changed |= changeLastExtensionTime(bytes, stat.getLastExtensionTime());
         changed |= changeLastReadTime(bytes, stat.getLastReadTime());
+        changed |= changeGlobalTimestamp(bytes, stat.getLastGlobalTimestamp());
 
         // Ugly, but the act of closing the system increments this
         // counter, leading to an extra write. So basically we
         // ignore the final write by not setting the changed flag.
         changeWriteCounter(bytes, stat.getWriteCounter());
         changeLastWriteTime(bytes, stat.getLastWriteTime());
-        changeGlobalTimestamp(bytes, stat.getLastGlobalTimestamp());
 
         return changed;
     }

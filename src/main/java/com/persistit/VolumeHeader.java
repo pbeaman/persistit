@@ -287,11 +287,12 @@ class VolumeHeader {
      */
     public static boolean verifyVolumeHeader(final VolumeSpecification specification, final long systemTimestamp)
             throws CorruptVolumeException, InvalidVolumeSpecificationException, PersistitIOException {
+        FileInputStream stream = null;
         try {
             final File file = new File(specification.getPath());
             if (file.exists()) {
                 if (file.isFile()) {
-                    final FileInputStream stream = new FileInputStream(file);
+                    stream = new FileInputStream(file);
                     final byte[] bytes = new byte[SIZE];
                     final int readSize = stream.read(bytes);
                     if (readSize < SIZE) {
@@ -336,6 +337,13 @@ class VolumeHeader {
             }
         } catch (final IOException ioe) {
             throw new PersistitIOException(ioe);
+        } finally {
+            if (stream != null) {
+                try {
+                    stream.close();
+                } catch (final IOException e) {
+                }
+            }
         }
     }
 

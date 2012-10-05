@@ -308,6 +308,8 @@ public class IOFailureTest extends PersistitUnitTestCase {
         final long size0 = channel0.size();
         channel0.truncate(100);
 
+        channel0.close();
+
         final File file1 = jman.addressToFile(currentAddress);
         final FileChannel channel1 = new RandomAccessFile(file1, "rw").getChannel();
         final long size1 = channel1.size();

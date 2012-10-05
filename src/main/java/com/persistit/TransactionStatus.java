@@ -373,20 +373,7 @@ class TransactionStatus {
      * Release the lock acquired by {@link #wwLock(long)}.
      */
     void wwUnlock() {
-        /*
-         * Conditional to avoid throwing an IllegalMonitorStateException in one
-         * particular race condition: a transaction is being rolled back
-         * concurrently with a call from another thread to Persistit#close. This
-         * is a proposed fix for
-         * 
-         * https://bugs.launchpad.net/akiban-persistit/+bug/1013259.
-         * 
-         * Note: no race is possible here because the TransactionIndexBucket
-         * containing this TransactionStatus is locked.
-         */
-        if (_tc != ABORTED || _wwLock.isLocked()) {
-            _wwLock.unlock();
-        }
+        _wwLock.unlock();
     }
 
     /**

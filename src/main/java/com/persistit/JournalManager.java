@@ -1263,11 +1263,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     public void close() throws PersistitException {
-
-        synchronized (this) {
-            _closed.set(true);
-        }
-
+        _closed.set(true);
         rollover();
 
         final JournalCopier copier = _copier;
@@ -2437,10 +2433,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
             Volume volumeRef = null;
 
-            if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
-                list.clear();
-                break;
-            }
             final PageNode pageNode = iterator.next();
             if (pageNode.isInvalid()) {
                 iterator.remove();
@@ -2502,11 +2494,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         final Set<Volume> volumes = new HashSet<Volume>();
 
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
-            if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
-                list.clear();
-                break;
-            }
-
             final PageNode pageNode = iterator.next();
 
             if (pageNode.getVolumeHandle() != handle) {
