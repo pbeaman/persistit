@@ -436,8 +436,11 @@ public class Volume {
         if (_storage != null) {
             throw new IllegalStateException("This volume has already been opened");
         }
-        if (persistit.getBufferPool(_specification.getPageSize()) == null) {
+        if (_specification.getPageSize() <= 0) {
             throw new UnderSpecifiedVolumeException(getName());
+        }
+        if (persistit.getBufferPool(_specification.getPageSize()) == null) {
+            throw new IllegalStateException(getName());
         }
         final boolean exists = VolumeHeader.verifyVolumeHeader(_specification, persistit.getCurrentTimestamp());
 
