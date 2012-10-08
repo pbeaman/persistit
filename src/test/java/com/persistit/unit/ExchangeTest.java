@@ -383,7 +383,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         traverseCases(false);
         traverseCases(true);
     }
-    
+
     /**
      * Test for https://bugs.launchpad.net/akiban-persistit/+bug/1023549:
      * 
@@ -401,12 +401,13 @@ public class ExchangeTest extends PersistitUnitTestCase {
         traverseCases(false);
         txn.commit();
         txn.end();
-        
+
         txn.begin();
         traverseCases(true);
         txn.commit();
         txn.end();
     }
+
     private void traverseCases(final boolean deep) throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
 
@@ -478,7 +479,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         keyCheck(ex, deep ? "{1,2}" : "{1}");
 
     }
-    
+
     private void keyCheck(Exchange ex, final String expected) {
         assertEquals("Key should be " + expected, expected, ex.getKey().toString());
     }
