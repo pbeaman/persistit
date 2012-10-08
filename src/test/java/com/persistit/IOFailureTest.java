@@ -348,6 +348,97 @@ public class IOFailureTest extends PersistitUnitTestCase {
         }
     }
 
+    /**
+     * Simulate IOException on attempt to append to the journal by the
+     * PAGE_WRITER. This simulates bug #916071. Sets an injected IOException on
+     * journal file .000000000001 then stores a bunch of data until a failure
+     * occurs. Clears the injected error, runs one more transaction and then
+     * checks the resulting database state for correctness. Differs from
+     * {@link #testJournalUnwritable()} in that transactions are not used; it is
+     * the PAGE_WRITER thread that gets the disk full errors.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testDiskFullForPageWriter() throws Exception {
+        final JournalManager jman = _persistit.getJournalManager();
+        final ErrorInjectingFileChannel eifc = errorInjectingChannel(_persistit.getJournalManager().getFileChannel(
+                BLOCKSIZE));
+        /*
+         * Will cause any attempt to write into the second journal file to fail.
+         */
+        eifc.injectDiskFullLimit(100000);
+        final int at = storeUntilDiskFull();
+        assertTrue("Journal size should be contrained", jman.getWriteBufferAddress() <= BLOCKSIZE + 100000);
+        Thread.sleep(5000);
+        /*
+         * Now remove the disk full condition. Transaction should now succeed.
+         */
+        eifc.injectDiskFullLimit(Long.MAX_VALUE);
+        storeContinueAndCheck(at);
+        _persistit.checkAllVolumes();
+        _persistit.flush();
+
+        assertTrue("Journal should grow once more disk space is available",
+                jman.getWriteBufferAddress() > BLOCKSIZE + 100000);
+    }
+
+    @Test
+    public void diskFullForExtendVolume() throws Exception {
+        final Volume volume = _persistit.getVolume(_volumeName);
+        final ErrorInjectingFileChannel eifc = errorInjectingChannel(volume.getStorage().getChannel());
+        /*
+         * Will cause any attempt to extend the volume to fail.
+         */
+        eifc.injectDiskFullLimit(100000);
+        final int at = storeUntilDiskFull();
+        Thread.sleep(5000);
+        /*
+         * Now remove the disk full condition. Transaction should now succeed.
+         */
+        eifc.injectDiskFullLimit(Long.MAX_VALUE);
+        storeContinueAndCheck(at);
+        _persistit.checkAllVolumes();
+        _persistit.flush();
+
+    }
+
+    private int storeUntilDiskFull() throws Exception {
+        final Exchange exchange = _persistit.getExchange(_volumeName, "IOFailureTest", true);
+        exchange.getValue().put(RED_FOX);
+        int at = 0;
+        for (;; at++) {
+            try {
+                exchange.to(at).store();
+            } catch (final PersistitIOException e) {
+                if (e.getMessage().contains("Disk Full")) {
+                    break;
+                    // okay
+                } else {
+                    throw e;
+                }
+            }
+        }
+        _persistit.releaseExchange(exchange);
+        return at;
+    }
+
+    private void storeContinueAndCheck(final int from) throws Exception {
+        final Exchange exchange = _persistit.getExchange(_volumeName, "IOFailureTest", true);
+        exchange.getValue().put(RED_FOX);
+
+        final int end = from + 10000;
+
+        for (int at = from; at < end; at++) {
+            exchange.to(at).store();
+        }
+        for (int i = 0; i < end + 10; i++) {
+            exchange.to(i).fetch();
+            assertEquals("Values should be completely updated", i < end, exchange.getValue().isDefined());
+        }
+
+    }
+
     private void store1(final int at) throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "IOFailureTest", true);
         final StringBuilder sb = new StringBuilder();
@@ -360,6 +451,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
             exchange.getValue().put("Record #" + at + "_" + i);
             exchange.store();
         }
+        _persistit.releaseExchange(exchange);
     }
 
     private void copyBackEventuallySucceeds(final long start, final String reason) throws Exception {
