@@ -665,8 +665,13 @@ public class Persistit {
 
     void initializeVolumes() throws PersistitException {
         for (final VolumeSpecification volumeSpecification : _configuration.getVolumeList()) {
+            Volume volume = _journalManager.getVolumeByName(volumeSpecification.getName());
+            if (volume == null) {
+                volume = new Volume(volumeSpecification);
+            } else {
+                volume.overwriteSpecification(volumeSpecification);
+            }
             _logBase.openVolume.log(volumeSpecification.getName(), volumeSpecification.getAbsoluteFile());
-            final Volume volume = new Volume(volumeSpecification);
             volume.open(this);
         }
     }

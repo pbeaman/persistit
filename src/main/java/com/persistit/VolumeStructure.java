@@ -117,6 +117,7 @@ class VolumeStructure {
     }
 
     synchronized void truncate() {
+        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         for (final WeakReference<Tree> treeRef : _treeNameHashMap.values()) {
             final Tree tree = treeRef.get();
             if (tree != null) {
@@ -124,6 +125,7 @@ class VolumeStructure {
             }
         }
         _treeNameHashMap.clear();
+        _persistit.getJournalManager().truncate(_volume, timestamp);
     }
 
     Exchange directoryExchange() {

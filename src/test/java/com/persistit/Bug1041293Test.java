@@ -17,6 +17,8 @@ package com.persistit;
 
 import org.junit.Test;
 
+import com.persistit.exception.UnderSpecifiedVolumeException;
+
 /**
  * https://bugs.launchpad.net/akiban-persistit/+bug/1041293
  * 
@@ -28,6 +30,14 @@ import org.junit.Test;
  */
 
 public class Bug1041293Test extends PersistitUnitTestCase {
+
+    @Test(expected = UnderSpecifiedVolumeException.class)
+    public void underSpecifiedVolume() throws Exception {
+        final Configuration config = _persistit.getConfiguration();
+        final VolumeSpecification vspec = config.volumeSpecification("${datapath}/test");
+        final Volume volume = _persistit.loadVolume(vspec);
+        volume.open(_persistit);
+    }
 
     @Test(expected = IllegalStateException.class)
     public void mismatchedVolumeSpecificationNPE() throws Exception {
