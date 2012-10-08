@@ -379,77 +379,108 @@ public class ExchangeTest extends PersistitUnitTestCase {
      * @throws Exception
      */
     @Test
-    public void traverseEQfalse0() throws Exception {
-
+    public void traverse_EQ_false_0__IsTrue() throws Exception {
+        traverseCases(false);
+        traverseCases(true);
+    }
+    
+    /**
+     * Test for https://bugs.launchpad.net/akiban-persistit/+bug/1023549:
+     * 
+     * traverse(EQ, false, 0) returns incorrect result
+     * 
+     * This method returns true even when the tree is empty. traverse(EQ, true,
+     * 0) returns the correct value.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void traverse_EQ_false_0__IsTrue_Txn() throws Exception {
+        final Transaction txn = _persistit.getTransaction();
+        txn.begin();
+        traverseCases(false);
+        txn.commit();
+        txn.end();
+        
+        txn.begin();
+        traverseCases(true);
+        txn.commit();
+        txn.end();
+    }
+    private void traverseCases(final boolean deep) throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
 
         ex.removeAll();
         ex.clear();
-        assertTrue("Should be false", !ex.traverse(Key.EQ, false, -1));
+        assertEquals("Should be false", false, ex.traverse(Key.EQ, deep, -1));
         ex.clear();
-        assertTrue("Should be false", !ex.traverse(Key.GTEQ, false, -1));
+        assertEquals("Should be false", false, ex.traverse(Key.GTEQ, deep, -1));
         ex.clear();
-        assertTrue("Should be false", !ex.traverse(Key.GT, false, -1));
+        assertEquals("Should be false", false, ex.traverse(Key.GT, deep, -1));
         ex.clear();
-        assertTrue("Should be false", !ex.traverse(Key.LTEQ, false, -1));
+        assertEquals("Should be false", false, ex.traverse(Key.LTEQ, deep, -1));
         ex.clear();
-        assertTrue("Should be false", !ex.traverse(Key.LT, false, -1));
+        assertEquals("Should be false", false, ex.traverse(Key.LT, deep, -1));
         ex.clear();
 
         ex.append(1).append(2).store();
         ex.clear().append(Key.BEFORE);
-        assertTrue("Should be false", !ex.traverse(Key.EQ, false, -1));
-        assertTrue("Should be true", ex.traverse(Key.GTEQ, false, -1));
-        assertTrue("Should be true", ex.traverse(Key.GTEQ, false, -1));
+        assertEquals("Should be false", false, ex.traverse(Key.EQ, deep, -1));
+        assertEquals("Should be true", true, ex.traverse(Key.GTEQ, deep, -1));
+        assertEquals("Should be true", true, ex.traverse(Key.GTEQ, deep, -1));
         ex.clear().append(1);
-        assertTrue("Should be true", ex.traverse(Key.EQ, false, -1));
+        assertEquals("Should be " + !deep, !deep, ex.traverse(Key.EQ, deep, -1));
 
         ex.clear().append(Key.AFTER);
-        assertTrue("Should be false", !ex.traverse(Key.EQ, false, -1));
+        assertEquals("Should be false", false, ex.traverse(Key.EQ, deep, -1));
         ex.clear().append(Key.AFTER);
-        assertTrue("Should be true", ex.traverse(Key.LTEQ, false, -1));
-        assertTrue("Should be true", ex.traverse(Key.LTEQ, false, -1));
+        assertEquals("Should be true", true, ex.traverse(Key.LTEQ, deep, -1));
+        assertEquals("Should be true", true, ex.traverse(Key.LTEQ, deep, -1));
 
         ex.removeAll();
         ex.clear();
-        assertTrue("Should be false", !ex.traverse(Key.EQ, false, 0));
-        assertEquals("Key should be {{before}}", "{{before}}", ex.getKey().toString());
+        assertEquals("Should be false", false, ex.traverse(Key.EQ, deep, 0));
+        keyCheck(ex, "{{before}}");
         ex.clear();
-        assertTrue("Should be false", !ex.traverse(Key.GTEQ, false, 0));
-        assertEquals("Key should be {{before}}", "{{before}}", ex.getKey().toString());
+        assertEquals("Should be false", false, ex.traverse(Key.GTEQ, deep, 0));
+        keyCheck(ex, "{{before}}");
         ex.clear();
-        assertTrue("Should be false", !ex.traverse(Key.GT, false, 0));
-        assertEquals("Key should be {{before}}", "{{before}}", ex.getKey().toString());
+        assertEquals("Should be false", false, ex.traverse(Key.GT, deep, 0));
+        keyCheck(ex, "{{before}}");
         ex.clear();
-        assertTrue("Should be false", !ex.traverse(Key.LTEQ, false, 0));
-        assertEquals("Key should be {{after}}", "{{after}}", ex.getKey().toString());
+        assertEquals("Should be false", false, ex.traverse(Key.LTEQ, deep, 0));
+        keyCheck(ex, "{{after}}");
         ex.clear();
-        assertTrue("Should be false", !ex.traverse(Key.LT, false, 0));
-        assertEquals("Key should be {{after}}", "{{after}}", ex.getKey().toString());
+        assertEquals("Should be false", false, ex.traverse(Key.LT, deep, 0));
+        keyCheck(ex, "{{after}}");
         ex.clear();
 
         ex.append(1).append(2).store();
         ex.clear().append(Key.BEFORE);
-        assertTrue("Should be false", !ex.traverse(Key.EQ, false, 0));
-        assertEquals("Key should be {{before}}", "{{before}}", ex.getKey().toString());
-        assertTrue("Should be true", ex.traverse(Key.GTEQ, false, 0));
-        assertEquals("Key should be {1}", "{1}", ex.getKey().toString());
-        assertTrue("Should be true", ex.traverse(Key.GTEQ, false, 0));
-        assertEquals("Key should be {1}", "{1}", ex.getKey().toString());
-        assertTrue("Should be true", ex.traverse(Key.EQ, false, 0));
-        assertEquals("Key should be {1}", "{1}", ex.getKey().toString());
+        assertEquals("Should be false", false, ex.traverse(Key.EQ, deep, 0));
+        keyCheck(ex, "{{before}}");
+        assertEquals("Should be true", true, ex.traverse(Key.GTEQ, deep, 0));
+        keyCheck(ex, deep ? "{1,2}" : "{1}");
+        assertEquals("Should be true", true, ex.traverse(Key.GTEQ, deep, 0));
+        keyCheck(ex, deep ? "{1,2}" : "{1}");
+        assertEquals("Should be true", true, ex.traverse(Key.EQ, deep, 0));
+        keyCheck(ex, deep ? "{1,2}" : "{1}");
 
         ex.clear().append(Key.AFTER);
-        assertTrue("Should be false", !ex.traverse(Key.EQ, false, 0));
-        assertEquals("Key should be empty", "{{before}}", ex.getKey().toString());
+        assertEquals("Should be false", false, ex.traverse(Key.EQ, deep, 0));
+        keyCheck(ex, "{{before}}");
         ex.clear().append(Key.AFTER);
-        assertTrue("Should be true", ex.traverse(Key.LTEQ, false, 0));
-        assertEquals("Key should be {1}", "{1}", ex.getKey().toString());
-        assertTrue("Should be true", ex.traverse(Key.LTEQ, false, 0));
-        assertEquals("Key should be {1}", "{1}", ex.getKey().toString());
-        assertTrue("Should be true", ex.traverse(Key.EQ, false, 0));
-        assertEquals("Key should be {1}", "{1}", ex.getKey().toString());
+        assertEquals("Should be true", true, ex.traverse(Key.LTEQ, deep, 0));
+        keyCheck(ex, deep ? "{1,2}" : "{1}");
+        assertEquals("Should be true", true, ex.traverse(Key.LTEQ, deep, 0));
+        keyCheck(ex, deep ? "{1,2}" : "{1}");
+        assertEquals("Should be true", true, ex.traverse(Key.EQ, deep, 0));
+        keyCheck(ex, deep ? "{1,2}" : "{1}");
 
+    }
+    
+    private void keyCheck(Exchange ex, final String expected) {
+        assertEquals("Key should be " + expected, expected, ex.getKey().toString());
     }
 
 }
