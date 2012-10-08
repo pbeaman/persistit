@@ -379,7 +379,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
      * @throws Exception
      */
     @Test
-    public void traverse_EQ_false_0__IsTrue() throws Exception {
+    public void traverse_EQ_false_0__IsCorrect() throws Exception {
         traverseCases(false);
         traverseCases(true);
     }
@@ -395,7 +395,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
      * @throws Exception
      */
     @Test
-    public void traverse_EQ_false_0__IsTrue_Txn() throws Exception {
+    public void traverse_EQ_false_0__IsCorrect_Txn() throws Exception {
         final Transaction txn = _persistit.getTransaction();
         txn.begin();
         traverseCases(false);
