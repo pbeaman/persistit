@@ -480,7 +480,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
 
     }
 
-    private void keyCheck(Exchange ex, final String expected) {
+    private void keyCheck(final Exchange ex, final String expected) {
         assertEquals("Key should be " + expected, expected, ex.getKey().toString());
     }
 
