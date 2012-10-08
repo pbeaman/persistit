@@ -732,7 +732,7 @@ class JournalTool {
             read(address, recordSize);
             final int handle = IV.getHandle(_readBuffer);
             final long id = IV.getVolumeId(_readBuffer);
-            final String name = IV.getVolumeName(_readBuffer);
+            final String name = IV.getVolumeSpecification(_readBuffer);
             start(address, timestamp, "IV", recordSize);
             appendf(" handle %05d id %,22d name %s", handle, id, name);
             flush();

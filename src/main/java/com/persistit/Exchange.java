@@ -1492,7 +1492,7 @@ public class Exchange {
                         if (doMVCC) {
                             valueToStore = spareValue;
                             final int valueSize = value.getEncodedSize();
-                            int retries = VERSIONS_OUT_OF_ORDER_RETRY_COUNT;
+                            final int retries = VERSIONS_OUT_OF_ORDER_RETRY_COUNT;
 
                             for (;;) {
                                 try {

@@ -751,13 +751,13 @@ public class JournalRecord {
             putLong(bb, 20, volumeId);
         }
 
-        public static String getVolumeName(final ByteBuffer bb) {
+        public static String getVolumeSpecification(final ByteBuffer bb) {
             final int length = getLength(bb) - OVERHEAD;
             return new String(bb.array(), bb.position() + OVERHEAD, length, UTF8);
         }
 
-        public static void putVolumeName(final ByteBuffer bb, final String volumeName) {
-            final byte[] stringBytes = volumeName.getBytes(UTF8);
+        public static void putVolumeSpecification(final ByteBuffer bb, final String volumeSpec) {
+            final byte[] stringBytes = volumeSpec.getBytes(UTF8);
             System.arraycopy(stringBytes, 0, bb.array(), bb.position() + OVERHEAD, stringBytes.length);
             putLength(bb, OVERHEAD + stringBytes.length);
         }
