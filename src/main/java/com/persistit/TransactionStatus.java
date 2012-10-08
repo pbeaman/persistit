@@ -327,6 +327,26 @@ class TransactionStatus {
     }
 
     /**
+     * Block briefly until another thread transiently holding the wwLock
+     * vacates. Times out and returns after
+     * {@value TransactionIndex#SHORT_TIMEOUT} milliseconds.
+     * 
+     * @throws InterruptedException
+     */
+    void briefLock() throws InterruptedException {
+        boolean locked = false;
+        try {
+            locked = wwLock(TransactionIndex.SHORT_TIMEOUT);
+        } catch (final InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        } finally {
+            if (locked) {
+                wwUnlock();
+            }
+        }
+    }
+
+    /**
      * <p>
      * Acquire a lock on this TransactionStatus. This supports the
      * {@link TransactionIndex#wwDependency(long, long, long)} method. While a

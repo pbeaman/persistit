@@ -170,10 +170,13 @@ class TransactionIndexBucket {
         _lock.unlock();
     }
 
-    TransactionStatus allocateTransactionStatus() {
+    TransactionStatus allocateTransactionStatus() throws InterruptedException {
         assert _lock.isHeldByCurrentThread();
         final TransactionStatus status = _free;
         if (status != null) {
+            if (status.isLocked()) {
+                status.briefLock();
+            }
             assert !status.isLocked();
             _free = status.getNext();
             _freeCount--;
@@ -569,14 +572,7 @@ class TransactionIndexBucket {
                     }
                 }
             } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
-                boolean locked = false;
-                try {
-                    locked = status.wwLock(TransactionIndex.SHORT_TIMEOUT);
-                } finally {
-                    if (locked) {
-                        status.wwUnlock();
-                    }
-                }
+                status.briefLock();
                 _transactionIndex.incrementAccumulatorSnapshotRetryCounter();
                 throw RetryException.SINGLE;
             }

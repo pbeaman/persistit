@@ -725,7 +725,6 @@ public class Transaction {
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
                         _persistit.getTimestampAllocator().getCurrentTimestamp());
                 _rollbackCompleted = true;
-
             }
         }
     }

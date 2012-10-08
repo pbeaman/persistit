@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import static com.persistit.util.Util.NS_PER_S;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -85,8 +87,6 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
             return cp._systemTime == _systemTime && cp._timestamp == _timestamp;
         }
     }
-
-    private final static long NS_PER_S = 1000000000L;
 
     /**
      * Default interval in nanoseconds between checkpoints - two minutes.

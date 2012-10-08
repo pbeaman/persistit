@@ -19,6 +19,7 @@ import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.util.SequencerConstants.PAGE_MAP_READ_INVALIDATE_A;
 import static com.persistit.util.SequencerConstants.RECOVERY_PRUNING_B;
 import static com.persistit.util.ThreadSequencer.sequence;
+import static com.persistit.util.Util.NS_PER_MS;
 
 import java.io.File;
 import java.io.IOException;
@@ -79,7 +80,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     final static int HALF_URGENT = 5;
     final static int URGENT_COMMIT_DELAY_MILLIS = 50;
     final static int GENTLE_COMMIT_DELAY_MILLIS = 12;
-    private final static long NS_PER_MS = 1000000L;
     private final static int IO_MEASUREMENT_CYCLES = 8;
     private final static int TOO_MANY_WARN_THRESHOLD = 5;
     private final static int TOO_MANY_ERROR_THRESHOLD = 10;
@@ -1271,11 +1271,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         return address % _blockSize;
     }
 
-    void stopCopier() {
-        _copier.setShouldStop(true);
-        _persistit.waitForIOTaskStop(_copier);
-    }
-
     void setWriteBufferSize(final int size) {
         if (size < MINIMUM_BUFFER_SIZE || size > MAXIMUM_BUFFER_SIZE) {
             throw new IllegalArgumentException("Invalid write buffer size: " + size);
@@ -1284,11 +1279,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     public void close() throws PersistitException {
-
-        synchronized (this) {
-            _closed.set(true);
-        }
-
+        _closed.set(true);
         rollover();
 
         final JournalCopier copier = _copier;
@@ -2456,10 +2447,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         int handle = -1;
 
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
-            if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
-                list.clear();
-                break;
-            }
+
             final PageNode pageNode = iterator.next();
             if (pageNode.isInvalid()) {
                 iterator.remove();
@@ -2520,11 +2508,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         final Set<Volume> volumes = new HashSet<Volume>();
 
         for (final Iterator<PageNode> iterator = list.iterator(); iterator.hasNext();) {
-            if (_closed.get() && !_copyFast.get() || _appendOnly.get()) {
-                list.clear();
-                break;
-            }
-
             final PageNode pageNode = iterator.next();
 
             if (pageNode.getVolumeHandle() != handle) {

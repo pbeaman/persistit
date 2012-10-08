@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import static com.persistit.util.Util.NS_PER_S;
+
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -97,11 +99,10 @@ public class BufferPool {
      */
     private final static int INVENTORY_VERSIONS = 3;
 
-    private final static long NS_PER_SEC = 1000000000;
     /**
      * Preload log message interval, in seconds
      */
-    private final static long INVENTORY_PRELOAD_LOG_MESSAGE_NS = 60L * NS_PER_SEC;
+    private final static long INVENTORY_PRELOAD_LOG_MESSAGE_NS = 60L * NS_PER_S;
 
     /**
      * The Persistit instance that references this BufferPool.
@@ -1514,8 +1515,8 @@ public class BufferPool {
                     count++;
                     final long now = System.nanoTime();
                     if (now - reportTime >= INVENTORY_PRELOAD_LOG_MESSAGE_NS) {
-                        _persistit.getLogBase().bufferInventoryProgress.log(count, total, (now - reportTime)
-                                / NS_PER_SEC);
+                        _persistit.getLogBase().bufferInventoryProgress
+                                .log(count, total, (now - reportTime) / NS_PER_S);
                         reportTime = now;
                     }
                     if (count >= _bufferCount) {
@@ -1533,7 +1534,7 @@ public class BufferPool {
             _persistit.getLogBase().bufferInventoryException.log(e);
         } finally {
             final long now = System.nanoTime();
-            _persistit.getLogBase().bufferInventoryProgress.log(count, total, (now - reportTime) / NS_PER_SEC);
+            _persistit.getLogBase().bufferInventoryProgress.log(count, total, (now - reportTime) / NS_PER_S);
         }
     }
 
