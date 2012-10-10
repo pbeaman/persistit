@@ -366,23 +366,32 @@ public abstract class Accumulator {
      */
     final static class AccumulatorRef {
         final WeakReference<Accumulator> _weakRef;
+        final AtomicLong _latestUpdate = new AtomicLong();
         volatile Accumulator _checkpointRef;
 
         AccumulatorRef(final Accumulator acc) {
             _weakRef = new WeakReference<Accumulator>(acc);
-            _checkpointRef = acc;
         }
 
-        Accumulator takeCheckpointRef() {
+        Accumulator takeCheckpointRef(final long timestamp) {
             final Accumulator result = _checkpointRef;
-            _checkpointRef = null;
+            if (timestamp > _latestUpdate.get()) {
+                _checkpointRef = null;
+            }
             return result;
         }
 
-        void checkpointNeeded(final Accumulator acc) {
-            if (_checkpointRef == null) {
-                _checkpointRef = acc;
+        void checkpointNeeded(final Accumulator acc, final long timestamp) {
+            while (true) {
+                final long latest = _latestUpdate.get();
+                if (latest > timestamp) {
+                    break;
+                }
+                if (_latestUpdate.compareAndSet(latest, timestamp)) {
+                    break;
+                }
             }
+            _checkpointRef = acc;
         }
 
         boolean isLive() {
@@ -448,8 +457,8 @@ public abstract class Accumulator {
         return _accumulatorRef;
     }
 
-    void checkpointNeeded() {
-        _accumulatorRef.checkpointNeeded(this);
+    void checkpointNeeded(final long timestamp) {
+        _accumulatorRef.checkpointNeeded(this, timestamp);
     }
 
     long getBucketValue(final int hashIndex) {
@@ -566,6 +575,7 @@ public abstract class Accumulator {
     void updateBaseValue(final long value) {
         _baseValue = applyValue(_baseValue, value);
         _liveValue.set(_baseValue);
+        checkpointNeeded(0);
     }
 
     /**
@@ -619,7 +629,6 @@ public abstract class Accumulator {
          */
         final long selectedValue = selectValue(value, updated);
         _transactionIndex.addOrCombineDelta(status, this, step, selectedValue);
-        checkpointNeeded();
         return updated;
     }
 

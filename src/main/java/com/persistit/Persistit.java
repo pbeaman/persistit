@@ -2419,7 +2419,7 @@ public class Persistit {
                 }
             }
         }
-        if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
+        if (checkpointCount > 0 && (checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
             try {
                 _checkpointManager.createCheckpoint();
             } catch (final PersistitException e) {
@@ -2441,7 +2441,7 @@ public class Persistit {
         }
     }
 
-    List<Accumulator> getCheckpointAccumulators() {
+    List<Accumulator> takeCheckpointAccumulators(final long timestamp) {
         final List<Accumulator> result = new ArrayList<Accumulator>();
         synchronized (_accumulators) {
             for (final Iterator<AccumulatorRef> refIterator = _accumulators.iterator(); refIterator.hasNext();) {
@@ -2449,7 +2449,7 @@ public class Persistit {
                 if (!ref.isLive()) {
                     refIterator.remove();
                 }
-                final Accumulator acc = ref.takeCheckpointRef();
+                final Accumulator acc = ref.takeCheckpointRef(timestamp);
                 if (acc != null) {
                     result.add(acc);
                 }
