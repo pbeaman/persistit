@@ -122,7 +122,7 @@ public abstract class Accumulator {
     /*
      * Check-pointed value read during recovery.
      */
-    private long _baseValue;
+    private volatile long _baseValue;
 
     /*
      * Snapshot value at the most recent checkpoint
