@@ -854,12 +854,12 @@ public class Transaction {
             _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
             sequence(COMMIT_FLUSH_C);
             long flushedTimetimestamp = 0;
-            
+
             for (Delta delta = _transactionStatus.getDelta(); delta != null; delta = delta.getNext()) {
                 final Accumulator acc = delta.getAccumulator();
                 acc.checkpointNeeded(_commitTimestamp);
             }
-            
+
             boolean committed = false;
             try {
 

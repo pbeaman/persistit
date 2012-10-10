@@ -15,8 +15,8 @@
 
 package com.persistit;
 
+import static com.persistit.util.SequencerConstants.ACCUMULATOR_CHECKPOINT_A;
 import static com.persistit.util.ThreadSequencer.sequence;
-import static com.persistit.util.SequencerConstants.*;
 import static com.persistit.util.Util.NS_PER_S;
 
 import java.text.SimpleDateFormat;
