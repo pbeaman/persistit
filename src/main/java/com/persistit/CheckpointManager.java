@@ -249,7 +249,7 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
             try {
                 _persistit.flushTransactions(txn.getStartTimestamp());
                 /*
-                 * Block here while update occurs
+                 * Test only: block here while Accumulator update occurs
                  */
                 sequence(ACCUMULATOR_CHECKPOINT_A);
 
