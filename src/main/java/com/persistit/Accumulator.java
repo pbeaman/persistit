@@ -375,9 +375,14 @@ public abstract class Accumulator {
 
         Accumulator takeCheckpointRef(final long timestamp) {
             final Accumulator result = _checkpointRef;
+
             if (timestamp > _latestUpdate.get()) {
                 _checkpointRef = null;
+                if (timestamp <= _latestUpdate.get()) {
+                    _checkpointRef = result;
+                }
             }
+            
             return result;
         }
 
@@ -575,6 +580,15 @@ public abstract class Accumulator {
     void updateBaseValue(final long value) {
         _baseValue = applyValue(_baseValue, value);
         _liveValue.set(_baseValue);
+        /*
+         * The base value applied here may have been computed by recovering
+         * committed transactions that followed the final checkpoint. Recovery
+         * will dispose of those transactions so a subsequent restart will not
+         * be able to replay them again. Therefore we need to record the
+         * Accumulator at the next checkpoint. In most cases this is redundant
+         * but in some cases necessary. (Note: AccumulatorRecoveryTest
+         * demonstrates this.)
+         */
         checkpointNeeded(0);
     }
 
