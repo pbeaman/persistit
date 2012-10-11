@@ -246,7 +246,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 final int accumulatorTypeOrdinal, final long value) throws PersistitException {
             final Accumulator.Type type = Accumulator.Type.values()[accumulatorTypeOrdinal];
             final Accumulator accumulator = tree.getAccumulator(type, index);
-            accumulator.updateBaseValue(value);
+            accumulator.updateBaseValue(value, timestamp);
         }
 
         @Override

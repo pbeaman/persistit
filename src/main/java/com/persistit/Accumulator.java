@@ -382,7 +382,7 @@ public abstract class Accumulator {
                     _checkpointRef = result;
                 }
             }
-            
+
             return result;
         }
 
@@ -577,19 +577,16 @@ public abstract class Accumulator {
      * 
      * @param value
      */
-    void updateBaseValue(final long value) {
+    void updateBaseValue(final long value, final long commitTimestamp) {
         _baseValue = applyValue(_baseValue, value);
         _liveValue.set(_baseValue);
         /*
-         * The base value applied here may have been computed by recovering
-         * committed transactions that followed the final checkpoint. Recovery
-         * will dispose of those transactions so a subsequent restart will not
-         * be able to replay them again. Therefore we need to record the
-         * Accumulator at the next checkpoint. In most cases this is redundant
-         * but in some cases necessary. (Note: AccumulatorRecoveryTest
-         * demonstrates this.)
+         * This method is called during recovery processing to handle a delta
+         * operation that was part of a transaction that committed after the
+         * keystone checkpoint. That update requires the accumulator to be saved
+         * on the next checkpoint.
          */
-        checkpointNeeded(0);
+        checkpointNeeded(commitTimestamp);
     }
 
     /**
