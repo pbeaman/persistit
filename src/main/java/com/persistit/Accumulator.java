@@ -122,7 +122,7 @@ public abstract class Accumulator {
     /*
      * Check-pointed value read during recovery.
      */
-    private long _baseValue;
+    private volatile long _baseValue;
 
     /*
      * Snapshot value at the most recent checkpoint
@@ -366,23 +366,37 @@ public abstract class Accumulator {
      */
     final static class AccumulatorRef {
         final WeakReference<Accumulator> _weakRef;
+        final AtomicLong _latestUpdate = new AtomicLong();
         volatile Accumulator _checkpointRef;
 
         AccumulatorRef(final Accumulator acc) {
             _weakRef = new WeakReference<Accumulator>(acc);
-            _checkpointRef = acc;
         }
 
-        Accumulator takeCheckpointRef() {
+        Accumulator takeCheckpointRef(final long timestamp) {
             final Accumulator result = _checkpointRef;
-            _checkpointRef = null;
+
+            if (timestamp > _latestUpdate.get()) {
+                _checkpointRef = null;
+                if (timestamp <= _latestUpdate.get()) {
+                    _checkpointRef = result;
+                }
+            }
+
             return result;
         }
 
-        void checkpointNeeded(final Accumulator acc) {
-            if (_checkpointRef == null) {
-                _checkpointRef = acc;
+        void checkpointNeeded(final Accumulator acc, final long timestamp) {
+            while (true) {
+                final long latest = _latestUpdate.get();
+                if (latest > timestamp) {
+                    return;
+                }
+                if (_latestUpdate.compareAndSet(latest, timestamp)) {
+                    break;
+                }
             }
+            _checkpointRef = acc;
         }
 
         boolean isLive() {
@@ -448,8 +462,8 @@ public abstract class Accumulator {
         return _accumulatorRef;
     }
 
-    void checkpointNeeded() {
-        _accumulatorRef.checkpointNeeded(this);
+    void checkpointNeeded(final long timestamp) {
+        _accumulatorRef.checkpointNeeded(this, timestamp);
     }
 
     long getBucketValue(final int hashIndex) {
@@ -563,9 +577,16 @@ public abstract class Accumulator {
      * 
      * @param value
      */
-    void updateBaseValue(final long value) {
+    void updateBaseValue(final long value, final long commitTimestamp) {
         _baseValue = applyValue(_baseValue, value);
         _liveValue.set(_baseValue);
+        /*
+         * This method is called during recovery processing to handle a delta
+         * operation that was part of a transaction that committed after the
+         * keystone checkpoint. That update requires the accumulator to be saved
+         * on the next checkpoint.
+         */
+        checkpointNeeded(commitTimestamp);
     }
 
     /**
@@ -619,7 +640,6 @@ public abstract class Accumulator {
          */
         final long selectedValue = selectValue(value, updated);
         _transactionIndex.addOrCombineDelta(status, this, step, selectedValue);
-        checkpointNeeded();
         return updated;
     }
 

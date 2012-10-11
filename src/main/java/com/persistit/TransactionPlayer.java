@@ -225,7 +225,13 @@ class TransactionPlayer {
 
                 case D0.TYPE: {
                     final Exchange exchange = getExchange(D0.getTreeHandle(bb), address, startTimestamp);
-                    listener.delta(address, startTimestamp, exchange.getTree(), D0.getIndex(bb),
+                    /*
+                     * Note that the commitTimestamp, not startTimestamp is
+                     * passed to the delta method. The
+                     * Accumulator#updateBaseValue method needs the
+                     * commitTimestamp.
+                     */
+                    listener.delta(address, commitTimestamp, exchange.getTree(), D0.getIndex(bb),
                             D0.getAccumulatorTypeOrdinal(bb), 1);
                     appliedUpdates.incrementAndGet();
                     break;

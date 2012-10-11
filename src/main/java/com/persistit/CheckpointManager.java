@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import static com.persistit.util.SequencerConstants.ACCUMULATOR_CHECKPOINT_A;
+import static com.persistit.util.ThreadSequencer.sequence;
 import static com.persistit.util.Util.NS_PER_S;
 
 import java.text.SimpleDateFormat;
@@ -246,7 +248,12 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
             txn.beginCheckpoint();
             try {
                 _persistit.flushTransactions(txn.getStartTimestamp());
-                final List<Accumulator> accumulators = _persistit.getCheckpointAccumulators();
+                /*
+                 * Test only: block here while Accumulator update occurs
+                 */
+                sequence(ACCUMULATOR_CHECKPOINT_A);
+
+                final List<Accumulator> accumulators = _persistit.takeCheckpointAccumulators(txn.getStartTimestamp());
                 _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp(), accumulators);
                 Accumulator.saveAccumulatorCheckpointValues(accumulators);
                 txn.commit(CommitPolicy.HARD);
