@@ -390,7 +390,7 @@ public abstract class Accumulator {
             while (true) {
                 final long latest = _latestUpdate.get();
                 if (latest > timestamp) {
-                    break;
+                    return;
                 }
                 if (_latestUpdate.compareAndSet(latest, timestamp)) {
                     break;
