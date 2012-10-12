@@ -899,6 +899,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final int recordSize = getLength(_readBuffer);
         final int type = getType(_readBuffer);
         final long timestamp = getTimestamp(_readBuffer);
+        _persistit.getTimestampAllocator().updateTimestamp(timestamp);
 
         if (recordSize >= _blockSize || recordSize < OVERHEAD) {
             throw new CorruptJournalException("Bad JournalRecord length " + recordSize + " at position "
@@ -1241,7 +1242,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     + addressToString(address, timestamp));
         }
         _baseAddress = baseAddress;
-        _persistit.getTimestampAllocator().updateTimestamp(timestamp);
+
         _lastValidCheckpoint = checkpoint;
         _lastValidCheckpointJournalAddress = address;
 
