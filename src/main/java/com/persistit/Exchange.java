@@ -2053,7 +2053,7 @@ public class Exchange {
             for (;;) {
                 ++_keysVisitedDuringTraverse;
                 final LevelCache lc = _levelCache[0];
-                boolean matches = false;
+                boolean matches;
                 //
                 // Optimal path - pick up the buffer and location left
                 // by previous operation.
