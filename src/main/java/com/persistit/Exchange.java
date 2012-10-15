@@ -2206,10 +2206,14 @@ public class Exchange {
                                 //
                                 if (!isVisibleMatch) {
                                     nudged = false;
-                                    nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
                                     buffer.release();
                                     buffer = null;
-                                    continue;
+                                    if (direction == EQ) {
+                                        matches = false;
+                                    } else {
+                                        nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
+                                        continue;
+                                    }
                                 }
                                 //
                                 // It was a niece or nephew, record non-exact
