@@ -1936,8 +1936,9 @@ public class Configuration {
      * Journal files created by version 3.1.8 with this mode enabled can be used
      * by earlier versions of Persistit. However, doing so prevents volumes
      * created dynamically using
-     * {@link Persistit#loadVolume(VolumeSpecification))} from being recovered
-     * properly. (See https://bugs.launchpad.net/akiban-persistit/+bug/1045971)
+     * {@link Persistit#loadVolume(com.persistit.VolumeSpecification)} from
+     * being recovered properly. (See
+     * https://bugs.launchpad.net/akiban-persistit/+bug/1045971)
      * </p>
      * <p>
      * This method and configuration parameter is deprecated and will be removed
