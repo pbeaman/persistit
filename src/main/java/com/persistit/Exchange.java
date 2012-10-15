@@ -2103,9 +2103,9 @@ public class Exchange {
                 if (edge && (foundAt & EXACT_MASK) != 0) {
                     matches = true;
                 } else if (edge && !deep && Buffer.decodeDepth(foundAt) == index) {
-                    // None
+                    matches = true;
                 } else if (direction == EQ) {
-                    // None
+                    matches = false;
                 } else {
                     edge = false;
                     foundAt = buffer.traverse(_key, direction, foundAt);
@@ -2123,7 +2123,12 @@ public class Exchange {
                             buffer = rightSibling;
                             checkPageType(buffer, PAGE_TYPE_DATA, false);
                             foundAt = buffer.traverse(_key, direction, buffer.toKeyBlock(0));
+                            matches = !buffer.isAfterRightEdge(foundAt);
+                        } else {
+                            matches = false;
                         }
+                    } else {
+                        matches = true;
                     }
 
                     //
@@ -2164,7 +2169,7 @@ public class Exchange {
                 // finishing
 
                 if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge() || stopDueToKeyDepth) {
-                    // None
+                    matches = false;
                 } else {
                     if (deep) {
                         matches |= direction != EQ;
@@ -2186,7 +2191,7 @@ public class Exchange {
                             parentIndex = 0;
                         }
 
-                        matches = (spareKey.compareKeyFragment(_key, 0, parentIndex) == 0);
+                        matches &= (spareKey.compareKeyFragment(_key, 0, parentIndex) == 0);
 
                         if (matches) {
                             index = _key.nextElementIndex(parentIndex);

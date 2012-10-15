@@ -424,6 +424,18 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals("Should be false", false, ex.traverse(Key.LT, deep, -1));
         ex.clear();
 
+        ex.append(1);
+        assertEquals("Should be false", false, ex.traverse(Key.EQ, deep, -1));
+        ex.clear().append(1);
+        assertEquals("Should be false", false, ex.traverse(Key.GTEQ, deep, -1));
+        ex.clear().append(1);
+        assertEquals("Should be false", false, ex.traverse(Key.GT, deep, -1));
+        ex.clear().append(1);
+        assertEquals("Should be false", false, ex.traverse(Key.LTEQ, deep, -1));
+        ex.clear().append(1);
+        assertEquals("Should be false", false, ex.traverse(Key.LT, deep, -1));
+        ex.clear().append(1);
+
         ex.append(1).append(2).store();
         ex.clear().append(Key.BEFORE);
         assertEquals("Should be false", false, ex.traverse(Key.EQ, deep, -1));
