@@ -451,7 +451,7 @@ class MVV {
                     if (tc == UNCOMMITTED) {
                         final long ts = vh2ts(versionHandle);
                         if (uncommittedTransactionTs != 0 && uncommittedTransactionTs != ts) {
-                            throw new CorruptValueException("Multiple uncommitted version");
+                            throw new CorruptValueException("Multiple uncommitted versions");
                         }
                         uncommittedTransactionTs = ts;
                         mark(bytes, from);

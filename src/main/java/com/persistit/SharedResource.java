@@ -37,7 +37,7 @@ import com.persistit.exception.PersistitInterruptedException;
  * 
  * @author peter
  */
-class SharedResource {
+abstract class SharedResource {
 
     /**
      * Default maximum time to wait for access to this resource. Methods throw
