@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import static com.persistit.util.Util.NS_PER_S;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -663,8 +665,13 @@ public class Persistit {
 
     void initializeVolumes() throws PersistitException {
         for (final VolumeSpecification volumeSpecification : _configuration.getVolumeList()) {
+            Volume volume = _journalManager.getVolumeByName(volumeSpecification.getName());
+            if (volume == null) {
+                volume = new Volume(volumeSpecification);
+            } else {
+                volume.overwriteSpecification(volumeSpecification);
+            }
             _logBase.openVolume.log(volumeSpecification.getName(), volumeSpecification.getAbsoluteFile());
-            final Volume volume = new Volume(volumeSpecification);
             volume.open(this);
         }
     }
@@ -1509,7 +1516,7 @@ public class Persistit {
         return _bufferPoolTable;
     }
 
-    public void cleanup() {
+    void cleanup() {
         final Set<SessionId> sessionIds;
         synchronized (_transactionSessionMap) {
             sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
@@ -1654,12 +1661,8 @@ public class Persistit {
             }
             recordBufferPoolInventory();
 
-            /*
-             * The copier is responsible for background pruning of aborted
-             * transactions. Halt it so Transaction#close() can be called
-             * without being concerned about its state changing.
-             */
-            _journalManager.stopCopier();
+            _cleanupManager.close(flush);
+            waitForIOTaskStop(_cleanupManager);
 
             getTransaction().close();
             cleanup();
@@ -1676,9 +1679,6 @@ public class Persistit {
                 }
             }
 
-            _cleanupManager.close(flush);
-            waitForIOTaskStop(_cleanupManager);
-
             _checkpointManager.close(flush);
             waitForIOTaskStop(_checkpointManager);
 
@@ -1688,25 +1688,12 @@ public class Persistit {
                 pool.close();
             }
 
-            /*
-             * Close (and abort) all remaining transactions.
-             */
-            Set<Transaction> transactions;
-            synchronized (_transactionSessionMap) {
-                transactions = new HashSet<Transaction>(_transactionSessionMap.values());
-                _transactionSessionMap.clear();
-            }
-            for (final Transaction txn : transactions) {
-                try {
-                    txn.close();
-                } catch (final PersistitException e) {
-                    _logBase.exception.log(e);
-                }
-            }
-
             _journalManager.close();
             final IOTaskRunnable task = _transactionIndex.close();
             waitForIOTaskStop(task);
+
+            interruptActiveThreads(SHORT_DELAY);
+            closeZombieTransactions();
 
             for (final Volume volume : volumes) {
                 volume.close();
@@ -1723,6 +1710,50 @@ public class Persistit {
             pollAlertMonitors(true);
         }
         releaseAllResources();
+    }
+
+    private void closeZombieTransactions() {
+        final Set<SessionId> sessionIds;
+        synchronized (_transactionSessionMap) {
+            sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
+        }
+        for (final SessionId sessionId : sessionIds) {
+            Transaction transaction = null;
+            synchronized (_transactionSessionMap) {
+                transaction = _transactionSessionMap.remove(sessionId);
+            }
+            if (!sessionId.isAlive()) {
+                if (transaction != null) {
+                    try {
+                        transaction.close();
+                    } catch (final Exception e) {
+                        _logBase.exception.log(e);
+                    }
+                }
+            }
+        }
+    }
+
+    private void interruptActiveThreads(final long timeout) throws PersistitInterruptedException {
+        final long expires = System.currentTimeMillis() + timeout;
+        boolean remaining = false;
+        do {
+            final Set<SessionId> sessionIds;
+            synchronized (_transactionSessionMap) {
+                sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
+            }
+            for (final SessionId sessionId : sessionIds) {
+                if (sessionId.isAlive()) {
+                    if (sessionId.interrupt()) {
+                        _logBase.interruptedAtClose.log(sessionId.ownerName());
+                    }
+                    remaining = true;
+                }
+            }
+            if (remaining) {
+                Util.spinSleep();
+            }
+        } while (remaining && System.currentTimeMillis() < expires);
     }
 
     /**
@@ -1880,7 +1911,7 @@ public class Persistit {
             }
             final long now = System.currentTimeMillis();
             if (now > _nextCloseTime) {
-                _logBase.waitForClose.log((_nextCloseTime - _beginCloseTime) / 1000);
+                _logBase.waitForClose.log((_nextCloseTime - _beginCloseTime) / NS_PER_S);
                 _nextCloseTime += CLOSE_LOG_INTERVAL;
             }
         }
@@ -2388,7 +2419,7 @@ public class Persistit {
                 }
             }
         }
-        if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
+        if (checkpointCount > 0 && (checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
             try {
                 _checkpointManager.createCheckpoint();
             } catch (final PersistitException e) {
@@ -2410,7 +2441,7 @@ public class Persistit {
         }
     }
 
-    List<Accumulator> getCheckpointAccumulators() {
+    List<Accumulator> takeCheckpointAccumulators(final long timestamp) {
         final List<Accumulator> result = new ArrayList<Accumulator>();
         synchronized (_accumulators) {
             for (final Iterator<AccumulatorRef> refIterator = _accumulators.iterator(); refIterator.hasNext();) {
@@ -2418,7 +2449,7 @@ public class Persistit {
                 if (!ref.isLive()) {
                     refIterator.remove();
                 }
-                final Accumulator acc = ref.takeCheckpointRef();
+                final Accumulator acc = ref.takeCheckpointRef(timestamp);
                 if (acc != null) {
                     result.add(acc);
                 }

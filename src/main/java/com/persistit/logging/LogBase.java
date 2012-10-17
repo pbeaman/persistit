@@ -253,6 +253,9 @@ public class LogBase {
     @Message("WARNING|Exception while writing buffer pool inventory %s")
     public final LogItem bufferInventoryException = PersistitLogMessage.empty();
 
+    @Message("WARNING|Thread %s interrupted due to shutdown")
+    public final LogItem interruptedAtClose = PersistitLogMessage.empty();
+
     public static String recurring(final String message, final int count, final long duration) {
         return String.format(RECURRING, message, count, duration);
     }

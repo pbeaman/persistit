@@ -246,7 +246,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 final int accumulatorTypeOrdinal, final long value) throws PersistitException {
             final Accumulator.Type type = Accumulator.Type.values()[accumulatorTypeOrdinal];
             final Accumulator accumulator = tree.getAccumulator(type, index);
-            accumulator.updateBaseValue(value);
+            accumulator.updateBaseValue(value, timestamp);
         }
 
         @Override
@@ -360,17 +360,6 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         public Persistit getPersistit() {
             return _persistit;
         }
-
-        @Override
-        public TreeDescriptor handleToTreeDescriptor(final int treeHandle) {
-            return _handleToTreeMap.get(treeHandle);
-        }
-
-        @Override
-        public Volume handleToVolume(final int volumeHandle) {
-            return _handleToVolumeMap.get(volumeHandle);
-        }
-
     }
 
     static File[] files(final String pathName) {
@@ -910,6 +899,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final int recordSize = getLength(_readBuffer);
         final int type = getType(_readBuffer);
         final long timestamp = getTimestamp(_readBuffer);
+        _persistit.getTimestampAllocator().updateTimestamp(timestamp);
 
         if (recordSize >= _blockSize || recordSize < OVERHEAD) {
             throw new CorruptJournalException("Bad JournalRecord length " + recordSize + " at position "
@@ -986,14 +976,18 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
         read(address, recordSize);
         final Integer handle = Integer.valueOf(IV.getHandle(_readBuffer));
-        final String name = IV.getVolumeName(_readBuffer);
-        final long volumeId = IV.getVolumeId(_readBuffer);
-        final Volume volume = new Volume(name, volumeId);
+        final long id = IV.getVolumeId(_readBuffer);
+        final String specification = IV.getVolumeSpecification(_readBuffer);
+        final VolumeSpecification vs = new VolumeSpecification(specification);
+        vs.setCreate(false);
+        vs.setCreateOnly(false);
+        final Volume volume = new Volume(vs);
+        volume.setId(id);
 
         _handleToVolumeMap.put(handle, volume);
         _volumeToHandleMap.put(volume, handle);
 
-        _persistit.getLogBase().recoveryRecord.log("IV", addressToString(address, timestamp), name, timestamp);
+        _persistit.getLogBase().recoveryRecord.log("IV", addressToString(address, timestamp), vs.getName(), timestamp);
     }
 
     /**
@@ -1248,7 +1242,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     + addressToString(address, timestamp));
         }
         _baseAddress = baseAddress;
-        _persistit.getTimestampAllocator().updateTimestamp(timestamp);
+
         _lastValidCheckpoint = checkpoint;
         _lastValidCheckpointJournalAddress = address;
 

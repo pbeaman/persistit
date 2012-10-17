@@ -1,3 +1,89 @@
+1065677 : 3.2.0
+
+`Persistit not recoverable after hard crash`
+
+A system experienced a sequence of events, including being killed several times at 
+inopportune times by the OOM Killer, that left its journal in an unrecoverable state.
+Specifically, there was a journal file that contained lots of updated pages, but no
+checkpoint record.  Due to a bug in the RecoveryManager code, the system timestamp
+was set incorrectly and led to an out-of-order page update sequence.  While this bug
+would be difficult to recreate by any natural circumstances, it is critical because
+of potential data loss.
+
+1064565 : 3.2.0
+
+`Accumulator state sometimes missing from checkpoint`
+
+Occasionally the state of an Accumulator was incorrect after normal system restart.
+The cause was a race in the checkpoint code. This is a critical bug due to potential
+data loss.
+
+1062315 : 3.2.0
+
+`Assertion failure in TransactionIndexBucket#allocateTransactionStatus`
+
+An assert was observed in an 8-hour stress test run.  The underlying cause was
+a brief race condition and was harmless. The race has been fixed. 
+
+1058650 : 3.2.0
+
+`IllegalStateException due to out-of-order MVVs`
+
+Stress tests experienced an occasional occurrence of an IllegalStateException due
+to out-of-order versions in an MVV value.  The condition was transient and did not
+cause data loss. The underlying cause has been fixed.
+
+1058254 : 3.2.0
+
+`Join on range delete can change successor keys`
+
+A range delete that crosses at least two page boundaries can write an incorrect key 
+when merging records; this causes it and subsequent keys within the page to be wrong 
+and also leads to a discontinuity between the max key in the page and the first key 
+of its right sibling.
+
+1056489 : 3.2.0
+
+`MVV and step visibility and pruning errors`
+
+Transactions using +step+ values (see com.persisit.Transaction#setStep) sometimes resulted
+in inconsistent states.
+
+1053680 : 3.2.0
+
+`Page deallocation can permanently lose pages`
+
+When removing records causes deallocation of chain of pages configured in a particular way, 
+a garbage page, and possibly many pages linked to it, may be stranded in a volume. 
+The result is irrecoverable loss of space in the volume file.
+
+1047973 : 3.2.0
+
+`O(N*N) Loop in JournalManager#cleanupPageList`
+
+Bad code in this method causes periodic performance degradation in 4-hour TPCC test. The 
+CPU cost of this algorithm scales as the square of the number of pages in the page list, 
+and the work is done within a globally blocking synchronized block.
+
+1045971 : 3.2.0
+
+`Dynamically loaded volumes not recovered "cleanly"`
+
+When a program creates new volumes using VolumeSpecifications, they subsequently 
+cause a "missing volume" warning from the journal copier and prevent the removal 
+of journal files containing the references. The journal files accumulate seemingly 
+without end, and each initialization of the database seems to process more and 
+more of the old transactions.
+
+See discussion about regarding the useOldVSpec property.
+
+1046049 : 3.2.0
+
+`Filtered traverse in LTEQ direction appears not to work`
+
+A bug in the com.persistit.KeyFilter caused reverse-direction traversal using
+a KeyFilter with a range term to return incorrect results.
+
 1044513 : 3.1.7
 
 `AssertionError in IntegrityCheckTest`

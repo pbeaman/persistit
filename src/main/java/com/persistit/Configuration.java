@@ -271,6 +271,11 @@ public class Configuration {
     public final static String IGNORE_MISSING_VOLUMES_PROPERTY = "ignoremissingvolumes";
 
     /**
+     * Property name to enable writing backward-compatible IV records
+     */
+    public final static String USE_OLD_VSPEC = "useoldvspec";
+
+    /**
      * Property name to specify the default {@link SplitPolicy}.
      */
     public final static String SPLIT_POLICY_PROPERTY_NAME = "splitpolicy";
@@ -643,6 +648,7 @@ public class Configuration {
     private String tmpVolDir;
     private int tmpVolPageSize;
     private long tmpVolMaxSize;
+    private boolean useOldVSpec;
 
     /**
      * Construct a <code>Configuration</code> instance. This object may be
@@ -739,6 +745,7 @@ public class Configuration {
         setSysVolume(getProperty(SYSTEM_VOLUME_PROPERTY_NAME, DEFAULT_SYSTEM_VOLUME_NAME));
         setBufferInventoryEnabled(getBooleanProperty(BUFFER_INVENTORY_PROPERTY_NAME, false));
         setBufferPreloadEnabled(getBooleanProperty(BUFFER_PRELOAD_PROPERTY_NAME, false));
+        setUseOldVSpec(getBooleanProperty(USE_OLD_VSPEC, false));
 
         loadPropertiesBufferSpecifications();
         loadPropertiesVolumeSpecifications();
@@ -1877,7 +1884,8 @@ public class Configuration {
     /**
      * Return the value defined by {@link #setIgnoreMissingVolumes(boolean)}
      * 
-     * @return <code>true</code>to enable ignore-missing-volumes mode
+     * @return <code>true</code> indicates that <i>ignore-missing-volumes</i>
+     *         mode is enabled
      */
     public boolean isIgnoreMissingVolumes() {
         return ignoreMissingVolumes;
@@ -1903,4 +1911,48 @@ public class Configuration {
     public void setIgnoreMissingVolumes(final boolean ignoreMissingVolumes) {
         this.ignoreMissingVolumes = ignoreMissingVolumes;
     }
+
+    /**
+     * Return the value defined by {@link #setUseOldVSpec(boolean)}
+     * 
+     * @return <code>true</code> indicates that <i>use-old-vspec</i> mode is
+     *         enabled
+     */
+    @Deprecated
+    public boolean isUseOldVSpec() {
+        return useOldVSpec;
+    }
+
+    /**
+     * <p>
+     * Control whether Persistit writes old-format volume identifiers into the
+     * Journal. By default as of version 3.1.8, Persistit writes a complete
+     * {@link VolumeSpecification} into the journal IV (Identify Volume) record
+     * rather than just a volume name. This is preferable in almost all cases.
+     * However, journals written in this new format cannot be read by earlier
+     * versions of Persistit. To retain the ability to drop back to an earlier
+     * version of Persistit, enabling <i>use-old-vspec</i> mode causes Persistit
+     * to write only the volume name rather than the entire VolumeSpecification.
+     * Journal files created by version 3.1.8 with this mode enabled can be used
+     * by earlier versions of Persistit. However, doing so prevents volumes
+     * created dynamically using
+     * {@link Persistit#loadVolume(com.persistit.VolumeSpecification)} from
+     * being recovered properly. (See
+     * https://bugs.launchpad.net/akiban-persistit/+bug/1045971)
+     * </p>
+     * <p>
+     * This method and configuration parameter is deprecated and will be removed
+     * after existing sites have been upgraded and are likely not to revert to
+     * any version of Persistit earlier than 3.1.8
+     * </p>
+     * 
+     * @param useOldVSpec
+     *            <code>true</code> to write only the volume name into the
+     *            journal.
+     */
+    @Deprecated
+    public void setUseOldVSpec(final boolean useOldVSpec) {
+        this.useOldVSpec = useOldVSpec;
+    }
+
 }

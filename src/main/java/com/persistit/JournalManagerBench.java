@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import static com.persistit.util.Util.NS_PER_S;
+
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -44,7 +46,6 @@ import com.persistit.util.ArgParser;
  */
 public class JournalManagerBench {
 
-    private final long NS_PER_S = 1000000000L;
     private final byte[] NULLS = new byte[65536];
 
     private final String[] ARG_TEMPLATE = new String[] { "duration|int:10:10:86400|Duration of test in seconds",

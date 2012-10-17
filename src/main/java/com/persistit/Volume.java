@@ -24,6 +24,7 @@ import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.TruncateVolumeException;
+import com.persistit.exception.UnderSpecifiedVolumeException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeNotFoundException;
@@ -94,6 +95,7 @@ public class Volume {
     Volume(final String name, final long id) {
         _name = name;
         _id = id;
+        _specification = new VolumeSpecification(name);
     }
 
     /**
@@ -144,11 +146,16 @@ public class Volume {
         if (_specification != null) {
             throw new IllegalStateException("Volume " + this + " already has a VolumeSpecification");
         }
-        if (specification.getName().equals(_name) && specification.getId() == _id) {
+        if (specification.getName().equals(_name) && (specification.getId() == _id || specification.getId() == 0)) {
             _specification = specification;
         } else {
             throw new IllegalStateException("Volume " + this + " is incompatible with " + specification);
         }
+    }
+
+    void overwriteSpecification(final VolumeSpecification specification) {
+        _specification = null;
+        setSpecification(specification);
     }
 
     void closing() {
@@ -238,8 +245,7 @@ public class Volume {
                     //
                     // BufferPool#invalidate may fail and return false if other
                     // threads hold claims on pages of this volume. In that case
-                    // we
-                    // need to back off all locks and retry
+                    // we need to back off all locks and retry
                     //
                     if (getStructure().getPool().invalidate(this)) {
                         getStructure().truncate();
@@ -430,8 +436,11 @@ public class Volume {
         if (_storage != null) {
             throw new IllegalStateException("This volume has already been opened");
         }
+        if (_specification.getPageSize() <= 0) {
+            throw new UnderSpecifiedVolumeException(getName());
+        }
         if (persistit.getBufferPool(_specification.getPageSize()) == null) {
-            throw new IllegalStateException("There is no buffer pool for pages of volume " + _specification);
+            throw new IllegalStateException(getName());
         }
         final boolean exists = VolumeHeader.verifyVolumeHeader(_specification, persistit.getCurrentTimestamp());
 
@@ -439,17 +448,27 @@ public class Volume {
         _storage = new VolumeStorageV2(persistit, this);
         _statistics = new VolumeStatistics();
 
-        if (exists) {
-            if (_specification.isCreateOnly()) {
-                throw new VolumeAlreadyExistsException(_specification.getPath());
+        boolean opened = false;
+        try {
+            if (exists) {
+                if (_specification.isCreateOnly()) {
+                    throw new VolumeAlreadyExistsException(_specification.getPath());
+                }
+                _storage.open();
+                opened = true;
+            } else {
+                if (!_specification.isCreate()) {
+                    throw new VolumeNotFoundException(_specification.getPath());
+                }
+                _storage.create();
+                opened = true;
             }
-            _storage.open();
-        } else {
-            if (!_specification.isCreate()) {
-                throw new VolumeNotFoundException(_specification.getPath());
+        } finally {
+            if (!opened) {
+                _structure = null;
+                _storage = null;
+                _statistics = null;
             }
-            _storage.create();
-
         }
         persistit.addVolume(this);
     }

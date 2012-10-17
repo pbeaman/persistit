@@ -17,16 +17,11 @@ package com.persistit;
 
 import java.nio.ByteBuffer;
 
-import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 
 interface TransactionPlayerSupport {
     Persistit getPersistit();
-
-    TreeDescriptor handleToTreeDescriptor(int treeHandle);
-
-    Volume handleToVolume(int volumeHandle);
 
     void read(long address, int size) throws PersistitIOException;
 

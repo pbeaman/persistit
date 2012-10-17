@@ -36,8 +36,8 @@ import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.SR;
 import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
-import com.persistit.exception.MissingVolumeException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.VolumeNotFoundException;
 
 class TransactionPlayer {
 
@@ -225,7 +225,13 @@ class TransactionPlayer {
 
                 case D0.TYPE: {
                     final Exchange exchange = getExchange(D0.getTreeHandle(bb), address, startTimestamp);
-                    listener.delta(address, startTimestamp, exchange.getTree(), D0.getIndex(bb),
+                    /*
+                     * Note that the commitTimestamp, not startTimestamp is
+                     * passed to the delta method. The
+                     * Accumulator#updateBaseValue method needs the
+                     * commitTimestamp.
+                     */
+                    listener.delta(address, commitTimestamp, exchange.getTree(), D0.getIndex(bb),
                             D0.getAccumulatorTypeOrdinal(bb), 1);
                     appliedUpdates.incrementAndGet();
                     break;
@@ -245,7 +251,7 @@ class TransactionPlayer {
                             + addressToString(address));
                 }
                 }
-            } catch (final MissingVolumeException mve) {
+            } catch (final VolumeNotFoundException vnfe) {
                 final Persistit db = _support.getPersistit();
                 if (db.getJournalManager().isIgnoreMissingVolumes()) {
                     /*
@@ -253,13 +259,16 @@ class TransactionPlayer {
                      * Alert, but allow recovery or rollback to continue.
                      */
                     db.getAlertMonitor().post(
-                            new Event(AlertLevel.WARN, db.getLogBase().missingVolume, mve.getVolumeName(), address
+                            new Event(AlertLevel.WARN, db.getLogBase().missingVolume, vnfe.getMessage(), address
                                     + position - start), AlertMonitor.MISSING_VOLUME_CATEGORY);
                     ignoredUpdates.incrementAndGet();
                 } else {
                     failedUpdates.incrementAndGet();
-                    throw mve;
+                    throw vnfe;
                 }
+            } catch (final PersistitException e) {
+                failedUpdates.incrementAndGet();
+                throw e;
             }
             position += innerSize;
         }
@@ -274,29 +283,16 @@ class TransactionPlayer {
     }
 
     private Exchange getExchange(final int treeHandle, final long from, final long timestamp) throws PersistitException {
-        final TreeDescriptor td = _support.handleToTreeDescriptor(treeHandle);
+        final TreeDescriptor td = _support.getPersistit().getJournalManager().lookupTreeHandle(treeHandle);
         if (td == null) {
             throw new CorruptJournalException("Tree handle " + treeHandle + " is undefined at "
                     + addressToString(from, timestamp));
         }
-        final Volume volumeRef = _support.handleToVolume(td.getVolumeHandle());
-        Volume volume;
-        if (volumeRef == null) {
+        final Volume volume = _support.getPersistit().getJournalManager().volumeForHandle(td.getVolumeHandle());
+        if (volume == null) {
             throw new CorruptJournalException("Volume handle " + td.getVolumeHandle() + " is undefined at "
                     + addressToString(from, timestamp));
         }
-
-        if (volumeRef.isOpened()) {
-            volume = volumeRef;
-        } else {
-            volume = _support.getPersistit().getVolume(volumeRef.getName());
-            if (volume == null) {
-                throw new MissingVolumeException("No matching Volume found for journal reference " + volumeRef + " at "
-                        + addressToString(from, timestamp), volumeRef.getName());
-            }
-        }
-        volume.verifyId(volume.getId());
-
         if (VolumeStructure.DIRECTORY_TREE_NAME.equals(td.getTreeName())) {
             return volume.getStructure().directoryExchange();
         } else {
@@ -321,4 +317,5 @@ class TransactionPlayer {
     long getFailedUpdates() {
         return failedUpdates.get();
     }
+
 }
