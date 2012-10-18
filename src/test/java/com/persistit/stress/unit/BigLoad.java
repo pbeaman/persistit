@@ -185,13 +185,11 @@ public class BigLoad extends AbstractStressTest {
     }
 
     /*
-     * --------------------------------------------------- Stuff required to run
-     * within the stress test suite
-     * ---------------------------------------------------
+     * Stuff required to run within the stress test suite
      */
 
     private final static String[] ARGS_TEMPLATE = { "records|int:1:1:1000000000|Total records to create",
-            "buckets|int:1:1:1000000|Number of sort buckets" };
+            "buckets|int:1:1:1000000|Number of sort buckets,tmpdir|string:|Temporary volume path" };
 
     @Override
     public void setUp() throws Exception {
@@ -199,6 +197,10 @@ public class BigLoad extends AbstractStressTest {
         final ArgParser ap = new ArgParser("com.persistit.BigLoad", _args, ARGS_TEMPLATE).strict();
         totalRecords = ap.getIntValue("records");
         recordsPerBucket = totalRecords / ap.getIntValue("buckets");
+        final String path = ap.getStringValue("tmpdir");
+        if (path != null && !path.isEmpty()) {
+            getPersistit().getConfiguration().setTmpVolDir(path);
+        }
     }
 
     @Override

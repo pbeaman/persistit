@@ -1216,8 +1216,8 @@ public final class Key implements Comparable<Object> {
         final int count = Math.min(count1, count2);
 
         for (int i = 0; i < count; i++) {
-            int b1 = bytes1[i + index1] & 0xFF;
-            int b2 = bytes2[i + index2] & 0xFF;
+            final int b1 = bytes1[i + index1] & 0xFF;
+            final int b2 = bytes2[i + index2] & 0xFF;
             if (b1 != b2) {
                 return b1 - b2;
             }

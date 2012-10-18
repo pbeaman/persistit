@@ -18,6 +18,7 @@ package com.persistit;
 import static com.persistit.TransactionIndex.tss2vh;
 import static com.persistit.TransactionIndex.vh2ts;
 import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.ArrayList;
@@ -146,8 +147,9 @@ public class TimelyResource<T extends PrunableResource> {
         }
     }
 
+    @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("TimelyResource(");
+        final StringBuilder sb = new StringBuilder("TimelyResource(");
         boolean first = true;
         for (Entry entry = _first; entry != null; entry = entry.getPrevious()) {
             if (sb.length() > 1000) {
@@ -176,6 +178,13 @@ public class TimelyResource<T extends PrunableResource> {
                         break;
                     }
                     Entry newer = null;
+                    if (_first.getVersion() > tr.getVersion()) {
+                        /*
+                         * This thread lost a race to make the most recent
+                         * version
+                         */
+                        throw new RollbackException();
+                    }
                     for (Entry e = _first; e != null; e = e.getPrevious()) {
                         /*
                          * If this is a version replacing a version created by
@@ -194,10 +203,10 @@ public class TimelyResource<T extends PrunableResource> {
                         } else if (txn.isActive()) {
                             final long version = e.getVersion();
                             final long depends = ti.wwDependency(version, txn.getTransactionStatus(), 0);
-                            if (depends == TransactionStatus.TIMED_OUT) {
+                            if (depends == TIMED_OUT) {
                                 throw new WWRetryException(version);
                             }
-                            if (depends != 0 && depends != TransactionStatus.ABORTED) {
+                            if (depends != 0 && depends != ABORTED) {
                                 /*
                                  * version is from a concurrent txn that already
                                  * committed or timed out waiting to see. Either
@@ -208,6 +217,9 @@ public class TimelyResource<T extends PrunableResource> {
                         }
                         newer = e;
 
+                    }
+                    if (_first != null) {
+                        assert tr.getVersion() > _first.getVersion();
                     }
                     tr.setPrevious(_first);
                     _first = tr;
@@ -221,7 +233,7 @@ public class TimelyResource<T extends PrunableResource> {
                 try {
                     final long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
                             txn.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME);
-                    if (depends != 0 && depends != TransactionStatus.ABORTED) {
+                    if (depends != 0 && depends != ABORTED) {
                         /*
                          * version is from concurrent txn that already committed
                          * or timed out waiting to see. Either way, must abort.
@@ -320,7 +332,14 @@ public class TimelyResource<T extends PrunableResource> {
 
         @Override
         public String toString() {
-            return String.format("%d->%s%s", _version, _resource, _previous != null ? "*" : "");
+            String tcStatus;
+            try {
+                final long tc = _persistit.getTransactionIndex().commitStatus(_version, Long.MAX_VALUE, 0);
+                tcStatus = TransactionStatus.tcString(tc);
+            } catch (final Exception e) {
+                tcStatus = e.toString();
+            }
+            return String.format("(tc=%s ts=%s)->%s%s", TransactionStatus.versionString(_version), tcStatus, _resource, _previous != null ? "*" : "");
         }
     }
 

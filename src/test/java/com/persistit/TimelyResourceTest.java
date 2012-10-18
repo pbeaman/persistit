@@ -42,6 +42,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             _id = id;
         }
 
+        @Override
         public void prune() {
             _pruned.incrementAndGet();
         }
@@ -67,7 +68,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             if (withTransactions) {
                 txn.begin();
             }
-            TestResource resource = new TestResource(i);
+            final TestResource resource = new TestResource(i);
             resources[i] = resource;
             tr.addVersion(resource, txn);
             if (withTransactions) {
@@ -79,7 +80,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         assertEquals("Incorrect version count", 5, tr.versionCount());
 
         for (int i = 0; i < 5; i++) {
-            TestResource t = tr.getVersion(history[i], 0);
+            final TestResource t = tr.getVersion(history[i], 0);
             assertTrue("Missing version", t != null);
             assertEquals("Wrong version", i, t._id);
         }
@@ -114,8 +115,9 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
                     iter.remove();
                 }
             }
-            while (threads.size() < 10) {
-                Thread t = new Thread(new Runnable() {
+            while (threads.size() < 20) {
+                final Thread t = new Thread(new Runnable() {
+                    @Override
                     public void run() {
                         doConcurrentTransaction(tr, random, sequence, rollbackCount);
                     }
@@ -132,32 +134,38 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         }
 
         assertTrue("Every transaction rolled back", rollbackCount.get() < sequence.get());
-
+        System.out.printf("%,d entries, %,d rollbacks\n", sequence.get(), rollbackCount.get());
     }
 
     private void doConcurrentTransaction(final TimelyResource<TestResource> tr, final Random random,
             final AtomicInteger sequence, final AtomicInteger rollbackCount) {
         try {
             final Transaction txn = _persistit.getTransaction();
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 25; i++) {
                 txn.begin();
-                final int id = sequence.incrementAndGet();
-                tr.addVersion(new TestResource(id), txn);
-                final int delay = (1 << random.nextInt(8));
-                // Up to 1/4 of a second
-                Util.sleep(delay);
-                final TestResource mine = tr.getVersion(txn);
-                assertEquals("Wrong resource", id, mine._id);
-                if (random.nextInt(5) == 0) {
+                try {
+                    final int id = sequence.incrementAndGet();
+                    tr.addVersion(new TestResource(id), txn);
+                    final int delay = (1 << random.nextInt(8));
+                    // Up to 1/4 of a second
+                    Util.sleep(delay);
+                    final TestResource mine = tr.getVersion(txn);
+                    assertEquals("Wrong resource", id, mine._id);
+                    if (random.nextInt(5) == 0) {
+                        txn.rollback();
+                    } else {
+                        txn.commit();
+                    }
+                } catch (final RollbackException e) {
                     txn.rollback();
-                } else {
-                    txn.commit();
+                    rollbackCount.incrementAndGet();
+                } finally {
+                    txn.end();
                 }
-                txn.end();
             }
-        } catch (RollbackException e) {
+        } catch (final RollbackException e) {
             rollbackCount.incrementAndGet();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             e.printStackTrace();
             fail(e.toString());
         }
