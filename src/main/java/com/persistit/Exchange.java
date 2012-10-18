@@ -220,10 +220,6 @@ public class Exchange {
                         throw new WWRetryException(version);
                     }
                     if (depends != 0 && depends != TransactionStatus.ABORTED) {
-                        // version is from concurrent txn that already committed
-                        // or timed out waiting to see. Either
-                        // way, must abort.
-                        _exchange._transaction.rollback();
                         throw new RollbackException();
                     }
                     if (version > _foundVersion) {
@@ -1693,6 +1689,12 @@ public class Exchange {
                     }
                 }
             }
+        } catch (final RollbackException e) {
+            if (treeClaimAcquired) {
+                _treeHolder.release();
+                treeClaimAcquired = false;
+            }
+            _persistit.getTransaction().rollback();
         } finally {
             if (treeClaimAcquired) {
                 _treeHolder.release();
