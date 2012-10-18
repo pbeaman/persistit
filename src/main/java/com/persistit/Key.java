@@ -1162,8 +1162,9 @@ public final class Key implements Comparable<Object> {
      *         to the corresponding fragment of the supplied <code>Key</code>.
      */
     public int compareKeyFragment(final Key key, final int fragmentStart, final int fragmentSize) {
-        if (key == this)
+        if (key == this) {
             return 0;
+        }
         final int size1 = this._size;
         final int size2 = key.getEncodedSize();
         final byte[] bytes1 = this.getEncodedBytes();
@@ -1178,8 +1179,9 @@ public final class Key implements Comparable<Object> {
         for (int i = fragmentStart; i < size; i++) {
             final int b1 = bytes1[i] & 0xFF;
             final int b2 = bytes2[i] & 0xFF;
-            if (b1 != b2)
+            if (b1 != b2) {
                 return b1 - b2;
+            }
         }
         if (size == fragmentSize + fragmentStart)
             return 0;
@@ -1188,6 +1190,42 @@ public final class Key implements Comparable<Object> {
         if (size2 > size)
             return Integer.MIN_VALUE;
         return 0;
+    }
+
+    /**
+     * Compares the next key segment of this key to the next key segment of the
+     * supplied Key. The next key segment is determined by the current index of
+     * the key and can be set using the {@link #setIndex(int)} method. Returns a
+     * positive integer if the next segment of this <code>Key</code> is larger
+     * than the next segment of the supplied <code>Key</code>, a negative
+     * integer if it is smaller, or zero if the segments are equal.
+     * 
+     * @param key
+     * @return the comparison result
+     */
+    public int compareSegment(final Key key) {
+        if (key == this) {
+            return 0;
+        }
+        final byte[] bytes1 = this.getEncodedBytes();
+        final byte[] bytes2 = key.getEncodedBytes();
+        final int index1 = this.getIndex();
+        final int index2 = key.getIndex();
+        final int count1 = this.getEncodedSize() - this.getIndex();
+        final int count2 = key.getEncodedSize() - key.getIndex();
+        final int count = Math.min(count1, count2);
+
+        for (int i = 0; i < count; i++) {
+            int b1 = bytes1[i + index1] & 0xFF;
+            int b2 = bytes2[i + index2] & 0xFF;
+            if (b1 != b2) {
+                return b1 - b2;
+            }
+            if (b1 == 0) {
+                return 0;
+            }
+        }
+        return count1 - count2;
     }
 
     /**

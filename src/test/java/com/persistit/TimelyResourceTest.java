@@ -106,7 +106,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         final long expires = System.nanoTime() + 10 * NS_PER_S;
         final AtomicInteger sequence = new AtomicInteger();
         final AtomicInteger rollbackCount = new AtomicInteger();
-        final List<Thread> threads= new ArrayList<Thread>();
+        final List<Thread> threads = new ArrayList<Thread>();
 
         while (System.nanoTime() < expires) {
             for (final Iterator<Thread> iter = threads.iterator(); iter.hasNext();) {
@@ -123,19 +123,20 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
                 threads.add(t);
                 t.start();
             }
-            Util.sleep(100);
+            Util.sleep(10);
             tr.prune();
         }
-        
+
         for (final Thread thread : threads) {
             thread.join();
         }
-        
+
         assertTrue("Every transaction rolled back", rollbackCount.get() < sequence.get());
 
     }
 
-    private void doConcurrentTransaction(final TimelyResource<TestResource> tr, final Random random, final AtomicInteger sequence, final AtomicInteger rollbackCount) {
+    private void doConcurrentTransaction(final TimelyResource<TestResource> tr, final Random random,
+            final AtomicInteger sequence, final AtomicInteger rollbackCount) {
         try {
             final Transaction txn = _persistit.getTransaction();
             for (int i = 0; i < 10; i++) {

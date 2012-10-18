@@ -145,7 +145,7 @@ public class TimelyResource<T extends PrunableResource> {
             e.prune();
         }
     }
-    
+
     public String toString() {
         StringBuilder sb = new StringBuilder("TimelyResource(");
         boolean first = true;
@@ -317,7 +317,7 @@ public class TimelyResource<T extends PrunableResource> {
             }
             setPrevious(null);
         }
-        
+
         @Override
         public String toString() {
             return String.format("%d->%s%s", _version, _resource, _previous != null ? "*" : "");
