@@ -76,7 +76,7 @@ public class BigLoad extends AbstractStressTest {
     public void load(final Persistit db) throws PersistitException {
         final long startLoadTime = System.nanoTime();
         final Volume sortVolume = db.createTemporaryVolume();
-        final Exchange resultExchange = db.getExchange("persistit", "BigLoad", true);
+        final Exchange resultExchange = db.getExchange("persistit", "sorted", true);
         final int bucketCount = loadBuckets(db, sortVolume);
         mergeBuckets(db, bucketCount, sortVolume, resultExchange);
         sortVolume.close();
@@ -188,8 +188,8 @@ public class BigLoad extends AbstractStressTest {
      * Stuff required to run within the stress test suite
      */
 
-    private final static String[] ARGS_TEMPLATE = { "records|int:1:1:1000000000|Total records to create",
-            "buckets|int:1:1:1000000|Number of sort buckets,tmpdir|string:|Temporary volume path" };
+    private final static String[] ARGS_TEMPLATE = { "records|int:1000000:1:1000000000|Total records to create",
+            "buckets|int:100:1:1000000|Number of sort buckets", "tmpdir|string:|Temporary volume path" };
 
     @Override
     public void setUp() throws Exception {

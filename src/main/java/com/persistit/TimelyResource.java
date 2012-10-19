@@ -339,7 +339,8 @@ public class TimelyResource<T extends PrunableResource> {
             } catch (final Exception e) {
                 tcStatus = e.toString();
             }
-            return String.format("(tc=%s ts=%s)->%s%s", TransactionStatus.versionString(_version), tcStatus, _resource, _previous != null ? "*" : "");
+            return String.format("(tc=%s ts=%s)->%s%s", TransactionStatus.versionString(_version), tcStatus, _resource,
+                    _previous != null ? "*" : "");
         }
     }
 
