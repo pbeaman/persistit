@@ -194,3 +194,14 @@ GT {1,(long)0}+
 KF {:0}
 KEY {-1}
 GT {-1}
+
+#
+# Cases added for bug https://bugs.launchpad.net/akiban-persistit/+bug/1046049
+#
+KF {{:"abc"}}
+KEY {}
+NUDGE AFTER
+GT <false>
+GTEQ <false>
+LTEQ {"abc",{after}}
+LT {"abc",{after}}

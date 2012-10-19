@@ -897,7 +897,7 @@ public class KeyFilter {
             if (compare > 0) {
                 System.arraycopy(_itemToBytes, 0, keyBytes, offset, _itemToBytes.length);
                 key.setEncodedSize(offset + _itemToBytes.length);
-                keyBytes[offset + _itemFromBytes.length] = 0;
+                keyBytes[offset + _itemToBytes.length] = 0;
                 return true;
             }
             return false;
