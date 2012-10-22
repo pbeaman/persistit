@@ -1146,7 +1146,7 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Compares a bounded subarray of the backing byte array for this
+     * Compare a bounded subarray of the backing byte array for this
      * <code>Key</code> with another <code>Key</code>. This method is intended
      * for use within the library and is generally not useful for applications.
      * 
@@ -1193,7 +1193,7 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Compares the next key segment of this key to the next key segment of the
+     * Compare the next key segment of this key to the next key segment of the
      * supplied Key. The next key segment is determined by the current index of
      * the key and can be set using the {@link #setIndex(int)} method. Returns a
      * positive integer if the next segment of this <code>Key</code> is larger
@@ -1203,7 +1203,7 @@ public final class Key implements Comparable<Object> {
      * @param key
      * @return the comparison result
      */
-    public int compareSegment(final Key key) {
+    public int compareKeySegment(final Key key) {
         if (key == this) {
             return 0;
         }
@@ -2072,6 +2072,25 @@ public final class Key implements Comparable<Object> {
         }
 
         throw new ConversionException("Object class " + object.getClass().getName() + " can't be used in a Key");
+    }
+
+    /**
+     * Append the next key segment of the supplied <code>Key</code> to this
+     * <code>Key</code. The next key segment is determined by the current index
+     * of the key and can be set using the {@link #setIndex(int)} method.
+     * 
+     * @param key
+     */
+    public void appendKeySegment(final Key key) {
+        int length = 0;
+        for (int index = key.getIndex(); index < key.getEncodedSize(); index++) {
+            length++;
+            if (key.getEncodedBytes()[index] == 0) {
+                break;
+            }
+        }
+        System.arraycopy(key.getEncodedBytes(), key.getIndex(), _bytes, _size, length);
+        _size += length;
     }
 
     /**

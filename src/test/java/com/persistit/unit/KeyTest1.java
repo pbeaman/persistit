@@ -944,6 +944,49 @@ public class KeyTest1 extends PersistitUnitTestCase {
             assertEquals("append and decode", s, decoded);
         }
     }
+    
+    @Test
+    public void testCompareKeySegment() throws Exception {
+        final Key key1 = newKey();
+        final Key key2 = newKey();
+        key1.append(1).append(2).append(3).append("abc");
+        key2.append(3).append(2).append(1).append("abcd");
+        key1.indexTo(1);
+        key2.indexTo(1);
+        assertTrue("Should be == 0", 0 == key1.compareKeySegment(key2));
+        assertTrue("Should be == 0", 0 == key2.compareKeySegment(key1));
+        key1.indexTo(0);
+        assertTrue("Should be < 0", 0 > key1.compareKeySegment(key2));
+        assertTrue("Should be > 0", 0 < key2.compareKeySegment(key1));
+        key1.indexTo(2);
+        assertTrue("Should be > 0", 0 < key1.compareKeySegment(key2));
+        assertTrue("Should be < 0", 0 > key2.compareKeySegment(key1));
+        key1.indexTo(3);
+        assertTrue("Should be > 0", 0 < key1.compareKeySegment(key2));
+        assertTrue("Should be < 0", 0 > key2.compareKeySegment(key1));
+        key2.indexTo(3);
+        assertTrue("Should be < 0", 0 > key1.compareKeySegment(key2));
+        assertTrue("Should be > 0", 0 < key2.compareKeySegment(key1));
+    }
+    
+    @Test
+    public void testAppendKeySegment() throws Exception {
+        final Key key1 = newKey();
+        final Key key2 = newKey();
+        key1.append(1).append(2).append(3).append("abc");
+        key1.indexTo(3);
+        key2.appendKeySegment(key1);
+        key1.indexTo(2);
+        key2.appendKeySegment(key1);
+        key1.indexTo(1);
+        key2.appendKeySegment(key1);
+        key1.indexTo(0);
+        key2.appendKeySegment(key1);
+        assertEquals("Key value incorrect", "{\"abc\",3,2,1}", key2.toString());
+        key1.indexTo(3);
+        key1.appendKeySegment(key1);
+        assertEquals("Key value incorrect", "{1,2,3,\"abc\",\"abc\"}", key1.toString());
+    }
 
     private static boolean doubleEquals(final double f1, final double f2) {
         if (Double.isNaN(f1)) {

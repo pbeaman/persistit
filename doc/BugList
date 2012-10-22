@@ -1,3 +1,10 @@
+1046049 : 3.2.1
+
+`Filtered traverse in LTEQ direction appears not to work`
+
+A bug in the com.persistit.KeyFilter caused reverse-direction traversal using
+a KeyFilter with a range term to return incorrect results.
+
 1065677 : 3.2.0
 
 `Persistit not recoverable after hard crash`
@@ -76,13 +83,6 @@ without end, and each initialization of the database seems to process more and
 more of the old transactions.
 
 See discussion about regarding the useOldVSpec property.
-
-1046049 : 3.2.0
-
-`Filtered traverse in LTEQ direction appears not to work`
-
-A bug in the com.persistit.KeyFilter caused reverse-direction traversal using
-a KeyFilter with a range term to return incorrect results.
 
 1044513 : 3.1.7
 
