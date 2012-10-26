@@ -4268,7 +4268,11 @@ public class Buffer extends SharedResource {
             IV.putHandle(bb, volumeHandle);
             IV.putVolumeId(bb, volume.getId());
             IV.putTimestamp(bb, 0);
-            IV.putVolumeSpecification(bb, volume.getName());
+            if (_persistit.getConfiguration().isUseOldVSpec()) {
+                IV.putVolumeSpecification(bb, volume.getName());
+            } else {
+                IV.putVolumeSpecification(bb, volume.getSpecification().toString());
+            }
             bb.position(bb.position() + IV.getLength(bb));
             identifiedVolumes.add(volume);
         }

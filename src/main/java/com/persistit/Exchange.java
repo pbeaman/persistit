@@ -585,14 +585,6 @@ public class Exchange {
             }
         }
 
-        /**
-         * Re-save the current buffer generation. Can only be used when all
-         * other data (key gens, foundAt, etc) is still valid.
-         */
-        private void updateBufferGeneration() {
-            _bufferGeneration = _buffer.getGeneration();
-        }
-
         private Sequence sequence(final int foundAt) {
             final int delta = ((foundAt & P_MASK) - (_lastInsertAt & P_MASK));
             if ((foundAt & EXACT_MASK) == 0 && delta == KEYBLOCK_LENGTH) {
@@ -1160,8 +1152,7 @@ public class Exchange {
                     pageAddress = buffer.getPointer(p);
 
                     Debug.$assert0.t(pageAddress > 0 && pageAddress < MAX_VALID_PAGE_ADDR);
-                }/** TODO -- dead code **/
-                else {
+                } else {
                     oldBuffer = buffer; // So it will be released
                     corrupt("Volume " + _volume + " level=" + currentLevel + " page=" + pageAddress + " key=<"
                             + key.toString() + ">" + " page type=" + buffer.getPageType() + " is invalid");
@@ -1346,7 +1337,7 @@ public class Exchange {
 
         final int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
         final Value spareValue = _persistit.getThreadLocalValue();
-        assert !(doMVCC & value == spareValue || doFetch && value == _spareValue) : "storeInternal may be use the supplied Value: "
+        assert !(doMVCC & value == spareValue || doFetch && value == _spareValue) : "storeInternal may use the supplied Value: "
                 + value;
 
         //
@@ -1492,7 +1483,7 @@ public class Exchange {
                         if (doMVCC) {
                             valueToStore = spareValue;
                             final int valueSize = value.getEncodedSize();
-                            final int retries = VERSIONS_OUT_OF_ORDER_RETRY_COUNT;
+                            int retries = VERSIONS_OUT_OF_ORDER_RETRY_COUNT;
 
                             for (;;) {
                                 try {
@@ -1558,7 +1549,7 @@ public class Exchange {
                                     }
                                     break;
                                 } catch (final VersionsOutOfOrderException e) {
-                                    if (retries <= 0) {
+                                    if (--retries <= 0) {
                                         throw e;
                                     }
                                 }

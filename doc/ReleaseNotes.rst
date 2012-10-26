@@ -80,7 +80,7 @@ Changes and New Features
 Persistit 3.2.0 - Default Journal File Format Changed
 -----------------------------------------------------
 
-Version 3.2.0 fixes problems related to Volumes created and opened by the com.persistit#loadVolume 
+Version 3.2.0 fixes problems related to Volumes created and opened by the com.persistit.Persistit#loadVolume 
 method rather than being specified by the initial system configuration. In previous versions, journal files 
 contained insufficient information to properly recover such volumes, even during normal startup.
 
@@ -150,7 +150,7 @@ Recognizing that under some circumstances an administrator may indeed wish to re
 volume from an existing Database, this change provides a configurable switch to optionally 
 allow pages from missing volumes to be skipped (with logged warning messages) during recovery 
 processing.  The switch can be enabled by setting the configuration parameter 
-com.persistit.Configuration#setIgnoreMissingViolumes to true.
+com.persistit.Configuration#setIgnoreMissingVolumes to true.
 
 
 Persistit 3.1.4 - Reduce KeyCoder Serialized Object Size
