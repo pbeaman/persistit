@@ -2221,10 +2221,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
             return super.getPollInterval() / divisor;
         }
-
-        void setShouldStop(final boolean shouldStop) {
-            _shouldStop = shouldStop;
-        }
     }
 
     private class JournalFlusher extends IOTaskRunnable {
