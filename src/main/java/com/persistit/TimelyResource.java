@@ -49,7 +49,7 @@ import com.persistit.exception.WWRetryException;
 public class TimelyResource<T extends PrunableResource> {
 
     interface VersionCreator<T> {
-        T createVersion();
+        T createVersion() throws PersistitException;
     }
 
     private final Persistit _persistit;
