@@ -1142,17 +1142,15 @@ class TransactionIndex implements TransactionIndexMXBean {
      *            Step value of modification.
      * @param value
      *            The value to add or combine.
-     * 
-     * @return Delta that was created or modified.
      */
-    Delta addOrCombineDelta(final TransactionStatus status, final Accumulator accumulator, final int step,
+    void addOrCombineDelta(final TransactionStatus status, final Accumulator accumulator, final int step,
             final long value) {
         // Check current deltas, no lock as status is single txn/thread
         Delta delta = status.getDelta();
         while (delta != null) {
             if (delta.canMerge(accumulator, step)) {
                 delta.merge(value);
-                return null;
+                return;
             }
             delta = delta.getNext();
         }
@@ -1161,7 +1159,6 @@ class TransactionIndex implements TransactionIndexMXBean {
         delta.setAccumulator(accumulator);
         delta.setStep(step);
         delta.setValue(value);
-        return delta;
     }
 
     /*

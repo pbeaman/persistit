@@ -1841,20 +1841,35 @@ public class Persistit {
             _logFlusher.interrupt();
         }
         _logFlusher = null;
-        _accumulators.clear();
-        _volumes.clear();
-        _exchangePoolMap.clear();
-        _cleanupManager.clear();
-        _transactionSessionMap.clear();
-        _cliSessionMap.clear();
-        _sessionIdThreadLocal.remove();
-        _fatalErrors.clear();
-        _alertMonitors.clear();
-        _bufferPoolTable.clear();
-        _intArrayThreadLocal.set(null);
-        _keyThreadLocal.set(null);
-        _valueThreadLocal.set(null);
-        _initialized.set(false);
+        /*
+         * The following are synchronized to ensure visibility
+         */
+        synchronized (_accumulators) {
+            _accumulators.clear();
+        }
+        synchronized (this) {
+            _volumes.clear();
+            _alertMonitors.clear();
+            _bufferPoolTable.clear();
+            _intArrayThreadLocal.set(null);
+            _keyThreadLocal.set(null);
+            _valueThreadLocal.set(null);
+            _initialized.set(false);
+            _sessionIdThreadLocal.remove();
+            _cleanupManager.clear();
+        }
+        synchronized (_exchangePoolMap) {
+            _exchangePoolMap.clear();
+        }
+        synchronized (_transactionSessionMap) {
+            _transactionSessionMap.clear();
+        }
+        synchronized (_cliSessionMap) {
+            _cliSessionMap.clear();
+        }
+        synchronized (_fatalErrors) {
+            _fatalErrors.clear();
+        }
     }
 
     /**
