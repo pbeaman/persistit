@@ -29,24 +29,36 @@ import com.persistit.util.ArgParser;
 import com.persistit.util.Util;
 
 /**
+ * <p>
  * Simulate loading a large set (e.g., 500M) of records with large random keys.
- * Because straightforward insertion results in highly entropic page access
+ * Because straightforward insertion results in highly randomized page access
  * after the database size has exceed the amount of buffer pool memory space,
  * this demo creates smaller sorted sets of keys and then merges them to create
  * the final Tree in sequential order. As a side-effect, the final tree is also
  * physically coherent in that the logical and physical order of keys disk are
  * closely aligned.
+ * </p>
+ * <p>
+ * This class can be run stand-alone through its static main method, or within
+ * the stress test suite.
+ * </p>
  * 
  * @author peter
  */
 public class BigLoad extends AbstractStressTest {
 
     private static final Random RANDOM = new Random();
-    private static final StringBuilder SB = new StringBuilder();
 
     private int totalRecords;
     private int recordsPerBucket;
 
+    /**
+     * A Comparable wrapper for an Exchange. An instance of this class may be
+     * held in a SortedMap only if the Key of the Exchange does not change. In
+     * this example, the ComparableExchangeHolder is always removed from the
+     * TreeMap before the Key changes and then reinserted into a new location
+     * after the key has changed.
+     */
     static class ComparableExchangeHolder implements Comparable<ComparableExchangeHolder> {
 
         final Exchange exchange;
@@ -63,10 +75,6 @@ public class BigLoad extends AbstractStressTest {
         }
     }
 
-    public BigLoad(final String argsString) {
-        super(argsString);
-    }
-
     public BigLoad(final int totalRecords, final int buckets) {
         super("");
         this.totalRecords = totalRecords;
@@ -77,12 +85,30 @@ public class BigLoad extends AbstractStressTest {
         final long startLoadTime = System.nanoTime();
         final Volume sortVolume = db.createTemporaryVolume();
         final Exchange resultExchange = db.getExchange("persistit", "sorted", true);
+        System.out.printf("Loading %,d records into %,d buckets\n", totalRecords, totalRecords / recordsPerBucket);
         final int bucketCount = loadBuckets(db, sortVolume);
-        mergeBuckets(db, bucketCount, sortVolume, resultExchange);
-        sortVolume.close();
         final long endLoadTime = System.nanoTime();
-        System.out.printf("Total time to load and sort %,d records is %,dms", totalRecords,
-                (endLoadTime - startLoadTime) / Util.NS_PER_MS);
+
+        System.out.printf("Merging %,d records from %,d buckets into main database\n", totalRecords, bucketCount);
+        mergeBuckets(db, bucketCount, sortVolume, resultExchange);
+        final long endMergeTime = System.nanoTime();
+        System.out.printf("Merged %,d records in %,dms\n", totalRecords, (endMergeTime - endLoadTime) / Util.NS_PER_MS);
+        sortVolume.close();
+        System.out.printf("Counting keys in main database (100M keys per dot) ");
+        resultExchange.clear().append(Key.BEFORE);
+        long count = 0;
+        while (resultExchange.next()) {
+            count++;
+            if ((count % 100000000) == 0) {
+                System.out.print(".");
+                System.out.flush();
+            }
+        }
+        final long endCountTime = System.nanoTime();
+        System.out.printf("\nCounted %,d keys in the main database in %,dms\n", count, (endCountTime - endMergeTime)
+                / Util.NS_PER_MS);
+        System.out.printf("Total time to load, merge and count %,d records is %,dms", totalRecords,
+                (endCountTime - startLoadTime) / Util.NS_PER_MS);
     }
 
     private int loadBuckets(final Persistit db, final Volume volume) throws PersistitException {
@@ -126,21 +152,17 @@ public class BigLoad extends AbstractStressTest {
         while (!sortMap.isEmpty()) {
             final ComparableExchangeHolder ceh = sortMap.firstKey();
             final int bucket = sortMap.remove(ceh);
-            SB.setLength(0);
-            ceh.exchange.getKey().reset().decodeString(SB);
+            ceh.exchange.getKey().copyTo(to.getKey());
             if (ceh.exchange.next()) {
                 final Integer duplicate = sortMap.put(ceh, bucket);
                 showDuplicate(duplicate, bucket, ceh.exchange);
             }
-            to.clear().append(SB);
             to.store();
             if ((++loaded % 10000000) == 0) {
-                System.out.printf("Loaded %,12d records in %,12dms\n", loaded, (System.nanoTime() - startLoadTime)
+                System.out.printf("Merged %,d records in %,dms\n", loaded, (System.nanoTime() - startLoadTime)
                         / Util.NS_PER_MS);
             }
         }
-        System.out.printf("Finished loading %,12d records in %,12dms\n", loaded, (System.nanoTime() - startLoadTime)
-                / Util.NS_PER_MS);
     }
 
     private String randomKey() {
@@ -185,12 +207,23 @@ public class BigLoad extends AbstractStressTest {
     }
 
     /*
-     * Stuff required to run within the stress test suite
+     * ----------------------------------------------------------------------
+     * 
+     * Stuff below this line is required to run within the stress test suite
+     * 
+     * ----------------------------------------------------------------------
      */
+
+    public BigLoad(final String argsString) {
+        super(argsString);
+    }
 
     private final static String[] ARGS_TEMPLATE = { "records|int:1000000:1:1000000000|Total records to create",
             "buckets|int:100:1:1000000|Number of sort buckets", "tmpdir|string:|Temporary volume path" };
 
+    /**
+     * Method to parse stress test arguments passed by the stress test suite.
+     */
     @Override
     public void setUp() throws Exception {
         super.setUp();
