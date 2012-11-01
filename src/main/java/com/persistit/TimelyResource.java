@@ -57,7 +57,7 @@ public class TimelyResource<T extends PrunableResource> {
     private final Object _key;
 
     private volatile Entry _first;
-    
+
     TimelyResource(final Persistit persistit, final Object key) {
         _persistit = persistit;
         _key = key;
@@ -82,8 +82,9 @@ public class TimelyResource<T extends PrunableResource> {
             return getVersion(UNCOMMITTED, 0);
         }
     }
-    
-    public T getVersion(final Transaction txn, final VersionCreator<T> creator)  throws PersistitException, RollbackException {
+
+    public T getVersion(final Transaction txn, final VersionCreator<T> creator) throws PersistitException,
+            RollbackException {
         T version = getVersion(txn);
         if (version == null) {
             version = creator.createVersion();
@@ -91,7 +92,7 @@ public class TimelyResource<T extends PrunableResource> {
         }
         return version;
     }
-    
+
     public void prune() throws TimeoutException, PersistitException {
         final List<Entry> entriesToPrune = new ArrayList<Entry>();
         synchronized (this) {

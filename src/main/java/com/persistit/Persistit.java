@@ -438,7 +438,7 @@ public class Persistit {
     private final AlertMonitor _alertMonitor = new AlertMonitor();
 
     private final TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
-    
+
     private final TimelyResourceManager _timelyResourceManager = new TimelyResourceManager(this);
 
     private final Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
@@ -1545,7 +1545,7 @@ public class Persistit {
         for (final Volume volume : volumes) {
             volume.getStructure().flushStatistics();
         }
-        
+
         _timelyResourceManager.prune();
     }
 
@@ -2251,7 +2251,7 @@ public class Persistit {
     TransactionIndex getTransactionIndex() {
         return _transactionIndex;
     }
-    
+
     TimelyResourceManager getTimelyResourceManager() {
         return _timelyResourceManager;
     }
