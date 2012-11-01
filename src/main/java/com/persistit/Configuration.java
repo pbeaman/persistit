@@ -15,6 +15,10 @@
 
 package com.persistit;
 
+import static com.persistit.mxbeans.CheckpointManagerMXBean.DEFAULT_CHECKPOINT_INTERVAL_S;
+import static com.persistit.mxbeans.CheckpointManagerMXBean.MAXIMUM_CHECKPOINT_INTERVAL_S;
+import static com.persistit.mxbeans.CheckpointManagerMXBean.MINIMUM_CHECKPOINT_INTERVAL_S;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -39,6 +43,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
+import com.persistit.mxbeans.CheckpointManagerMXBean;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.util.Util;
@@ -166,6 +171,11 @@ public class Configuration {
      * Property name for specifying the system volume name
      */
     public final static String SYSTEM_VOLUME_PROPERTY_NAME = "sysvolume";
+
+    /**
+     * Property name for checkpoint interval in seconds
+     */
+    public final static String CHECKPOINT_INTERVAL_PROPERTY_NAME = "checkpointinterval";
 
     /**
      * Property name for specifying default temporary volume page size
@@ -628,6 +638,7 @@ public class Configuration {
     private final List<VolumeSpecification> volumeSpecifications = new ArrayList<VolumeSpecification>();
     private String journalPath = DEFAULT_JOURNAL_PATH;
     private long journalSize = JournalManager.DEFAULT_BLOCK_SIZE;
+    private long checkpointInterval = DEFAULT_CHECKPOINT_INTERVAL_S;
     private String sysVolume = DEFAULT_SYSTEM_VOLUME_NAME;
     private CommitPolicy commitPolicy = DEFAULT_TRANSACTION_COMMIT_POLICY;
     private JoinPolicy joinPolicy = DEFAULT_JOIN_POLICY;
@@ -1045,7 +1056,7 @@ public class Configuration {
      * @throws IllegalArgumentException
      *             if the supplied String is not a valid integer representation.
      */
-    static long parseLongProperty(final String propName, final String str) {
+    public static long parseLongProperty(final String propName, final String str) {
         if (str != null) {
             try {
                 long multiplier = 1;
@@ -1097,7 +1108,7 @@ public class Configuration {
      *             if the supplied String is not a valid floating point
      *             representation, or is outside the supplied bounds.
      */
-    static float parseFloatProperty(final String propName, final String str) {
+    public static float parseFloatProperty(final String propName, final String str) {
         if (str != null) {
             try {
                 return Float.parseFloat(str);
@@ -1117,7 +1128,7 @@ public class Configuration {
      * @param str
      * @return the boolean value
      */
-    static boolean parseBooleanValue(final String propName, final String str) {
+    public static boolean parseBooleanValue(final String propName, final String str) {
         if ("true".equalsIgnoreCase(str))
             return true;
         if ("false".equalsIgnoreCase(str))
@@ -1287,6 +1298,32 @@ public class Configuration {
     public void setJournalSize(final long journalSize) {
         Util.rangeCheck(journalSize, JournalManager.MINIMUM_BLOCK_SIZE, JournalManager.MAXIMUM_BLOCK_SIZE);
         this.journalSize = journalSize;
+    }
+
+    /**
+     * Return the value defined by {@link #setCheckpointInterval(long)}
+     * 
+     * @return the checkpoint interval, in seconds
+     */
+    public long getCheckpointInterval() {
+        return checkpointInterval;
+    }
+
+    /**
+     * <p>
+     * Set the checkpoint interval, in seconds. This setting controls the
+     * elapsed time between attempts to write a checkpoint to the journal. A
+     * longer interval allows more updates to accumulate in buffers before they
+     * are required to be written to disk, but also potentially causes recovery
+     * from an abrupt termination (crash) to take more time.
+     * </p>
+     * Default size is
+     * {@value CheckpointManagerMXBean#DEFAULT_CHECKPOINT_INTERVAL_S} <br/>
+     * Property name is {@value #CHECKPOINT_INTERVAL_PROPERTY_NAME}
+     */
+    public void setCheckpointInterval(final long checkpointInterval) {
+        this.checkpointInterval = Util.rangeCheck(checkpointInterval, MINIMUM_CHECKPOINT_INTERVAL_S,
+                MAXIMUM_CHECKPOINT_INTERVAL_S);
     }
 
     /**

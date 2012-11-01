@@ -42,7 +42,9 @@ public abstract class AbstractSuite {
 
     private final static String[] ARGS_TEMPLATE = { "duration|int::10|Maximum duration in seconds",
             "datapath|String:/tmp/persistit_test_data|Data path",
-            "progress|int:60:1:|Progress message interval in seconds", "_flag|S|Save on failure", };
+            "progress|int:60:1:|Progress message interval in seconds", "_flag|S|Save on failure",
+            "checkpointinterval|int:120:10:3600|Checkpoint interval in seconds",
+            "commitpolicy|String:|Default commit policy", "memoryadjustment|String:|Memory adjustment" };
 
     protected final static long PROGRESS_LOG_INTERVAL = 600000;
 
@@ -56,6 +58,9 @@ public abstract class AbstractSuite {
     final private String _dataPath;
     final private long _progressLogInterval;
     final private boolean _saveOnFailure;
+    private final int _checkpointInterval;
+    private final String _commitPolicyOverride;
+    private final String _memoryAdjustment;
 
     private long _duration;
     private boolean _untilStopped;
@@ -76,6 +81,9 @@ public abstract class AbstractSuite {
         _progressLogInterval = ap.getLongValue("progress");
         _untilStopped = ap.isSpecified("duration");
         _saveOnFailure = ap.isFlag('S');
+        _checkpointInterval = ap.isSpecified("checkpointinterval") ? ap.getIntValue("checkpointinterval") : 0;
+        _commitPolicyOverride = ap.getStringValue("commitpolicy");
+        _memoryAdjustment = ap.getStringValue("memoryadjustment");
     }
 
     public String getName() {
@@ -292,7 +300,7 @@ public abstract class AbstractSuite {
 
     protected Configuration makeConfiguration(final int pageSize, final String mem, final CommitPolicy policy) {
         final Configuration c = new Configuration();
-        c.setCommitPolicy(policy);
+        c.setCommitPolicy(overrideCommitPolicy(policy, _commitPolicyOverride));
         c.setJmxEnabled(true);
         c.setJournalPath(substitute("$datapath$/persistit_journal"));
         c.setLogFile(substitute("$datapath$/persistit_$timestamp$.log"));
@@ -306,6 +314,46 @@ public abstract class AbstractSuite {
         c.getVolumeList().add(
                 new VolumeSpecification(substitute("$datapath$/persistit,create,pageSize:" + pageSize
                         + ",initialSize:100M,extensionSize:100M,maximumSize:500G")));
+        if (_checkpointInterval > 0) {
+            c.setCheckpointInterval(_checkpointInterval);
+        }
+        adjustMemory(bpc);
         return c;
+    }
+
+    private CommitPolicy overrideCommitPolicy(final CommitPolicy policy, final String override) {
+        return override != null && !override.isEmpty() ? CommitPolicy.valueOf(override) : policy;
+    }
+
+    private void adjustMemory(final BufferPoolConfiguration bpc) {
+        final int minc = bpc.getMinimumCount();
+        final int maxc = bpc.getMaximumCount();
+        final long mins = bpc.getMinimumMemory();
+        final long maxs = bpc.getMaximumMemory();
+        if (_memoryAdjustment == null || _memoryAdjustment.isEmpty()) {
+            return;
+        }
+        if (_memoryAdjustment.startsWith("x")) {
+            final float fraction = Float.parseFloat(_memoryAdjustment.substring(1));
+            if (minc > 0 && maxc < Integer.MAX_VALUE) {
+                bpc.setMinimumCount((int) (minc * fraction));
+                bpc.setMaximumCount((int) (maxc * fraction));
+            } else {
+                if (mins > 0 && maxs < Long.MAX_VALUE) {
+                    bpc.setMinimumMemory((long) (mins * fraction));
+                    bpc.setMaximumMemory((long) (maxs * fraction));
+                }
+            }
+        } else if (_memoryAdjustment.startsWith("c")) {
+            final int count = Integer.parseInt(_memoryAdjustment.substring(1));
+            bpc.setMinimumCount(count);
+            bpc.setMaximumCount(count);
+        } else {
+            final long size = Configuration.parseLongProperty("MemoryAdjustment", _memoryAdjustment);
+            bpc.setMinimumCount(0);
+            bpc.setMaximumCount(Integer.MAX_VALUE);
+            bpc.setMinimumMemory(0);
+            bpc.setMaximumMemory(size);
+        }
     }
 }

@@ -24,6 +24,12 @@ import javax.management.MXBean;
 @MXBean
 public interface CheckpointManagerMXBean {
 
+    public final static long DEFAULT_CHECKPOINT_INTERVAL_S = 120;
+
+    public final static long MINIMUM_CHECKPOINT_INTERVAL_S = 10;
+
+    public final static long MAXIMUM_CHECKPOINT_INTERVAL_S = 3600;
+
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=CheckpointManager";
 
     @Description("Checkpoint most recently proposed")
