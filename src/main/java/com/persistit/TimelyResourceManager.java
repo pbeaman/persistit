@@ -33,6 +33,12 @@ public class TimelyResourceManager {
     private final static Entry[] _hashTable = new Entry[HASH_TABLE_SIZE];
 
     private final static Object[] _locks = new Object[HASH_TABLE_SIZE];
+    
+    {
+        for (int i = 0; i < HASH_TABLE_SIZE; i++) {
+            _locks[i] = new Object();
+        }
+    }
 
     private final Persistit _persistit;
 
