@@ -226,6 +226,9 @@ public class LogBase {
     @Message("WARNING|%s while pruning transaction record %s")
     public final LogItem pruneException = PersistitLogMessage.empty();
 
+    @Message("WARNING|%s while pruning TimelyResource %s")
+    public final LogItem timelyResourcePruneException = PersistitLogMessage.empty();
+
     @Message("WARNING|Transaction %s pruning incomplete at %s after rollback")
     public final LogItem pruningIncomplete = PersistitLogMessage.empty();
 

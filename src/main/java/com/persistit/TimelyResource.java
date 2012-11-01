@@ -37,7 +37,10 @@ import com.persistit.exception.WWRetryException;
  * Accumulator identifier which serves as its key in a map managed by the host
  * Persistit instance.
  * 
- * 
+ * A TimelyResource instance manages zero or more objects of type T (e.g.,
+ * {@link Tree}), where each object is a version. Applications invoke
+ * {@link #getVersion(Transaction)} to access the latest version created before
+ * the transaction's start timestamp.
  * 
  * @author peter
  * 
@@ -45,12 +48,16 @@ import com.persistit.exception.WWRetryException;
  */
 public class TimelyResource<T extends PrunableResource> {
 
+    interface VersionCreator<T> {
+        T createVersion();
+    }
+
     private final Persistit _persistit;
 
     private final Object _key;
 
     private volatile Entry _first;
-
+    
     TimelyResource(final Persistit persistit, final Object key) {
         _persistit = persistit;
         _key = key;
@@ -75,7 +82,16 @@ public class TimelyResource<T extends PrunableResource> {
             return getVersion(UNCOMMITTED, 0);
         }
     }
-
+    
+    public T getVersion(final Transaction txn, final VersionCreator<T> creator)  throws PersistitException, RollbackException {
+        T version = getVersion(txn);
+        if (version == null) {
+            version = creator.createVersion();
+            addVersion(version, txn);
+        }
+        return version;
+    }
+    
     public void prune() throws TimeoutException, PersistitException {
         final List<Entry> entriesToPrune = new ArrayList<Entry>();
         synchronized (this) {
