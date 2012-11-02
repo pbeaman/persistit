@@ -1574,7 +1574,16 @@ public final class Value {
         final int saveEnd = _end;
         try {
             final int classHandle = nextType();
-            if (classHandle > 0 && classHandle < CLASSES.length && CLASSES[classHandle] != null) {
+            if (classHandle == CLASS_REREF) {
+                final int base = _bytes[_next++] & 0xFF;
+                final int handle = decodeVariableLengthInt(base);
+                Object object = getValueCache().get(handle);
+                if (object == null) {
+                    throw new IllegalStateException("Reference to handle " + handle + " has no value");
+                } else {
+                    return object.getClass();
+                }
+            } else if (classHandle > 0 && classHandle < CLASSES.length && CLASSES[classHandle] != null) {
                 return CLASSES[classHandle];
             } else if (classHandle == CLASS_ARRAY) {
                 _depth++;
