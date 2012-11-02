@@ -60,4 +60,37 @@ public class ValueTest4 extends PersistitUnitTestCase {
         assertTrue ("interned constant \"abc\" has same identity", s1 == s2);
         assertTrue ("computed object \"xxabc\".substring(2) has different identity", s1 != s3);
     }
+    
+    @Test
+    public void streamModeSkipNull() throws Exception {
+        final Value value = new Value(_persistit);
+        value.setStreamMode(true);
+        value.put(1);
+        value.put(2);
+        value.put(null);
+        value.put(4);
+        value.put(null);
+        value.put(null);
+        value.put(null);
+        value.put(8);
+        value.setStreamMode(false);
+        value.setStreamMode(true);
+        assertEquals("expected value of field 1", 1, value.get());
+        assertEquals("expected value of field 2", 2, value.get());
+        assertTrue("field 3 is null, don't advance cursor", value.isNull());
+        assertTrue("field 3 is null, don't advance cursor", value.isNull());
+        assertTrue("field 3 is null, don't advance cursor", value.isNull());
+        assertTrue("field 3 is null, do advance cursor", value.skipNull());
+        assertTrue("should be field 4", !value.isNull());
+        assertTrue("should be field 4", !value.skipNull());
+        assertEquals("expected value of field 4", 4, value.getInt());
+        assertTrue("field 5 should be null", value.skipNull());
+        assertTrue("field 6 should be null", value.skipNull());
+        assertTrue("field 7 should be null", value.skipNull());
+        assertTrue("field 8 should not be null", !value.skipNull());
+        assertTrue("field 8 should not be null", !value.skipNull());
+        assertTrue("field 8 should not be null", !value.skipNull());
+        assertTrue("field 8 should not be null", !value.skipNull());
+        assertEquals("expected value of field 8", 8, value.get());
+    }
 }

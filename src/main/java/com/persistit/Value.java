@@ -963,6 +963,27 @@ public final class Value {
         return getTypeHandle() == TYPE_NULL;
     }
 
+    /**
+     * Test whether the data held by this <code>Value</code> is null and true
+     * <code>true</code> if so. As a side effect, if <a
+     * href="#_streamMode">Stream Mode</a> is enabled this method also
+     * conditionally advances the cursor to the next field if the current field
+     * is null.
+     * 
+     * @return <code>true</code> if the current state of this <code>Value</code>
+     *         represents <i>null</i>.
+     */
+    public boolean skipNull() {
+        if (isNull()) {
+            if (_depth > 0) {
+                _next++;
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     boolean isAntiValue() {
         return getTypeHandle() == CLASS_ANTIVALUE;
     }
