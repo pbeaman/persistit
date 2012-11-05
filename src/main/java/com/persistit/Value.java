@@ -965,17 +965,20 @@ public final class Value {
 
     /**
      * Test whether the data held by this <code>Value</code> is null and true
-     * <code>true</code> if so. As a side effect, if <a
-     * href="#_streamMode">Stream Mode</a> is enabled this method also
-     * conditionally advances the cursor to the next field if the current field
-     * is null.
+     * <code>true</code> if so. As a side effect, if <code>skipNull</code> is
+     * true and <a href="#_streamMode">Stream Mode</a> is enabled this method
+     * also advances the cursor to the next field if the current field is null.
      * 
+     * @param skipNull
+     *            if <code>true</code>, the <code>Value</code> is in stream mode
+     *            and the current field is null, then advance the cursor to next
+     *            field
      * @return <code>true</code> if the current state of this <code>Value</code>
      *         represents <i>null</i>.
      */
-    public boolean isNullSkip() {
+    public boolean isNull(final boolean skipNull) {
         if (isNull()) {
-            if (_depth > 0) {
+            if (skipNull && _depth > 0) {
                 _next++;
             }
             return true;
