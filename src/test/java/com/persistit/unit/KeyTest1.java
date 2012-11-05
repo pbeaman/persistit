@@ -707,20 +707,20 @@ public class KeyTest1 extends PersistitUnitTestCase {
         final Key key1 = new Key(_persistit);
         key1.clear().append(null).append(1).append(2).append(null).append(null).append(5);
         key1.reset();
-        assertTrue("seg0 is null: " + key1, key1.skipNull());
-        assertFalse("seg1 is not null: " + key1, key1.skipNull());
+        assertTrue("seg0 is null: " + key1, key1.isNullSkip());
+        assertFalse("seg1 is not null: " + key1, key1.isNullSkip());
         assertEquals("expect seg1 value", 1, key1.decode());
-        assertFalse("seg2 is not null: " + key1, key1.skipNull());
+        assertFalse("seg2 is not null: " + key1, key1.isNullSkip());
         assertEquals("expect seg2 value", 2, key1.decode());
-        assertTrue("seg3 is null: " + key1, key1.skipNull());
-        assertTrue("seg4 is null: " + key1, key1.skipNull());
-        assertFalse("seg5 is not null:" + key1, key1.skipNull());
-        assertFalse("seg5 is not null:" + key1, key1.skipNull());
-        assertFalse("seg5 is not null:" + key1, key1.skipNull());
+        assertTrue("seg3 is null: " + key1, key1.isNullSkip());
+        assertTrue("seg4 is null: " + key1, key1.isNullSkip());
+        assertFalse("seg5 is not null:" + key1, key1.isNullSkip());
+        assertFalse("seg5 is not null:" + key1, key1.isNullSkip());
+        assertFalse("seg5 is not null:" + key1, key1.isNullSkip());
         assertEquals("expect seg5 value", 5, key1.decodeInt());
 
         try {
-            key1.skipNull();
+            key1.isNullSkip();
             Assert.fail("Expected MissingKeySegmentException!");
         } catch (final MissingKeySegmentException e) {
             // expected

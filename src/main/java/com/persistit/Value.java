@@ -973,7 +973,7 @@ public final class Value {
      * @return <code>true</code> if the current state of this <code>Value</code>
      *         represents <i>null</i>.
      */
-    public boolean skipNull() {
+    public boolean isNullSkip() {
         if (isNull()) {
             if (_depth > 0) {
                 _next++;

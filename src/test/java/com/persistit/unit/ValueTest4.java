@@ -80,17 +80,17 @@ public class ValueTest4 extends PersistitUnitTestCase {
         assertTrue("field 3 is null, don't advance cursor", value.isNull());
         assertTrue("field 3 is null, don't advance cursor", value.isNull());
         assertTrue("field 3 is null, don't advance cursor", value.isNull());
-        assertTrue("field 3 is null, do advance cursor", value.skipNull());
+        assertTrue("field 3 is null, do advance cursor", value.isNullSkip());
         assertTrue("should be field 4", !value.isNull());
-        assertTrue("should be field 4", !value.skipNull());
+        assertTrue("should be field 4", !value.isNullSkip());
         assertEquals("expected value of field 4", 4, value.getInt());
-        assertTrue("field 5 should be null", value.skipNull());
-        assertTrue("field 6 should be null", value.skipNull());
-        assertTrue("field 7 should be null", value.skipNull());
-        assertTrue("field 8 should not be null", !value.skipNull());
-        assertTrue("field 8 should not be null", !value.skipNull());
-        assertTrue("field 8 should not be null", !value.skipNull());
-        assertTrue("field 8 should not be null", !value.skipNull());
+        assertTrue("field 5 should be null", value.isNullSkip());
+        assertTrue("field 6 should be null", value.isNullSkip());
+        assertTrue("field 7 should be null", value.isNullSkip());
+        assertTrue("field 8 should not be null", !value.isNullSkip());
+        assertTrue("field 8 should not be null", !value.isNullSkip());
+        assertTrue("field 8 should not be null", !value.isNullSkip());
+        assertTrue("field 8 should not be null", !value.isNullSkip());
         assertEquals("expected value of field 8", 8, value.get());
     }
 }

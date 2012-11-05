@@ -3059,7 +3059,7 @@ public final class Key implements Comparable<Object> {
      * @return <code>true</code> if the current segment is null,
      *         <code>false</code> otherwise.
      */
-    public boolean skipNull() {
+    public boolean isNullSkip() {
         if (getTypeCode() == TYPE_NULL) {
             _index = decodeEnd(_index + 1);
             return true;
