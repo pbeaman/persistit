@@ -964,10 +964,10 @@ public final class Value {
     }
 
     /**
-     * Test whether the data held by this <code>Value</code> is null and true
-     * <code>true</code> if so. As a side effect, if <code>skipNull</code> is
-     * true and <a href="#_streamMode">Stream Mode</a> is enabled this method
-     * also advances the cursor to the next field if the current field is null.
+     * Determine whether the data held by this <code>Value</code> is null. As a
+     * side effect, if <code>skipNull</code> is true and <a
+     * href="#_streamMode">Stream Mode</a> is enabled this method also advances
+     * the cursor to the next field if the current field is null.
      * 
      * @param skipNull
      *            if <code>true</code>, the <code>Value</code> is in stream mode
