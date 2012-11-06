@@ -24,15 +24,16 @@ import com.persistit.Value;
 
 public class ValueTest4 extends PersistitUnitTestCase {
 
-
+    private final static String ABC = "abc";
+    
     @Test
     public void streamMode() throws Exception {
         final Value value = new Value(_persistit);
         value.setStreamMode(true);
         value.put(1);
         value.put(2f);
-        value.put("abc");
-        value.put("abc");
+        value.put(ABC);
+        value.put(ABC);
         value.put("xxabc".substring(2));
         value.put(new Long(5));
         value.put(new Long(5));
@@ -48,9 +49,9 @@ public class ValueTest4 extends PersistitUnitTestCase {
         final String s2 = (String)value.get();
         assertEquals("expect String class", String.class, value.getType());
         final String s3 = (String)value.get();
-        assertEquals("expect value", s1, "abc");
-        assertEquals("expect value", s2, "abc");
-        assertEquals("expect value", s3, "abc");
+        assertEquals("expect value", ABC, s1);
+        assertEquals("expect value", ABC, s2);
+        assertEquals("expect value", ABC, s3);
         assertEquals("expect Long class", Long.class, value.getType());
         final Long l1 = (Long)value.get();
         assertEquals("expect Long class", Long.class, value.getType());
@@ -92,5 +93,40 @@ public class ValueTest4 extends PersistitUnitTestCase {
         assertTrue("field 8 should not be null", !value.isNull(true));
         assertTrue("field 8 should not be null", !value.isNull(true));
         assertEquals("expected value of field 8", 8, value.get());
+    }
+    
+    @Test
+    public void streamModeGetAfterSkip() throws Exception {
+        final Value value = new Value(_persistit);
+        value.setStreamMode(true);
+        // All same instance due to constant intern
+        value.put(ABC);
+        value.put(2);
+        value.put(ABC);
+        value.put(4);
+        value.put(ABC);
+        value.put(6);
+        value.put(ABC);
+        value.put(8);
+        value.put(ABC);
+        value.put(ABC);
+        value.put(ABC);
+        value.setStreamMode(false);
+        value.setStreamMode(true);
+        value.skip(); // "abc"
+        assertEquals("expect 2", 2, value.getInt());
+        value.skip(); // "abc"
+        assertEquals("expect 2", 4, value.getInt());
+        
+        assertEquals("Field 5 should be a String", String.class, value.getType());
+        final String s5 = value.getString();
+        assertEquals("expect value", ABC, s5);
+        
+        assertEquals("expect 6", 6, value.getInt());
+        
+        assertEquals("Field 7 should be a String", String.class, value.getType());
+        final String s7 = value.getString();
+        assertTrue("expect identical", s5 == s7);
+        
     }
 }

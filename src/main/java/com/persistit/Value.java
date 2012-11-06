@@ -1604,9 +1604,8 @@ public final class Value {
                 Object object = getValueCache().get(handle);
                 if (object == null) {
                     throw new IllegalStateException("Reference to handle " + handle + " has no value");
-                } else {
-                    return object.getClass();
                 }
+                return object.getClass();
             } else if (classHandle > 0 && classHandle < CLASSES.length && CLASSES[classHandle] != null) {
                 return CLASSES[classHandle];
             } else if (classHandle == CLASS_ARRAY) {
@@ -3989,8 +3988,12 @@ public final class Value {
      * to be decoded and constructed.
      */
     public void skip() {
-        if (_depth == 0)
+        if (_depth == 0) {
             return;
+        }
+        final int currentHandle = _serializedItemCount++;
+        final int saveNext = _next;
+        final int saveEnd = _end;
         final int classHandle = nextType();
         if (classHandle == 0)
             return;
@@ -4006,6 +4009,7 @@ public final class Value {
         if (size >= 0) {
             _next += size;
         } else {
+            getValueCache().put(currentHandle, new SkippedFieldMarker(this, saveNext, saveEnd));
             closeVariableLengthItem();
         }
     }
@@ -5048,7 +5052,12 @@ public final class Value {
          * @return The object
          */
         Object get(final int handle) {
-            return _array[handle];
+            Object object = _array[handle];
+            if (object instanceof SkippedFieldMarker) {
+                object = ((SkippedFieldMarker) object).get();
+                _array[handle] = object;
+            }
+            return object;
         }
 
         /**
@@ -5108,6 +5117,35 @@ public final class Value {
         @Override
         public String toString() {
             return "@" + Integer.toString(_start);
+        }
+    }
+
+    private static class SkippedFieldMarker {
+        final Value _value;
+        final int _next;
+        final int _end;
+
+        private SkippedFieldMarker(final Value value, final int next, final int end) {
+            _value = value;
+            _next = next;
+            _end = end;
+        }
+
+        private Object get() {
+            final int saveDepth = _value._depth;
+            final int saveLevel = _value._level;
+            final int saveNext = _value._next;
+            final int saveEnd = _value._end;
+            try {
+                _value._next = _next;
+                _value._end = _end;
+                return _value.get();
+            } finally {
+                _value._end = saveEnd;
+                _value._next = saveNext;
+                _value._level = saveLevel;
+                _value._depth = saveDepth;
+            }
         }
     }
 
