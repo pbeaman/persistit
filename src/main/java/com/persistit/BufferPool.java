@@ -653,7 +653,10 @@ public class BufferPool {
             }
         }
         buffer.clearValid();
-        buffer.clearDirty();
+        if (buffer.isDirty()) {
+            _dirtyPageCount.decrementAndGet();
+            buffer.clearDirty();
+        }
         buffer.setPageAddressAndVolume(0, null);
     }
 
