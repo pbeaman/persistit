@@ -1601,7 +1601,7 @@ public final class Value {
             if (classHandle == CLASS_REREF) {
                 final int base = _bytes[_next++] & 0xFF;
                 final int handle = decodeVariableLengthInt(base);
-                Object object = getValueCache().get(handle);
+                final Object object = getValueCache().get(handle);
                 if (object == null) {
                     throw new IllegalStateException("Reference to handle " + handle + " has no value");
                 }

@@ -15,7 +15,8 @@
 
 package com.persistit.unit;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -25,7 +26,7 @@ import com.persistit.Value;
 public class ValueTest4 extends PersistitUnitTestCase {
 
     private final static String ABC = "abc";
-    
+
     @Test
     public void streamMode() throws Exception {
         final Value value = new Value(_persistit);
@@ -44,24 +45,24 @@ public class ValueTest4 extends PersistitUnitTestCase {
         assertEquals("expect primitive float class", float.class, value.getType());
         assertEquals("expect value", 2f, value.get());
         assertEquals("expect String class", String.class, value.getType());
-        final String s1 = (String)value.get();
+        final String s1 = (String) value.get();
         assertEquals("expect String class", String.class, value.getType());
-        final String s2 = (String)value.get();
+        final String s2 = (String) value.get();
         assertEquals("expect String class", String.class, value.getType());
-        final String s3 = (String)value.get();
+        final String s3 = (String) value.get();
         assertEquals("expect value", ABC, s1);
         assertEquals("expect value", ABC, s2);
         assertEquals("expect value", ABC, s3);
         assertEquals("expect Long class", Long.class, value.getType());
-        final Long l1 = (Long)value.get();
+        final Long l1 = (Long) value.get();
         assertEquals("expect Long class", Long.class, value.getType());
-        final Long l2 = (Long)value.get();
+        final Long l2 = (Long) value.get();
         assertEquals("expect equal values", l1, l2);
         assertTrue("encoding of primitive wrapper classes loses identity", l1 == l2);
-        assertTrue ("interned constant \"abc\" has same identity", s1 == s2);
-        assertTrue ("computed object \"xxabc\".substring(2) has different identity", s1 != s3);
+        assertTrue("interned constant \"abc\" has same identity", s1 == s2);
+        assertTrue("computed object \"xxabc\".substring(2) has different identity", s1 != s3);
     }
-    
+
     @Test
     public void streamModeSkipNull() throws Exception {
         final Value value = new Value(_persistit);
@@ -94,7 +95,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         assertTrue("field 8 should not be null", !value.isNull(true));
         assertEquals("expected value of field 8", 8, value.get());
     }
-    
+
     @Test
     public void streamModeGetAfterSkip() throws Exception {
         final Value value = new Value(_persistit);
@@ -117,16 +118,16 @@ public class ValueTest4 extends PersistitUnitTestCase {
         assertEquals("expect 2", 2, value.getInt());
         value.skip(); // "abc"
         assertEquals("expect 2", 4, value.getInt());
-        
+
         assertEquals("Field 5 should be a String", String.class, value.getType());
         final String s5 = value.getString();
         assertEquals("expect value", ABC, s5);
-        
+
         assertEquals("expect 6", 6, value.getInt());
-        
+
         assertEquals("Field 7 should be a String", String.class, value.getType());
         final String s7 = value.getString();
         assertTrue("expect identical", s5 == s7);
-        
+
     }
 }
