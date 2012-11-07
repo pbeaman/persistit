@@ -3108,6 +3108,28 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
+     * Determine if the current segment would return <code>null</code> if
+     * {@link #decode()} were called. As a side effect, if <code>skipNull</code>
+     * is true and the segment does encode a <code>null</code> value, then the
+     * index is advanced to the beginning of the next segment.
+     * 
+     * @param skipNull
+     *            whether to advance the index past a null segment value
+     * @return <code>true</code> if the current segment is null,
+     *         <code>false</code> otherwise.
+     */
+    public boolean isNull(final boolean skipNull) {
+        if (getTypeCode() == TYPE_NULL) {
+            if (skipNull) {
+                _index = decodeEnd(_index + 1);
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
      * Advance the index to the beginning of the next key segment. If the index
      * is already at the end of the key, then wrap it to the beginning and
      * return -1.
