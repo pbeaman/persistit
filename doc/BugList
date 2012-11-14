@@ -1,9 +1,45 @@
+1076403 : 3.2.1
+
+`NPE while starting AdminUI`
+
+Localized property files are used for text labels in the AdminUI. Only an
+English file was provided by default so starting the UI in another language
+would case a NullPointerException. Move the current English property file
+to the default name so it is always selected.
+
+1073357 : 3.2.1
+
+`Value.getType() is not reliable for CLASS_REREF`
+
+A special internal tag, CLASS_REFREF, is used when appending the same object 
+multiple times to a Value in stream mode. This is so cycles can be handled
+correctly in a generic object graph. The getType() method, which returns the
+Class of the encoded object without fully decoding it, did not always return
+the most specific specific Class for this internal tag.
+
 1046049 : 3.2.1
 
 `Filtered traverse in LTEQ direction appears not to work`
 
 A bug in the com.persistit.KeyFilter caused reverse-direction traversal using
 a KeyFilter with a range term to return incorrect results.
+
+1042960 : 3.2.1
+
+`Value.isNull slightly non-intuitive in stream mode`
+
+When operating on a Value in stream mode it is a common pattern to check if the
+current position is null before attempting to decode it. There is little reason
+to then decode if it is null. A new method was added, isNull(boolean skipIfNull),
+that can be used to perform this in a single call.
+
+1023549 : 3.2.1
+
+`traverse(EQ, false, 0) returns incorrect result`
+
+A traverse with the given parameters should return true if the key exists, without
+fetching any of the value bytes. If the given key was removed and then immediately
+traversed for existence, true would be returned instead of false.
 
 1065677 : 3.2.0
 
