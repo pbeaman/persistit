@@ -1,5 +1,5 @@
 ************************************
-Akiban Persistit Version 3.2.0
+Akiban Persistit Version 3.2.1
 ************************************
 
 Overview
@@ -50,6 +50,8 @@ Version History
 +---------+--------------------+--------------------------------------------------------------------------+
 | Version | Release Date       |  Summary                                                                 |
 +=========+====================+==========================================================================+
+| 3.2.1   | November 13, 2012  | Fix several low-priority bugs.                                           |
++---------+--------------------+--------------------------------------------------------------------------+
 | 3.2.0   | October 15, 2012   | Fix several critical and other bugs, one of which requires a modified    |
 |         |                    | journal file format. This version also significantly improves            |
 |         |                    | performance for I/O-intensive concurrent transaction loads.              |
@@ -76,6 +78,12 @@ Resolved Issues
 
 Changes and New Features
 ========================
+
+Persistit 3.2.1 - Bug Fixes
+-----------------------------------------------------
+
+Version 3.2.1 is a maintenance release that fixes a number of non-critical bugs, primarily in less frequently
+used sections of the API. See the associated bug list for full descriptions of each resolved.
 
 Persistit 3.2.0 - Default Journal File Format Changed
 -----------------------------------------------------
