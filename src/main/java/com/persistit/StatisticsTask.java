@@ -41,6 +41,16 @@ public class StatisticsTask extends Task {
     static final long NANOS_PER_MILLI = 1000000;
     static final long NANOS_PER_SECOND = 1000000000;
 
+    final static String COUNT_FORMAT = "%s=%d";
+    final static String RATE_FORMAT = "%s=%.3f";
+
+    final static String PHEADER_FORMAT = " %10s";
+    final static String PCOUNT_FORMAT = " %,10d";
+    final static String PRATE_FORMAT = " %,10.3f";
+    
+    final static String TIME_HEADER_FORMAT = "%12s ";
+    final static String TIME_FORMAT = "%,12d ";
+
     long _delay;
     long _count;
     boolean _bpool;
@@ -86,30 +96,30 @@ public class StatisticsTask extends Task {
         public String toString(final Display display) {
             switch (display) {
             case TOTAL:
-                return String.format("%s=%d", _name, _value);
+                return String.format(COUNT_FORMAT, _name, _value);
             case CHANGE:
-                return String.format("%s=%d", _name, _change);
+                return String.format(COUNT_FORMAT, _name, _change);
             case RATE:
-                return String.format("%s=%.3f", _name, rate());
+                return String.format(RATE_FORMAT, _name, rate());
             default:
                 throw new IllegalStateException();
             }
         }
 
         public void printHeader(final PrintWriter pw) throws IOException {
-            pw.print(String.format(" %10s", _name));
+            pw.print(String.format(PHEADER_FORMAT, _name));
         }
 
         public void printValue(final PrintWriter pw, final Display display) throws IOException {
             switch (display) {
             case TOTAL:
-                pw.print(String.format(" %,10d", _value));
+                pw.print(String.format(PCOUNT_FORMAT, _value));
                 break;
             case CHANGE:
-                pw.print(String.format(" %,10d", _change));
+                pw.print(String.format(PCOUNT_FORMAT, _change));
                 break;
             case RATE:
-                pw.print(String.format(" %,10.3f", rate()));
+                pw.print(String.format(PRATE_FORMAT, rate()));
                 break;
             default:
                 throw new IllegalStateException();
@@ -193,14 +203,14 @@ public class StatisticsTask extends Task {
                 _lastUpdate = line;
                 if (_pw != null) {
                     if (first) {
-                        _pw.printf("%12s ", "elapsed ms");
+                        _pw.printf(TIME_HEADER_FORMAT, "elapsed ms");
                         for (final Stat stat : _statsList) {
                             stat.printHeader(_pw);
                         }
                         _pw.println();
                         first = false;
                     }
-                    _pw.printf("%,12d ", _persistit.elapsedTime());
+                    _pw.printf(TIME_FORMAT, _persistit.elapsedTime());
                     for (final Stat stat : _statsList) {
                         stat.printValue(_pw, d);
                     }
