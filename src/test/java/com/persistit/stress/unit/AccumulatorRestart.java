@@ -139,13 +139,13 @@ public class AccumulatorRestart extends StressBase {
                     txn.end();
                 }
 
+                if (isStopped() || _count >= _repeatTotal) {
+                    break;
+                }
+
                 if ((_count % 3) == 0) {
                     Persistit db = getPersistit();
                     db.close();
-
-                    if (isStopped() || _count >= _repeatTotal) {
-                        break;
-                    }
 
                     final Configuration config = db.getConfiguration();
                     db = new Persistit();
