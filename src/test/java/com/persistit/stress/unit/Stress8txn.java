@@ -15,6 +15,7 @@
 
 package com.persistit.stress.unit;
 
+import com.persistit.Accumulator;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
@@ -28,6 +29,11 @@ import com.persistit.util.Debug;
  * @version 1.0
  */
 public class Stress8txn extends StressBase {
+
+    private final static int MOD_A = 25;
+    private final static int MOD_B = 5;
+    private final static int MOD_C = 5; // Constraint: no larger than maximum
+                                        // number of Accumulators in a Tree
 
     public Stress8txn(final String argsString) {
         super(argsString);
@@ -92,20 +98,26 @@ public class Stress8txn extends StressBase {
      */
     @Override
     public void executeTest() {
+
+        final Transaction txn = _exs.getTransaction();
+
         synchronized (Stress8txn.class) {
             if (!_consistencyCheckDone) {
                 _consistencyCheckDone = true;
                 try {
+                    txn.begin();
                     if (totalConsistencyCheck()) {
                         System.out.println("Consistency check completed successfully");
                     }
+                    txn.commit();
                 } catch (final PersistitException pe) {
                     fail(pe);
+                } finally {
+                    txn.end();
                 }
             }
         }
 
-        final Transaction txn = _exs.getTransaction();
         final Operation[] ops = new Operation[6];
         ops[0] = new Operation0();
         ops[1] = new Operation1();
@@ -123,7 +135,7 @@ public class Stress8txn extends StressBase {
                     final int acct1 = random(0, _size);
                     final int acct2 = random(0, _size);
                     op.setup(acct1, acct2);
-                    final int passes = txn.run(op, 100, 5, CommitPolicy.SOFT);
+                    final int passes = txn.run(op, 100, 5, getPersistit().getDefaultTransactionCommitPolicy());
                     Debug.$assert1.t(passes <= 90);
                 } catch (final Exception pe) {
                     fail(pe);
@@ -157,13 +169,13 @@ public class Stress8txn extends StressBase {
         int _a1, _b1, _c1, _a2, _b2, _c2;
 
         void setup(final int acct1, final int acct2) {
-            _a1 = (acct1 / 25);
-            _b1 = (acct1 / 5) % 5;
-            _c1 = (acct1 % 5);
+            _a1 = (acct1 / MOD_A);
+            _b1 = (acct1 / MOD_B) % MOD_B;
+            _c1 = (acct1 % MOD_C);
 
-            _a2 = (acct2 / 25);
-            _b2 = (acct2 / 5) % 5;
-            _c2 = (acct2 % 5);
+            _a2 = (acct2 / MOD_A);
+            _b2 = (acct2 / MOD_B) % MOD_B;
+            _c2 = (acct2 % MOD_C);
         }
 
     }
@@ -187,6 +199,11 @@ public class Stress8txn extends StressBase {
                 addWork(1);
 
             }
+
+            final Accumulator acc1 = _exs.getTree().getAccumulator(Accumulator.Type.SUM, _c1);
+            final Accumulator acc2 = _exs.getTree().getAccumulator(Accumulator.Type.SUM, _c2);
+            acc1.update(delta, _exs.getTransaction());
+            acc2.update(-delta, _exs.getTransaction());
         }
     }
 
@@ -236,6 +253,10 @@ public class Stress8txn extends StressBase {
                 addWork(1);
 
             }
+            final Accumulator acc1 = _exs.getTree().getAccumulator(Accumulator.Type.SUM, _c1);
+            final Accumulator acc2 = _exs.getTree().getAccumulator(Accumulator.Type.SUM, _c2);
+            acc1.update(delta, _exs.getTransaction());
+            acc2.update(-delta, _exs.getTransaction());
         }
     }
 
@@ -275,7 +296,7 @@ public class Stress8txn extends StressBase {
 
     private class Operation4 extends Operation {
         /**
-         * Perform consistency check across all A accounts
+         * Perform consistency check across an A account
          */
         @Override
         public void runTransaction() throws PersistitException {
@@ -289,7 +310,7 @@ public class Stress8txn extends StressBase {
 
     private class Operation5 extends Operation {
         /**
-         * Perform consistency check across an A account
+         * Perform consistency check across all accounts
          */
         @Override
         public void runTransaction() throws PersistitException {
@@ -387,6 +408,14 @@ public class Stress8txn extends StressBase {
         if (totalA != 0) {
             fail("totalA=" + totalA + " at " + exa);
             return false;
+        }
+        int totalAcc = 0;
+        for (int i = 0; i < 25; i++) {
+            final Accumulator acc = _exs.getTree().getAccumulator(Accumulator.Type.SUM, i);
+            totalAcc += acc.getSnapshotValue(_exs.getTransaction());
+        }
+        if (totalAcc != 0) {
+            fail("totalAcc=" + totalAcc);
         }
         return true;
     }
