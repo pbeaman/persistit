@@ -154,6 +154,13 @@ public class AccumulatorRestart extends StressBase {
                 }
             } catch (final Exception ex) {
                 handleThrowable(ex);
+            } finally {
+                Persistit db = getPersistit();
+                try {
+                    db.close();
+                } catch (final PersistitException pe) {
+                    handleThrowable(pe);
+                }
             }
         }
     }

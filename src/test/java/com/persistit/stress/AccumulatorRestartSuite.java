@@ -45,7 +45,6 @@ public class AccumulatorRestartSuite extends AbstractSuite {
         config.setCheckpointInterval(AccumulatorRestart.CHECKPOINT_INTERVAL);
         final Persistit persistit = new Persistit();
         persistit.initialize(config);
-
         try {
             execute(persistit);
         } finally {
