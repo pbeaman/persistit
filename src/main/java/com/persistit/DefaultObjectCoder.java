@@ -188,10 +188,12 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
      *            Array of names of properties that constitute the primary key
      *            of stored instances
      * 
+     * @return the newly registered <code>DefaultObjectCoder</code>
+     * 
      * @throws IntrospectionException
      */
-    public synchronized static void registerObjectCoderFromBean(final Persistit persistit, final Class clientClass,
-            final String[] keyPropertyNames) throws IntrospectionException {
+    public synchronized DefaultObjectCoder registerObjectCoderFromBean(final Persistit persistit,
+            final Class clientClass, final String[] keyPropertyNames) throws IntrospectionException {
         final BeanInfo beanInfo = Introspector.getBeanInfo(clientClass);
         final PropertyDescriptor[] descriptors = beanInfo.getPropertyDescriptors();
         final boolean isKeyProperty[] = new boolean[descriptors.length];
@@ -228,6 +230,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
         cm = persistit.getCoderManager();
         cm.registerKeyCoder(clientClass, coder);
         cm.registerValueCoder(clientClass, coder);
+        return coder;
     }
 
     /**
@@ -311,9 +314,12 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
      * @param valueAccessorNames
      *            Array of names of properties that constitute the value of
      *            stored instances of the <code>clientClass</code>.
+     * 
+     * @return the newly registered <code>DefaultObjectCoder</code>
+     * 
      */
-    public synchronized static void registerObjectCoder(final Persistit persistit, final Class clientClass,
-            final String[] keyAccessorNames, final String[] valueAccessorNames) {
+    public synchronized static DefaultObjectCoder registerObjectCoder(final Persistit persistit,
+            final Class clientClass, final String[] keyAccessorNames, final String[] valueAccessorNames) {
         final Builder keyBuilder = new Builder("primaryKey", keyAccessorNames, clientClass);
 
         final Builder valueBuilder = new Builder("value", valueAccessorNames, clientClass);
@@ -326,6 +332,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
         cm = persistit.getCoderManager();
         cm.registerKeyCoder(clientClass, coder);
         cm.registerValueCoder(clientClass, coder);
+        return coder;
     }
 
     /**
@@ -570,4 +577,5 @@ public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer
         sb.append(")");
         return sb.toString();
     }
+
 }

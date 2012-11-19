@@ -37,6 +37,7 @@ import java.util.List;
 
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.CoderManager;
+import com.persistit.encoding.HandleCache;
 import com.persistit.encoding.ValueCoder;
 import com.persistit.encoding.ValueRenderer;
 import com.persistit.exception.ConversionException;
@@ -84,7 +85,7 @@ import com.persistit.exception.ConversionException;
  * @since 1.1
  * @version 1.1
  */
-public class DefaultValueCoder implements ValueRenderer {
+public class DefaultValueCoder implements ValueRenderer, HandleCache {
     private final static Object[] EMPTY_OBJECT_ARRAY = {};
     private final static Class[] EMPTY_CLASS_ARRAY = {};
     private final static Class[] OOS_CLASS_ARRAY = { ObjectOutputStream.class };
@@ -128,6 +129,7 @@ public class DefaultValueCoder implements ValueRenderer {
     private Method _newInstanceMethod;
     private Object[] _newInstanceArguments;
     private Constructor _newInstanceConstructor;
+    private volatile int _handle;
 
     /**
      * <p>
@@ -1183,5 +1185,18 @@ public class DefaultValueCoder implements ValueRenderer {
         sb.append(getValueBuilder().toString());
         sb.append(")");
         return sb.toString();
+    }
+
+    @Override
+    public synchronized void setHandle(final int handle) {
+        if (_handle != 0 && _handle != handle) {
+            throw new IllegalStateException("Attempt to change handle from " + _handle + " to " + handle);
+        }
+        _handle = handle;
+    }
+
+    @Override
+    public int getHandle() {
+        return _handle;
     }
 }

@@ -31,13 +31,14 @@ import com.persistit.exception.PersistitException;
 public class ValueCoderTest2 extends PersistitUnitTestCase {
 
     Exchange _exchange;
+    DefaultObjectCoder _coder;
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
 
-        DefaultObjectCoder.registerObjectCoder(_persistit, Vehicle.class, new String[] { "id" }, new String[] { "id",
-                "description", "speed", "wheels", "passengers", "canFly", "other1", "other2" });
+        _coder = DefaultObjectCoder.registerObjectCoder(_persistit, Vehicle.class, new String[] { "id" }, new String[] {
+                "id", "description", "speed", "wheels", "passengers", "canFly", "other1", "other2" });
 
         _exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
     }
@@ -45,6 +46,7 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
     @Override
     public void tearDown() throws Exception {
         _exchange = null;
+        _coder = null;
         super.tearDown();
     }
 
@@ -277,6 +279,32 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
         toString2 = map2.toString();
         assertTrue(map2 instanceof TreeMap);
         assertEquals(toString1, toString2);
+        System.out.println("- done");
+    }
+
+    @Test
+    public void test4() throws PersistitException {
+        System.out.print("test4 ");
+
+        final Vehicle car1 = new Vehicle("c1", "Colt", 58, 4, 4, false);
+
+        _exchange.getValue().directPut(_coder, car1, null);
+
+        final Vehicle car2 = new Vehicle();
+        _exchange.getValue().directGet(_coder, car2, Vehicle.class, null);
+
+        final Vehicle car3 = (Vehicle) _exchange.getValue().directGet(_coder, Vehicle.class, null);
+
+        assertEquals("Cars differ", car1, car2);
+        assertEquals("Cars differ", car1, car3);
+
+        final Vehicle car4 = new Vehicle();
+        _exchange.getValue().directGet(_coder, car4, Vehicle.class, null);
+
+        final Vehicle car5 = (Vehicle) _exchange.getValue().directGet(_coder, Vehicle.class, null);
+
+        assertEquals("Cars differ", car1, car4);
+        assertEquals("Cars differ", car1, car5);
         System.out.println("- done");
     }
 
