@@ -304,7 +304,6 @@ public final class Value {
     public final static int MAXIMUM_SIZE = 64 * 1024 * 1024;
 
     private final static int SIZE_GRANULARITY = 256;
-    private final static int SIZE_GROWTH_DENOMINATOR = 8;
 
     private final static char TRUE_CHAR = 'T';
     private final static char FALSE_CHAR = 'F';
@@ -548,8 +547,6 @@ public final class Value {
     private final static int TOO_MANY_LEVELS_THRESHOLD = 100;
     private final static int SAB_INCREMENT = 1024;
     private final Map<Class<?>, Class<?>[]> _arrayTypeCache = new HashMap<Class<?>, Class<?>[]>();
-    private final Map<Integer, ClassInfo> _classHandleCache = new HashMap<Integer, ClassInfo>();
-    private final Map<Class<?>, ValueCoder> _valueCoderCache = new HashMap<Class<?>, ValueCoder>();
     private int _maximumSize = DEFAULT_MAXIMUM_SIZE;
 
     private int _size = 0;
@@ -4259,17 +4256,11 @@ public final class Value {
     }
 
     private ValueCoder getValueCoder(final Class<?> clazz) {
-        ValueCoder coder = _valueCoderCache.get(clazz);
-        if (coder == null) {
-            final CoderManager cm = _persistit.getCoderManager();
-            if (cm != null) {
-                coder = cm.getValueCoder(clazz);
-                if (coder != null) {
-                    _valueCoderCache.put(clazz, coder);
-                }
-            }
+        final CoderManager cm = _persistit.getCoderManager();
+        if (cm != null) {
+            return cm.getValueCoder(clazz);
         }
-        return coder;
+        return null;
     }
 
     void changeLongRecordMode(final boolean mode) {
@@ -4568,15 +4559,11 @@ public final class Value {
     }
 
     private ClassInfo classInfoForHandle(final int classHandle) {
-        ClassInfo classInfo = _classHandleCache.get(classHandle);
-        if (classInfo == null) {
-            classInfo = _persistit.getClassIndex().lookupByHandle(classHandle);
-            if (classInfo == null) {
-                throw new ConversionException("Unknown class handle " + classHandle);
-            }
-            _classHandleCache.put(classHandle, classInfo);
+        final ClassInfo classInfo = _persistit.getClassIndex().lookupByHandle(classHandle);
+        if (classInfo != null) {
+            return classInfo;
         }
-        return classInfo;
+        throw new ConversionException("Unknown class handle " + classHandle);
     }
 
     private boolean toBoolean(final int index) {
