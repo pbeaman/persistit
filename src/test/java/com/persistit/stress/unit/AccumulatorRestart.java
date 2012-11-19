@@ -70,9 +70,8 @@ public class AccumulatorRestart extends StressBase {
         long maxValue = 0;
         long sumValue = 0;
         long seqValue = 0;
-
-        for (_count = 1;; _count++) {
-            try {
+        try {
+            for (_count = 1;; _count++) {
                 System.out.println(_threadName + " starting cycle " + _count);
                 _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
                 final Accumulator sum = _ex.getTree().getAccumulator(Accumulator.Type.SUM, 17);
@@ -80,7 +79,6 @@ public class AccumulatorRestart extends StressBase {
                 final Accumulator min = _ex.getTree().getAccumulator(Accumulator.Type.MIN, 23);
                 final Accumulator seq = _ex.getTree().getAccumulator(Accumulator.Type.SEQ, 47);
                 final Transaction txn = _ex.getTransaction();
-
                 if (_count > 1) {
                     txn.begin();
                     try {
@@ -152,15 +150,15 @@ public class AccumulatorRestart extends StressBase {
                     db.initialize(config);
                     setPersistit(db);
                 }
-            } catch (final Exception ex) {
-                handleThrowable(ex);
-            } finally {
-                Persistit db = getPersistit();
-                try {
-                    db.close();
-                } catch (final PersistitException pe) {
-                    handleThrowable(pe);
-                }
+            }
+        } catch (final Exception ex) {
+            handleThrowable(ex);
+        } finally {
+            Persistit db = getPersistit();
+            try {
+                db.close();
+            } catch (final PersistitException pe) {
+                handleThrowable(pe);
             }
         }
     }
