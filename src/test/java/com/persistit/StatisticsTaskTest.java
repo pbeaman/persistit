@@ -14,6 +14,7 @@
  */
 
 package com.persistit;
+
 import static com.persistit.StatisticsTask.*;
 import static org.junit.Assert.assertEquals;
 

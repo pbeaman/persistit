@@ -47,7 +47,7 @@ public class StatisticsTask extends Task {
     final static String PHEADER_FORMAT = " %10s";
     final static String PCOUNT_FORMAT = " %,10d";
     final static String PRATE_FORMAT = " %,10.3f";
-    
+
     final static String TIME_HEADER_FORMAT = "%12s ";
     final static String TIME_FORMAT = "%,12d ";
 
