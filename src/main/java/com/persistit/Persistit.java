@@ -15,6 +15,9 @@
 
 package com.persistit;
 
+import static com.persistit.Configuration.DEFAULT_SYSTEM_VOLUME_NAME;
+import static com.persistit.Configuration.SYSTEM_PROPERTY_PREFIX;
+import static com.persistit.Configuration.SYSTEM_VOLUME_PROPERTY_NAME;
 import static com.persistit.util.Util.NS_PER_S;
 
 import java.io.BufferedReader;
@@ -122,197 +125,8 @@ public class Persistit {
      * builds.
      */
     public final static boolean BIG_ENDIAN = true;
-    /**
-     * Prefix used to form the a system property name. For example, the property
-     * named <code>journalpath=xyz</code> can also be specified as a system
-     * property on the command line with the option
-     * -Dcom.persistit.journalpath=xyz.
-     */
-    public final static String SYSTEM_PROPERTY_PREFIX = "com.persistit.";
-    /**
-     * Name of utility GUI class.
-     */
+
     private final static String PERSISTIT_GUI_CLASS_NAME = SYSTEM_PROPERTY_PREFIX + "ui.AdminUI";
-
-    /**
-     * Default suffix for properties file name
-     */
-    public final static String DEFAULT_PROPERTIES_FILE_SUFFIX = ".properties";
-    /**
-     * Default properties file name
-     */
-    public final static String DEFAULT_CONFIG_FILE = "persistit.properties";
-    /**
-     * Default maximum time (in milliseconds) to allow for successful completion
-     * of an operation.
-     */
-    static final long DEFAULT_TIMEOUT_VALUE = 30000; // Thirty seconds
-    /**
-     * Upper bound maximum time (in milliseconds) to allow for successful
-     * completion of an operation. This is the maximum timeout value you can
-     * specify for individual <code>Exchange</code>.
-     */
-    static final long MAXIMUM_TIMEOUT_VALUE = 86400000; // One day
-    /**
-     * Property name by which name of properties file can be supplied.
-     */
-    public final static String CONFIG_FILE_PROPERTY_NAME = "properties";
-    /**
-     * Property name prefix for specifying buffer size and count. The full
-     * property name should be one of "1024", "2048", "4096", "8192" or "16384"
-     * appended to this string, e.g., "buffer.count.8192".
-     */
-    public final static String BUFFERS_PROPERTY_NAME = "buffer.count.";
-    /**
-     * Property name prefix for specifying buffer memory allocation. The full
-     * property name should be one of "1024", "2048", "4096", "8192" or "16384"
-     * appended to this string, e.g., "buffer.memory.8192". This property is an
-     * alternative to "buffer.count.nnnn", and only one of these may be used in
-     * a configuration per buffer size. With the buffer.memory property
-     * Persistit computes a buffer count that will consume approximately the
-     * specified memory allocation, including overhead for FastIndex elements.
-     */
-    public final static String BUFFER_MEM_PROPERTY_NAME = "buffer.memory.";
-    /**
-     * Property name prefix for specifying Volumes. The full property name
-     * should be a unique ordinal number appended to this string, e.g.,
-     * "volume.1", "volume.2", etc.
-     */
-    public final static String VOLUME_PROPERTY_PREFIX = "volume.";
-    /**
-     * Property name for specifying the file specification for the journal.
-     */
-    public final static String JOURNAL_PATH_PROPERTY_NAME = "journalpath";
-
-    /**
-     * Property name for specifying the size of each journal file, e.g.,
-     * "journalsize=400000000".
-     */
-    public final static String JOURNAL_BLOCKSIZE_PROPERTY_NAME = "journalsize";
-
-    /**
-     * Default path name for the journal. Note, sequence suffix in the form
-     * .nnnnnnnnnnnnnnnn (16 digits, zero-filled) will be appended.
-     */
-    public final static String DEFAULT_JOURNAL_PATH = "persistit_journal";
-
-    /**
-     * Default System Volume Name
-     */
-    public final static String DEFAULT_SYSTEM_VOLUME_NAME = "_system";
-
-    /**
-     * Property name for specifying the system volume name
-     */
-    public final static String SYSTEM_VOLUME_PROPERTY = "sysvolume";
-
-    /**
-     * Property name for specifying default temporary volume page size
-     */
-    public final static String TEMPORARY_VOLUME_PAGE_SIZE_NAME = "tvpagesize";
-
-    /**
-     * Property name for specifying default temporary volume directory
-     */
-    public final static String TEMPORARY_VOLUME_DIR_NAME = "tmpvoldir";
-
-    /**
-     * Property name for specifying upper bound on temporary volume size
-     */
-    public final static String TEMPORARY_VOLUME_MAX_SIZE = "tmpvolmaxsize";
-
-    /**
-     * Property name for specifying the default {@link Transaction.CommitPolicy}
-     * ("soft", "hard" or "group")
-     */
-    public final static String TRANSACTION_COMMIT_POLICY_NAME = "txnpolicy";
-
-    /**
-     * Property name for specifying whether Persistit should display diagnostic
-     * messages. Property value must be "true" or "false".
-     */
-    public final static String VERBOSE_PROPERTY = "verbose";
-    /**
-     * Property name for specifying whether Persistit should retry read
-     * operations that fail due to IOExceptions.
-     */
-    public final static String READ_RETRY_PROPERTY = "readretry";
-    /**
-     * Property name for maximum length of time a Persistit operation will wait
-     * for I/O completion before throwing a TimeoutException.
-     */
-    public final static String TIMEOUT_PROPERTY = "timeout";
-
-    /**
-     * Property name to specify package and/or class names of classes that must
-     * be serialized using standard Java serialization.
-     */
-    public final static String SERIAL_OVERRIDE_PROPERTY = "serialOverride";
-
-    /**
-     * Property name to specify whether DefaultValueCoder should use a declared
-     * no-arg contructor within each class being deserialized. Unless specified
-     * as <code>true</code>, Serializable classes will be instantiated through
-     * platform-specific API calls.
-     */
-    public final static String CONSTRUCTOR_OVERRIDE_PROPERTY = "constructorOverride";
-
-    /**
-     * Property name for specifying whether Persistit should attempt to launch a
-     * diagnostic utility for viewing internal state.
-     */
-    public final static String SHOW_GUI_PROPERTY = "showgui";
-
-    /**
-     * Property name for log switches
-     */
-    public final static String LOGGING_PROPERTIES = "logging";
-
-    /**
-     * Property name for log file name
-     */
-    public final static String LOGFILE_PROPERTY = "logfile";
-    /**
-     * Property name for the optional RMI registry host name
-     */
-    public final static String RMI_REGISTRY_HOST_PROPERTY = "rmihost";
-    /**
-     * Property name for the optional RMI registry port
-     */
-    public final static String RMI_REGISTRY_PORT = "rmiport";
-
-    /**
-     * Name of port on which RMI server accepts connects. If zero or unassigned,
-     * RMI picks a random port. Specifying a port can be helpful when using SSH
-     * to tunnel RMI to a server.
-     */
-    public final static String RMI_SERVER_PORT = "rmiserverport";
-
-    /**
-     * Property name for enabling Persistit Open MBean for JMX
-     */
-    public final static String JMX_PARAMS = "jmx";
-
-    /**
-     * Property name for pseudo-property "timestamp";
-     */
-    public final static String TIMESTAMP_PROPERTY = "timestamp";
-
-    /**
-     * Property name for the "append only" property.
-     */
-    public final static String APPEND_ONLY_PROPERTY = "appendonly";
-
-    /**
-     * Property name to specify the default {@link SplitPolicy}.
-     */
-    public final static String SPLIT_POLICY_PROPERTY = "splitpolicy";
-
-    /**
-     * Property name to specify the default {@link JoinPolicy}.
-     */
-    public final static String JOIN_POLICY_PROPERTY = "joinpolicy";
-
     /**
      * Maximum number of Exchanges that will be held in an internal pool.
      */
@@ -471,13 +285,105 @@ public class Persistit {
     private final ThreadLocal<SoftReference<Value>> _valueThreadLocal = new ThreadLocal<SoftReference<Value>>();
 
     /**
+     * Construct a hollow Persistit instance. To be useful, the instance must
+     * receive a <code>Configuration</code> through one of the methods
+     * {@link #setConfiguration(Configuration)},
+     * {@link #setProperties(Properties)} or
+     * {@link #setPropertiesFromFile(String)}. The instance must then be started
+     * by the {@link #initialize()} method.
+     */
+    public Persistit() {
+
+    }
+
+    /**
+     * Construct a Persistit instance with the supplied
+     * <code>Configuration</code>.
+     * 
+     * @see #setConfiguration(Configuration)
+     * @param configuration
+     *            the Configuration
+     */
+    public Persistit(final Configuration configuration) {
+        setConfiguration(configuration);
+    }
+
+    /**
+     * Construct a Persistit instance with a <code>Configuration</code> derived
+     * from the supplied <code>Properties</code> instance.
+     * 
+     * @see #setProperties(Properties)
+     * @param properties
+     *            the Properties
+     */
+    public Persistit(final Properties properties) {
+        setProperties(properties);
+    }
+
+    /**
+     * Receive the supplied <code>Configuration</code> which will be used to
+     * control the creation of a functional <code>Persistit</code> within the
+     * {@link #initialize()} method. The configuration may only be set once.
+     * 
+     * @param configuration
+     * @throws IllegalStateException
+     *             if the <code>Configuration</code> has already been set
+     */
+    public synchronized void setConfiguration(final Configuration configuration) {
+        if (_configuration != null) {
+            throw new IllegalStateException("Configuration has already been set");
+        }
+        _configuration = configuration;
+    }
+
+    /**
+     * Sets a <code>Configuration</code> derived from <code>Properties</code>
+     * read from the supplied file name.
+     * 
+     * @see #setConfiguration(Configuration)
+     * @param propertiesFileName
+     *            path to properties file
+     * @throws PersistitException
+     *             if the properties file is invalid
+     * @throws IllegalStateException
+     *             if the <code>Configuration</code> has already been set
+     */
+    public void setPropertiesFromFile(final String propertiesFileName) throws PersistitException {
+        final Configuration configuration = new Configuration();
+        configuration.readPropertiesFile(propertiesFileName);
+        setConfiguration(configuration);
+    }
+
+    /**
+     * Sets a <code>Configuration</code> derived from the supplied
+     * <code>Properties</code>.
+     * 
+     * @see #setConfiguration(Configuration)
+     * @param properties
+     *            the Properties from which to build a
+     *            <code>Configuration</code>
+     * @throws IllegalStateException
+     *             if the <code>Configuration</code> has already been set
+     */
+    public void setProperties(final Properties properties) {
+        setConfiguration(new Configuration(properties));
+    }
+
+    /**
      * <p>
-     * Initialize Persistit using properties supplied by the default properties
-     * file. The name of this file is supplied by the system property
+     * Initialize Persistit using the <code>Configuration</code> supplied by the
+     * {@link #setConfiguration(Configuration)} method or derived from
+     * properties supplied by {@link #setProperties(Properties)} or
+     * {@link #setPropertiesFromFile(String)}.
+     * </p>
+     * <p>
+     * If no configuration has been set, this method reverts to its legacy
+     * behavior which is to load a configuration from a default properties file.
+     * The name of this file is supplied by the system property
      * <code>com.persistit.properties</code>. If that property is not specified,
      * the default file path is <code>./persistit.properties</code> in the
      * current working directory. If Persistit has already been initialized,
-     * this method does nothing. This method is threadsafe; if multiple threads
+     * this method does nothing. This method is thread-safe; if multiple threads
      * concurrently attempt to invoke this method, one of the threads will
      * actually perform the initialization and the other threads will do
      * nothing.
@@ -492,11 +398,42 @@ public class Persistit {
      * @throws IOException
      * @throws Exception
      */
-    public void initialize() throws PersistitException {
-        if (!isInitialized()) {
-            final Configuration configuration = new Configuration();
-            configuration.readPropertiesFile();
-            initialize(configuration);
+    public synchronized void initialize() throws PersistitException {
+        if (isInitialized()) {
+            return;
+        }
+        if (_configuration == null) {
+            final Configuration config = new Configuration();
+            config.readPropertiesFile();
+            _configuration = config;
+        }
+        try {
+            _closed.set(false);
+
+            initializeLogging();
+            initializeManagement();
+            initializeOther();
+            initializeRecovery();
+            initializeJournal();
+            initializeBufferPools();
+            initializeVolumes();
+            startJournal();
+            startBufferPools();
+            preloadBufferPools();
+            finishRecovery();
+            startCheckpointManager();
+            startTransactionIndexPollTask();
+            flush();
+            _checkpointManager.checkpoint();
+            _journalManager.pruneObsoleteTransactions();
+
+            startCleanupManager();
+            _initialized.set(true);
+        } finally {
+            if (!isInitialized()) {
+                releaseAllResources();
+                _configuration = null;
+            }
         }
     }
 
@@ -504,7 +441,7 @@ public class Persistit {
      * <p>
      * Initialize Persistit using the supplied properties file path. If
      * Persistit has already been initialized, this method does nothing. This
-     * method is threadsafe; if multiple threads concurrently attempt to invoke
+     * method is thread-safe; if multiple threads concurrently attempt to invoke
      * this method, one of the threads will actually perform the initialization
      * and the other threads will do nothing.
      * </p>
@@ -513,17 +450,28 @@ public class Persistit {
      * exiting until {@link #close} is invoked. This is to ensure that all
      * pending updates are written before the JVM exit.
      * </p>
+     * <p>
+     * This method is deprecated. Applications should instead call
+     * 
+     * <pre>
+     * <code>
+     * setPropertiesFromFile(propertiesFileName);
+     * initialize();
+     * </code>
+     * </pre>
+     * 
+     * </p>
      * 
      * @param propertiesFileName
      *            The path to the properties file.
      * @throws PersistitException
      * @throws IOException
      */
+    @Deprecated
     public void initialize(final String propertiesFileName) throws PersistitException {
         if (!isInitialized()) {
-            final Configuration configuration = new Configuration();
-            configuration.readPropertiesFile(propertiesFileName);
-            initialize(configuration);
+            setPropertiesFromFile(propertiesFileName);
+            initialize();
         }
     }
 
@@ -532,7 +480,7 @@ public class Persistit {
      * Initialize Persistit using the supplied <code>java.util.Properties</code>
      * instance. Applications can use this method to supply computed Properties
      * rather than reading them from a file. If Persistit has already been
-     * initialized, this method does nothing. This method is threadsafe; if
+     * initialized, this method does nothing. This method is thread-safe; if
      * multiple threads concurrently attempt to invoke this method, one of the
      * threads will actually perform the initialization and the other threads
      * will do nothing.
@@ -542,6 +490,17 @@ public class Persistit {
      * exiting until {@link #close} is invoked. This is to ensure that all
      * pending updates are written before the JVM exit.
      * </p>
+     * <p>
+     * This method is deprecated. Applications should instead call
+     * 
+     * <pre>
+     * <code>
+     * setProperties(properties);
+     * initialize();
+     * </code>
+     * </pre>
+     * 
+     * </p>
      * 
      * @param properties
      *            The <code>Properties</code> instance from which to build the
@@ -549,10 +508,11 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
+    @Deprecated
     public void initialize(final Properties properties) throws PersistitException {
         if (!isInitialized()) {
-            final Configuration configuration = new Configuration(properties);
-            initialize(configuration);
+            setProperties(properties);
+            initialize();
         }
     }
 
@@ -560,7 +520,7 @@ public class Persistit {
      * <p>
      * Initialize Persistit using the supplied {@link Configuration}. If
      * Persistit has already been initialized, this method does nothing. This
-     * method is threadsafe; if multiple threads concurrently attempt to invoke
+     * method is thread-safe; if multiple threads concurrently attempt to invoke
      * this method, one of the threads will actually perform the initialization
      * and the other threads will do nothing.
      * </p>
@@ -569,6 +529,17 @@ public class Persistit {
      * exiting until {@link #close} is invoked. This is to ensure that all
      * pending updates are written before the JVM exit.
      * </p>
+     * <p>
+     * This method is deprecated. Applications should instead call
+     * 
+     * <pre>
+     * <code>
+     * setConfiguration(configuration);
+     * initialize();
+     * </code>
+     * </pre>
+     * 
+     * </p>
      * 
      * @param configuration
      *            The <code>Configuration</code> from which to initialize
@@ -576,41 +547,15 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
-    public synchronized void initialize(final Configuration configuration) throws PersistitException {
+    @Deprecated
+    public void initialize(final Configuration configuration) throws PersistitException {
         if (!isInitialized()) {
-            _configuration = configuration;
-            try {
-                _closed.set(false);
-
-                initializeLogging();
-                initializeManagement();
-                initializeOther();
-                initializeRecovery();
-                initializeJournal();
-                initializeBufferPools();
-                initializeVolumes();
-                startJournal();
-                startBufferPools();
-                preloadBufferPools();
-                finishRecovery();
-                startCheckpointManager();
-                startTransactionIndexPollTask();
-                flush();
-                _checkpointManager.checkpoint();
-                _journalManager.pruneObsoleteTransactions();
-
-                startCleanupManager();
-                _initialized.set(true);
-            } finally {
-                if (!isInitialized()) {
-                    releaseAllResources();
-                    _configuration = null;
-                }
-            }
+            setConfiguration(configuration);
+            initialize();
         }
     }
 
-    void initializeLogging() throws PersistitException {
+    private void initializeLogging() throws PersistitException {
         try {
             _logFlusher = new LogFlusher();
             _logFlusher.start();
@@ -633,7 +578,7 @@ public class Persistit {
 
     }
 
-    void initializeRecovery() throws PersistitException {
+    private void initializeRecovery() throws PersistitException {
         final String journalPath = _configuration.getJournalPath();
         _recoveryManager.init(journalPath);
         _recoveryManager.buildRecoveryPlan();
@@ -648,7 +593,7 @@ public class Persistit {
         _journalManager.setIgnoreMissingVolumes(_configuration.isIgnoreMissingVolumes());
     }
 
-    void initializeBufferPools() {
+    private void initializeBufferPools() {
         for (final BufferPoolConfiguration config : _configuration.getBufferPoolMap().values()) {
             final int poolSize = config.computeBufferCount(getAvailableHeap());
             if (poolSize > 0) {
@@ -663,7 +608,7 @@ public class Persistit {
         }
     }
 
-    void initializeVolumes() throws PersistitException {
+    private void initializeVolumes() throws PersistitException {
         for (final VolumeSpecification volumeSpecification : _configuration.getVolumeList()) {
             Volume volume = _journalManager.getVolumeByName(volumeSpecification.getName());
             if (volume == null) {
@@ -676,7 +621,7 @@ public class Persistit {
         }
     }
 
-    void initializeManagement() {
+    private void initializeManagement() {
         final String rmiHost = _configuration.getRmiHost();
         final int rmiPort = _configuration.getRmiPort();
         final int serverPort = _configuration.getRmiServerPort();
@@ -691,7 +636,7 @@ public class Persistit {
         }
     }
 
-    void initializeOther() {
+    private void initializeOther() {
         // Set up the parent CoderManager for this instance.
         final DefaultCoderManager cm = new DefaultCoderManager(this, _configuration.getSerialOverride());
         _coderManager.set(cm);
@@ -1223,23 +1168,18 @@ public class Persistit {
         return System.currentTimeMillis() - _startTime;
     }
 
-    public Configuration getConfiguration() {
+    public synchronized Configuration getConfiguration() {
         return _configuration;
     }
 
     @Deprecated
     public Properties getProperties() {
-        return _configuration.getProperties();
+        return getConfiguration().getProperties();
     }
 
     @Deprecated
     public String getProperty(final String key) {
-        return _configuration.getProperty(key);
-    }
-
-    @Deprecated
-    public String substituteProperties(final String text, final Properties properties) {
-        return _configuration.substituteProperties(text, properties, 0);
+        return getConfiguration().getProperty(key);
     }
 
     /**
@@ -1319,7 +1259,7 @@ public class Persistit {
      *             if the volume was not found
      */
     public Volume getSystemVolume() throws VolumeNotFoundException {
-        return getSpecialVolume(SYSTEM_VOLUME_PROPERTY, DEFAULT_SYSTEM_VOLUME_NAME);
+        return getSpecialVolume(SYSTEM_VOLUME_PROPERTY_NAME, DEFAULT_SYSTEM_VOLUME_NAME);
     }
 
     /**
@@ -1853,6 +1793,7 @@ public class Persistit {
             _initialized.set(false);
             _sessionIdThreadLocal.remove();
             _cleanupManager.clear();
+            _configuration = null;
         }
         synchronized (_exchangePoolMap) {
             _exchangePoolMap.clear();
