@@ -63,7 +63,6 @@ import com.persistit.util.Util;
  */
 public class Bug777918Test extends PersistitUnitTestCase {
 
-    
     @Override
     protected Properties getProperties(final boolean cleanup) {
         return UnitTestProperties.getBiggerProperties(cleanup);

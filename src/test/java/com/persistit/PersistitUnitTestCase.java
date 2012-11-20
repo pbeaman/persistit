@@ -46,7 +46,7 @@ public abstract class PersistitUnitTestCase {
     }
 
     protected Persistit _persistit = new Persistit();
-    
+
     protected Configuration _config;
 
     protected Properties getProperties(final boolean cleanup) {
