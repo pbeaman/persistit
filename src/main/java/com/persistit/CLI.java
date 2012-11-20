@@ -734,7 +734,8 @@ public class CLI {
         if (!y) {
             persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         }
-        persistit.initialize(properties);
+        persistit.setProperties(properties);
+        persistit.initialize();
 
         /**
          * Following is a hack to figure ought whether there is a classIndex in

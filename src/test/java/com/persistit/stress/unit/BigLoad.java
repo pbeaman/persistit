@@ -195,7 +195,8 @@ public class BigLoad extends AbstractStressTest {
         final BigLoad bl = new BigLoad(records, buckets);
         final Persistit db = new Persistit();
         if (args.length > 2) {
-            db.initialize(args[2]);
+            db.setPropertiesFromFile(args[2]);
+            db.initialize();
         } else {
             db.initialize();
         }

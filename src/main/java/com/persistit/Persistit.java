@@ -298,26 +298,40 @@ public class Persistit {
 
     /**
      * Construct a Persistit instance with the supplied
-     * <code>Configuration</code>.
+     * <code>Configuration</code> and then initialize it. The code <code><pre>
+     * Persistit db = new Persistit(configuration);
+     * </pre></code> is equivalent to <code><pre>
+     * Persistit db = new Persistit();
+     * db.setConfiguration(configuration);
+     * db.intialize();
+     * </pre></code>
      * 
      * @see #setConfiguration(Configuration)
      * @param configuration
      *            the Configuration
      */
-    public Persistit(final Configuration configuration) {
+    public Persistit(final Configuration configuration) throws PersistitException {
         setConfiguration(configuration);
+        initialize();
     }
 
     /**
      * Construct a Persistit instance with a <code>Configuration</code> derived
-     * from the supplied <code>Properties</code> instance.
+     * from the supplied <code>Properties</code> instance. The code <code><pre>
+     * Persistit db = new Persistit(properties);
+     * </pre></code> is equivalent to <code><pre>
+     * Persistit db = new Persistit();
+     * db.setProperties(properties);
+     * db.intialize();
+     * </pre></code>
      * 
      * @see #setProperties(Properties)
      * @param properties
      *            the Properties
      */
-    public Persistit(final Properties properties) {
+    public Persistit(final Properties properties) throws PersistitException {
         setProperties(properties);
+        initialize();
     }
 
     /**
@@ -2499,7 +2513,8 @@ public class Persistit {
         final String propertiesFileName = ap.getStringValue("properties");
         if (!propertiesFileName.isEmpty()) {
             persistit = new Persistit();
-            persistit.initialize(propertiesFileName);
+            persistit.setPropertiesFromFile(propertiesFileName);
+            persistit.initialize();
         }
         final String scriptName = ap.getStringValue("script");
 

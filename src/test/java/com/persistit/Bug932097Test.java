@@ -41,10 +41,8 @@ public class Bug932097Test extends PersistitUnitTestCase {
              */
         }
         _persistit.checkpoint();
-        final Properties properties = _persistit.getProperties();
         _persistit.crash();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         /*
          * To exploit the bug, register a bunch of new transactions which will
          * draw the TransactionStatus instances freed after recovery finishes

@@ -43,8 +43,7 @@ public class InsertBigLoad extends AbstractSuite {
 
         final Configuration config = makeConfiguration(16384, "50000", CommitPolicy.SOFT);
         config.setTmpVolMaxSize(100000000000l);
-        final Persistit persistit = new Persistit();
-        persistit.initialize(config);
+        final Persistit persistit = new Persistit(config);
 
         try {
             execute(persistit);

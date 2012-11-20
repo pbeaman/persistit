@@ -46,6 +46,8 @@ public abstract class PersistitUnitTestCase {
     }
 
     protected Persistit _persistit = new Persistit();
+    
+    protected Configuration _config;
 
     protected Properties getProperties(final boolean cleanup) {
         return UnitTestProperties.getProperties(cleanup);
@@ -54,7 +56,9 @@ public abstract class PersistitUnitTestCase {
     @Before
     public void setUp() throws Exception {
         checkNoPersistitThreads();
-        _persistit.initialize(getProperties(true));
+        _persistit.setProperties(getProperties(true));
+        _persistit.initialize();
+        _config = _persistit.getConfiguration();
     }
 
     @After
@@ -109,18 +113,14 @@ public abstract class PersistitUnitTestCase {
     }
 
     protected void safeCrashAndRestoreProperties() throws PersistitException {
-        final Properties properties = _persistit.getProperties();
         _persistit.flush();
         _persistit.crash();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
     }
 
     protected void crashWithoutFlushAndRestoreProperties() throws PersistitException {
-        final Properties properties = _persistit.getProperties();
         _persistit.crash();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
     }
 
     public static boolean doesRefBecomeNull(final WeakReference<?> ref) throws InterruptedException {

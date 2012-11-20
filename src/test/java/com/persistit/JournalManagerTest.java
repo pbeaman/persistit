@@ -243,10 +243,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final Checkpoint checkpoint1 = _persistit.getCheckpointManager().createCheckpoint();
         jman.writeCheckpointToJournal(checkpoint1);
         _persistit.checkpoint();
-        final Properties saveProperties = _persistit.getProperties();
         _persistit.close();
-        _persistit = new Persistit();
-        _persistit.initialize(saveProperties);
+        _persistit = new Persistit(_config);
         _persistit.getJournalManager().setAppendOnly(true);
         final RecoveryManager rman = new RecoveryManager(_persistit);
         rman.init(path);
@@ -390,10 +388,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             txn.end();
         }
         _persistit.getJournalManager().rollover();
-        final Properties saveProperties = _persistit.getProperties();
         _persistit.close();
-        _persistit = new Persistit();
-        _persistit.initialize(saveProperties);
+        _persistit = new Persistit(_config);
 
         acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true)
                 .getAccumulator(Accumulator.Type.SUM, 0);
@@ -458,11 +454,10 @@ public class JournalManagerTest extends PersistitUnitTestCase {
 
     @Test
     public void missingVolumePageHandling() throws Exception {
-        final Configuration config = _persistit.getConfiguration();
-        Volume volume1 = new Volume(config.volumeSpecification("${datapath}/missing1,create,"
+        Volume volume1 = new Volume(_config.volumeSpecification("${datapath}/missing1,create,"
                 + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
         volume1.open(_persistit);
-        Volume volume2 = new Volume(config.volumeSpecification("${datapath}/missing2,create,"
+        Volume volume2 = new Volume(_config.volumeSpecification("${datapath}/missing2,create,"
                 + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
         volume2.open(_persistit);
         _persistit.getExchange(volume1, "test1", true);
@@ -472,8 +467,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         new File(volume2.getPath()).delete();
         volume1 = null;
         volume2 = null;
-        _persistit = new Persistit();
-        _persistit.initialize(config);
+        _persistit = new Persistit(_config);
         final AlertMonitor am = _persistit.getAlertMonitor();
         assertTrue("Startup with missing volumes should have generated alerts",
                 am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);
@@ -489,8 +483,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
 
     @Test
     public void missingVolumeTransactionHandlingNotIgnored() throws Exception {
-        final Configuration config = _persistit.getConfiguration();
-        Volume volume = new Volume(config.volumeSpecification("${datapath}/missing1,create,"
+        Volume volume = new Volume(_config.volumeSpecification("${datapath}/missing1,create,"
                 + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
         volume.open(_persistit);
         final Exchange ex = _persistit.getExchange(volume, "test1", true);
@@ -504,16 +497,14 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         _persistit.crash();
         new File(volume.getPath()).delete();
         volume = null;
-        _persistit = new Persistit();
-        _persistit.initialize(config);
+        _persistit = new Persistit(_config);
         assertTrue("Should have failed updates during recovery", _persistit.getRecoveryManager().getPlayer()
                 .getFailedUpdates() > 0);
     }
 
     @Test
     public void missingVolumeTransactionHandlingIgnored() throws Exception {
-        final Configuration config = _persistit.getConfiguration();
-        Volume volume = new Volume(config.volumeSpecification("${datapath}/missing1,create,"
+        Volume volume = new Volume(_config.volumeSpecification("${datapath}/missing1,create,"
                 + "pageSize:16384,initialPages:1,extensionPages:1,maximumPages:25000"));
         volume.open(_persistit);
         final Exchange ex = _persistit.getExchange(volume, "test1", true);
@@ -527,10 +518,11 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         _persistit.crash();
         new File(volume.getPath()).delete();
         volume = null;
-        config.setIgnoreMissingVolumes(true);
+        _config.setIgnoreMissingVolumes(true);
         _persistit = new Persistit();
         _persistit.getJournalManager().setIgnoreMissingVolumes(true);
-        _persistit.initialize(config);
+        _persistit.setConfiguration(_config);
+        _persistit.initialize();
         final AlertMonitor am = _persistit.getAlertMonitor();
         assertTrue("Startup with missing volumes should have generated alerts",
                 am.getHistory(AlertMonitor.MISSING_VOLUME_CATEGORY) != null);

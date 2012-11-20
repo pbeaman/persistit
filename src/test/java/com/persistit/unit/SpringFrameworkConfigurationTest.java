@@ -43,7 +43,7 @@ public class SpringFrameworkConfigurationTest {
             System.out.println(db.getVolumes());
             try {
                 db.close();
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 e.printStackTrace();
             }
         }
@@ -52,7 +52,7 @@ public class SpringFrameworkConfigurationTest {
     @Test
     public void configurePersistitFromSpring() throws Exception {
         System.setProperty("com.persistit.datapath", UnitTestProperties.DATA_PATH);
-        ApplicationContext context = new ClassPathXmlApplicationContext(
+        final ApplicationContext context = new ClassPathXmlApplicationContext(
                 "com/persistit/unit/SpringFrameworkConfiguraitonTest.xml");
 
         final Persistit persistit = (Persistit) context.getBean("persistit");

@@ -17,8 +17,6 @@ package com.persistit;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Properties;
-
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
@@ -57,11 +55,10 @@ public class Bug974589Test extends PersistitUnitTestCase {
             txn1 = null;
             acc1 = null;
             _persistit.checkpoint();
-            _persistit.close();
 
-            final Properties properties = _persistit.getProperties();
-            _persistit = new Persistit();
-            _persistit.initialize(properties);
+            final Configuration config = _persistit.getConfiguration();
+            _persistit.close();
+            _persistit = new Persistit(config);
 
             Exchange ex2 = getExchange(_persistit);
             Transaction txn2 = ex2.getTransaction();

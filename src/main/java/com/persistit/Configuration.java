@@ -670,7 +670,7 @@ public class Configuration {
             setMemoryConstraints(propertyValue, minimum, maximum, reserved, fraction);
         }
 
-        private void setMemoryConstraints(String propertyValue, final long minimum, final long maximum,
+        private void setMemoryConstraints(final String propertyValue, final long minimum, final long maximum,
                 final long reserved, final float fraction) {
             if (minimum >= 0 && minimum <= maximum && maximum - minimum >= reserved && reserved >= 0) {
                 Util.rangeCheck(fraction, 0.0f, 1.0f);
@@ -1325,9 +1325,9 @@ public class Configuration {
             try {
                 final int bufferSize = Integer.parseInt(s.split(",")[0]);
                 bufferPoolMap.get(bufferSize).parse(s);
-            } catch (NumberFormatException e) {
+            } catch (final NumberFormatException e) {
                 throw new IllegalArgumentException("Invalid BufferPool memory specification: " + string);
-            } catch (ArrayIndexOutOfBoundsException e) {
+            } catch (final ArrayIndexOutOfBoundsException e) {
                 throw new IllegalArgumentException("Invalid BufferPool memory specification: " + string);
             }
         }
@@ -1355,7 +1355,7 @@ public class Configuration {
      *            List of VolumeSpecifications for volumes to be opened when the
      *            {@link Persistit#initialize()} method is called
      */
-    public void setVolumeList(List<VolumeSpecification> list) {
+    public void setVolumeList(final List<VolumeSpecification> list) {
         volumeSpecifications.clear();
         volumeSpecifications.addAll(list);
     }

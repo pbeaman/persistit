@@ -15,7 +15,11 @@
 
 package com.persistit;
 
-import static com.persistit.StatisticsTask.*;
+import static com.persistit.StatisticsTask.COUNT_FORMAT;
+import static com.persistit.StatisticsTask.PCOUNT_FORMAT;
+import static com.persistit.StatisticsTask.PHEADER_FORMAT;
+import static com.persistit.StatisticsTask.PRATE_FORMAT;
+import static com.persistit.StatisticsTask.RATE_FORMAT;
 import static org.junit.Assert.assertEquals;
 
 import java.io.BufferedReader;

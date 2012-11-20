@@ -91,11 +91,9 @@ public class Bug1064565Test extends PersistitUnitTestCase {
         txn.end();
         sequence(ACCUMULATOR_CHECKPOINT_C);
 
-        _persistit.close();
-
         final Configuration config = _persistit.getConfiguration();
-        _persistit = new Persistit();
-        _persistit.initialize(config);
+        _persistit.close();
+        _persistit = new Persistit(config);
 
         exchange = getExchange();
         txn = exchange.getTransaction();
@@ -128,8 +126,7 @@ public class Bug1064565Test extends PersistitUnitTestCase {
         _persistit.copyBackPages();
         final Configuration config = _persistit.getConfiguration();
         _persistit.close();
-        _persistit = new Persistit();
-        _persistit.initialize(config);
+        _persistit = new Persistit(config);
 
         exchange = getExchange();
         txn = exchange.getTransaction();

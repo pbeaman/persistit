@@ -48,12 +48,14 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     private String journalSize = "10000000";
     private final String _volumeName = "persistit";
+    private Configuration _config;
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
         _persistit.getJournalManager().setWritePagePruningEnabled(false);
+        _config = _persistit.getConfiguration();
 
     }
 
@@ -69,9 +71,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit.getJournalManager().setAppendOnly(true);
         store1();
         _persistit.close();
-        final Properties saveProperties = _persistit.getProperties();
-        _persistit = new Persistit();
-        _persistit.initialize(saveProperties);
+        _persistit = new Persistit(_config);
         final JournalManager logMan = _persistit.getJournalManager();
         assertTrue(logMan.getPageMapSize() + logMan.getCopiedPageCount() > 0);
         fetch1a();
@@ -88,9 +88,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         jman.copyBack();
         assertEquals(0, jman.getPageMapSize());
         _persistit.close();
-        final Properties saveProperties = _persistit.getProperties();
-        _persistit = new Persistit();
-        _persistit.initialize(saveProperties);
+        _persistit = new Persistit(_config);
         jman = _persistit.getJournalManager();
         // opening a volume modifies its head page
         assertTrue(jman.getPageMapSize() <= 1);
@@ -105,12 +103,12 @@ public class RecoveryTest extends PersistitUnitTestCase {
         store2();
         _persistit.getJournalManager().flush();
         _persistit.crash();
-        final Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.getJournalManager().setAppendOnly(true);
         final RecoveryManager plan = _persistit.getRecoveryManager();
         plan.setRecoveryDisabledForTestMode(true);
-        _persistit.initialize(saveProperties);
+        _persistit.setConfiguration(_config);
+        _persistit.initialize();
         assertEquals(15, plan.getCommittedCount());
         plan.setRecoveryDisabledForTestMode(false);
         final Set<Long> recoveryTimestamps = new HashSet<Long>();
@@ -174,12 +172,12 @@ public class RecoveryTest extends PersistitUnitTestCase {
         fetch3();
         _persistit.getJournalManager().flush();
         _persistit.crash();
-        final Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.getJournalManager().setAppendOnly(true);
         final RecoveryManager rman = _persistit.getRecoveryManager();
         rman.setRecoveryDisabledForTestMode(true);
-        _persistit.initialize(saveProperties);
+        _persistit.setConfiguration(_config);
+        _persistit.initialize();
         assertTrue(rman.getCommittedCount() > 0);
         rman.setRecoveryDisabledForTestMode(false);
         rman.applyAllRecoveredTransactions(rman.getDefaultCommitListener(), rman.getDefaultRollbackListener());
@@ -295,9 +293,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         exchanges = null;
         _persistit.getJournalManager().flush();
         _persistit.crash();
-        final Properties saveProperties = _persistit.getProperties();
-        _persistit = new Persistit();
-        _persistit.initialize(saveProperties);
+        _persistit = new Persistit(_config);
         final Volume volume = _persistit.getVolume("persistit");
 
         for (int index = 0; index < 5; index++) {
@@ -368,9 +364,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         // retrieve the value of the handle counter before crashing
         final int initialHandleValue = _persistit.getJournalManager().getHandleCount();
         _persistit.close();
-        Properties saveProperties = _persistit.getProperties();
-        _persistit = new Persistit();
-        _persistit.initialize(saveProperties);
+        _persistit = new Persistit(_config);
         // verify the value of the handle counter after recovery is
         // still valid.
         assertTrue(_persistit.getJournalManager().getHandleCount() > initialHandleValue);
@@ -381,9 +375,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit.getJournalManager().handleForTree(td, true);
         final int updatedHandleValue = _persistit.getJournalManager().getHandleCount();
         _persistit.close();
-        saveProperties = _persistit.getProperties();
-        _persistit = new Persistit();
-        _persistit.initialize(saveProperties);
+        _persistit = new Persistit(_config);
         // verify the value of the handle counter after recovery is
         // still valid.
         assertTrue(_persistit.getJournalManager().getHandleCount() > updatedHandleValue);
@@ -440,10 +432,10 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
         _persistit.crash();
 
-        final Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.getJournalManager().setAppendOnly(true);
-        _persistit.initialize(saveProperties);
+        _persistit.setConfiguration(_config);
+        _persistit.initialize();
         _persistit.checkAllVolumes();
 
         final Volume volume = _persistit.getVolume("persistit");
@@ -478,11 +470,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
         for (int i = 0; i < count + 100; i++) {
             assertEquals(i < count, exchange.to(i).isValueDefined());
         }
-        final Properties properties = _persistit.getProperties();
         _persistit.close();
-
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
         for (int i = 0; i < count + 100; i++) {
             if (i < count && !exchange.to(i).isValueDefined()) {
@@ -493,8 +482,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
 
         _persistit.close();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
         for (int i = 0; i < count + 100; i++) {
             assertEquals(i < count, exchange.to(i).isValueDefined());
@@ -507,12 +495,10 @@ public class RecoveryTest extends PersistitUnitTestCase {
     @Test
     @Deprecated
     public void testNormalRestartUseOldVSpec() throws Exception {
-        final Configuration config = _persistit.getConfiguration();
         _persistit.close();
         UnitTestProperties.cleanUpDirectory(new File(UnitTestProperties.DATA_PATH));
-        config.setUseOldVSpec(true);
-        _persistit = new Persistit();
-        _persistit.initialize(config);
+        _config.setUseOldVSpec(true);
+        _persistit = new Persistit(_config);
 
         final JournalManager jman = _persistit.getJournalManager();
         Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
@@ -532,8 +518,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
         _persistit.close();
 
-        _persistit = new Persistit();
-        _persistit.initialize(config);
+        _persistit = new Persistit(_config);
         exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
         for (int i = 0; i < count + 100; i++) {
             if (i < count && !exchange.to(i).isValueDefined()) {
@@ -544,8 +529,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
 
         _persistit.close();
-        _persistit = new Persistit();
-        _persistit.initialize(config);
+        _persistit = new Persistit(_config);
         exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
         for (int i = 0; i < count + 100; i++) {
             assertEquals(i < count, exchange.to(i).isValueDefined());
