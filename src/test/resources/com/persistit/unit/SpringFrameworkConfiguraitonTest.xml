@@ -4,6 +4,10 @@
     xsi:schemaLocation="http://www.springframework.org/schema/beans
     http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE" />
+    </bean>
+
     <bean id="persistit" class="com.persistit.Persistit" init-method="initialize">
         <property name="configuration">
             <bean class="com.persistit.Configuration">
@@ -12,14 +16,19 @@
                     <list>
                         <bean class="com.persistit.VolumeSpecification">
                             <constructor-arg
-                                value="/tmp/persistit_test_data/persistit,create,pageSize:16384,initialPages:100,extensionPages:100,maximumPages:25000" />
+                                value="${com.persistit.datapath}/persistit,create,pageSize:16384,initialPages:100,extensionPages:100,maximumPages:25000" />
                         </bean>
                     </list>
                 </property>
-                <property name="journalPath" value="/tmp/persistit_test_data/persistit_journal" />
+                <property name="journalPath" value="${com.persistit.datapath}/persistit_journal" />
             </bean>
         </property>
     </bean>
 
+    <bean id="testClient" class="com.persistit.unit.SpringFrameworkConfigurationTest.TestClient">
+        <constructor-arg>
+            <ref local="persistit" />
+        </constructor-arg>
+    </bean>
 
 </beans>

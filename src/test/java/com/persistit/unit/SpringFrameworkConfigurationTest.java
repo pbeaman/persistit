@@ -22,23 +22,44 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 import com.persistit.Persistit;
+import com.persistit.exception.PersistitException;
 
 /**
- * Test simple scenario to ensure a second Persistit instance referring to the
- * same volumes can't start.
+ * Create a Persistit instance using Spring Framework.
  * 
  * @author peter
  * 
  */
 public class SpringFrameworkConfigurationTest {
 
+    public static class TestClient {
+        final Persistit db;
+
+        public TestClient(final Persistit db) {
+            this.db = db;
+        }
+
+        private void test() {
+            System.out.println(db.getVolumes());
+            try {
+                db.close();
+            } catch (PersistitException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     @Test
     public void configurePersistitFromSpring() throws Exception {
-        ApplicationContext context = 
-                new ClassPathXmlApplicationContext("com/persistit/unit/SpringFrameworkConfiguraitonTest.xml");
+        System.setProperty("com.persistit.datapath", UnitTestProperties.DATA_PATH);
+        ApplicationContext context = new ClassPathXmlApplicationContext(
+                "com/persistit/unit/SpringFrameworkConfiguraitonTest.xml");
 
-        final Persistit persistit = (Persistit)context.getBean("persistit");
+        final Persistit persistit = (Persistit) context.getBean("persistit");
         assertTrue("Persistit should be initialized", persistit.isInitialized());
+
+        final TestClient testClient = (TestClient) context.getBean("testClient");
+        testClient.test();
     }
 
 }

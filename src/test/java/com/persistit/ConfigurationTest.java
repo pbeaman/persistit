@@ -238,7 +238,7 @@ public class ConfigurationTest extends PersistitUnitTestCase {
                 configuration.getBufferPoolConfiguration());
 
     }
-    
+
     private Configuration testLoadPropertiesBufferSpecificationsHelper(final Properties properties) throws Exception {
         final Configuration configuration = new Configuration();
         configuration.merge(properties);
