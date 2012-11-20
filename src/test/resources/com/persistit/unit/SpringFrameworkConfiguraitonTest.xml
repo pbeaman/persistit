@@ -4,13 +4,21 @@
     xsi:schemaLocation="http://www.springframework.org/schema/beans
     http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
-    <bean id="persistit" class="com.persistit.Persistit">
-        <property name="configuration"></property>
-        <bean id="configuration" class="com.persistit.Configuration">
-            <property name="bufferMem"
-   
-        </bean>
-    </property>
+    <bean id="persistit" class="com.persistit.Persistit" init-method="initialize">
+        <property name="configuration">
+            <bean class="com.persistit.Configuration">
+                <property name="bufferPoolConfiguration" value="16384,count=1000" />
+                <property name="volumeList">
+                    <list>
+                        <bean class="com.persistit.VolumeSpecification">
+                            <constructor-arg
+                                value="/tmp/persistit_test_data/persistit,create,pageSize:16384,initialPages:100,extensionPages:100,maximumPages:25000" />
+                        </bean>
+                    </list>
+                </property>
+                <property name="journalPath" value="/tmp/persistit_test_data/persistit_journal" />
+            </bean>
+        </property>
     </bean>
 
 
