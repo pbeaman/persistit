@@ -3390,6 +3390,8 @@ public class Exchange {
                     // needs to be removed. Now walk down the tree,
                     // stitching together the pages where necessary.
                     //
+                    _tree.bumpGeneration();
+                    
                     final long timestamp = timestamp();
                     for (int level = _cacheDepth; --level >= 0;) {
                         lc = _levelCache[level];
@@ -3523,9 +3525,6 @@ public class Exchange {
                     }
 
                     if (treeClaimAcquired) {
-                        if (treeWriterClaimRequired) {
-                            _tree.bumpGeneration();
-                        }
                         _treeHolder.release();
                         treeClaimAcquired = false;
                     }
