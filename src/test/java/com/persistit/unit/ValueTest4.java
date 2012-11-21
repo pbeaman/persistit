@@ -128,6 +128,28 @@ public class ValueTest4 extends PersistitUnitTestCase {
         assertEquals("Field 7 should be a String", String.class, value.getType());
         final String s7 = value.getString();
         assertTrue("expect identical", s5 == s7);
-
     }
+
+    /**
+     * See https://bugs.launchpad.net/akiban-persistit/+bug/1081659
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void serializedItemCount() throws Exception {
+        final Value value = new Value(_persistit);
+        value.setStreamMode(true);
+        value.put(null);
+        value.put(ABC);
+        value.put(null);
+        value.put(ABC);
+        value.setStreamMode(false);
+        value.setStreamMode(true);
+        assertTrue("Expect null", value.isNull(true));
+        assertEquals("Don't expect null", ABC, value.get());
+        assertTrue("Expect null", value.isNull(true));
+        assertEquals("Expect String", String.class, value.getType());
+        assertEquals("Don't expect null", ABC, value.get());
+    }
+
 }

@@ -979,6 +979,7 @@ public final class Value {
         if (isNull()) {
             if (skipNull && _depth > 0) {
                 _next++;
+                _serializedItemCount++;
             }
             return true;
         } else {
