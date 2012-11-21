@@ -59,6 +59,6 @@ Review the ``LICENSE.txt`` file located in the root of the installation director
 Working With Persistit
 ----------------------
 
-Add the jar file (e.g. ``akiban-persistit-3.2.1.jar``), found in the root directory of the distribution kit, to your project's classpath. For example, copy it to ``jre/lib/ext`` in your Java Runtime Environment, or add it to your classpath environment variable. 
+Add the jar file (e.g. ``akiban-persistit-3.2.2.jar``), found in the root directory of the distribution kit, to your project's classpath. For example, copy it to ``jre/lib/ext`` in your Java Runtime Environment, or add it to your classpath environment variable. 
 
 That's it. You are ready to work with Persistit.
