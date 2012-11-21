@@ -129,9 +129,10 @@ public class ValueTest4 extends PersistitUnitTestCase {
         final String s7 = value.getString();
         assertTrue("expect identical", s5 == s7);
     }
-    
+
     /**
      * See https://bugs.launchpad.net/akiban-persistit/+bug/1081659
+     * 
      * @throws Exception
      */
     @Test
@@ -150,5 +151,5 @@ public class ValueTest4 extends PersistitUnitTestCase {
         assertEquals("Expect String", String.class, value.getType());
         assertEquals("Don't expect null", ABC, value.get());
     }
-    
+
 }
