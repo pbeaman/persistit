@@ -70,6 +70,9 @@ public class AccumulatorRestart extends StressBase {
         long maxValue = 0;
         long sumValue = 0;
         long seqValue = 0;
+
+        final Configuration config = getPersistit().getConfiguration();
+
         try {
             for (_count = 1;; _count++) {
                 System.out.println(_threadName + " starting cycle " + _count);
@@ -144,8 +147,6 @@ public class AccumulatorRestart extends StressBase {
                 if ((_count % 3) == 0) {
                     Persistit db = getPersistit();
                     db.close();
-
-                    final Configuration config = db.getConfiguration();
                     db = new Persistit();
                     db.initialize(config);
                     setPersistit(db);
