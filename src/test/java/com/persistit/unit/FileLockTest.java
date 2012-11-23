@@ -39,7 +39,8 @@ public class FileLockTest extends PersistitUnitTestCase {
         final Properties properties = _persistit.getProperties();
         final Persistit p2 = new Persistit();
         try {
-            p2.initialize(properties);
+            p2.setProperties(properties);
+            p2.initialize();
             fail("Created second Persistit instance");
         } catch (final PersistitException pe) {
             // success - we intended to fail
@@ -51,7 +52,8 @@ public class FileLockTest extends PersistitUnitTestCase {
         final Persistit p3 = new Persistit();
         // now this should succeed.
         try {
-            p3.initialize(properties);
+            p3.setProperties(properties);
+            p3.initialize();
         } finally {
             p3.close(false);
         }

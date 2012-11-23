@@ -318,8 +318,9 @@ public class IOFailureTest extends PersistitUnitTestCase {
         channel1.close();
 
         _persistit = new Persistit();
+        _persistit.setConfiguration(_config);
         try {
-            _persistit.initialize(properties);
+            _persistit.initialize();
             fail("Expected CorruptJournalException");
         } catch (final CorruptJournalException cje) {
             // expected
@@ -327,12 +328,15 @@ public class IOFailureTest extends PersistitUnitTestCase {
         file1.delete();
 
         _persistit = new Persistit();
+        _persistit.setConfiguration(_config);
         try {
-            _persistit.initialize(properties);
+            _persistit.initialize();
             fail("Expected CorruptVolumeException");
         } catch (final CorruptVolumeException cve) {
             // expected
         }
+        channel0.close();
+        channel1.close();
     }
 
     @Test

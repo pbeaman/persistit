@@ -46,12 +46,10 @@ public class WarmupTest extends PersistitUnitTestCase {
             buff[i] = pool.getBufferCopy(i);
         }
 
-        final Configuration config = _persistit.getConfiguration();
         ex = null;
         _persistit.close();
 
-        _persistit = new Persistit();
-        _persistit.initialize(config);
+        _persistit = new Persistit(_config);
         ex = _persistit.getExchange("persistit", "WarmupTest", false);
         pool = ex.getBufferPool();
 
@@ -101,16 +99,16 @@ public class WarmupTest extends PersistitUnitTestCase {
 
         assertTrue("Buffer pool should have scrambled page address", breaks > 0);
 
-        final Configuration config = _persistit.getConfiguration();
         ex = null;
         pool = null;
         _persistit.copyBackPages();
         _persistit.close();
 
         _persistit = new Persistit();
-        config.setBufferInventoryEnabled(false);
-        config.setBufferPreloadEnabled(false);
-        _persistit.initialize(config);
+        _config.setBufferInventoryEnabled(false);
+        _config.setBufferPreloadEnabled(false);
+        _persistit.setConfiguration(_config);
+        _persistit.initialize();
 
         final Volume volume = _persistit.getVolume("persistit");
         final MediatedFileChannel mfc = (MediatedFileChannel) volume.getStorage().getChannel();

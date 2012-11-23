@@ -42,14 +42,12 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
     @Test
     public void recoverDynamicVolumes() throws Exception {
         VolumeSpecification volumeSpec;
-        final Configuration configuration = _persistit.getConfiguration();
         _persistit.close();
         int remainingJournalFiles = 0;
 
         for (int i = 5; --i >= 0;) {
-            final Persistit db = new Persistit();
+            final Persistit db = new Persistit(_config);
             try {
-                db.initialize(configuration);
                 volumeSpec = new VolumeSpecification(DATA_PATH + "/hwdemo" + i, null, 16384, 1, 1000, 1, true, false,
                         false);
                 db.loadVolume(volumeSpec);
@@ -79,9 +77,8 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
         configuration.setUseOldVSpec(true);
 
         for (int i = 5; --i >= 0;) {
-            final Persistit db = new Persistit();
+            final Persistit db = new Persistit(_config);
             try {
-                db.initialize(configuration);
                 volumeSpec = new VolumeSpecification(DATA_PATH + "/hwdemo" + i, null, 16384, 1, 1000, 1, true, false,
                         false);
                 db.loadVolume(volumeSpec);
@@ -138,14 +135,12 @@ public class CreateAndDeleteVolumeTest extends PersistitUnitTestCase {
     public void truncateDynamicVolumes() throws Exception {
 
         VolumeSpecification volumeSpec;
-        final Configuration configuration = _persistit.getConfiguration();
         _persistit.close();
 
-        final Persistit db = new Persistit();
+        final Persistit db = new Persistit(_config);
 
         for (int i = 0; i < 2; i++) {
             try {
-                db.initialize(configuration);
                 volumeSpec = new VolumeSpecification(DATA_PATH + "/truncated", null, 16384, 1, 1000, 1, true, false,
                         false);
                 final Volume volume = db.loadVolume(volumeSpec);

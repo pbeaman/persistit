@@ -115,12 +115,10 @@ public class Bug918909Test extends PersistitUnitTestCase {
                 txn.end();
             }
         }
-        final Properties properties = _persistit.getProperties();
         _persistit.crash();
 
         for (int i = 0; i < RESTART_ITERATIONS; i++) {
-            _persistit = new Persistit();
-            _persistit.initialize(properties);
+            _persistit = new Persistit(_config);
             final Exchange ex = _persistit.getExchange("persistit", "Bug918909Test", true);
             final Transaction txn = ex.getTransaction();
             txn.begin();
@@ -136,8 +134,7 @@ public class Bug918909Test extends PersistitUnitTestCase {
             _persistit.close();
         }
 
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         _persistit.checkpoint();
         _persistit.copyBackPages();
         assertTrue(_persistit.getJournalManager().getBaseAddress() > RESTART_ITERATIONS

@@ -36,7 +36,8 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
     @Test
     public void testBufferMemConfiguration() throws Exception {
         final Properties properties = UnitTestProperties.getPropertiesByMemory(true, "1M");
-        _persistit.initialize(properties);
+        _persistit.setProperties(properties);
+        _persistit.initialize();
         final BufferPoolInfo[] infoArray = _persistit.getManagement().getBufferPoolInfoArray();
         assertEquals(1, infoArray.length);
         final int bufferSize = infoArray[0].getBufferSize();
@@ -50,7 +51,8 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
     public void testBufferMemConfigurationErrors() throws Exception {
         Properties properties = UnitTestProperties.getPropertiesByMemory(true, "1000,999");
         try {
-            _persistit.initialize(properties);
+            _persistit.setProperties(properties);
+            _persistit.initialize();
             fail("Accepted allocation 10000 bytes");
         } catch (final IllegalArgumentException e) {
             // okay
@@ -58,7 +60,8 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
 
         properties = UnitTestProperties.getPropertiesByMemory(true, "10000G");
         try {
-            _persistit.initialize(properties);
+            _persistit.setProperties(properties);
+            _persistit.initialize();
             fail("Accepted allocation 10000G bytes");
         } catch (final IllegalArgumentException e) {
             // okay
@@ -67,7 +70,8 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
         properties = UnitTestProperties.getPropertiesByMemory(true, "10M");
         properties.put("buffer.count.16384", "1234");
         try {
-            _persistit.initialize(properties);
+            _persistit.setProperties(properties);
+            _persistit.initialize();
             fail("Accepted allocation specified by both count and size");
         } catch (final IllegalArgumentException e) {
             // okay

@@ -86,8 +86,7 @@ public class Bug1018526Test extends PersistitUnitTestCase {
         }
         final Configuration cfg = _persistit.getConfiguration();
         _persistit.close();
-        _persistit = new Persistit();
-        _persistit.initialize(cfg);
+        _persistit = new Persistit(cfg);
         final Map<Integer, TreeDescriptor> map = _persistit.getJournalManager().queryTreeMap();
         for (final Integer handle : permTreeHandleSet) {
             final TreeDescriptor td = map.remove(handle);

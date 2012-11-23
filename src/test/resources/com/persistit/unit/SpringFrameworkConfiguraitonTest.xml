@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE" />
+    </bean>
+
+    <bean id="persistit" class="com.persistit.Persistit" init-method="initialize">
+        <property name="configuration">
+            <bean class="com.persistit.Configuration">
+                <property name="bufferPoolConfiguration" value="16384,count=1000" />
+                <property name="volumeList">
+                    <list>
+                        <bean class="com.persistit.VolumeSpecification">
+                            <constructor-arg
+                                value="${com.persistit.datapath}/persistit,create,pageSize:16384,initialPages:100,extensionPages:100,maximumPages:25000" />
+                        </bean>
+                    </list>
+                </property>
+                <property name="journalPath" value="${com.persistit.datapath}/persistit_journal" />
+            </bean>
+        </property>
+    </bean>
+
+    <bean id="testClient" class="com.persistit.unit.SpringFrameworkConfigurationTest.TestClient">
+        <constructor-arg>
+            <ref local="persistit" />
+        </constructor-arg>
+    </bean>
+
+</beans>

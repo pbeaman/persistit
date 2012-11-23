@@ -69,8 +69,7 @@ public class PreloadMixtureTxn1 extends AbstractSuite {
             configuration.setBufferInventoryEnabled(true);
             configuration.setBufferPreloadEnabled(true);
 
-            final Persistit persistit = new Persistit();
-            persistit.initialize(configuration);
+            final Persistit persistit = new Persistit(configuration);
 
             try {
                 execute(persistit);

@@ -62,11 +62,9 @@ public class Bug980292Test extends PersistitUnitTestCase {
         _persistit.checkpoint();
         txn.rollback();
         txn.end();
-        final Properties properties = _persistit.getProperties();
         _persistit.getJournalManager().force();
         _persistit.crash();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         assertEquals(0, _persistit.getRecoveryManager().getErrorCount());
     }
 }

@@ -96,10 +96,12 @@ public class CommandLineTest extends PersistitUnitTestCase {
         for (int index = 0; index < 500; index++) {
             pmap.put(new Integer(index), "This is the record for index=" + index);
         }
-        _persistit.close();
 
         final String datapath = _persistit.getConfiguration().getProperty("datapath");
         final String rmiport = _persistit.getConfiguration().getProperty("rmiport");
+
+        _persistit.close();
+
         final StringReader stringReader = new StringReader(String.format(
                 "help\nopen datapath=%s rmiport=%s\nicheck -v\n", datapath, rmiport));
         final BufferedReader reader = new BufferedReader(stringReader);

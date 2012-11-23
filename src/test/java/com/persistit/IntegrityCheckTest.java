@@ -20,7 +20,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.PrintWriter;
-import java.util.Properties;
 
 import org.junit.Test;
 
@@ -174,12 +173,13 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
                 txn.end();
             }
         }
+        final Configuration config = _persistit.getConfiguration();
         _persistit.crash();
-        final Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
+        _persistit.setConfiguration(config);
         _persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
-        _persistit.initialize(properties);
+        _persistit.initialize();
         disableBackgroundCleanup();
 
         for (int i = 0; i < 10; i++) {
