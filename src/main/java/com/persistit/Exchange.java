@@ -3236,8 +3236,12 @@ public class Exchange {
                         try {
                             final int foundAt1 = search(key1, true) & P_MASK;
                             buffer = _levelCache[0]._buffer;
-
-                            if (foundAt1 > buffer.getKeyBlockStart() && foundAt1 < buffer.getKeyBlockEnd()) {
+                            //
+                            // Re-check tree generation because a structure delete could have changed
+                            // search results.
+                            //
+                            if (_tree.getGeneration() == _cachedTreeGeneration && foundAt1 > buffer.getKeyBlockStart()
+                                    && foundAt1 < buffer.getKeyBlockEnd()) {
                                 int foundAt2 = buffer.findKey(key2) & P_MASK;
                                 if (!buffer.isBeforeLeftEdge(foundAt2) && !buffer.isAfterRightEdge(foundAt2)) {
                                     foundAt2 &= P_MASK;
@@ -3386,6 +3390,8 @@ public class Exchange {
                     // needs to be removed. Now walk down the tree,
                     // stitching together the pages where necessary.
                     //
+                    _tree.bumpGeneration();
+                    
                     final long timestamp = timestamp();
                     for (int level = _cacheDepth; --level >= 0;) {
                         lc = _levelCache[level];
@@ -3519,9 +3525,6 @@ public class Exchange {
                     }
 
                     if (treeClaimAcquired) {
-                        if (treeWriterClaimRequired) {
-                            _tree.bumpGeneration();
-                        }
                         _treeHolder.release();
                         treeClaimAcquired = false;
                     }
