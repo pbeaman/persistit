@@ -19,7 +19,6 @@ import com.persistit.Accumulator;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
-import com.persistit.Transaction.CommitPolicy;
 import com.persistit.TransactionRunnable;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.ArgParser;

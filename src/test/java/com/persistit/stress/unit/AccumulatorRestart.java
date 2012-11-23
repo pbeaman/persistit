@@ -15,10 +15,7 @@
 
 package com.persistit.stress.unit;
 
-import java.rmi.RemoteException;
 import java.util.Random;
-
-import javax.management.ObjectName;
 
 import com.persistit.Accumulator;
 import com.persistit.Configuration;
@@ -26,7 +23,6 @@ import com.persistit.Exchange;
 import com.persistit.Persistit;
 import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
-import com.persistit.mxbeans.CheckpointManagerMXBean;
 import com.persistit.util.ArgParser;
 import com.persistit.util.Util;
 
@@ -41,7 +37,7 @@ import com.persistit.util.Util;
  * 
  */
 public class AccumulatorRestart extends StressBase {
-    final static Random RANDOM = new Random();
+    final static Random RANDOM = new Random(1);
 
     private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Repetitions" };
 
@@ -70,12 +66,13 @@ public class AccumulatorRestart extends StressBase {
         long maxValue = 0;
         long sumValue = 0;
         long seqValue = 0;
+        long seqCommit = 0;
 
         final Configuration config = getPersistit().getConfiguration();
-
         try {
             for (_count = 1;; _count++) {
-                System.out.println(_threadName + " starting cycle " + _count);
+                final boolean a = RANDOM.nextInt(10) == 0;
+                System.out.println(_threadName + " starting cycle " + _count + " abort=" + a);
                 _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
                 final Accumulator sum = _ex.getTree().getAccumulator(Accumulator.Type.SUM, 17);
                 final Accumulator max = _ex.getTree().getAccumulator(Accumulator.Type.MAX, 22);
@@ -87,7 +84,7 @@ public class AccumulatorRestart extends StressBase {
                     try {
                         final long minv = min.getSnapshotValue(txn);
                         final long maxv = max.getSnapshotValue(txn);
-                        final long seqv = seq.getSnapshotValue(txn);
+                        final long seqv = seq.getLiveValue();
                         final long sumv = sum.getSnapshotValue(txn);
                         if (minv != minValue || maxv != maxValue || seqv != seqValue || sumv != sumValue) {
                             fail(String.format("Values don't match: (min/max/seq/sum) "
@@ -99,8 +96,6 @@ public class AccumulatorRestart extends StressBase {
                         txn.end();
                     }
                 }
-                int seqValueHold = 0;
-                final boolean a = RANDOM.nextInt(50) == 0;
                 txn.begin();
                 try {
                     final long timeOffset = RANDOM.nextInt(1000) - 500;
@@ -110,6 +105,7 @@ public class AccumulatorRestart extends StressBase {
                         max.update(bsum(maxValue, r), txn);
                         seq.update(1, txn);
                         sum.update(r, txn);
+                        seqValue++;
                         long minWas = getLong(_ex.to("min"), Long.MAX_VALUE);
                         _ex.getValue().put(Math.min(bsum(minValue, r), minWas));
                         _ex.store();
@@ -117,23 +113,21 @@ public class AccumulatorRestart extends StressBase {
                         _ex.getValue().put(Math.max(bsum(maxValue, r), maxWas));
                         _ex.store();
                         long seqWas = getLong(_ex.to("seq"), 0);
-                        _ex.getValue().put(Math.max(seqValue + 1, seqWas));
+                        _ex.getValue().put(Math.max(seqValue, seqWas));
                         _ex.store();
                         long sumWas = getLong(_ex.to("sum"), 0);
                         _ex.getValue().put(Math.min(sumValue + r, sumWas));
                         _ex.store();
-                        seqValueHold++;
                         if (!a) {
                             minValue = Math.min(bsum(minValue, r), minValue);
                             maxValue = Math.max(bsum(maxValue, r), maxValue);
-                            seqValue = seqValue + seqValueHold;
                             sumValue = sumValue + r;
-                            seqValueHold = 0;
                         }
                     }
                     if (a) {
                         txn.rollback();
                     } else {
+                        seqCommit = seqValue;
                         txn.commit();
                     }
                 } finally {
@@ -150,6 +144,7 @@ public class AccumulatorRestart extends StressBase {
                     db = new Persistit();
                     db.initialize(config);
                     setPersistit(db);
+                    seqValue = seqCommit;
                 }
             }
         } catch (final Exception ex) {
