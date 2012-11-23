@@ -72,7 +72,9 @@ public class DumpTaskTest extends PersistitUnitTestCase {
         final CLI cli = new CLI(_persistit, null, null);
         final File file = File.createTempFile("DumpTaskTest", ".zip");
         file.deleteOnExit();
-        cli.dump(file.getPath(), true, true, true);
+        Task task = cli.dump(file.getPath(), true, true, false);
+        task.setPersistit(_persistit);
+        task.run();
 
         final ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(file)));
         final ZipEntry ze = zis.getNextEntry();
