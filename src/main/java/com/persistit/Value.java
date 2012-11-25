@@ -4098,6 +4098,7 @@ public final class Value {
             putNull();
             return;
         }
+        preparePut();
         _depth++;
         int end = _size;
         try {

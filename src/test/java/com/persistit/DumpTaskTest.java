@@ -72,7 +72,7 @@ public class DumpTaskTest extends PersistitUnitTestCase {
         final CLI cli = new CLI(_persistit, null, null);
         final File file = File.createTempFile("DumpTaskTest", ".zip");
         file.deleteOnExit();
-        Task task = cli.dump(file.getPath(), true, true, false);
+        final Task task = cli.dump(file.getPath(), true, true, false);
         task.setPersistit(_persistit);
         task.run();
 
