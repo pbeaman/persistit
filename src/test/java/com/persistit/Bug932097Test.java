@@ -15,8 +15,6 @@
 
 package com.persistit;
 
-import java.util.Properties;
-
 import org.junit.Test;
 
 public class Bug932097Test extends PersistitUnitTestCase {

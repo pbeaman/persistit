@@ -40,6 +40,7 @@ import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.SerialValueCoder;
 import com.persistit.encoding.ValueCoder;
+import com.persistit.encoding.ValueRenderer;
 import com.persistit.exception.PersistitException;
 
 public class ValueTest3 extends PersistitUnitTestCase {
@@ -320,9 +321,9 @@ public class ValueTest3 extends PersistitUnitTestCase {
         private final static long serialVersionUID = 1L;
         private final Thread _thread = Thread.currentThread(); // intentionally
 
-        // not
-        // Serializable
+        // Externalizable -- requires a public no-arg constructor
 
+        @SuppressWarnings("unused")
         public EE() {
             super();
         }
@@ -353,7 +354,6 @@ public class ValueTest3 extends PersistitUnitTestCase {
 
     @Test
     public void test1() throws PersistitException {
-        System.out.print("test1 ");
         final S s = new S();
         s._a = "1";
         s._b = "2";
@@ -361,12 +361,10 @@ public class ValueTest3 extends PersistitUnitTestCase {
         _exchange.clear().append("test1").store();
         final Object x = _exchange.getValue().get();
         assertEquals("S:12", x.toString());
-        System.out.println("- done");
     }
 
     @Test
     public void test2() throws PersistitException {
-        System.out.print("test2 ");
         final SS ss = new SS("3", "4");
         ss._a = "1";
         ss._b = "2";
@@ -374,12 +372,10 @@ public class ValueTest3 extends PersistitUnitTestCase {
         _exchange.clear().append("test2").store();
         final Object x = _exchange.getValue().get();
         assertEquals("SS:1234", x.toString());
-        System.out.println("- done");
     }
 
     @Test
     public void test3() throws PersistitException {
-        System.out.print("test3 ");
         final E e = new E();
         e._a = "1";
         e._b = "2";
@@ -387,12 +383,10 @@ public class ValueTest3 extends PersistitUnitTestCase {
         _exchange.clear().append("test3").store();
         final Object x = _exchange.getValue().get();
         assertEquals("E:12", x.toString());
-        System.out.println("- done");
     }
 
     @Test
     public void test4() throws PersistitException {
-        System.out.print("test4 ");
         final EE ee = new EE("6", "7");
         ee._a = "1";
         ee._b = "2";
@@ -400,34 +394,28 @@ public class ValueTest3 extends PersistitUnitTestCase {
         _exchange.clear().append("test4").store();
         final Object x = _exchange.getValue().get();
         assertEquals("EE:12", x.toString());
-        System.out.println("- done");
     }
 
     @Test
     public void test5() throws PersistitException {
-        System.out.print("test5 ");
         final T t = new T("1", "2");
         _exchange.getValue().put(t);
         _exchange.clear().append("test5").store();
         final Object x = _exchange.getValue().get();
         assertEquals("T:12", x.toString());
-        System.out.println("- done");
     }
 
     @Test
     public void test6() throws PersistitException {
-        System.out.print("test6 ");
         final TT tt = new TT("1", "2");
         _exchange.getValue().put(tt);
         _exchange.clear().append("test6").store();
         final Object x = _exchange.getValue().get();
         assertEquals("TT:12", x.toString());
-        System.out.println("- done");
     }
 
     @Test
     public void test7() throws PersistitException {
-        System.out.print("test7 ");
         final CoderManager cm = _persistit.getCoderManager();
         cm.registerValueCoder(TTT.class, new TTTValueCoder(_persistit));
         TTTValueCoder._getCounter = 0;
@@ -438,12 +426,10 @@ public class ValueTest3 extends PersistitUnitTestCase {
         assertEquals("TTT:12", x.toString());
         assertEquals(1, TTTValueCoder._getCounter);
         cm.unregisterValueCoder(TTT.class);
-        System.out.println("- done");
     }
 
     @Test
     public void test8() throws PersistitException {
-        System.out.print("test8 ");
         final CoderManager cm = _persistit.getCoderManager();
         cm.registerValueCoder(TTT.class, new TTTValueCoder(_persistit));
         TTTValueCoder._getCounter = 0;
@@ -454,12 +440,10 @@ public class ValueTest3 extends PersistitUnitTestCase {
         assertEquals("TTT:12", x.toString());
         assertEquals(1, TTTValueCoder._getCounter);
         cm.unregisterValueCoder(TTT.class);
-        System.out.println("- done");
     }
 
     @Test
     public void test9() throws PersistitException {
-        System.out.print("test9 ");
         final SSS sss = new SSS("3", "4", true, 5);
         sss._a = "1";
         sss._b = "2";
@@ -467,12 +451,10 @@ public class ValueTest3 extends PersistitUnitTestCase {
         _exchange.clear().append("test9").store();
         final Object x = _exchange.getValue().get();
         assertEquals("SSS:1234trueW:5", x.toString());
-        System.out.println("- done");
     }
 
     @Test
     public void test10() throws PersistitException {
-        System.out.print("test10 ");
         final SSS sss = new SSS("3", "4", true, 5);
         sss._a = "1";
         sss._b = "2";
@@ -480,12 +462,10 @@ public class ValueTest3 extends PersistitUnitTestCase {
         _exchange.clear().append("test10").store();
         final Object x = _exchange.getValue().get();
         assertEquals("SSS:1234trueW:5", x.toString());
-        System.out.println("- done");
     }
 
     @Test
     public void test11() throws PersistitException {
-        System.out.print("test11 ");
         final SSSS ssss = new SSSS();
         ssss._a = "Field a";
         ssss._b = "Field b";
@@ -494,16 +474,11 @@ public class ValueTest3 extends PersistitUnitTestCase {
         _exchange.getValue().put(ssss);
         _exchange.clear().append("test11").store();
         final Object x = _exchange.getValue().get();
-        // assertEquals("SSSS:0000falsenull", x.toString());
-        System.out.print("  x=" + x + " ");
-        System.out.println();
-        System.out.println("Value: " + _exchange.getValue());
-        System.out.println("- done");
+        assertEquals("SSSS:Field aField bSSSS-cSSSS-dtrueW:42Field gnullFinal field", x.toString());
     }
 
     @Test
     public void test12() throws PersistitException {
-        System.out.print("test12 ");
         final CoderManager cm = _persistit.getCoderManager();
         final ValueCoder defaultCoder = cm.getValueCoder(SSSS.class);
         _persistit.getCoderManager().registerValueCoder(SSSS.class, new SerialValueCoder(SSSS.class));
@@ -515,34 +490,41 @@ public class ValueTest3 extends PersistitUnitTestCase {
         _exchange.getValue().put(ssss);
         _exchange.clear().append("test12").store();
         final Object x = _exchange.getValue().get();
-        // assertEquals("SSSS:0000falsenull", x.toString());
-        System.out.print("  x=" + x + " ");
-        System.out.println();
-        System.out.println("Value: " + _exchange.getValue());
+        assertEquals("SSSS:Field aField bSSSS-cSSSS-dtrueW:42Field gnullFinal field", x.toString());
         cm.registerValueCoder(SSSS.class, defaultCoder);
-        System.out.println("- done");
+    }
+
+    @Test
+    public void testDirectPutAndGet() throws PersistitException {
+        final Value value = _exchange.getValue();
+        final CoderManager cm = _persistit.getCoderManager();
+        final ValueRenderer vr = new TTTValueCoder(_persistit);
+        cm.registerValueCoder(TTT.class, vr);
+        TTTValueCoder._getCounter = 0;
+        final TTT t = new TTT("1", "2");
+        value.put(t);
+        _exchange.clear().append("test7").store();
+        value.clear();
+        _exchange.fetch();
+        final Object x = value.directGet(vr, TTT.class, null);
+        assertEquals("TTT:12", x.toString());
+        assertEquals(1, TTTValueCoder._getCounter);
+        final Object y = value.directGet(vr, TTT.class, null);
+        assertEquals("TTT:12", y.toString());
+        final TTT z = new TTT("3", "4");
+        value.directPut(vr, z, null);
+        assertEquals(z.toString(), value.get().toString());
+        assertEquals(z.toString(), value.directGet(vr, TTT.class, null).toString());
+        value.directPut(vr, t, null);
+        assertEquals(t.toString(), value.directGet(vr, TTT.class, null).toString());
+        value.directPut(vr, t, null);
+        assertEquals(t.toString(), value.directGet(vr, TTT.class, null).toString());
+
+        cm.unregisterValueCoder(TTT.class);
     }
 
     public static void main(final String[] args) throws Exception {
         new ValueTest3().initAndRunTest();
-    }
-
-    @Override
-    public void runAllTests() throws Exception {
-        _exchange = _persistit.getExchange("persistit", "ValueTest3", true);
-
-        test1();
-        test2();
-        test3();
-        test4();
-        test5();
-        test6();
-        test7();
-        test8();
-        test9();
-        test10();
-        test11();
-        test12();
     }
 
 }

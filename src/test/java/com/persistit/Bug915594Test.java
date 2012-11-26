@@ -17,8 +17,6 @@ package com.persistit;
 
 import static org.junit.Assert.assertTrue;
 
-import java.util.Properties;
-
 import org.junit.Test;
 
 /**

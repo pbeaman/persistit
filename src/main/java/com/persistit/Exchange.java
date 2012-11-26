@@ -3237,7 +3237,8 @@ public class Exchange {
                             final int foundAt1 = search(key1, true) & P_MASK;
                             buffer = _levelCache[0]._buffer;
                             //
-                            // Re-check tree generation because a structure delete could have changed
+                            // Re-check tree generation because a structure
+                            // delete could have changed
                             // search results.
                             //
                             if (_tree.getGeneration() == _cachedTreeGeneration && foundAt1 > buffer.getKeyBlockStart()
@@ -3391,7 +3392,7 @@ public class Exchange {
                     // stitching together the pages where necessary.
                     //
                     _tree.bumpGeneration();
-                    
+
                     final long timestamp = timestamp();
                     for (int level = _cacheDepth; --level >= 0;) {
                         lc = _levelCache[level];
