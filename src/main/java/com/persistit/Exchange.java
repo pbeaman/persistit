@@ -49,6 +49,7 @@ import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
+import com.persistit.exception.RebalanceException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TreeNotFoundException;
@@ -3237,7 +3238,8 @@ public class Exchange {
                             final int foundAt1 = search(key1, true) & P_MASK;
                             buffer = _levelCache[0]._buffer;
                             //
-                            // Re-check tree generation because a structure delete could have changed
+                            // Re-check tree generation because a structure
+                            // delete could have changed
                             // search results.
                             //
                             if (_tree.getGeneration() == _cachedTreeGeneration && foundAt1 > buffer.getKeyBlockStart()
@@ -3391,7 +3393,7 @@ public class Exchange {
                     // stitching together the pages where necessary.
                     //
                     _tree.bumpGeneration();
-                    
+
                     final long timestamp = timestamp();
                     for (int level = _cacheDepth; --level >= 0;) {
                         lc = _levelCache[level];
@@ -3421,8 +3423,15 @@ public class Exchange {
 
                             Debug.$assert0.t(_tree.isOwnedAsWriterByMe() && buffer1.isOwnedAsWriterByMe()
                                     && buffer2.isOwnedAsWriterByMe());
-                            final boolean rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1,
-                                    _spareKey2, _joinPolicy);
+                            boolean rebalanced = false;
+                            try {
+                                rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1, _spareKey2,
+                                        _joinPolicy);
+                            } catch (final RebalanceException rbe) {
+                                rebalanceSplit(lc);
+                                level++;
+                                continue;
+                            }
                             if (buffer1.isDataPage()) {
                                 _tree.bumpChangeCount();
                             }
@@ -3580,6 +3589,58 @@ public class Exchange {
         return result;
     }
 
+    /**
+     * Handle the extremely rare case where removing a key from a pair of
+     * adjacent pages requires the left page to be split. To split the page this
+     * method inserts an empty record with key being deleted, allowing the
+     * {@link Buffer#split(Buffer, Key, ValueHelper, int, Key, Sequence, SplitPolicy)}
+     * method to be used.
+     * 
+     * @param lc
+     *            LevelCache set up by raw_removeKeyRangeInternal
+     * @throws PersistitException
+     */
+    private void rebalanceSplit(final LevelCache lc) throws PersistitException {
+        //
+        // Allocate a new page
+        //
+        final int level = lc._level;
+        final int foundAt = lc._leftFoundAt;
+        final Buffer left = lc._leftBuffer;
+        final Buffer inserted = _volume.getStructure().allocPage();
+        try {
+            final long timestamp = timestamp();
+            left.writePageOnCheckpoint(timestamp);
+            inserted.writePageOnCheckpoint(timestamp);
+
+            Debug.$assert0.t(inserted.getPageAddress() != 0);
+            Debug.$assert0.t(inserted != left);
+
+            inserted.init(left.getPageType());
+
+            final Value value = _persistit.getThreadLocalValue();
+            value.clear();
+            _rawValueWriter.init(value);
+            final Key key = _persistit.getThreadLocalKey();
+            lc._rightBuffer.nextKey(key, Buffer.HEADER_SIZE);
+
+            left.split(inserted, key, _rawValueWriter, foundAt | EXACT_MASK, _spareKey1, Sequence.NONE,
+                    SplitPolicy.EVEN_BIAS);
+
+            inserted.setRightSibling(left.getRightSibling());
+            left.setRightSibling(inserted.getPageAddress());
+            left.setDirtyAtTimestamp(timestamp);
+            inserted.setDirtyAtTimestamp(timestamp);
+            lc._leftBuffer = inserted;
+            lc._leftFoundAt = inserted.findKey(key);
+
+            _persistit.getCleanupManager().offer(
+                    new CleanupManager.CleanupIndexHole(_tree.getHandle(), inserted.getPageAddress(), level));
+        } finally {
+            left.releaseTouched();
+        }
+    }
+
     private void removeKeyRangeReleaseLevel(final int level) {
 
         final LevelCache lc = _levelCache[level];
@@ -3709,12 +3770,12 @@ public class Exchange {
                 final int offset = (int) (at >>> 32);
                 final int size = (int) at;
                 if (size == 1 && buffer.getBytes()[offset] == MVV.TYPE_ANTIVALUE) {
-                    buffer.nextKey(_spareKey1, Buffer.KEY_BLOCK_START);
+                    buffer.nextKey(_spareKey3, Buffer.KEY_BLOCK_START);
                     buffer.release();
                     buffer = null;
-                    _spareKey1.copyTo(_spareKey2);
-                    _spareKey2.nudgeDeeper();
-                    raw_removeKeyRangeInternal(_spareKey1, _spareKey2, false, true);
+                    _spareKey3.copyTo(_spareKey4);
+                    _spareKey4.nudgeDeeper();
+                    raw_removeKeyRangeInternal(_spareKey3, _spareKey4, false, true);
                     return true;
                 }
             }

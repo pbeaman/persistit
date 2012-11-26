@@ -1195,10 +1195,10 @@ public class Persistit {
     public String getProperty(final String key) {
         return getConfiguration().getProperty(key);
     }
-    
+
     @Deprecated
     public String substituteProperties(final String text, final Properties properties) {
-         return getConfiguration().substituteProperties(text, properties);
+        return getConfiguration().substituteProperties(text, properties);
     }
 
     /**
