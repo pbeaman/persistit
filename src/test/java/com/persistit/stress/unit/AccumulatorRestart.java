@@ -106,16 +106,16 @@ public class AccumulatorRestart extends StressBase {
                         seq.update(1, txn);
                         sum.update(r, txn);
                         seqValue++;
-                        long minWas = getLong(_ex.to("min"), Long.MAX_VALUE);
+                        final long minWas = getLong(_ex.to("min"), Long.MAX_VALUE);
                         _ex.getValue().put(Math.min(bsum(minValue, r), minWas));
                         _ex.store();
-                        long maxWas = getLong(_ex.to("max"), Long.MIN_VALUE);
+                        final long maxWas = getLong(_ex.to("max"), Long.MIN_VALUE);
                         _ex.getValue().put(Math.max(bsum(maxValue, r), maxWas));
                         _ex.store();
-                        long seqWas = getLong(_ex.to("seq"), 0);
+                        final long seqWas = getLong(_ex.to("seq"), 0);
                         _ex.getValue().put(Math.max(seqValue, seqWas));
                         _ex.store();
-                        long sumWas = getLong(_ex.to("sum"), 0);
+                        final long sumWas = getLong(_ex.to("sum"), 0);
                         _ex.getValue().put(Math.min(sumValue + r, sumWas));
                         _ex.store();
                         if (!a) {
@@ -150,7 +150,7 @@ public class AccumulatorRestart extends StressBase {
         } catch (final Exception ex) {
             handleThrowable(ex);
         } finally {
-            Persistit db = getPersistit();
+            final Persistit db = getPersistit();
             try {
                 db.close();
             } catch (final PersistitException pe) {

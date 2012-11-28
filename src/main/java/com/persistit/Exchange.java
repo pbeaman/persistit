@@ -44,6 +44,7 @@ import com.persistit.Key.Direction;
 import com.persistit.MVV.PrunedVersion;
 import com.persistit.ValueHelper.MVVValueWriter;
 import com.persistit.ValueHelper.RawValueWriter;
+import com.persistit.VolumeStructure.Chain;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
@@ -1662,10 +1663,14 @@ public class Exchange {
                         buffer.releaseTouched();
                         buffer = null;
                     }
+                    if (treeClaimAcquired) {
+                        _treeHolder.release();
+                        treeClaimAcquired = false;
+                    }
                     try {
                         sequence(WRITE_WRITE_STORE_A);
-                        // TODO - timeout?
                         final long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
+                        // TODO - timeout?
                                 _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME);
                         if (depends != 0 && depends != TransactionStatus.ABORTED) {
                             // version is from concurrent txn that already
@@ -3260,6 +3265,7 @@ public class Exchange {
                     // First try for a quick delete from a single data page.
                     //
                     if (tryQuickDelete) {
+                        final List<Chain> chains = new ArrayList<Chain>();
                         Buffer buffer = null;
                         try {
                             final int foundAt1 = search(key1, true) & P_MASK;
@@ -3290,7 +3296,7 @@ public class Exchange {
 
                                         final long timestamp = timestamp();
                                         buffer.writePageOnCheckpoint(timestamp);
-                                        _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2);
+                                        _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2, chains);
 
                                         final boolean removed = buffer.removeKeys(foundAt1, foundAt2, _spareKey1);
                                         if (removed) {
@@ -3311,6 +3317,7 @@ public class Exchange {
                                 buffer = null;
                             }
                         }
+                        _volume.getStructure().deallocateGarbageChain(chains);
                     }
 
                     /*
