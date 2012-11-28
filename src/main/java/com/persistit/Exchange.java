@@ -39,11 +39,12 @@ import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.util.ArrayList;
 import java.util.List;
-import com.persistit.VolumeStructure.Chain;
+
 import com.persistit.Key.Direction;
 import com.persistit.MVV.PrunedVersion;
 import com.persistit.ValueHelper.MVVValueWriter;
 import com.persistit.ValueHelper.RawValueWriter;
+import com.persistit.VolumeStructure.Chain;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
