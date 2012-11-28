@@ -970,6 +970,26 @@ public class Exchange {
      * An additional <code>Key</code> maintained for the convenience of
      * {@link Transaction}, {@link PersistitMap} and {@link JournalManager}.
      * 
+     * @return spareKey3
+     */
+    Key getAuxiliaryKey3() {
+        return _spareKey3;
+    }
+
+    /**
+     * An additional <code>Key</code> maintained for the convenience of
+     * {@link Transaction}, {@link PersistitMap} and {@link JournalManager}.
+     * 
+     * @return spareKey4
+     */
+    Key getAuxiliaryKey4() {
+        return _spareKey4;
+    }
+
+    /**
+     * An additional <code>Key</code> maintained for the convenience of
+     * {@link Transaction}, {@link PersistitMap} and {@link JournalManager}.
+     * 
      * @return spareKey2
      */
     Key getAuxiliaryKey2() {
@@ -3197,6 +3217,13 @@ public class Exchange {
      */
     boolean raw_removeKeyRangeInternal(final Key key1, final Key key2, final boolean fetchFirst,
             final boolean removeOnlyAntiValue) throws PersistitException {
+        /*
+         * _spareKey1 and _spareKey2 are mutated within the method and are then
+         * wrong in the event of a retry loop.
+         */
+
+        assert key1 != _spareKey1 && key2 != _spareKey1 && key1 != _spareKey2 && key2 != _spareKey2;
+
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
