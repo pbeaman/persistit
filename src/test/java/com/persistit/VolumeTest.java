@@ -24,7 +24,6 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.util.List;
-import java.util.Properties;
 
 import org.junit.Test;
 
