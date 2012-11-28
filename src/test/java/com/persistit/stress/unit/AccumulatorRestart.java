@@ -170,7 +170,7 @@ public class AccumulatorRestart extends StressBase {
             }
         }
         if (_checkpointTime != 0) {
-            if (timeOffset > 0 && now > _checkpointTime + timeOffset) {
+            if (timeOffset >= 0 && now > _checkpointTime + timeOffset) {
                 _checkpointTime = 0;
                 return true;
             } else if (timeOffset < 0 && now > _checkpointTime + timeOffset + CHECKPOINT_INTERVAL * Util.MS_PER_S) {

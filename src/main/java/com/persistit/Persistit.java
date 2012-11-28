@@ -203,7 +203,7 @@ public class Persistit {
      * Start time
      */
     private final long _startTime = System.currentTimeMillis();
-    private Configuration _configuration;
+    private volatile Configuration _configuration;
 
     private final HashMap<Integer, BufferPool> _bufferPoolTable = new HashMap<Integer, BufferPool>();
     private final ArrayList<Volume> _volumes = new ArrayList<Volume>();
@@ -1182,7 +1182,7 @@ public class Persistit {
         return System.currentTimeMillis() - _startTime;
     }
 
-    public synchronized Configuration getConfiguration() {
+    public Configuration getConfiguration() {
         return _configuration;
     }
 
