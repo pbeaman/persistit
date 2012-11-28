@@ -199,8 +199,8 @@ class TransactionPlayer {
                     final int elisionCount = DR.getKey2Elision(bb);
                     final Exchange exchange = getExchange(DR.getTreeHandle(bb), address, startTimestamp);
                     exchange.ignoreTransactions();
-                    final Key key1 = exchange.getAuxiliaryKey1();
-                    final Key key2 = exchange.getAuxiliaryKey2();
+                    final Key key1 = exchange.getAuxiliaryKey3();
+                    final Key key2 = exchange.getAuxiliaryKey4();
                     System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0, key1Size);
                     key1.setEncodedSize(key1Size);
                     final int key2Size = innerSize - DR.OVERHEAD - key1Size;
@@ -208,8 +208,7 @@ class TransactionPlayer {
                     System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD + key1Size, key2.getEncodedBytes(),
                             elisionCount, key2Size);
                     key2.setEncodedSize(key2Size + elisionCount);
-                    listener.removeKeyRange(address, startTimestamp, exchange, exchange.getAuxiliaryKey1(),
-                            exchange.getAuxiliaryKey2());
+                    listener.removeKeyRange(address, startTimestamp, exchange, key1, key2);
                     appliedUpdates.incrementAndGet();
                     releaseExchange(exchange);
                     break;

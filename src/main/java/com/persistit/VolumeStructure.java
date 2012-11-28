@@ -624,7 +624,7 @@ class VolumeStructure {
                      * Detects whether and prevents same pointer from being read
                      * and deallocated twice.
                      */
-                    buffer.setLongRecordPointer(p, INVALID_PAGE_ADDRESS);
+                    buffer.neuterLongRecord(p);
                 }
             }
         }

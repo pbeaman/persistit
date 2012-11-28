@@ -44,7 +44,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     private final static long MINIMUM_MAINTENANCE_INTERVAL_NS = 1000000000L;
 
-    private final static long MINIMUM_PRUNE_OBSOLETE_TRANSACTIONS_INTERVAL_NS = 50000000000L;
+    private final static long MINIMUM_PRUNE_OBSOLETE_TRANSACTIONS_INTERVAL_NS = 5000000000L;
 
     private final static long DEFAULT_MINIMUM_PRUNING_DELAY_NS = 1000;
 
