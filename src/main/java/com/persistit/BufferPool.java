@@ -746,9 +746,7 @@ public class BufferPool {
                     Debug.$assert1.t(!buffer.isDirty());
                     Debug.$assert0.t(buffer != _hashTable[hash]);
                     Debug.$assert0.t(buffer.getNext() != buffer);
-                    if (page != buffer.getPageAddress() || vol != buffer.getVolume()) {
-                        buffer.changed();
-                    }
+
                     buffer.setPageAddressAndVolume(page, vol);
                     buffer.setNext(_hashTable[hash]);
                     _hashTable[hash] = buffer;
@@ -772,16 +770,15 @@ public class BufferPool {
             if (mustClaim) {
                 boolean claimed = false;
                 boolean same = true;
-                long now = System.currentTimeMillis();
-                final long expires = now + SharedResource.DEFAULT_MAX_WAIT_TIME;
-                while (same && !claimed && (now = System.currentTimeMillis()) < expires) {
+                final long expires = System.currentTimeMillis() + SharedResource.DEFAULT_MAX_WAIT_TIME;
+                while (same && !claimed && System.currentTimeMillis() < expires) {
                     /*
                      * We're here because we found the page we want, but another
                      * thread has an incompatible claim on it. Here we wait,
                      * then recheck to make sure the buffer still represents the
                      * same page.
                      */
-                    claimed = buffer.claim(writer, expires - now);
+                    claimed = buffer.claim(writer, Persistit.SHORT_DELAY);
                     //
                     // Test whether the buffer we picked out is still valid
                     //
@@ -1548,5 +1545,4 @@ public class BufferPool {
         final Volume sysvol = _persistit.getSystemVolume();
         return _persistit.getExchange(sysvol, INVENTORY_TREE_NAME, true);
     }
-
 }

@@ -15,7 +15,6 @@
 
 package com.persistit;
 
-import java.util.Collection;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -257,8 +256,6 @@ class SharedResource {
 
     private final Sync _sync = new Sync();
 
-    private volatile int _id;
-
     /**
      * A counter that increments every time the resource is changed.
      */
@@ -306,26 +303,6 @@ class SharedResource {
         return t != null && t != Thread.currentThread();
     }
 
-    void changed() {
-        assert isOwnedAsWriterByMe();
-        final Collection<Thread> threads = _sync.getQueuedThreads();
-        _id++;
-        for (final Thread t : threads) {
-            /*
-             * This check for isQueued is necessary because interrupting one
-             * Thread on the list may allow other threads on the list to acquire
-             * the resource and continue. If that happens, the thread may be
-             * interrupted at some unrelated location. (Observed in stress
-             * tests.) This test for isQueued walks the queue and therefore
-             * could cause this loop to have O(N^2) performance, but we think it
-             * occurs rarely and that the list is usually empty or short.
-             */
-            if (_sync.isQueued(t)) {
-                t.interrupt();
-            }
-        }
-    }
-
     boolean claim(final boolean writer) throws PersistitInterruptedException {
         return claim(writer, DEFAULT_MAX_WAIT_TIME);
     }
@@ -338,7 +315,6 @@ class SharedResource {
                 return _sync.tryAcquireShared(1) >= 0;
             }
         } else {
-            final int id = _id;
             try {
                 if (writer) {
                     if (_sync.tryAcquireNanos(1, timeout * 1000000)) {
@@ -350,11 +326,7 @@ class SharedResource {
                     }
                 }
             } catch (final InterruptedException e) {
-                if (id == _id) {
-                    throw new PersistitInterruptedException(e);
-                } else {
-                    return false;
-                }
+                throw new PersistitInterruptedException(e);
             }
             return false;
         }
