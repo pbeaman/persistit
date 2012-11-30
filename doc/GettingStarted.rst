@@ -125,7 +125,7 @@ Although ``HelloWorld.java`` is not very useful, it demonstrates several of the 
 Initialization and Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Before accessing any data, ``HelloWorld.java`` calls the ``com.persistit.Persistit#initialize()`` method of ``com.persistit.Persistit``. This sets up the memory configuration for buffers and the path names of Persistit volume and journal files. Alternative methods accept configuration information from a ``com.persistit.Configuration`` object, a ``java.util.Properties`` object, a specified properties file, or by default from the file named ``persistit.properties``.
+Before accessing any data, ``HelloWorld.java`` calls the ``com.persistit.Persistit#initialize()``. This sets up the memory configuration for buffers and the path names of Persistit volume and journal files. Alternative methods accept configuration information from a ``com.persistit.Configuration`` object, a ``java.util.Properties`` object, a specified properties file, or by default from the file named ``persistit.properties`` in the current working directory.
 
 In this example, ``persistit.properties`` looks like this:: 
 

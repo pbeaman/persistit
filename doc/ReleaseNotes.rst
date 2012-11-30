@@ -87,11 +87,10 @@ Persistit 3.2.2 - Spring Framework
 -----------------------------------------------------
 Prior to this release Persistit was needlessly difficult to configure and initialize within Spring Framework.
 This version provides new setter methods and constructors on the com.persistit.Persistit object to allow easy
-injection of configuration properties and therefore to make it possible to inject a fully instantiated
+injection of configuration properties and make it possible to inject a fully instantiated
 Persistit instance within a Spring project. In addition, new methods were added to the 
 com.persistit.Configuration class to simplify supplying buffer pool and initial volume specifications.
-
-Two existing methods related to initializing Persistit were deprecated.
+Three of the ``com.persistit.Persistit#initialize`` methods were deprecated.
 
 This release also adds a new sample application that shows how a configured Persistit instance can be created. For
 Maven users, note that the pom.xml file now includes a dependency on Spring Framework in test scope only; Persistit 
@@ -99,12 +98,11 @@ can still be deployed without any external dependencies.
 
 Persistit 3.2.2 - Bug Fixes
 -----------------------------------------------------
-Version 3.2.2 corrects two issues that were identified through the stress tests. For this release
+Version 3.2.2 corrects two issues that were identified through stress tests. For this release
 we added hundreds of hours of stress-testing experience and will continue to invest in ongoing testing.
 
 This version also fixes a unit test with string literals containing numbers formatted according to en_US
-conventions. This test has been corrected to work correctly in any locale and the Persistit build has been
-tested in several locales.
+conventions. The test has been corrected and the Persistit build has been tested in several locales.
 
 Persistit 3.2.1 - Bug Fixes
 -----------------------------------------------------

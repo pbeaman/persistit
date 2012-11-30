@@ -25,7 +25,7 @@ The following code samples show different ways of configuring and starting Persi
 .. code-block:: java
 
   final Persistit db = new Persistit();
-  db.setPropertiesPropertiesFromFile("/home/akiban/my_config.properties");
+  db.setPropertiesFromFile("/home/akiban/my_config.properties");
   db.initialize();
 
 .. code-block:: java
