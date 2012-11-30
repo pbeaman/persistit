@@ -45,7 +45,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
-import com.persistit.mxbeans.CheckpointManagerMXBean;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.util.Util;
@@ -63,13 +62,13 @@ import com.persistit.util.Util;
  * <code>Configuration</code>. This object is used directly or indirectly by the
  * following methods:
  * <ul>
- * <li>{@link Persistit#initialize(Configuration)} - uses a supplied
+ * <li>{@link Persistit#setConfiguration(Configuration)} - assigns a supplied
  * <code>Configuration</code> directly.</li>
- * <li>{@link Persistit#initialize(Properties)} - creates and loads a
+ * <li>{@link Persistit#setProperties(Properties)} - creates and loads a
  * <code>Configuration</code> from the supplied <code>Properties</code>.</li>
- * <li>{@link Persistit#initialize(String)} - loads a properties file from the
- * specified file name, and then constructs a <code>Configuration</code> from
- * the loaded <code>Properties</code>.
+ * <li>{@link Persistit#setPropertiesFromFile(String)} - loads a properties file
+ * from the specified file name, and then constructs a
+ * <code>Configuration</code> from the loaded <code>Properties</code>.
  * <li>{@link Persistit#initialize()} - loads a properties file from a default
  * name and then constructs a <code>Configuration</code> from the loaded
  * <code>Properties</code>.
@@ -1436,7 +1435,8 @@ public class Configuration {
      * from an abrupt termination (crash) to take more time.
      * </p>
      * Default size is
-     * {@value com.persistit.mxbeans.CheckpointManagerMXBean#DEFAULT_CHECKPOINT_INTERVAL_S} <br/>
+     * {@value com.persistit.mxbeans.CheckpointManagerMXBean#DEFAULT_CHECKPOINT_INTERVAL_S}
+     * <br/>
      * Property name is {@value #CHECKPOINT_INTERVAL_PROPERTY_NAME}
      */
     public void setCheckpointInterval(final long checkpointInterval) {
