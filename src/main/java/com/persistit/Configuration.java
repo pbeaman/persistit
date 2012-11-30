@@ -1160,10 +1160,6 @@ public class Configuration {
      *            value is invalid.
      * @param str
      *            The string representation, e.g., "100K".
-     * @param min
-     *            Minimum permissible value
-     * @param max
-     *            Maximum permissible value
      * @return The numeric value of the supplied String, as a floag.
      * @throws IllegalArgumentException
      *             if the supplied String is not a valid floating point
@@ -1440,7 +1436,7 @@ public class Configuration {
      * from an abrupt termination (crash) to take more time.
      * </p>
      * Default size is
-     * {@value CheckpointManagerMXBean#DEFAULT_CHECKPOINT_INTERVAL_S} <br/>
+     * {@value com.persistit.mxbeans.CheckpointManagerMXBean#DEFAULT_CHECKPOINT_INTERVAL_S} <br/>
      * Property name is {@value #CHECKPOINT_INTERVAL_PROPERTY_NAME}
      */
     public void setCheckpointInterval(final long checkpointInterval) {
