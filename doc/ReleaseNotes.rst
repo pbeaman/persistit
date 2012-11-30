@@ -1,5 +1,5 @@
 ************************************
-Akiban Persistit Version 3.2.1
+Akiban Persistit Version 3.2.2
 ************************************
 
 Overview
@@ -50,6 +50,10 @@ Version History
 +---------+--------------------+--------------------------------------------------------------------------+
 | Version | Release Date       |  Summary                                                                 |
 +=========+====================+==========================================================================+
+| 3.2.2   | November 30, 2012  | Better support for Spring Framework. Fix rare but serious bugs found in  |
+|         |                    | stress tests. Fix issue related to locale and make sure Persistit builds |
+|         |                    | everywhere.                                                              |
++---------+--------------------+--------------------------------------------------------------------------+
 | 3.2.1   | November 13, 2012  | Fix several low-priority bugs.                                           |
 +---------+--------------------+--------------------------------------------------------------------------+
 | 3.2.0   | October 15, 2012   | Fix several critical and other bugs, one of which requires a modified    |
@@ -78,6 +82,27 @@ Resolved Issues
 
 Changes and New Features
 ========================
+
+Persistit 3.2.2 - Spring Framework
+-----------------------------------------------------
+Prior to this release Persistit was needlessly difficult to configure and initialize within Spring Framework.
+This version provides new setter methods and constructors on the com.persistit.Persistit object to allow easy
+injection of configuration properties and make it possible to inject a fully instantiated
+Persistit instance within a Spring project. In addition, new methods were added to the 
+com.persistit.Configuration class to simplify supplying buffer pool and initial volume specifications.
+Three of the ``com.persistit.Persistit#initialize`` methods were deprecated.
+
+This release also adds a new sample application that shows how a configured Persistit instance can be created. For
+Maven users, note that the pom.xml file now includes a dependency on Spring Framework in test scope only; Persistit 
+can still be deployed without any external dependencies.
+
+Persistit 3.2.2 - Bug Fixes
+-----------------------------------------------------
+Version 3.2.2 corrects two issues that were identified through stress tests. For this release
+we added hundreds of hours of stress-testing experience and will continue to invest in ongoing testing.
+
+This version also fixes a unit test with string literals containing numbers formatted according to en_US
+conventions. The test has been corrected and the Persistit build has been tested in several locales.
 
 Persistit 3.2.1 - Bug Fixes
 -----------------------------------------------------

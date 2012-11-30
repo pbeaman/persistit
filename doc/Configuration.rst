@@ -3,14 +3,14 @@
 Configuration
 =============
 
-To initialize Akiban Persistit the embedding application defines a configuration and then invokes one of the  ``com.persistit.Persistit#initialize`` methods. The configuration defines parameters used to determine locations of files, sizes of buffer pool and journal files, policies and other elements required when Persistit starts up. These parameters are managed by the ``com.persistit.Configuration`` class.
+To initialize Akiban Persistit the embedding application specifies a configuration and then invokes the ``com.persistit.Persistit#initialize()`` method. The configuration defines parameters used to determine locations of files, sizes of buffer pool and journal files, policies and other elements required when Persistit starts up. These parameters are managed by the ``com.persistit.Configuration`` class.
 
 An application can define the configuration in one of two equivalent ways:
 
 - Create a ``com.persistit.Configuration`` instance and set its properties through methods such as ``com.persistit.Configuration#setJournalPath``.
 - Specify properties by name in a ``java.util.Properties`` instance and then pass the ``Properties`` to a ``Configuration`` constructor.
 
-The following code samples show different ways of using the ``com.persistit.Persistit#initialize`` method to configure and start Persistit:
+The following code samples show different ways of configuring and starting Persistit:
 
 .. code-block:: java
 
@@ -19,12 +19,14 @@ The following code samples show different ways of using the ``com.persistit.Pers
   p.setProperty("buffer.count.16384", "1000");
   p.setProperty("journalpath", "/home/akiban/data/journal");
   ...
-  db.initialize(p);
+  db.setProperties(p);
+  db.initialize();
 
 .. code-block:: java
 
   final Persistit db = new Persistit();
-  db.initialize("/home/akiban/my_config.properties");
+  db.setPropertiesFromFile("/home/akiban/my_config.properties");
+  db.initialize();
 
 .. code-block:: java
 
@@ -33,7 +35,8 @@ The following code samples show different ways of using the ``com.persistit.Pers
   c.getBufferPoolMap().get(16384).setCount(1000);
   c.setJournalPath("/home/akiban/data/journal");
   ...
-  db.initialize(c);
+  db.setConfiguration(c);
+  db.initialize();
 
 There are three essential elements in a Persistit configuration:
 

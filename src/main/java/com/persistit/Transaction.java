@@ -97,7 +97,7 @@ import com.persistit.util.Util;
  * </dl>
  * <p>
  * You can specify a default policy in the Persistit initialization properties
- * using the {@value com.persistit.Persistit#TRANSACTION_COMMIT_POLICY_NAME}
+ * using the {@value com.persistit.Configuration#COMMIT_POLICY_PROPERTY_NAME}
  * property or under program control using
  * {@link Persistit#setDefaultTransactionCommitPolicy} . The default policy
  * applies to the {@link #commit()} method. You can override the default policy

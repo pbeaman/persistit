@@ -2009,7 +2009,7 @@ public class Persistit {
 
     /**
      * This property can be configured with the configuration property
-     * {@value #TRANSACTION_COMMIT_POLICY_NAME}.
+     * {@value com.persistit.Configuration#COMMIT_POLICY_PROPERTY_NAME}.
      * 
      * @return The default system commit policy.
      */

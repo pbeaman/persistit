@@ -1,3 +1,43 @@
+1076517 : 3.2.2
+
+`InUseExceptions in stress tests`
+
+Stress tests occasionally experienced InUseExceptions, usually signifying
+a deadlock. Two mechanisms were discovered and fixed. Note that an InUseException
+occurs when an attempt to lock a resource such as a Tree or a Buffer is
+unsatisfied for 60 seconds (the current default timeout).  This exception can
+occur for reasons other than deadlock such as an extraordinarily slow I/O 
+operation or as a result of a debug breakpoint in sensitive code.
+
+1079288 : 3.2.2
+
+`Persistit build success is sensitive to locale`
+
+One Persistit unit test depended on locale-specific text formatting, and therefore
+failed when built in a locale which does not conform to en_US formatting rules. 
+
+1079406 : 3.2.2
+
+`Design flaw makes Persistit needlessly difficult to use in Spring Framework`
+
+Persistit initialization API was modified to make it easy to create and use
+a Persistit instance within Spring Framework.
+
+1081659 : 3.2.2
+
+`isNull(true) leaves Value in unsafe state for stream mode get`
+
+The implementation of isNull(boolean) added in Version 3.2.1 contained a bug that
+made stream-mode get operations fail.
+
+1074372 : 3.2.2
+
+`Stress tests induce RebalanceException`
+
+Code was added to handle a rare situation
+in which removing a key at the boundary between two pages requires one of the pages to split. Formerly this condition
+was not handled properly and instead caused the application thread to receive a RebalanceException.
+
 1076403 : 3.2.1
 
 `NPE while starting AdminUI`
