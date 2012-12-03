@@ -1,4 +1,4 @@
-#/bin/sh
+#!/bin/bash
 #
 # See https://docs.sonatype.org/display/Repository/Sonatype+OSS+Maven+Repository+Usage+Guide
 #
