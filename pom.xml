@@ -273,6 +273,7 @@
                         <exclude>src/etc/eclipse*.xml</exclude>
                         <!-- Other -->
                         <exclude>LICENSE.txt</exclude>
+                        <exclude>README.rst</exclude>
                     </excludes>
                 </configuration>
                 <executions>
