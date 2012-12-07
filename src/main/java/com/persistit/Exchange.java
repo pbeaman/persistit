@@ -638,6 +638,10 @@ public class Exchange {
         REMOVED, CHANGED, UNCHANGED
     }
 
+    public interface TraverseVisitor {
+        public boolean visit(final Exchange ex);
+    }
+
     /**
      * Delegate to {@link Key#reset} on the associated <code>Key</code> object.
      * 
@@ -2010,7 +2014,7 @@ public class Exchange {
      */
     public boolean traverse(final Direction direction, final boolean deep, final int minimumBytes)
             throws PersistitException {
-        return traverse(direction, deep, minimumBytes, 0, 0);
+        return traverse(direction, deep, minimumBytes, 0, 0, null);
     }
 
     /**
@@ -2027,7 +2031,7 @@ public class Exchange {
      *            visibility</i>, <code>false</code> is immediately returned.
      */
     private boolean traverse(final Direction direction, final boolean deep, final int minimumBytes,
-            final int minKeyDepth, final int matchUpToIndex) throws PersistitException {
+            final int minKeyDepth, final int matchUpToIndex, final TraverseVisitor visitor) throws PersistitException {
         assertCorrectThread(true);
         _persistit.checkClosed();
 
@@ -2282,8 +2286,11 @@ public class Exchange {
                 }
 
                 // Done
-                _volume.getStatistics().bumpTraverseCounter();
-                _tree.getStatistics().bumpTraverseCounter();
+//                _volume.getStatistics().bumpTraverseCounter();
+//                _tree.getStatistics().bumpTraverseCounter();
+                if (matches && visitor != null && visitor.visit(this)) {
+                    continue;
+                }
                 return matches;
             }
         } finally {
@@ -2292,6 +2299,11 @@ public class Exchange {
                 buffer = null;
             }
         }
+    }
+
+    public boolean traverse(final Direction direction, final boolean deep, final int minBytes,
+            final TraverseVisitor visitor) throws PersistitException {
+        return traverse(direction, deep, minBytes, 0, 0, visitor);
     }
 
     /**
@@ -2370,7 +2382,7 @@ public class Exchange {
             }
             if (keyFilter.isKeyPrefixFilter()) {
                 return traverse(direction, true, minBytes, keyFilter.getMinimumDepth(),
-                        keyFilter.getKeyPrefixByteCount());
+                        keyFilter.getKeyPrefixByteCount(), null);
             }
             final boolean matched = traverse(direction, true, minBytes);
             totalVisited += _keysVisitedDuringTraverse;
@@ -2929,7 +2941,7 @@ public class Exchange {
         assertCorrectThread(true);
         _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
-        final boolean result = traverse(GT, true, 0, _key.getDepth() + 1, size);
+        final boolean result = traverse(GT, true, 0, _key.getDepth() + 1, size, null);
         _spareKey2.copyTo(_key);
         return result;
     }
