@@ -36,7 +36,6 @@ import com.persistit.Transaction;
 import com.persistit.Volume;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.PersistitException;
-import com.persistit.util.Util;
 
 public class ExchangeTest extends PersistitUnitTestCase {
 
@@ -220,7 +219,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(false, ex.traverse(Key.GTEQ, kf, 4));
         assertEquals(false, ex.traverse(Key.LT, kf, 4));
         assertEquals(false, ex.traverse(Key.LTEQ, kf, 4));
-        
+
     }
 
     @Test
@@ -235,20 +234,20 @@ public class ExchangeTest extends PersistitUnitTestCase {
         }
         final AtomicInteger visited = new AtomicInteger();
         final AtomicInteger limit = new AtomicInteger(Integer.MAX_VALUE);
-        TraverseVisitor tv = new Exchange.TraverseVisitor() {
+        final TraverseVisitor tv = new Exchange.TraverseVisitor() {
 
             @Override
-            public boolean visit(Exchange ex) {
+            public boolean visit(final Exchange ex) {
                 visited.incrementAndGet();
                 return visited.get() < limit.get();
             }
         };
-        
+
         visited.set(0);
         ex.clear().to(Key.BEFORE);
         assertFalse(ex.traverse(Key.GT, false, Integer.MAX_VALUE, tv));
         assertEquals(1000, visited.get());
-        
+
         visited.set(0);
         ex.clear().to(Key.BEFORE);
         assertFalse(ex.traverse(Key.GT, false, Integer.MAX_VALUE, tv));
@@ -259,13 +258,13 @@ public class ExchangeTest extends PersistitUnitTestCase {
         ex.clear().to(Key.BEFORE);
         assertTrue(ex.traverse(Key.GT, false, Integer.MAX_VALUE, tv));
         assertEquals(1, visited.get());
-        
+
         visited.set(0);
         limit.set(Integer.MAX_VALUE);
         ex.clear().to(Key.AFTER);
         assertFalse(ex.traverse(Key.LT, false, Integer.MAX_VALUE, tv));
         assertEquals(1000, visited.get());
-        
+
         visited.set(0);
         ex.clear().to(Key.AFTER);
         assertFalse(ex.traverse(Key.LT, false, Integer.MAX_VALUE, tv));
@@ -276,10 +275,9 @@ public class ExchangeTest extends PersistitUnitTestCase {
         ex.clear().to(Key.AFTER);
         assertTrue(ex.traverse(Key.LT, false, Integer.MAX_VALUE, tv));
         assertEquals(1, visited.get());
-        
+
     }
-    
-    
+
     @Test
     public void testKeyValues() throws PersistitException {
         final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
@@ -556,5 +554,5 @@ public class ExchangeTest extends PersistitUnitTestCase {
     private void keyCheck(final Exchange ex, final String expected) {
         assertEquals("Key should be " + expected, expected, ex.getKey().toString());
     }
-        
+
 }

@@ -640,7 +640,7 @@ public class Exchange {
 
     /**
      * A visitor used with the
-     * {@link Exchange#traverse(Direction, boolean, int, TraverseVisitor)}
+     * {@link Exchange#traverse(Key.Direction, boolean, int, TraverseVisitor)}
      * method. The {@link #visit(Exchange)} method is called once for each
      * <code>Key</code> traversed by the <code>traverse</code> method.
      */
@@ -648,8 +648,8 @@ public class Exchange {
         /**
          * Receive an Exchange having <code>Key</code> and <code>Value</code>
          * values set by
-         * {@link Exchange#traverse(Direction, boolean, int, TraverseVisitor)}.
-         * This method will be called once for each key encountered in the
+         * {@link Exchange#traverse(Key.Direction, boolean, int, TraverseVisitor)}
+         * . This method will be called once for each key encountered in the
          * traversal. This method may return <code>false</code> to stop
          * traversing additional keys. </p>
          * <p>
@@ -659,7 +659,7 @@ public class Exchange {
          * to avoid blocking other threads that may attempt to update records in
          * the same <code>Buffer</code>,
          * <li>Must not modify the state of the <code>Exchange</code> instance.
-         * The <code>Visit</code> method may use any accessor method on the
+         * The <code>visit</code> method may use any accessor method on the
          * <code>Exchange</code>, including {@link #getKey()} and
          * {@link #getValue()}. However, the key value itself should not be
          * modified.
@@ -2342,13 +2342,13 @@ public class Exchange {
      * greater than or less than the supplied key.
      * </p>
      * <p>
-     * Unlike {@link #traverse(Direction, boolean, int)}, this method does not
-     * return each time a new key is encountered in the traversal. Instead, the
-     * {@link TraverseVisitor#visit(Exchange)} method is called once for each
-     * key. This method avoids performing initial verification of the key value
-     * and usually avoids locking a <code>Buffer</code> for every record
-     * returned. It may offer better performance in circumstances where a large
-     * number of keys are being examined.
+     * Unlike {@link #traverse(Key.Direction, boolean, int)}, this method does
+     * not return each time a new key is encountered in the traversal. Instead,
+     * the {@link TraverseVisitor#visit(Exchange)} method is called once for
+     * each key. This method avoids performing initial verification of the key
+     * value and usually avoids locking a <code>Buffer</code> for every record
+     * returned. It may offer better performance in circumstances where a long
+     * sequence of keys is being examined.
      * </p>
      * <p>
      * During the call the {@link Buffer} containing the key is locked with a
