@@ -638,7 +638,39 @@ public class Exchange {
         REMOVED, CHANGED, UNCHANGED
     }
 
+    /**
+     * A visitor used with the
+     * {@link Exchange#traverse(Direction, boolean, int, TraverseVisitor)}
+     * method. The {@link #visit(Exchange)} method is called once for each
+     * <code>Key</code> traversed by the <code>traverse</code> method.
+     */
     public interface TraverseVisitor {
+        /**
+         * Receive an Exchange having <code>Key</code> and <code>Value</code>
+         * values set by
+         * {@link Exchange#traverse(Direction, boolean, int, TraverseVisitor)}.
+         * This method will be called once for each key encountered in the
+         * traversal. This method may return <code>false</code> to stop
+         * traversing additional keys. </p>
+         * <p>
+         * The implementation of this method:
+         * <ul>
+         * <li>Must return quickly, especially in a multi-threaded environment,
+         * to avoid blocking other threads that may attempt to update records in
+         * the same <code>Buffer</code>,
+         * <li>Must not modify the state of the <code>Exchange</code> instance.
+         * The <code>Visit</code> method may use any accessor method on the
+         * <code>Exchange</code>, including {@link #getKey()} and
+         * {@link #getValue()}. However, the key value itself should not be
+         * modified.
+         * <li>Must not perform update operations affecting the {@link Tree} on
+         * which this <code>Exchange</code> operates.
+         * </ul>
+         * 
+         * @param ex
+         * @return <code>true</code> to continue traversing keys, or
+         *         <code>false</code> to stop
+         */
         public boolean visit(final Exchange ex);
     }
 
@@ -2286,9 +2318,10 @@ public class Exchange {
                 }
 
                 // Done
-//                _volume.getStatistics().bumpTraverseCounter();
-//                _tree.getStatistics().bumpTraverseCounter();
+                _volume.getStatistics().bumpTraverseCounter();
+                _tree.getStatistics().bumpTraverseCounter();
                 if (matches && visitor != null && visitor.visit(this)) {
+                    nudged = false;
                     continue;
                 }
                 return matches;
@@ -2301,9 +2334,86 @@ public class Exchange {
         }
     }
 
-    public boolean traverse(final Direction direction, final boolean deep, final int minBytes,
+    /**
+     * <p>
+     * Performs generalized tree traversal using a {@link TraverseVisitor}. The
+     * direction value indicates whether to traverse forward or backward in
+     * collation sequence and whether the key being sought must be strictly
+     * greater than or less than the supplied key.
+     * </p>
+     * <p>
+     * Unlike {@link #traverse(Direction, boolean, int)}, this method does not
+     * return each time a new key is encountered in the traversal. Instead, the
+     * {@link TraverseVisitor#visit(Exchange)} method is called once for each
+     * key. This method avoids performing initial verification of the key value
+     * and usually avoids locking a <code>Buffer</code> for every record
+     * returned. It may offer better performance in circumstances where a large
+     * number of keys are being examined.
+     * </p>
+     * <p>
+     * During the call the {@link Buffer} containing the key is locked with a
+     * non-exclusive claim, and any thread attempting to update records in the
+     * same <code>Buffer</code> will block. Therefore the <code>visit</code>
+     * method must be written carefully. See
+     * {@link TraverseVisitor#visit(Exchange)} for guidelines.
+     * </p>
+     * <p>
+     * This method normally modifies both the <code>Key</code> and
+     * <code>Value</code> fields of this <code>Exchange</code>: the
+     * <code>Key</code> is modified to reflect the key found through traversal,
+     * and the <code>Value</code> field is modified to contain the value
+     * associated with that key. However, this behavior can be modified by the
+     * <code>minimumBytes</code> parameter. If <code>minimumBytes</code> is less
+     * than or equal to zero then only the <code>Key</code> is modified. If it
+     * is greater than zero, then the traverse method may choose to populate
+     * only the specified number of bytes of the <code>Value</code>.
+     * </p>
+     * <p>
+     * The <code>direction</code> value must be one of:
+     * <dl>
+     * <dt>Key.GT:</dt>
+     * <dd>Find the next key that is strictly greater than the supplied key. If
+     * there is none, return false.</dd>
+     * <dt>Key.GTEQ:</dt>
+     * <dd>If the supplied key exists in the database, return that key;
+     * otherwise find the next greater key and return it.</dd>
+     * <dt>Key.EQ:</dt>
+     * <dd>Return <code>true</code> iff the specified key exists in the
+     * database. Does not update the Key.</dd>
+     * <dt>Key.LT:</dt>
+     * <dd>Find the next key that is strictly less than the supplied key. If
+     * there is none, return false.</dd>
+     * <dt>Key.LTEQ:</dt>
+     * <dd>If the supplied key exists in the database, return that key;
+     * otherwise find the next smaller key and return it.</dd>
+     * </dl>
+     * </p>
+     * 
+     * @param direction
+     *            One of Key.GT, Key.GTEQ, Key.EQ, Key.LT or Key.LTEQ.
+     * 
+     * @param deep
+     *            Determines whether the result should represent the next (or
+     *            previous) physical key in the <code>Tree</code> or should be
+     *            restricted to just the logical siblings of the current key.
+     *            (See <a href="Key.html#_keyChildren">Logical Key Children and
+     *            Siblings</a>).
+     * 
+     * @param minimumBytes
+     *            The minimum number of bytes to fetch. See {@link #fetch(int)}.
+     * 
+     * @param visitor
+     *            The application-supplied <code>TraverseVisitor</code>.
+     * 
+     * @return <code>true</code> if additional keys remaining in the traversal
+     *         set, or <code>false</code> to indicate that keys are exhausted.
+     * 
+     * @throws PersistitException
+     */
+
+    public boolean traverse(final Direction direction, final boolean deep, final int minimumBytes,
             final TraverseVisitor visitor) throws PersistitException {
-        return traverse(direction, deep, minBytes, 0, 0, visitor);
+        return traverse(direction, deep, Math.min(0, minimumBytes), 0, 0, visitor);
     }
 
     /**

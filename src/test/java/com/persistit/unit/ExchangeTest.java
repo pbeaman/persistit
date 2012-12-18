@@ -226,33 +226,57 @@ public class ExchangeTest extends PersistitUnitTestCase {
     @Test
     public void testTraverseVisitor() throws PersistitException {
         final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
-        final String mockValue = createString(256);
+        final String mockValue = createString(64);
         /* insert 1000 records */
         for (int i = 0; i < 1000; i++) {
             ex.clear().append(i);
             ex.getValue().put(mockValue);
             ex.store();
         }
-        final AtomicInteger countEm = new AtomicInteger();
+        final AtomicInteger visited = new AtomicInteger();
+        final AtomicInteger limit = new AtomicInteger(Integer.MAX_VALUE);
         TraverseVisitor tv = new Exchange.TraverseVisitor() {
 
             @Override
             public boolean visit(Exchange ex) {
-                countEm.incrementAndGet();
-                return true;
+                visited.incrementAndGet();
+                return visited.get() < limit.get();
             }
         };
         
-        countEm.set(0);
+        visited.set(0);
         ex.clear().to(Key.BEFORE);
         assertFalse(ex.traverse(Key.GT, false, Integer.MAX_VALUE, tv));
-        assertEquals(1000, countEm.get());
+        assertEquals(1000, visited.get());
         
-        countEm.set(0);
+        visited.set(0);
         ex.clear().to(Key.BEFORE);
         assertFalse(ex.traverse(Key.GT, false, Integer.MAX_VALUE, tv));
-        assertEquals(1000, countEm.get());
+        assertEquals(1000, visited.get());
 
+        visited.set(0);
+        limit.set(1);
+        ex.clear().to(Key.BEFORE);
+        assertTrue(ex.traverse(Key.GT, false, Integer.MAX_VALUE, tv));
+        assertEquals(1, visited.get());
+        
+        visited.set(0);
+        limit.set(Integer.MAX_VALUE);
+        ex.clear().to(Key.AFTER);
+        assertFalse(ex.traverse(Key.LT, false, Integer.MAX_VALUE, tv));
+        assertEquals(1000, visited.get());
+        
+        visited.set(0);
+        ex.clear().to(Key.AFTER);
+        assertFalse(ex.traverse(Key.LT, false, Integer.MAX_VALUE, tv));
+        assertEquals(1000, visited.get());
+
+        visited.set(0);
+        limit.set(1);
+        ex.clear().to(Key.AFTER);
+        assertTrue(ex.traverse(Key.LT, false, Integer.MAX_VALUE, tv));
+        assertEquals(1, visited.get());
+        
     }
     
     
@@ -527,57 +551,10 @@ public class ExchangeTest extends PersistitUnitTestCase {
         keyCheck(ex, deep ? "{1,2}" : "{1}");
         assertEquals("Should be true", true, ex.traverse(Key.EQ, deep, 0));
         keyCheck(ex, deep ? "{1,2}" : "{1}");
-
     }
 
     private void keyCheck(final Exchange ex, final String expected) {
         assertEquals("Key should be " + expected, expected, ex.getKey().toString());
     }
-    
-    
-    @Test
-    public void testSpeed() throws Exception {
-        final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
-        ex.getValue().put(createString(128));
-        for (int i = 0; i < 1000000; i++) {
-            ex.to(i).store();
-        }
         
-        final AtomicInteger countTraverse = new AtomicInteger();
-        final AtomicInteger countVisit = new AtomicInteger();
-        TraverseVisitor tv = new Exchange.TraverseVisitor() {
-
-            @Override
-            public boolean visit(Exchange ex) {
-                countVisit.incrementAndGet();
-                return true;
-            }
-        };
-        
-        System.out.println("Traverse ");
-        long expires = System.nanoTime() + 30 * Util.NS_PER_S;
-        ex.clear();
-        while (System.nanoTime() < expires) {
-            for (int i = 0; i < 1000000; i++) {
-                ex.traverse(Key.GT, false);
-                countTraverse.incrementAndGet();
-            }
-            System.out.print(".");
-            System.out.flush();
-        }
-        
-        System.out.println();
-        System.out.println("Visit ");
-        expires = System.nanoTime() + 30 * Util.NS_PER_S;
-        ex.clear();
-        while (System.nanoTime() < expires) {
-            for (int i = 0; i < 1000 && ex.traverse(Key.GT, false, Integer.MAX_VALUE, tv); i++) {
-            }
-            System.out.print(".");
-            System.out.flush();
-        }
-        System.out.println();        
-        System.out.printf("Traverse %,10d  Visit %,10d\n", countTraverse.get(), countVisit.get());
-    }
-    
 }
