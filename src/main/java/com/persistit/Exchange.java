@@ -641,7 +641,7 @@ public class Exchange implements ReadOnlyExchange {
     /**
      * A visitor used with the
      * {@link Exchange#traverse(Key.Direction, boolean, int, TraverseVisitor)}
-     * method. The {@link #visit(Exchange)} method is called once for each
+     * The {@link #visit(ReadOnlyExchange)} method is called once for each
      * <code>Key</code> traversed by the <code>traverse</code> method.
      */
     public interface TraverseVisitor {
@@ -658,20 +658,22 @@ public class Exchange implements ReadOnlyExchange {
          * <li>Must return quickly, especially in a multi-threaded environment,
          * to avoid blocking other threads that may attempt to update records in
          * the same <code>Buffer</code>,
-         * <li>Must not modify the state of the <code>Exchange</code> instance.
-         * The <code>visit</code> method may use any accessor method on the
-         * <code>Exchange</code>, including {@link #getKey()} and
-         * {@link #getValue()}. However, the key value itself should not be
-         * modified.
-         * <li>Must not perform update operations affecting the {@link Tree} on
-         * which this <code>Exchange</code> operates.
+         * <li>Must not perform update operations on any <codeExchange</code>,
+         * especially in a multi-threaded environment, to prevent deadlocks,
+         * <li>May read and modify the <code>Key</code> and <code>Value</code>
+         * fields of the supplied <code>ReadOnlyExchange</code>. Note, however,
+         * that modifying the <code>Key</code> affects the results of subsequent
+         * traversal operations.
          * </ul>
          * 
          * @param ex
+         *            a {@link ReadOnlyExchange} from which the current
+         *            <code>Key</code> and <code>Value</code> may be read
          * @return <code>true</code> to continue traversing keys, or
          *         <code>false</code> to stop
+         * @throws PersistitException
          */
-        public boolean visit(final ReadOnlyExchange ex);
+        public boolean visit(final ReadOnlyExchange ex) throws PersistitException;
     }
 
     /**
@@ -2350,18 +2352,21 @@ public class Exchange implements ReadOnlyExchange {
      * <p>
      * Unlike {@link #traverse(Key.Direction, boolean, int)}, this method does
      * not return each time a new key is encountered in the traversal. Instead,
-     * the {@link TraverseVisitor#visit(Exchange)} method is called once for
-     * each key. This method avoids performing initial verification of the key
-     * value and usually avoids locking a <code>Buffer</code> for every record
-     * returned. It may offer better performance in circumstances where a long
-     * sequence of keys is being examined.
+     * the {@link TraverseVisitor#visit(ReadOnlyExchange)} method is called once
+     * for each key. This method avoids performing initial verification of the
+     * key value and usually avoids locking a <code>Buffer</code> for every
+     * record returned. It may offer better performance in circumstances where a
+     * long sequence of keys is being examined. Note that
+     * <code>ReadOnlyExchange</code> is an interface implemented by this class
+     * which supplies the subset of methods that may be used safely within the
+     * visitor.
      * </p>
      * <p>
      * During the call the {@link Buffer} containing the key is locked with a
      * non-exclusive claim, and any thread attempting to update records in the
      * same <code>Buffer</code> will block. Therefore the <code>visit</code>
      * method must be written carefully. See
-     * {@link TraverseVisitor#visit(Exchange)} for guidelines.
+     * {@link TraverseVisitor#visit(ReadOnlyExchange)} for guidelines.
      * </p>
      * <p>
      * This method normally modifies both the <code>Key</code> and

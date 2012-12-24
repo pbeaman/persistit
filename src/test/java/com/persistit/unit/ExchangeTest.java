@@ -1,5 +1,5 @@
 /**
-eeeee * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
  * 
  * This program and the accompanying materials are made available
  * under the terms of the Eclipse Public License v1.0 which
@@ -16,23 +16,19 @@ eeeee * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
 package com.persistit.unit;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Test;
 
 import com.persistit.Exchange;
-import com.persistit.Exchange.TraverseVisitor;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
 import com.persistit.PersistitUnitTestCase;
-import com.persistit.ReadOnlyExchange;
 import com.persistit.Transaction;
 import com.persistit.Volume;
 import com.persistit.exception.ConversionException;
@@ -220,62 +216,6 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(false, ex.traverse(Key.GTEQ, kf, 4));
         assertEquals(false, ex.traverse(Key.LT, kf, 4));
         assertEquals(false, ex.traverse(Key.LTEQ, kf, 4));
-
-    }
-
-    @Test
-    public void testTraverseVisitor() throws PersistitException {
-        final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
-        final String mockValue = createString(64);
-        /* insert 1000 records */
-        for (int i = 0; i < 1000; i++) {
-            ex.clear().append(i);
-            ex.getValue().put(mockValue);
-            ex.store();
-        }
-        final AtomicInteger visited = new AtomicInteger();
-        final AtomicInteger limit = new AtomicInteger(Integer.MAX_VALUE);
-        final TraverseVisitor tv = new Exchange.TraverseVisitor() {
-
-            @Override
-            public boolean visit(final ReadOnlyExchange ex) {
-                visited.incrementAndGet();
-                return visited.get() < limit.get();
-            }
-        };
-
-        visited.set(0);
-        ex.clear().to(Key.BEFORE);
-        assertFalse(ex.traverse(Key.GT, false, Integer.MAX_VALUE, tv));
-        assertEquals(1000, visited.get());
-
-        visited.set(0);
-        ex.clear().to(Key.BEFORE);
-        assertFalse(ex.traverse(Key.GT, false, Integer.MAX_VALUE, tv));
-        assertEquals(1000, visited.get());
-
-        visited.set(0);
-        limit.set(1);
-        ex.clear().to(Key.BEFORE);
-        assertTrue(ex.traverse(Key.GT, false, Integer.MAX_VALUE, tv));
-        assertEquals(1, visited.get());
-
-        visited.set(0);
-        limit.set(Integer.MAX_VALUE);
-        ex.clear().to(Key.AFTER);
-        assertFalse(ex.traverse(Key.LT, false, Integer.MAX_VALUE, tv));
-        assertEquals(1000, visited.get());
-
-        visited.set(0);
-        ex.clear().to(Key.AFTER);
-        assertFalse(ex.traverse(Key.LT, false, Integer.MAX_VALUE, tv));
-        assertEquals(1000, visited.get());
-
-        visited.set(0);
-        limit.set(1);
-        ex.clear().to(Key.AFTER);
-        assertTrue(ex.traverse(Key.LT, false, Integer.MAX_VALUE, tv));
-        assertEquals(1, visited.get());
 
     }
 

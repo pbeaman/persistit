@@ -60,8 +60,8 @@ public interface ReadOnlyExchange {
     /**
      * Determines whether the current key has a logical sibling successor,
      * without changing the state of <code>Key</code> or <code>Value</code>.
-     * This method is equivalent to {@link #next()} except that no state is
-     * changed.
+     * This method is equivalent to {@link Exchange#next()} except that no state
+     * is changed.
      * 
      * @return <code>true</code> if the key has a successor
      * 
@@ -83,8 +83,8 @@ public interface ReadOnlyExchange {
     /**
      * Determines whether the current key has a logical sibling successor,
      * without changing the state of <code>Key</code> or <code>Value</code>.
-     * This method is equivalent to {@link #next(boolean)} except that no state
-     * is changed.
+     * This method is equivalent to {@link Exchange#next(boolean)} except that
+     * no state is changed.
      * 
      * @param deep
      *            Determines whether the predecessor may be of any logical depth
@@ -102,8 +102,8 @@ public interface ReadOnlyExchange {
     /**
      * Determines whether the current key has a logical sibling predecessor,
      * without changing the state of <code>Key</code> or <code>Value</code>.
-     * This method is equivalent to {@link #previous()} except that no state is
-     * changed.
+     * This method is equivalent to {@link Exchange#previous()} except that no
+     * state is changed.
      * 
      * @return <code>true</code> if the key has a predecessor
      * @throws PersistitException
@@ -113,8 +113,8 @@ public interface ReadOnlyExchange {
     /**
      * Determines whether the current key has a logical sibling predecessor,
      * without changing the state of <code>Key</code> or <code>Value</code>.
-     * This method is equivalent to {@link #previous(boolean)} except that no
-     * state is changed.
+     * This method is equivalent to {@link Exchange#previous(boolean)} except
+     * that no state is changed.
      * 
      * @param deep
      *            Determines whether the predecessor may be of any logical depth
@@ -142,8 +142,8 @@ public interface ReadOnlyExchange {
 
     /**
      * Determines whether the current key has an associated value - that is,
-     * whether a {@link #fetch} operation would return a defined value - without
-     * actually changing the state of either the <code>Key</code> or the
+     * whether a {@link Exchange#fetch} operation would return a defined value -
+     * without actually changing the state of either the <code>Key</code> or the
      * <code>Value</code>.
      * 
      * @return <code>true</code> if the key has an associated value
