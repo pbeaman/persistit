@@ -132,7 +132,7 @@ import com.persistit.util.Util;
  * 
  * @version 1.0
  */
-public class Exchange {
+public class Exchange implements ReadOnlyExchange {
 
     public enum Sequence {
         NONE, FORWARD, REVERSE
@@ -671,7 +671,7 @@ public class Exchange {
          * @return <code>true</code> to continue traversing keys, or
          *         <code>false</code> to stop
          */
-        public boolean visit(final Exchange ex);
+        public boolean visit(final ReadOnlyExchange ex);
     }
 
     /**
@@ -929,6 +929,7 @@ public class Exchange {
      * 
      * @return This <code>Key</code>.
      */
+    @Override
     public Key getKey() {
         assertCorrectThread(true);
         return _key;
@@ -939,6 +940,7 @@ public class Exchange {
      * 
      * @return The <code>Value</code>.
      */
+    @Override
     public Value getValue() {
         assertCorrectThread(true);
         return _value;
@@ -954,6 +956,7 @@ public class Exchange {
      * 
      * @return The <code>Volume</code>.
      */
+    @Override
     public Volume getVolume() {
         assertCorrectThread(true);
         return _volume;
@@ -964,6 +967,7 @@ public class Exchange {
      * 
      * @return The <code>Tree</code>
      */
+    @Override
     public Tree getTree() {
         assertCorrectThread(true);
         return _tree;
@@ -974,6 +978,7 @@ public class Exchange {
      * 
      * @return The <code>Persistit</code> instance.
      */
+    @Override
     public Persistit getPersistitInstance() {
         assertCorrectThread(true);
         return _persistit;
@@ -988,6 +993,7 @@ public class Exchange {
      * 
      * @return The change count
      */
+    @Override
     public long getChangeCount() {
         assertCorrectThread(true);
         return _tree.getChangeCount();
@@ -2600,6 +2606,7 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
+    @Override
     public boolean hasNext() throws PersistitException {
         return traverse(GT, false, -1);
     }
@@ -2613,6 +2620,7 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
+    @Override
     public boolean hasNext(final KeyFilter filter) throws PersistitException {
         if (filter == null)
             return hasNext();
@@ -2639,6 +2647,7 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
+    @Override
     public boolean hasNext(final boolean deep) throws PersistitException {
         return traverse(GT, deep, -1);
     }
@@ -2652,6 +2661,7 @@ public class Exchange {
      * @return <code>true</code> if the key has a predecessor
      * @throws PersistitException
      */
+    @Override
     public boolean hasPrevious() throws PersistitException {
         return traverse(LT, false, -1);
     }
@@ -2673,6 +2683,7 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
+    @Override
     public boolean hasPrevious(final boolean deep) throws PersistitException {
         return traverse(LT, deep, -1);
     }
@@ -2686,6 +2697,7 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
+    @Override
     public boolean hasPrevious(final KeyFilter filter) throws PersistitException {
         if (filter == null)
             return hasPrevious();
@@ -2705,6 +2717,7 @@ public class Exchange {
      * 
      * @throws PersistitException
      */
+    @Override
     public boolean isValueDefined() throws PersistitException {
         return traverse(EQ, true, -1);
     }
@@ -3047,6 +3060,7 @@ public class Exchange {
      *         children
      * @throws PersistitException
      */
+    @Override
     public boolean hasChildren() throws PersistitException {
         assertCorrectThread(true);
         _key.copyTo(_spareKey2);
@@ -3956,7 +3970,7 @@ public class Exchange {
             _value.setPointerPageType(buffer.getPageType());
             buffer.release();
             buffer = null;
-            storeInternal(_spareKey2, _value, level + 1, Exchange.StoreOptions.NONE);
+            storeInternal(_spareKey2, _value, level + 1, StoreOptions.NONE);
             return true;
         } finally {
             _treeHolder.release();
@@ -4009,6 +4023,7 @@ public class Exchange {
      * 
      * @return The <code>Transaction</code> context for this thread.
      */
+    @Override
     public Transaction getTransaction() {
         assertCorrectThread(true);
         return _transaction;

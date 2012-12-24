@@ -1,5 +1,5 @@
 /**
- * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
+eeeee * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
  * 
  * This program and the accompanying materials are made available
  * under the terms of the Eclipse Public License v1.0 which
@@ -32,6 +32,7 @@ import com.persistit.Exchange.TraverseVisitor;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
 import com.persistit.PersistitUnitTestCase;
+import com.persistit.ReadOnlyExchange;
 import com.persistit.Transaction;
 import com.persistit.Volume;
 import com.persistit.exception.ConversionException;
@@ -237,7 +238,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         final TraverseVisitor tv = new Exchange.TraverseVisitor() {
 
             @Override
-            public boolean visit(final Exchange ex) {
+            public boolean visit(final ReadOnlyExchange ex) {
                 visited.incrementAndGet();
                 return visited.get() < limit.get();
             }
