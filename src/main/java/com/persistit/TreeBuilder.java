@@ -354,15 +354,16 @@ public class TreeBuilder {
         }
         key.copyTo(ex.getKey());
         value.copyTo(ex.getValue());
+
         ex.fetchAndStore();
+        boolean stored = true;
         if (ex.getValue().isDefined()) {
-            if (!duplicateKeyDetected(tree, key, ex.getValue(), value)) {
-                /*
-                 * Restore original value if replacement is denied
-                 */
+            if (!duplicateKeyDetected(ex.getTree(), ex.getKey(), ex.getValue(), value)) {
+                stored = false;
                 ex.store();
             }
-        } else {
+        }
+        if (stored) {
             final long count = _keyCount.incrementAndGet();
             if ((count % _reportKeyCountMultiple) == 0) {
                 reportSorted(count);
@@ -399,7 +400,7 @@ public class TreeBuilder {
         _sortedTrees.clear();
         _sortedTrees.addAll(_allTrees);
         Tree currentTree = null;
-        Exchange currentExchange = null;
+        Exchange ex = null;
         Collections.sort(_sortedTrees, getTreeComparator());
         final SortedMap<Node, Node> sorted = new TreeMap<Node, Node>();
         for (final Volume volume : _sortVolumes) {
@@ -416,17 +417,26 @@ public class TreeBuilder {
             Node node = sorted.firstKey();
             node = sorted.remove(node);
             if (node._currentTree != currentTree) {
-                currentExchange = new Exchange(node._currentTree);
+                ex = new Exchange(node._currentTree);
                 currentTree = node._currentTree;
             }
 
-            node._exchange.getKey().copyTo(currentExchange.getKey());
-            node._exchange.getValue().copyTo(currentExchange.getValue());
-            if (beforeMergeKey(currentExchange)) {
-                currentExchange.store();
-                afterMergeKey(currentExchange);
-                if ((_keyCount.incrementAndGet() % _reportKeyCountMultiple) == 0) {
-                    reportMerged(_keyCount.get());
+            node._exchange.getKey().copyTo(ex.getKey());
+            node._exchange.getValue().copyTo(ex.getValue());
+            if (beforeMergeKey(ex)) {
+                ex.fetchAndStore();
+                boolean stored = true;
+                if (ex.getValue().isDefined()) {
+                    if (!duplicateKeyDetected(ex.getTree(), ex.getKey(), ex.getValue(), node._exchange.getValue())) {
+                        ex.store();
+                        stored = false;
+                    }
+                }
+                if (stored) {
+                    afterMergeKey(ex);
+                    if ((_keyCount.incrementAndGet() % _reportKeyCountMultiple) == 0) {
+                        reportMerged(_keyCount.get());
+                    }
                 }
             }
             while (node != null) {
