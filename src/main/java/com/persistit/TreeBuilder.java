@@ -183,6 +183,10 @@ public class TreeBuilder {
     public long getReportKeyCountMultiple() {
         return _reportKeyCountMultiple;
     }
+    
+    public synchronized int getSortVolumeCount() {
+        return _sortVolumes.size();
+    }
 
     public List<Tree> getTrees() {
         List<Tree> list = new ArrayList<Tree>();
