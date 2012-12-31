@@ -145,7 +145,7 @@ public class TreeBuilder {
     private final List<Volume> _sortVolumes = new ArrayList<Volume>();
     private final int _pageSize;
     private final int _pageLimit;
-    private AtomicLong _keyCount = new AtomicLong();
+    private final AtomicLong _keyCount = new AtomicLong();
     private volatile long _reportKeyCountMultiple = REPORT_REPORT_MULTIPLE;
 
     private final Set<Tree> _allTrees = new HashSet<Tree>();
@@ -161,9 +161,9 @@ public class TreeBuilder {
     private Volume _currentSortVolume;
     private int _nextDirectoryIndex;
 
-    private Comparator<Tree> _defaultTreeComparator = new Comparator<Tree>() {
+    private final Comparator<Tree> _defaultTreeComparator = new Comparator<Tree>() {
         @Override
-        public int compare(Tree a, Tree b) {
+        public int compare(final Tree a, final Tree b) {
             if (a == b) {
                 return 0;
             }
@@ -174,7 +174,8 @@ public class TreeBuilder {
             }
         }
 
-        public boolean equals(Object obj) {
+        @Override
+        public boolean equals(final Object obj) {
             return this == obj;
         }
     };
@@ -218,7 +219,7 @@ public class TreeBuilder {
             if (_exchange == null) {
                 return node._exchange == null ? 0 : -1;
             }
-            int treeComparison = getTreeComparator().compare(_currentTree, node._currentTree);
+            final int treeComparison = getTreeComparator().compare(_currentTree, node._currentTree);
             if (treeComparison != 0) {
                 return treeComparison;
             }
@@ -230,7 +231,7 @@ public class TreeBuilder {
         @Override
         public String toString() {
             Node n = this;
-            StringBuilder sb = new StringBuilder();
+            final StringBuilder sb = new StringBuilder();
             while (n != null) {
                 if (sb.length() > 0) {
                     sb.append(",");
@@ -256,7 +257,7 @@ public class TreeBuilder {
         _name = name;
         _persistit = persistit;
         _pageSize = pageSize == -1 ? computePageSize(persistit) : pageSize;
-        int bufferCount = _persistit.getBufferPool(_pageSize).getBufferCount();
+        final int bufferCount = _persistit.getBufferPool(_pageSize).getBufferCount();
         _pageLimit = (int) (bufferCount * bufferPoolFraction);
     }
 
@@ -289,13 +290,13 @@ public class TreeBuilder {
     }
 
     public final List<Tree> getTrees() {
-        List<Tree> list = new ArrayList<Tree>();
+        final List<Tree> list = new ArrayList<Tree>();
         list.addAll(_allTrees);
         Collections.sort(list, getTreeComparator());
         return list;
     }
 
-    public final void setSortTreeDirectories(List<File> directories) throws Exception {
+    public final void setSortTreeDirectories(final List<File> directories) throws Exception {
         if (directories == null || directories.isEmpty()) {
             synchronized (this) {
                 _directories.clear();
@@ -345,7 +346,7 @@ public class TreeBuilder {
         Exchange ex = map.get(tree);
         if (ex == null || ex.getTree().getVolume().getNextAvailablePage() > _pageLimit) {
             final Volume newSortVolume = getSortVolume();
-            String tempTreeName = "_" + _persistit.getJournalManager().handleForTree(tree);
+            final String tempTreeName = "_" + _persistit.getJournalManager().handleForTree(tree);
             ex = _persistit.getExchange(newSortVolume, tempTreeName, true);
             map.put(tree, ex);
             synchronized (this) {
@@ -377,7 +378,7 @@ public class TreeBuilder {
             if (!duplicateKeyDetected(node._currentTree, node._exchange.getKey(), other._exchange.getValue(),
                     node._exchange.getValue())) {
                 sorted.put(node, other);
-                Node p = other._duplicate;
+                final Node p = other._duplicate;
                 other._duplicate = node;
                 node._duplicate = p;
             } else {
@@ -440,7 +441,7 @@ public class TreeBuilder {
                 }
             }
             while (node != null) {
-                Node next = node._duplicate;
+                final Node next = node._duplicate;
                 node._duplicate = null;
                 if (node.next()) {
                     insertNode(sorted, node);

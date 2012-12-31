@@ -29,7 +29,6 @@ import org.junit.Test;
 public class TreeBuilderTest extends PersistitUnitTestCase {
     private final static int COUNT = 10000;
 
-
     @Test
     public void basicTest() throws Exception {
 
@@ -39,6 +38,7 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
                 System.out.println("Sorted " + count);
             }
 
+            @Override
             protected void reportMerged(final long count) {
                 System.out.println("Merged " + count);
             }
@@ -84,7 +84,7 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
             count++;
         }
         assertEquals("Expect every key value", COUNT, count);
-        
+
     }
 
     @Test
@@ -95,42 +95,43 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
         final AtomicInteger afterMergeCount = new AtomicInteger();
 
         final TreeBuilder tb = new TreeBuilder(_persistit) {
-           
+
             @Override
             protected boolean duplicateKeyDetected(final Tree tree, final Key key, final Value v1, final Value v2) {
                 duplicateCount.incrementAndGet();
                 return doReplace.get();
             }
-        
+
             @Override
             protected boolean beforeMergeKey(final Exchange ex) throws Exception {
                 beforeMergeCount.incrementAndGet();
                 return ex.getKey().decodeInt() != 3;
             }
-            
+
+            @Override
             protected void afterMergeKey(final Exchange ex) throws Exception {
                 afterMergeCount.incrementAndGet();
             }
 
         };
         final Exchange ex = _persistit.getExchange(VOLUME_NAME, "a", true);
-        
+
         doReplace.set(true);
         ex.to(1).getValue().put("abc");
         tb.store(ex);
         ex.to(1).getValue().put("def");
         tb.store(ex);
         assertEquals("Should have registered a dup", 1, duplicateCount.get());
-        
+
         doReplace.set(false);
         ex.to(2).getValue().put("abc");
         tb.store(ex);
         ex.to(2).getValue().put("def");
         tb.store(ex);
         assertEquals("Should have registered a dup", 2, duplicateCount.get());
-        
+
         tb.unitTestNextSortVolume();
-        
+
         ex.to(1).getValue().put("ghi");
         tb.store(ex);
         ex.to(2).getValue().put("ghi");
@@ -139,37 +140,37 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
 
         ex.to(3).getValue().put("abc");
         tb.store(ex);
-        
+
         doReplace.set(false);
         tb.merge();
-        
+
         assertEquals("Should have registered two dups", 4, duplicateCount.get());
         assertEquals("beforeMergeKey should be thrice", 3, beforeMergeCount.get());
         assertEquals("afterMergeKey should be called twice", 2, afterMergeCount.get());
-        
-        StringBuilder result = new StringBuilder();
+
+        final StringBuilder result = new StringBuilder();
         ex.clear().append(Key.BEFORE);
         while (ex.next(true)) {
             result.append(String.format("%s=%s,", ex.getKey(), ex.getValue()));
         }
         assertEquals("Expected result", "{1}=\"def\",{2}=\"abc\",", result.toString());
     }
-    
+
     @Test
     public void duplicatePriority() throws Exception {
         final TreeBuilder tb = new TreeBuilder(_persistit) {
-            
+
             @Override
             protected boolean duplicateKeyDetected(final Tree tree, final Key key, final Value v1, final Value v2) {
                 final String s1 = v1.getString();
                 final String s2 = v2.getString();
                 return s1.compareTo(s2) < 0;
             }
-        
+
         };
         final Exchange ex = _persistit.getExchange(VOLUME_NAME, "a", true);
         final String nul = null;
-        
+
         insertKeys(ex, tb, "x", "m", "n", nul, "a", nul, "q");
         tb.unitTestNextSortVolume();
         insertKeys(ex, tb, nul, "t", "o", "r", nul, nul, nul);
@@ -177,10 +178,10 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
         insertKeys(ex, tb, nul, "u", "m", "j", "c", "x", "l");
         tb.unitTestNextSortVolume();
         insertKeys(ex, tb, nul, "m", nul, nul, "a", nul, "q");
-        
+
         tb.merge();
-        
-        StringBuilder result = new StringBuilder();
+
+        final StringBuilder result = new StringBuilder();
         for (int i = 0; i < 10; i++) {
             ex.to(i).fetch();
             if (ex.isValueDefined()) {
@@ -189,7 +190,7 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
         }
         assertEquals("xuorcxq", result.toString());
     }
-    
+
     private void insertKeys(final Exchange ex, final TreeBuilder tb, final String... args) throws Exception {
         for (int i = 0; i < args.length; i++) {
             if (args[i] != null) {
@@ -198,5 +199,5 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
             }
         }
     }
-    
+
 }

@@ -162,7 +162,7 @@ public class BufferPoolTest extends PersistitUnitTestCase {
             currentTimestamp += 10000000;
         }
     }
-    
+
     @Test
     public void testEvictVoume() throws Exception {
         final Volume vol = _persistit.createTemporaryVolume();
@@ -170,7 +170,7 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         _persistit.flush();
         ex.getValue().put(RED_FOX);
         int i;
-        for (i = 1; ; i++) {
+        for (i = 1;; i++) {
             ex.to(i).store();
             if (vol.getNextAvailablePage() >= 10) {
                 break;

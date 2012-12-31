@@ -57,7 +57,7 @@ public class BigLoad extends AbstractStressTest {
 
     public void load(final Persistit db) throws Exception {
         final long startLoadTime = System.nanoTime();
-        TreeBuilder tb = new TreeBuilder(db) {
+        final TreeBuilder tb = new TreeBuilder(db) {
             @Override
             protected void reportSorted(final long count) {
                 System.out.printf("Sorted %,15d records\n", count);

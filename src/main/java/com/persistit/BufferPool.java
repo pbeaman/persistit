@@ -549,7 +549,7 @@ public class BufferPool {
             return invalidateLargeVolume(volume);
         }
     }
-    
+
     boolean evict(final Volume volume) throws PersistitException {
         return invalidateSmallVolume(volume, true);
     }
