@@ -85,7 +85,6 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
         }
         assertEquals("Expect every key value", COUNT, count);
         
-        tb.close();
     }
 
     @Test
@@ -154,7 +153,6 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
             result.append(String.format("%s=%s,", ex.getKey(), ex.getValue()));
         }
         assertEquals("Expected result", "{1}=\"def\",{2}=\"abc\",", result.toString());
-        tb.close();
     }
     
     @Test
@@ -190,7 +188,6 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
             }
         }
         assertEquals("xuorcxq", result.toString());
-        tb.close();
     }
     
     private void insertKeys(final Exchange ex, final TreeBuilder tb, final String... args) throws Exception {

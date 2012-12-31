@@ -32,6 +32,108 @@ import com.persistit.exception.DuplicateKeyException;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.Util;
 
+/**
+ * <p>
+ * A mechanism for optimizing the process of loading large sets of records with
+ * non-sequential keys. This class speeds up the process of inserting records
+ * into a set of Persistit <code>Tree</code>s by sorting them before inserting
+ * them. The sort process uses multiple "sort trees" in multiple temporary
+ * <code>Volume</code>s to hold copies of the data. These are then merged into
+ * the final "destination trees." Each sort tree is constrained to be small
+ * enough to fit in the {@link BufferPool}.
+ * </p>
+ * <h3>Background</h3>
+ * <p>
+ * In general, Persistit can store records very quickly, even when the keys of
+ * those records arrive in random order, as long as all the pages of the
+ * destination tree or trees are resident in the buffer pool. However, the
+ * situation changes dramatically as soon as the the destination tree or trees
+ * exceed the size of the buffer pool. Once that happens, insert performance
+ * degrades because the ratio of records inserted per disk I/O operation
+ * performed decreases. In a worst-case scenario, inserting each new key may
+ * require two or more disk I/O operations. These may occur because Persistit
+ * performs the following steps:
+ * <ul>
+ * <li>Look up the key requires reading the page containing that key from disk
+ * into the BufferPool.</li>
+ * <li>Reading the page requires a Buffer containing some other page to be
+ * evicted.</li>
+ * <li>The page being evicted is likely to be dirty and therefore Persistit must
+ * write its contents to disk before reusing the Buffer.</li>
+ * </ul>
+ * Further, these disk I/O operations are are usually at unrelated file
+ * positions and therefore may each require random seeks. As a result, inserting
+ * one key can take orders of magnitude longer once the tree no longer fits in
+ * the buffer pool.
+ * </p>
+ * <p>
+ * <code>TreeBuilder</code> mitigates that degradation by sorting the keys
+ * before inserting them into their final destination trees. To do so it builds
+ * a collection of bounded-size sort trees in temporary volumes. Then it
+ * performs a merge sort from those trees into the final destination tree or
+ * trees. This mechanism eliminates the problem that every key insertion
+ * requires two (or more) random disk I/O operations. However, it is still the
+ * case that every sort tree page must be written and read once, and every
+ * destination tree page must be written at least once. Therefore the I/O
+ * associated with TreeBuilder is reduced but not eliminated.
+ * </p>
+ * <p>
+ * TreeBuilder is effective if and only if (a) the keys arrive in random order,
+ * and (b) the data is significantly larger than available memory in the buffer
+ * pool. In general it is faster to insert the keys directly into the
+ * destination trees unless both of these conditions are true.
+ * </p>
+ * <h3>Using TreeBuilder</h3>
+ * <p>
+ * The following example demonstrates the fundamental operation of
+ * <code>TreeBuilder</code>: <code><pre>
+ *   Exchange exchange = db.getExchange("myVolume", "myTree", true);
+ *   TreeBuilder tb = new TreeBuilder(db);
+ *   //
+ *   // Insert the data into sort trees
+ *   //
+ *   while (<i>source has more data</i>) {
+ *      exchange.to(<i>next key</i>).getValue().put(<i>next value</i>);
+ *      tb.store(exchange);
+ *   }
+ *   //
+ *   // Merge the data into myTree
+ *   // 
+ *   tb.merge();
+ * </pre></code> Note that a TreeBuilder can pre-sort data for multiple
+ * destination trees. For example, it is possible to load and merge records for
+ * a table and its corresponding indexes in one pass using TreeBuilder. During
+ * the merge operation the final destination <code>Tree</code> are built in
+ * sequence. By default that sequence is by alphabetical order of tree name, but
+ * it is possible to customize TreeBuilder to change that order.
+ * </p>
+ * <p>
+ * Loading a large data set may take a long time under the best of
+ * circumstances. Therefore this class is designed to be extended by
+ * applications to support progress reporting, to control disk space allocation,
+ * to handle attempts to insert conflicting records with duplicate keys, etc.
+ * See the following methods which may be overridden to provide custom behavior:
+ * <ul>
+ * <li>{@link #reportSorted(long)} - report completion of N records inserts into
+ * sort trees</li>
+ * <li>{@link #reportMerged(long)} - report completion of N records merged</li>
+ * <li>{@link #duplicateKeyDetected(Tree, Key, Value, Value)} - handle detection
+ * of records inserted with duplicate keys</li>
+ * <li>{@link #beforeMergeKey(Exchange)} - allowing filtering or custom handling
+ * per record while merging</li>
+ * <li>{@link #afterMergeKey(Exchange)} - behavior after merging one record</li>
+ * <li>{@link #beforeSortVolumeEvicted(Volume)} - behavior before evicting a
+ * sort volume when full</li>
+ * <li>{@link #afterSortVolumeEvicted(Volume)} - behavior after evicting a sort
+ * volume when full</li>
+ * <li>{@link #getTreeComparator()} - return a custom Comparator to determine
+ * sequence in which trees are populated within the {@link #merge()} method
+ * </ul>
+ * </p>
+ * 
+ * @author peter
+ * 
+ */
 public class TreeBuilder {
     private final static float DEFAULT_BUFFER_POOL_FRACTION = 0.5f;
     private final static long REPORT_REPORT_MULTIPLE = 1000000;
@@ -58,6 +160,7 @@ public class TreeBuilder {
 
     private Volume _currentSortVolume;
     private int _nextDirectoryIndex;
+
     private Comparator<Tree> _defaultTreeComparator = new Comparator<Tree>() {
         @Override
         public int compare(Tree a, Tree b) {
@@ -87,25 +190,12 @@ public class TreeBuilder {
             _volume = volume;
         }
 
-        @Override
-        public int compareTo(final Node node) {
-            if (_exchange == null) {
-                return node._exchange == null ? 0 : -1;
-            }
-            int treeComparison = getTreeComparator().compare(_currentTree, node._currentTree);
-            if (treeComparison != 0) {
-                return treeComparison;
-            }
-            final Key k1 = _exchange.getKey();
-            final Key k2 = node._exchange.getKey();
-            return k1.compareTo(k2);
-        }
-
-        public boolean next() throws PersistitException {
+        private boolean next() throws PersistitException {
             for (;;) {
                 if (_exchange == null) {
                     _treeListIndex++;
                     if (_treeListIndex >= _sortedTrees.size()) {
+                        _volume.close();
                         return false;
                     }
                     final String tempTreeName = "_" + _sortedTrees.get(_treeListIndex).getHandle();
@@ -121,6 +211,20 @@ public class TreeBuilder {
                 }
                 _exchange = null;
             }
+        }
+
+        @Override
+        public int compareTo(final Node node) {
+            if (_exchange == null) {
+                return node._exchange == null ? 0 : -1;
+            }
+            int treeComparison = getTreeComparator().compare(_currentTree, node._currentTree);
+            if (treeComparison != 0) {
+                return treeComparison;
+            }
+            final Key k1 = _exchange.getKey();
+            final Key k2 = node._exchange.getKey();
+            return k1.compareTo(k2);
         }
 
         @Override
@@ -168,38 +272,30 @@ public class TreeBuilder {
         return pageSize;
     }
 
-    public void close() {
-        _sortExchangeMapThreadLocal.get().clear();
-    }
-
-    public String getName() {
+    public final String getName() {
         return _name;
     }
 
-    public void setReportKeyCountMultiple(final long multiple) {
+    public final void setReportKeyCountMultiple(final long multiple) {
         _reportKeyCountMultiple = Util.rangeCheck(multiple, 1, Long.MAX_VALUE);
     }
 
-    public long getReportKeyCountMultiple() {
+    public final long getReportKeyCountMultiple() {
         return _reportKeyCountMultiple;
     }
-    
-    public synchronized int getSortVolumeCount() {
+
+    public final synchronized int getSortVolumeCount() {
         return _sortVolumes.size();
     }
 
-    public List<Tree> getTrees() {
+    public final List<Tree> getTrees() {
         List<Tree> list = new ArrayList<Tree>();
         list.addAll(_allTrees);
         Collections.sort(list, getTreeComparator());
         return list;
     }
 
-    public Comparator<Tree> getTreeComparator() {
-        return _defaultTreeComparator;
-    }
-
-    public void setSortTreeDirectories(List<File> directories) throws Exception {
+    public final void setSortTreeDirectories(List<File> directories) throws Exception {
         if (directories == null || directories.isEmpty()) {
             synchronized (this) {
                 _directories.clear();
@@ -236,7 +332,7 @@ public class TreeBuilder {
         }
     }
 
-    public List<File> getSortTreeDirectories() {
+    public final List<File> getSortTreeDirectories() {
         return Collections.unmodifiableList(_directories);
     }
 
@@ -289,6 +385,12 @@ public class TreeBuilder {
         }
     }
 
+    /**
+     * Merge the record previously stored in sort volumes into their destination
+     * <code>Tree</code>s.
+     * 
+     * @throws Exception
+     */
     public synchronized void merge() throws Exception {
         if ((_keyCount.get() % _reportKeyCountMultiple) != 0) {
             reportSorted(_keyCount.get());
@@ -339,13 +441,19 @@ public class TreeBuilder {
         if ((_keyCount.get() % _reportKeyCountMultiple) != 0) {
             reportMerged(_keyCount.get());
         }
+        _keyCount.set(0);
+        _sortExchangeMapThreadLocal.get().clear();
+        _allTrees.clear();
+        _sortedTrees.clear();
     }
 
     private synchronized Volume getSortVolume() throws Exception {
         final boolean full = _currentSortVolume != null && _currentSortVolume.getNextAvailablePage() > _pageLimit;
         if (full) {
-            sortVolumeFull(_currentSortVolume);
-            _persistit.getBufferPool(_pageSize).evict(_currentSortVolume);
+            if (beforeSortVolumeEvicted(_currentSortVolume)) {
+                _persistit.getBufferPool(_pageSize).evict(_currentSortVolume);
+            }
+            afterSortVolumeEvicted(_currentSortVolume);
         }
         if (full || _currentSortVolume == null) {
             _currentSortVolume = createSortVolume();
@@ -366,27 +474,129 @@ public class TreeBuilder {
         return Volume.createTemporaryVolume(_persistit, _pageSize, directory);
     }
 
-    protected void sortVolumeFull(final Volume volume) throws Exception {
+    /**
+     * This method may be extended to provide an application-specific ordering
+     * on <code>Tree</code>s. This ordering determines the sequence in which
+     * destination trees are built from the sort data. By default trees are
+     * build in alphabetical order by volume and tree name. However, an
+     * application may choose a different order to ensure invariants for
+     * concurrent use.
+     * 
+     * @return a <code>java.util.Comparator</code> on <code>Tree</code>
+     */
+    protected Comparator<Tree> getTreeComparator() {
+        return _defaultTreeComparator;
+    }
+
+    /**
+     * This method may be extended to provide application-specific behavior when
+     * a sort volume has been filled to capacity. The default implementation
+     * return <code>true</code>. If this method returns <code>true</code>,
+     * <code>TreeBuilder</code> evicts the <code>Volume</code> to avoid
+     * over-running the <code>BufferPool</code> and then starts a new sort tree
+     * if a new record is subsequently stored.
+     * 
+     * @param volume
+     *            The temporary <code>Volume</code> that has been filled
+     * @return <code>true</code> to cause the current sort volume to be evicted
+     *         from the <code>BufferPool</code>
+     * @throws Exception
+     */
+    protected boolean beforeSortVolumeEvicted(final Volume volume) throws Exception {
+        return true;
+    }
+
+    /**
+     * This method may be extended to provide application-specific reporting
+     * functionality after a sort volume has been filled to capacity and has
+     * been evicted. An application may also modify the temporary directory set
+     * via {@link #setSortTreeDirectories(List)} within this method if necessary
+     * to adjust disk space utilization, for example. The default behavior of
+     * this method is to do nothing.
+     * 
+     * @param volume
+     *            The temporary <code>Volume</code> that has been filled
+     * @throws Exception
+     */
+    protected void afterSortVolumeEvicted(final Volume volume) throws Exception {
 
     }
 
+    /**
+     * This method may be extended to provide application-specific behavior when
+     * an attempt is made to merge records with duplicate keys. The default
+     * behavior is to throw a {@link DuplicateKeyException}.
+     * 
+     * @param tree
+     * @param key
+     * @param v1
+     * @param v2
+     * @return
+     * @throws DuplicateKeyException
+     *             if a key being inserted or merged matches a key already
+     *             exists
+     * @throws Exception
+     */
     protected boolean duplicateKeyDetected(final Tree tree, final Key key, final Value v1, final Value v2)
             throws Exception {
         throw new DuplicateKeyException(String.format("Tree=%s Key=%s", tree, key));
     }
 
+    /**
+     * This method may be extended to provide alternative functionality. The
+     * default implementation merely returns <code>true</code> which signifies
+     * that the key-value pair represented in the <code>Exchange</code> should
+     * be merged into the destination <code>Tree</code>. A custom implementation
+     * could be used to filter out unwanted records or to emit records to a
+     * different destination.
+     * 
+     * @param exchange
+     *            represents the key-value pair proposed for merging
+     * @return <code>true</code> to allow the record to be merged
+     * @throws Exception
+     */
     protected boolean beforeMergeKey(final Exchange exchange) throws Exception {
         return true;
     }
 
+    /**
+     * This method may be extended to provide custom behavior after merging one
+     * record. The default implementation does nothing. This method is called
+     * only if the corresponding call to {@link #beforeMergeKey(Exchange)}
+     * returned <code>true</code>.
+     * 
+     * @param exchange
+     *            represents the key-value pair that was merged.
+     * @throws Exception
+     */
     protected void afterMergeKey(final Exchange exchange) throws Exception {
 
     }
 
+    /**
+     * This method may be extended to provide application-specific progress
+     * reports. By default it does nothing. This method is called after
+     * inserting a number of records into sort trees. The method
+     * {@link #setReportKeyCountMultiple(long)} determines the frequency at
+     * which this method is called.
+     * 
+     * @param count
+     *            The total number of recirds that has been merged so far.
+     */
     protected void reportSorted(final long count) {
 
     }
 
+    /**
+     * This method may be extended to provide application-specific progress
+     * reports. By default it does nothing. This method is called after merging
+     * a number of records into destination trees. The method
+     * {@link #setReportKeyCountMultiple(long)} determines the frequency at
+     * which this method is called.
+     * 
+     * @param count
+     *            The total number of recirds that has been merged so far.
+     */
     protected void reportMerged(final long count) {
 
     }

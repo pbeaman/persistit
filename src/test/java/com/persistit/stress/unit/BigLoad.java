@@ -65,7 +65,7 @@ public class BigLoad extends AbstractStressTest {
 
             @Override
             protected void reportMerged(final long count) {
-                System.out.printf("Sorted %,15d records\n", count);
+                System.out.printf("Merged %,15d records\n", count);
             }
 
             @Override
@@ -82,14 +82,15 @@ public class BigLoad extends AbstractStressTest {
             tb.store(resultExchange);
         }
         final long endLoadTime = System.nanoTime();
+        System.out.printf("Loaded %,d records into %,d buckets in %,dms\n", totalRecords, tb.getSortVolumeCount(),
+                (endLoadTime - startLoadTime) / Util.NS_PER_MS);
 
-        System.out.printf("Merging %,d records from %,d buckets into main database\n", totalRecords,
-                tb.getSortVolumeCount());
+        System.out.printf("Merging %,d records into main database\n", totalRecords);
 
         tb.merge();
         final long endMergeTime = System.nanoTime();
         System.out.printf("Merged %,d records in %,dms\n", totalRecords, (endMergeTime - endLoadTime) / Util.NS_PER_MS);
-        tb.close();
+
         System.out.printf("Counting keys in main database (100M keys per dot) ");
         resultExchange.clear().append(Key.BEFORE);
         long count = 0;
@@ -106,13 +107,14 @@ public class BigLoad extends AbstractStressTest {
         System.out.printf("Total time to load, merge and count %,d records is %,dms", totalRecords,
                 (endCountTime - startLoadTime) / Util.NS_PER_MS);
     }
-    
-    final StringBuilder sb = new StringBuilder("00000000000000000000xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+
+    final StringBuilder sb = new StringBuilder(
+            "00000000000000000000xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
 
     private String randomKey() {
         long n = RANDOM.nextLong() & Long.MAX_VALUE;
-        for (int i = 20; --i >= 0; ) {
-            sb.setCharAt(i, (char)((n % 10) + '0'));
+        for (int i = 20; --i >= 0;) {
+            sb.setCharAt(i, (char) ((n % 10) + '0'));
             n /= 10;
         }
         return sb.toString();

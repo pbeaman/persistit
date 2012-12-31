@@ -39,7 +39,7 @@ public class InsertBigLoad extends AbstractSuite {
 
         deleteFiles(substitute("$datapath$/persistit*"));
 
-        add(new BigLoad("records=10000000"));
+        add(new BigLoad("records=100000000"));
 
         final Configuration config = makeConfiguration(16384, "50000", CommitPolicy.SOFT);
         config.setTmpVolMaxSize(100000000000l);
