@@ -341,6 +341,7 @@ public class TreeBuilder {
         final boolean full = _currentSortVolume != null && _currentSortVolume.getNextAvailablePage() > _pageLimit;
         if (full) {
             sortVolumeFull(_currentSortVolume);
+            _persistit.getBufferPool(_pageSize).evict(_currentSortVolume);
         }
         if (full || _currentSortVolume == null) {
             _currentSortVolume = createSortVolume();
