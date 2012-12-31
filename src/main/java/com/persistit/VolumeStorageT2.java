@@ -43,8 +43,9 @@ import com.persistit.exception.VolumeFullException;
  */
 class VolumeStorageT2 extends VolumeStorage {
 
-    private final static String TEMP_FILE_PREFIX = "persistit_tempvol_";
+    final static String TEMP_FILE_PREFIX = "persistit_tempvol_";
     private final static String TEMP_FILE_UNCREATED_NAME = "temp_volume_file_not_created_yet";
+    private final File _tempDirectory;
     private long _maxPages;
     private volatile String _path;
     private volatile FileChannel _channel;
@@ -53,8 +54,9 @@ class VolumeStorageT2 extends VolumeStorage {
     private volatile boolean _opened;
     private volatile boolean _closed;
 
-    VolumeStorageT2(final Persistit persistit, final Volume volume) {
+    VolumeStorageT2(final Persistit persistit, final Volume volume, final File tempDirectory) {
         super(persistit, volume);
+        _tempDirectory = tempDirectory;
     }
 
     /**
@@ -94,9 +96,7 @@ class VolumeStorageT2 extends VolumeStorage {
     synchronized FileChannel getChannel() throws PersistitIOException {
         if (_channel == null) {
             try {
-                final String directoryName = _persistit.getConfiguration().getTmpVolDir();
-                final File directory = directoryName == null ? null : new File(directoryName);
-                final File file = File.createTempFile(TEMP_FILE_PREFIX, null, directory);
+                final File file = File.createTempFile(TEMP_FILE_PREFIX, null, _tempDirectory);
                 _path = file.getPath();
                 _channel = new MediatedFileChannel(_path, "rw");
             } catch (final IOException ioe) {
