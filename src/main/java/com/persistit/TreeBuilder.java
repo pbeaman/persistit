@@ -452,10 +452,27 @@ public class TreeBuilder {
         if ((_keyCount.get() % _reportKeyCountMultiple) != 0) {
             reportMerged(_keyCount.get());
         }
+        clear();
+    }
+    
+    public synchronized void clear() throws Exception {
+        Exception exception = null;
+        for (final Volume volume : _sortVolumes) {
+            try {
+            volume.close();
+            } catch (PersistitException e) {
+                if (exception == null) {
+                    exception = e;
+                }
+            }
+        }
         _keyCount.set(0);
         _sortExchangeMapThreadLocal.get().clear();
         _allTrees.clear();
         _sortedTrees.clear();
+        if (exception != null) {
+            throw exception;
+        }
     }
 
     private synchronized Volume getSortVolume() throws Exception {

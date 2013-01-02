@@ -51,6 +51,7 @@ public class Volume {
     private final String _name;
     private long _id;
     private final AtomicBoolean _closing = new AtomicBoolean();
+    private final AtomicBoolean _closed = new AtomicBoolean();
     private final AtomicInteger _handle = new AtomicInteger();
     private final AtomicReference<Object> _appCache = new AtomicReference<Object>();
 
@@ -198,6 +199,9 @@ public class Volume {
             if (!storage.claim(true, timeout)) {
                 throw new InUseException("Unable to acquire claim on " + this);
             }
+            if (_closed.get()) {
+                break;
+            }
             try {
                 //
                 // BufferPool#invalidate may fail and return false if other
@@ -208,6 +212,7 @@ public class Volume {
                     getStructure().close();
                     getStorage().close();
                     getStatistics().reset();
+                    _closed.set(true);
                     break;
                 }
             } finally {
