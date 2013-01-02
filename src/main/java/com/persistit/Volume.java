@@ -78,11 +78,12 @@ public class Volume {
         return false;
     }
 
-    static Volume createTemporaryVolume(final Persistit persistit, final int pageSize) throws PersistitException {
+    static Volume createTemporaryVolume(final Persistit persistit, final int pageSize, final File tempDirectory)
+            throws PersistitException {
         final Volume volume = new Volume(
                 Thread.currentThread().getName() + TEMP_VOLUME_NAME_SUFFIX_FOR_FIXUP_DETECTION,
                 TEMP_VOLUME_ID_FOR_FIXUP_DETECTION);
-        volume.openTemporary(persistit, pageSize);
+        volume.openTemporary(persistit, pageSize, tempDirectory);
         return volume;
     }
 
@@ -473,7 +474,8 @@ public class Volume {
         persistit.addVolume(this);
     }
 
-    void openTemporary(final Persistit persistit, final int pageSize) throws PersistitException {
+    void openTemporary(final Persistit persistit, final int pageSize, final File tempDirectory)
+            throws PersistitException {
         checkClosing();
         if (_storage != null) {
             throw new IllegalStateException("This volume has already been opened");
@@ -483,7 +485,7 @@ public class Volume {
         }
 
         _structure = new VolumeStructure(persistit, this, pageSize);
-        _storage = new VolumeStorageT2(persistit, this);
+        _storage = new VolumeStorageT2(persistit, this, tempDirectory);
         _statistics = new VolumeStatistics();
 
         _storage.create();

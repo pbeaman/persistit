@@ -1105,7 +1105,9 @@ public class Persistit {
         if (!Volume.isValidPageSize(pageSize)) {
             throw new IllegalArgumentException("Invalid page size " + pageSize);
         }
-        return Volume.createTemporaryVolume(this, pageSize);
+        final String directoryName = getConfiguration().getTmpVolDir();
+        final File directory = directoryName == null ? null : new File(directoryName);
+        return Volume.createTemporaryVolume(this, pageSize, directory);
     }
 
     /**

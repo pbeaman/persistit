@@ -541,16 +541,20 @@ public class BufferPool {
      *            The volume
      * @throws PersistitInterruptedException
      */
-    boolean invalidate(final Volume volume) throws PersistitInterruptedException {
+    boolean invalidate(final Volume volume) throws PersistitException {
         final float ratio = (float) volume.getStorage().getNextAvailablePage() / (float) _bufferCount;
         if (ratio < SMALL_VOLUME_RATIO) {
-            return invalidateSmallVolume(volume);
+            return invalidateSmallVolume(volume, false);
         } else {
             return invalidateLargeVolume(volume);
         }
     }
 
-    boolean invalidateSmallVolume(final Volume volume) throws PersistitInterruptedException {
+    boolean evict(final Volume volume) throws PersistitException {
+        return invalidateSmallVolume(volume, true);
+    }
+
+    boolean invalidateSmallVolume(final Volume volume, final boolean mustWrite) throws PersistitException {
         boolean result = true;
         int markedAvailable = 0;
         for (long page = 1; page < volume.getStorage().getNextAvailablePage(); page++) {
@@ -565,6 +569,9 @@ public class BufferPool {
                             try {
                                 if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed()
                                         && buffer.isValid()) {
+                                    if (buffer.isDirty()) {
+                                        buffer.writePage();
+                                    }
                                     invalidate(buffer);
                                     invalidated = true;
                                 }
