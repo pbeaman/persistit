@@ -149,6 +149,8 @@ public class TreeBuilder {
     private final AtomicLong _sortedKeyCount = new AtomicLong();
     private final AtomicLong _mergedKeyCount = new AtomicLong();
     private volatile long _reportKeyCountMultiple = REPORT_REPORT_MULTIPLE;
+    private Volume _currentSortVolume;
+    private int _nextDirectoryIndex;
 
     private final Set<Tree> _allTrees = new HashSet<Tree>();
     private final List<Tree> _sortedTrees = new ArrayList<Tree>();
@@ -160,8 +162,6 @@ public class TreeBuilder {
         }
     };
 
-    private Volume _currentSortVolume;
-    private int _nextDirectoryIndex;
 
     private final Comparator<Tree> _defaultTreeComparator = new Comparator<Tree>() {
         @Override
@@ -546,7 +546,7 @@ public class TreeBuilder {
         reset();
     }
 
-    private void reset() throws Exception {
+    private synchronized void reset() throws Exception {
         Exception exception = null;
         for (final Volume volume : _sortVolumes) {
             try {
@@ -557,6 +557,9 @@ public class TreeBuilder {
                 }
             }
         }
+        _sortVolumes.clear();
+        _currentSortVolume = null;
+        _nextDirectoryIndex = 0;
         _sortExchangeMapThreadLocal.get().clear();
         _allTrees.clear();
         _sortedTrees.clear();
@@ -565,7 +568,7 @@ public class TreeBuilder {
         }
     }
 
-    public synchronized void clear() throws Exception {
+    public void clear() throws Exception {
         _sortedKeyCount.set(0);
         _mergedKeyCount.set(0);
         reset();
