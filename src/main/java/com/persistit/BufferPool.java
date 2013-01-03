@@ -546,7 +546,7 @@ public class BufferPool {
         if (ratio < SMALL_VOLUME_RATIO) {
             return invalidateSmallVolume(volume, false);
         } else {
-            return invalidateLargeVolume(volume);
+            return invalidateLargeVolume(volume, false);
         }
     }
 
@@ -569,7 +569,7 @@ public class BufferPool {
                             try {
                                 if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed()
                                         && buffer.isValid()) {
-                                    if (buffer.isDirty()) {
+                                    if (mustWrite && buffer.isDirty()) {
                                         buffer.writePage();
                                     }
                                     invalidate(buffer);
@@ -602,7 +602,7 @@ public class BufferPool {
 
     }
 
-    boolean invalidateLargeVolume(final Volume volume) throws PersistitInterruptedException {
+    boolean invalidateLargeVolume(final Volume volume, final boolean mustWrite) throws PersistitException {
         boolean result = true;
         int markedAvailable = 0;
         for (int index = 0; index < _bufferCount; index++) {
@@ -613,6 +613,9 @@ public class BufferPool {
                     boolean invalidated = false;
                     try {
                         if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
+                            if (mustWrite && buffer.isDirty()) {
+                                buffer.writePage();
+                            }
                             invalidate(buffer);
                             invalidated = true;
                         }
@@ -642,17 +645,13 @@ public class BufferPool {
         Debug.$assert0.t(buffer.isValid() && buffer.isOwnedAsWriterByMe());
 
         while (!detach(buffer)) {
-            //
-            // Spin until detach succeeds. Note: this method must not throw an
-            // Exception
-            // because it is called in at at critical time when cleanup must be
-            // done.
-            // It is not possible to lock the hash bucket here due to possible
-            // deadlock.
-            // However, the likelihood of a lengthy live-lock is infinitesimal
-            // so polling
-            // is acceptable.
-            //
+            /*
+             * Spin until detach succeeds. Note: this method must not throw an
+             * Exception because it is called in at at critical time when
+             * cleanup must be done. It is not possible to lock the hash bucket
+             * here due to possible deadlock. However, the likelihood of a
+             * lengthy live-lock is infinitesimal so polling is acceptable.
+             */
             try {
                 Thread.sleep(1);
             } catch (final InterruptedException ie) {

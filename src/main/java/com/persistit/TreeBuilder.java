@@ -16,6 +16,7 @@
 package com.persistit;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -145,8 +146,11 @@ public class TreeBuilder {
     private final List<Volume> _sortVolumes = new ArrayList<Volume>();
     private final int _pageSize;
     private final int _pageLimit;
-    private final AtomicLong _keyCount = new AtomicLong();
+    private final AtomicLong _sortedKeyCount = new AtomicLong();
+    private final AtomicLong _mergedKeyCount = new AtomicLong();
     private volatile long _reportKeyCountMultiple = REPORT_REPORT_MULTIPLE;
+    private Volume _currentSortVolume;
+    private int _nextDirectoryIndex;
 
     private final Set<Tree> _allTrees = new HashSet<Tree>();
     private final List<Tree> _sortedTrees = new ArrayList<Tree>();
@@ -158,8 +162,6 @@ public class TreeBuilder {
         }
     };
 
-    private Volume _currentSortVolume;
-    private int _nextDirectoryIndex;
 
     private final Comparator<Tree> _defaultTreeComparator = new Comparator<Tree>() {
         @Override
@@ -273,22 +275,58 @@ public class TreeBuilder {
         return pageSize;
     }
 
+    /**
+     * @return Name provide when TreeBuilder was constructed. Default name is
+     *         "TreeBuilder".
+     */
     public final String getName() {
         return _name;
     }
 
+    /**
+     * Set the count of keys inserted or merged per call to
+     * {@link #reportSorted(long)} or {@link #reportMerged(long)}.
+     * 
+     * @param multiple
+     */
     public final void setReportKeyCountMultiple(final long multiple) {
         _reportKeyCountMultiple = Util.rangeCheck(multiple, 1, Long.MAX_VALUE);
     }
 
+    /**
+     * 
+     * @return Count of keys inserted or merged per call to
+     *         {@link #reportSorted(long)} or {@link #reportMerged(long)}
+     */
     public final long getReportKeyCountMultiple() {
         return _reportKeyCountMultiple;
     }
 
+    /**
+     * @return Count of sort volumes that have been created while sorting keys
+     */
     public final synchronized int getSortVolumeCount() {
         return _sortVolumes.size();
     }
 
+    /**
+     * @return Number of keys stored in sort trees
+     */
+    public long getSortedKeyCount() {
+        return _sortedKeyCount.get();
+    }
+
+    /**
+     * @return Number of keys merged into destination trees
+     */
+    public long getMergedKeyCount() {
+        return _mergedKeyCount.get();
+    }
+
+    /**
+     * @return List of destination
+     *         <code>Tree<code> instances. This list is built as keys are stored.
+     */
     public final List<Tree> getTrees() {
         final List<Tree> list = new ArrayList<Tree>();
         list.addAll(_allTrees);
@@ -296,7 +334,36 @@ public class TreeBuilder {
         return list;
     }
 
-    public final void setSortTreeDirectories(final List<File> directories) throws Exception {
+    /**
+     * <p>
+     * Define a list of directories in which sort volumes will be created. This
+     * method can be used to override the default value provided by
+     * {@link Configuration#getTmpVolDir()} to control more closely where sort
+     * trees will be stored. If the list is empty then the directory defined by
+     * the <code>Configuration</code> will be used. If multiple directories are
+     * declared then volumes will be allocated to them in round-robin fashion.
+     * This technique can distribute large load sets over multiple volumes and
+     * can allow for interleaved disk reads during the merge process.
+     * </p>
+     * <p>
+     * If a <code>File</code> supplied to this method does not exist, an attempt
+     * is made to create it as a directory. This method also attempts to create
+     * and delete a file in each supplied directory to ensure that if there is a
+     * file permission or other problem, it is detected immediately, rather than
+     * much later during the sort process.
+     * </p>
+     * 
+     * @param directories
+     *            List of <code>File</code> instances, each of which must be a
+     *            directory
+     * @throws IllegalArgumentException
+     *             if a supplied file exists and is not a directory or cannot be
+     *             created as a new directory
+     * @throws IOException
+     *             if an attempt to create a file in one of the supplied
+     *             directories fails
+     */
+    public final void setSortTreeDirectories(final List<File> directories) throws IOException {
         if (directories == null || directories.isEmpty()) {
             synchronized (this) {
                 _directories.clear();
@@ -333,14 +400,39 @@ public class TreeBuilder {
         }
     }
 
+    /**
+     * 
+     * @return List of directories set via the
+     *         {@link #setSortTreeDirectories(List)} method.
+     */
     public final List<File> getSortTreeDirectories() {
         return Collections.unmodifiableList(_directories);
     }
 
+    /**
+     * Store a key-value pair into a sort tree. The {@link Tree}, {@link Key}
+     * and {@link Value} are specified by the supplied {@link Exchange}.
+     * 
+     * @param exchange
+     *            The Exchange
+     * @throws Exception
+     */
     public final void store(final Exchange exchange) throws Exception {
         store(exchange.getTree(), exchange.getKey(), exchange.getValue());
     }
 
+    /**
+     * Store a key-value pair for a specified <code>Tree</code> into a sort
+     * tree.
+     * 
+     * @param tree
+     *            the Tree
+     * @param key
+     *            the Key
+     * @param value
+     *            the Value
+     * @throws Exception
+     */
     public final void store(final Tree tree, final Key key, final Value value) throws Exception {
         final Map<Tree, Exchange> map = _sortExchangeMapThreadLocal.get();
         Exchange ex = map.get(tree);
@@ -365,7 +457,7 @@ public class TreeBuilder {
             }
         }
         if (stored) {
-            final long count = _keyCount.incrementAndGet();
+            final long count = _sortedKeyCount.incrementAndGet();
             if ((count % _reportKeyCountMultiple) == 0) {
                 reportSorted(count);
             }
@@ -394,10 +486,9 @@ public class TreeBuilder {
      * @throws Exception
      */
     public synchronized void merge() throws Exception {
-        if ((_keyCount.get() % _reportKeyCountMultiple) != 0) {
-            reportSorted(_keyCount.get());
+        if ((_mergedKeyCount.get() % _reportKeyCountMultiple) != 0) {
+            reportSorted(_mergedKeyCount.get());
         }
-        _keyCount.set(0);
         _sortedTrees.clear();
         _sortedTrees.addAll(_allTrees);
         Tree currentTree = null;
@@ -435,8 +526,8 @@ public class TreeBuilder {
                 }
                 if (stored) {
                     afterMergeKey(ex);
-                    if ((_keyCount.incrementAndGet() % _reportKeyCountMultiple) == 0) {
-                        reportMerged(_keyCount.get());
+                    if ((_mergedKeyCount.incrementAndGet() % _reportKeyCountMultiple) == 0) {
+                        reportMerged(_mergedKeyCount.get());
                     }
                 }
             }
@@ -449,13 +540,38 @@ public class TreeBuilder {
                 node = next;
             }
         }
-        if ((_keyCount.get() % _reportKeyCountMultiple) != 0) {
-            reportMerged(_keyCount.get());
+        if ((_mergedKeyCount.get() % _reportKeyCountMultiple) != 0) {
+            reportMerged(_mergedKeyCount.get());
         }
-        _keyCount.set(0);
+        reset();
+    }
+
+    private synchronized void reset() throws Exception {
+        Exception exception = null;
+        for (final Volume volume : _sortVolumes) {
+            try {
+                volume.close();
+            } catch (PersistitException e) {
+                if (exception == null) {
+                    exception = e;
+                }
+            }
+        }
+        _sortVolumes.clear();
+        _currentSortVolume = null;
+        _nextDirectoryIndex = 0;
         _sortExchangeMapThreadLocal.get().clear();
         _allTrees.clear();
         _sortedTrees.clear();
+        if (exception != null) {
+            throw exception;
+        }
+    }
+
+    public void clear() throws Exception {
+        _sortedKeyCount.set(0);
+        _mergedKeyCount.set(0);
+        reset();
     }
 
     private synchronized Volume getSortVolume() throws Exception {
