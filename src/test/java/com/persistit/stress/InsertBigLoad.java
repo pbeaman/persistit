@@ -55,7 +55,7 @@ public class InsertBigLoad extends AbstractSuite {
         try {
             execute(persistit);
             tb.merge();
-            
+
         } finally {
             persistit.close();
         }

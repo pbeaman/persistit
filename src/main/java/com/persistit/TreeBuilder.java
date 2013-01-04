@@ -162,7 +162,6 @@ public class TreeBuilder {
         }
     };
 
-
     private final Comparator<Tree> _defaultTreeComparator = new Comparator<Tree>() {
         @Override
         public int compare(final Tree a, final Tree b) {
@@ -551,7 +550,7 @@ public class TreeBuilder {
         for (final Volume volume : _sortVolumes) {
             try {
                 volume.close();
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 if (exception == null) {
                     exception = e;
                 }

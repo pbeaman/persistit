@@ -48,7 +48,7 @@ public class BigLoad extends AbstractStressTest {
 
     private static final Random RANDOM = new Random();
     private final TreeBuilder tb;
-    
+
     private int totalRecords;
 
     public BigLoad(final TreeBuilder tb, final int totalRecords, final int buckets) {
@@ -59,7 +59,7 @@ public class BigLoad extends AbstractStressTest {
 
     public long load(final Persistit db) throws Exception {
         final long startLoadTime = System.nanoTime();
-        
+
         final Exchange resultExchange = db.getExchange("persistit", "sorted", true);
         System.out.printf("Loading %,d records\n", totalRecords);
 
@@ -74,17 +74,18 @@ public class BigLoad extends AbstractStressTest {
     }
 
     public long merge(final Persistit db) throws Exception {
-        final long  startMergeTime = System.nanoTime();
-    
+        final long startMergeTime = System.nanoTime();
+
         System.out.printf("Merging %,d records into main database\n", totalRecords);
 
         tb.merge();
         final long endMergeTime = System.nanoTime();
-        System.out.printf("Merged %,d records in %,dms\n", totalRecords, (endMergeTime - startMergeTime) / Util.NS_PER_MS);
+        System.out.printf("Merged %,d records in %,dms\n", totalRecords, (endMergeTime - startMergeTime)
+                / Util.NS_PER_MS);
 
         return endMergeTime - startMergeTime;
     }
-    
+
     public long count(final Persistit db) throws Exception {
         final long startCountTime = System.nanoTime();
         System.out.printf("Counting keys in main database (100M keys per dot) ");
@@ -148,13 +149,13 @@ public class BigLoad extends AbstractStressTest {
             db.close();
         }
     }
-    
-    public static class BigLoadTreeBuilder extends TreeBuilder  {
-        
+
+    public static class BigLoadTreeBuilder extends TreeBuilder {
+
         public BigLoadTreeBuilder(final Persistit db) {
             super(db);
         }
-        
+
         @Override
         protected void reportSorted(final long count) {
             System.out.printf("Sorted %,15d records\n", count);
