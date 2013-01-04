@@ -342,7 +342,7 @@ class VolumeStorageT2 extends VolumeStorage {
     }
 
     @Override
-    long allocNewPage() throws PersistitException {
+    synchronized long allocNewPage() throws PersistitException {
         if (_nextAvailablePage >= _maxPages) {
             throw new VolumeFullException(_volume.getName());
         }

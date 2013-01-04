@@ -18,7 +18,9 @@ package com.persistit.stress;
 import com.persistit.Configuration;
 import com.persistit.Persistit;
 import com.persistit.Transaction.CommitPolicy;
+import com.persistit.TreeBuilder;
 import com.persistit.stress.unit.BigLoad;
+import com.persistit.stress.unit.BigLoad.BigLoadTreeBuilder;
 
 public class InsertBigLoad extends AbstractSuite {
 
@@ -39,14 +41,21 @@ public class InsertBigLoad extends AbstractSuite {
 
         deleteFiles(substitute("$datapath$/persistit*"));
 
-        add(new BigLoad("records=10000000"));
-
         final Configuration config = makeConfiguration(16384, "50000", CommitPolicy.SOFT);
-        config.setTmpVolMaxSize(100000000000l);
+        config.setTmpVolMaxSize(10000000000l);
         final Persistit persistit = new Persistit(config);
+        final TreeBuilder tb = new BigLoadTreeBuilder(persistit);
+
+        add(new BigLoad(tb, "records=10000000"));
+        add(new BigLoad(tb, "records=10000000"));
+        add(new BigLoad(tb, "records=10000000"));
+        add(new BigLoad(tb, "records=10000000"));
+        add(new BigLoad(tb, "records=10000000"));
 
         try {
             execute(persistit);
+            tb.merge();
+            
         } finally {
             persistit.close();
         }

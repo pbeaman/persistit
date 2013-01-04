@@ -47,33 +47,19 @@ import com.persistit.util.Util;
 public class BigLoad extends AbstractStressTest {
 
     private static final Random RANDOM = new Random();
-
+    private final TreeBuilder tb;
+    
     private int totalRecords;
 
-    public BigLoad(final int totalRecords, final int buckets) {
+    public BigLoad(final TreeBuilder tb, final int totalRecords, final int buckets) {
         super("");
         this.totalRecords = totalRecords;
+        this.tb = tb;
     }
 
-    public void load(final Persistit db) throws Exception {
+    public long load(final Persistit db) throws Exception {
         final long startLoadTime = System.nanoTime();
-        final TreeBuilder tb = new TreeBuilder(db) {
-            @Override
-            protected void reportSorted(final long count) {
-                System.out.printf("Sorted %,15d records\n", count);
-            }
-
-            @Override
-            protected void reportMerged(final long count) {
-                System.out.printf("Merged %,15d records\n", count);
-            }
-
-            @Override
-            protected boolean duplicateKeyDetected(final Tree tree, final Key key, final Value v1, final Value v2) {
-                System.out.println("Duplicate  key detected: " + key);
-                return true;
-            }
-        };
+        
         final Exchange resultExchange = db.getExchange("persistit", "sorted", true);
         System.out.printf("Loading %,d records\n", totalRecords);
 
@@ -84,14 +70,25 @@ public class BigLoad extends AbstractStressTest {
         final long endLoadTime = System.nanoTime();
         System.out.printf("Loaded %,d records into %,d buckets in %,dms\n", totalRecords, tb.getSortVolumeCount(),
                 (endLoadTime - startLoadTime) / Util.NS_PER_MS);
+        return endLoadTime - startLoadTime;
+    }
 
+    public long merge(final Persistit db) throws Exception {
+        final long  startMergeTime = System.nanoTime();
+    
         System.out.printf("Merging %,d records into main database\n", totalRecords);
 
         tb.merge();
         final long endMergeTime = System.nanoTime();
-        System.out.printf("Merged %,d records in %,dms\n", totalRecords, (endMergeTime - endLoadTime) / Util.NS_PER_MS);
+        System.out.printf("Merged %,d records in %,dms\n", totalRecords, (endMergeTime - startMergeTime) / Util.NS_PER_MS);
 
+        return endMergeTime - startMergeTime;
+    }
+    
+    public long count(final Persistit db) throws Exception {
+        final long startCountTime = System.nanoTime();
         System.out.printf("Counting keys in main database (100M keys per dot) ");
+        final Exchange resultExchange = db.getExchange("persistit", "sorted", false);
         resultExchange.clear().append(Key.BEFORE);
         long count = 0;
         while (resultExchange.next()) {
@@ -102,10 +99,9 @@ public class BigLoad extends AbstractStressTest {
             }
         }
         final long endCountTime = System.nanoTime();
-        System.out.printf("\nCounted %,d keys in the main database in %,dms\n", count, (endCountTime - endMergeTime)
+        System.out.printf("\nCounted %,d keys in the main database in %,dms\n", count, (endCountTime - startCountTime)
                 / Util.NS_PER_MS);
-        System.out.printf("Total time to load, merge and count %,d records is %,dms", totalRecords,
-                (endCountTime - startLoadTime) / Util.NS_PER_MS);
+        return endCountTime - startCountTime;
     }
 
     final StringBuilder sb = new StringBuilder(
@@ -136,7 +132,6 @@ public class BigLoad extends AbstractStressTest {
     public static void main(final String[] args) throws Exception {
         final int records = args.length > 0 ? Integer.parseInt(args[0]) : 1000000;
         final int buckets = args.length > 1 ? Integer.parseInt(args[1]) : 100;
-        final BigLoad bl = new BigLoad(records, buckets);
         final Persistit db = new Persistit();
         if (args.length > 2) {
             db.setPropertiesFromFile(args[2]);
@@ -144,10 +139,36 @@ public class BigLoad extends AbstractStressTest {
         } else {
             db.initialize();
         }
+        final BigLoad bl = new BigLoad(new BigLoadTreeBuilder(db), records, buckets);
         try {
             bl.load(db);
+            bl.merge(db);
+            bl.clone();
         } finally {
             db.close();
+        }
+    }
+    
+    public static class BigLoadTreeBuilder extends TreeBuilder  {
+        
+        public BigLoadTreeBuilder(final Persistit db) {
+            super(db);
+        }
+        
+        @Override
+        protected void reportSorted(final long count) {
+            System.out.printf("Sorted %,15d records\n", count);
+        }
+
+        @Override
+        protected void reportMerged(final long count) {
+            System.out.printf("Merged %,15d records\n", count);
+        }
+
+        @Override
+        protected boolean duplicateKeyDetected(final Tree tree, final Key key, final Value v1, final Value v2) {
+            System.out.println("Duplicate  key detected: " + key);
+            return true;
         }
     }
 
@@ -159,8 +180,9 @@ public class BigLoad extends AbstractStressTest {
      * ----------------------------------------------------------------------
      */
 
-    public BigLoad(final String argsString) {
+    public BigLoad(final TreeBuilder tb, final String argsString) {
         super(argsString);
+        this.tb = tb;
     }
 
     private final static String[] ARGS_TEMPLATE = { "records|int:1000000:1:1000000000|Total records to create",
