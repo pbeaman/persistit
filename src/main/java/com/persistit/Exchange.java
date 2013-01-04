@@ -44,11 +44,13 @@ import com.persistit.Key.Direction;
 import com.persistit.MVV.PrunedVersion;
 import com.persistit.ValueHelper.MVVValueWriter;
 import com.persistit.ValueHelper.RawValueWriter;
+import com.persistit.VolumeStructure.Chain;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
+import com.persistit.exception.RebalanceException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TreeNotFoundException;
@@ -969,6 +971,26 @@ public class Exchange {
      * An additional <code>Key</code> maintained for the convenience of
      * {@link Transaction}, {@link PersistitMap} and {@link JournalManager}.
      * 
+     * @return spareKey3
+     */
+    Key getAuxiliaryKey3() {
+        return _spareKey3;
+    }
+
+    /**
+     * An additional <code>Key</code> maintained for the convenience of
+     * {@link Transaction}, {@link PersistitMap} and {@link JournalManager}.
+     * 
+     * @return spareKey4
+     */
+    Key getAuxiliaryKey4() {
+        return _spareKey4;
+    }
+
+    /**
+     * An additional <code>Key</code> maintained for the convenience of
+     * {@link Transaction}, {@link PersistitMap} and {@link JournalManager}.
+     * 
      * @return spareKey2
      */
     Key getAuxiliaryKey2() {
@@ -1641,10 +1663,14 @@ public class Exchange {
                         buffer.releaseTouched();
                         buffer = null;
                     }
+                    if (treeClaimAcquired) {
+                        _treeHolder.release();
+                        treeClaimAcquired = false;
+                    }
                     try {
                         sequence(WRITE_WRITE_STORE_A);
-                        // TODO - timeout?
                         final long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
+                        // TODO - timeout?
                                 _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME);
                         if (depends != 0 && depends != TransactionStatus.ABORTED) {
                             // version is from concurrent txn that already
@@ -3196,6 +3222,13 @@ public class Exchange {
      */
     boolean raw_removeKeyRangeInternal(final Key key1, final Key key2, final boolean fetchFirst,
             final boolean removeOnlyAntiValue) throws PersistitException {
+        /*
+         * _spareKey1 and _spareKey2 are mutated within the method and are then
+         * wrong in the event of a retry loop.
+         */
+
+        assert key1 != _spareKey1 && key2 != _spareKey1 && key1 != _spareKey2 && key2 != _spareKey2;
+
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
@@ -3232,12 +3265,18 @@ public class Exchange {
                     // First try for a quick delete from a single data page.
                     //
                     if (tryQuickDelete) {
+                        final List<Chain> chains = new ArrayList<Chain>();
                         Buffer buffer = null;
                         try {
                             final int foundAt1 = search(key1, true) & P_MASK;
                             buffer = _levelCache[0]._buffer;
-
-                            if (foundAt1 > buffer.getKeyBlockStart() && foundAt1 < buffer.getKeyBlockEnd()) {
+                            //
+                            // Re-check tree generation because a structure
+                            // delete could have changed
+                            // search results.
+                            //
+                            if (_tree.getGeneration() == _cachedTreeGeneration && foundAt1 > buffer.getKeyBlockStart()
+                                    && foundAt1 < buffer.getKeyBlockEnd()) {
                                 int foundAt2 = buffer.findKey(key2) & P_MASK;
                                 if (!buffer.isBeforeLeftEdge(foundAt2) && !buffer.isAfterRightEdge(foundAt2)) {
                                     foundAt2 &= P_MASK;
@@ -3257,7 +3296,7 @@ public class Exchange {
 
                                         final long timestamp = timestamp();
                                         buffer.writePageOnCheckpoint(timestamp);
-                                        _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2);
+                                        _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2, chains);
 
                                         final boolean removed = buffer.removeKeys(foundAt1, foundAt2, _spareKey1);
                                         if (removed) {
@@ -3278,6 +3317,7 @@ public class Exchange {
                                 buffer = null;
                             }
                         }
+                        _volume.getStructure().deallocateGarbageChain(chains);
                     }
 
                     /*
@@ -3386,6 +3426,8 @@ public class Exchange {
                     // needs to be removed. Now walk down the tree,
                     // stitching together the pages where necessary.
                     //
+                    _tree.bumpGeneration();
+
                     final long timestamp = timestamp();
                     for (int level = _cacheDepth; --level >= 0;) {
                         lc = _levelCache[level];
@@ -3415,8 +3457,15 @@ public class Exchange {
 
                             Debug.$assert0.t(_tree.isOwnedAsWriterByMe() && buffer1.isOwnedAsWriterByMe()
                                     && buffer2.isOwnedAsWriterByMe());
-                            final boolean rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1,
-                                    _spareKey2, _joinPolicy);
+                            boolean rebalanced = false;
+                            try {
+                                rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1, _spareKey2,
+                                        _joinPolicy);
+                            } catch (final RebalanceException rbe) {
+                                rebalanceSplit(lc);
+                                level++;
+                                continue;
+                            }
                             if (buffer1.isDataPage()) {
                                 _tree.bumpChangeCount();
                             }
@@ -3519,9 +3568,6 @@ public class Exchange {
                     }
 
                     if (treeClaimAcquired) {
-                        if (treeWriterClaimRequired) {
-                            _tree.bumpGeneration();
-                        }
                         _treeHolder.release();
                         treeClaimAcquired = false;
                     }
@@ -3575,6 +3621,58 @@ public class Exchange {
             _tree.getStatistics().bumpFetchCounter();
         }
         return result;
+    }
+
+    /**
+     * Handle the extremely rare case where removing a key from a pair of
+     * adjacent pages requires the left page to be split. To split the page this
+     * method inserts an empty record with key being deleted, allowing the
+     * {@link Buffer#split(Buffer, Key, ValueHelper, int, Key, Sequence, SplitPolicy)}
+     * method to be used.
+     * 
+     * @param lc
+     *            LevelCache set up by raw_removeKeyRangeInternal
+     * @throws PersistitException
+     */
+    private void rebalanceSplit(final LevelCache lc) throws PersistitException {
+        //
+        // Allocate a new page
+        //
+        final int level = lc._level;
+        final int foundAt = lc._leftFoundAt;
+        final Buffer left = lc._leftBuffer;
+        final Buffer inserted = _volume.getStructure().allocPage();
+        try {
+            final long timestamp = timestamp();
+            left.writePageOnCheckpoint(timestamp);
+            inserted.writePageOnCheckpoint(timestamp);
+
+            Debug.$assert0.t(inserted.getPageAddress() != 0);
+            Debug.$assert0.t(inserted != left);
+
+            inserted.init(left.getPageType());
+
+            final Value value = _persistit.getThreadLocalValue();
+            value.clear();
+            _rawValueWriter.init(value);
+            final Key key = _persistit.getThreadLocalKey();
+            lc._rightBuffer.nextKey(key, Buffer.HEADER_SIZE);
+
+            left.split(inserted, key, _rawValueWriter, foundAt | EXACT_MASK, _spareKey1, Sequence.NONE,
+                    SplitPolicy.EVEN_BIAS);
+
+            inserted.setRightSibling(left.getRightSibling());
+            left.setRightSibling(inserted.getPageAddress());
+            left.setDirtyAtTimestamp(timestamp);
+            inserted.setDirtyAtTimestamp(timestamp);
+            lc._leftBuffer = inserted;
+            lc._leftFoundAt = inserted.findKey(key);
+
+            _persistit.getCleanupManager().offer(
+                    new CleanupManager.CleanupIndexHole(_tree.getHandle(), inserted.getPageAddress(), level));
+        } finally {
+            left.releaseTouched();
+        }
     }
 
     private void removeKeyRangeReleaseLevel(final int level) {
@@ -3706,12 +3804,12 @@ public class Exchange {
                 final int offset = (int) (at >>> 32);
                 final int size = (int) at;
                 if (size == 1 && buffer.getBytes()[offset] == MVV.TYPE_ANTIVALUE) {
-                    buffer.nextKey(_spareKey1, Buffer.KEY_BLOCK_START);
+                    buffer.nextKey(_spareKey3, Buffer.KEY_BLOCK_START);
                     buffer.release();
                     buffer = null;
-                    _spareKey1.copyTo(_spareKey2);
-                    _spareKey2.nudgeDeeper();
-                    raw_removeKeyRangeInternal(_spareKey1, _spareKey2, false, true);
+                    _spareKey3.copyTo(_spareKey4);
+                    _spareKey4.nudgeDeeper();
+                    raw_removeKeyRangeInternal(_spareKey3, _spareKey4, false, true);
                     return true;
                 }
             }

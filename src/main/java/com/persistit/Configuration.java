@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.exception.CorruptJournalException;
@@ -43,7 +45,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
-import com.persistit.mxbeans.CheckpointManagerMXBean;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.util.Util;
@@ -61,13 +62,13 @@ import com.persistit.util.Util;
  * <code>Configuration</code>. This object is used directly or indirectly by the
  * following methods:
  * <ul>
- * <li>{@link Persistit#initialize(Configuration)} - uses a supplied
+ * <li>{@link Persistit#setConfiguration(Configuration)} - assigns a supplied
  * <code>Configuration</code> directly.</li>
- * <li>{@link Persistit#initialize(Properties)} - creates and loads a
+ * <li>{@link Persistit#setProperties(Properties)} - creates and loads a
  * <code>Configuration</code> from the supplied <code>Properties</code>.</li>
- * <li>{@link Persistit#initialize(String)} - loads a properties file from the
- * specified file name, and then constructs a <code>Configuration</code> from
- * the loaded <code>Properties</code>.
+ * <li>{@link Persistit#setPropertiesFromFile(String)} - loads a properties file
+ * from the specified file name, and then constructs a
+ * <code>Configuration</code> from the loaded <code>Properties</code>.
  * <li>{@link Persistit#initialize()} - loads a properties file from a default
  * name and then constructs a <code>Configuration</code> from the loaded
  * <code>Properties</code>.
@@ -411,6 +412,7 @@ public class Configuration {
          *            the minimumCount to set
          */
         public void setMinimumCount(final int minimumCount) {
+            Util.rangeCheck(minimumCount, 0, BufferPool.MAXIMUM_POOL_COUNT);
             this.minimumCount = minimumCount;
         }
 
@@ -426,6 +428,7 @@ public class Configuration {
          *            the maximumCount to set
          */
         public void setMaximumCount(final int maximumCount) {
+            Util.rangeCheck(maximumCount, BufferPool.MINIMUM_POOL_COUNT, Integer.MAX_VALUE);
             this.maximumCount = maximumCount;
         }
 
@@ -496,8 +499,20 @@ public class Configuration {
          *            the fraction to set
          */
         public void setFraction(final float fraction) {
+            Util.rangeCheck(fraction, 0.0f, 1.0f);
             this.fraction = fraction;
         }
+
+        private final static String SIMPLE_COUNT_FORMAT = "count=%d";
+        private final static String MIN_MAX_COUNT_FORMAT = "minCount=%d,maxCount=%d";
+        private final static String MIN_MAX_MEMORY_FORMAT = "minMem=%s,maxMem=%s,reserved=%s,fraction=%s";
+        private final static Pattern SIMPLE_COUNT_PATTERN = Pattern.compile("count=([0-9]+[KMGT]?)",
+                Pattern.CASE_INSENSITIVE);
+        private final static Pattern MIN_MAX_COUNT_PATTERN = Pattern.compile(
+                "minCount=([0-9KMGT]+),maxCount=([0-9KMGT]+)", Pattern.CASE_INSENSITIVE);
+        private final static Pattern MIN_MAX_MEMORY_PATTERN = Pattern.compile(
+                "minMem=([0-9]+[KMGT]?),maxMem=([0-9]+[KMGT]?),reserved=([0-9]+[KMGT]?),fraction=([0-9\\.]+)",
+                Pattern.CASE_INSENSITIVE);
 
         /**
          * Compute the buffer count determined by the constraints of this
@@ -531,20 +546,57 @@ public class Configuration {
 
         @Override
         public String toString() {
-            final StringBuilder sb = new StringBuilder("BufferPoolConfiguration(");
-            sb.append(String.format("size=%d", bufferSize));
+            final StringBuilder sb = new StringBuilder();
+            sb.append(bufferSize).append(",");
             if (minimumCount == maximumCount) {
-                sb.append(String.format(",count=%d", minimumCount));
+                sb.append(String.format(SIMPLE_COUNT_FORMAT, minimumCount));
             } else if (minimumCount != 0 || maximumCount != Integer.MAX_VALUE) {
-                sb.append(String.format(",minCount=%d,maxCount=%d", minimumCount, maximumCount));
+                sb.append(String.format(MIN_MAX_COUNT_FORMAT, minimumCount, maximumCount));
             }
             if (minimumMemory != 0 || maximumMemory != Long.MAX_VALUE || reservedMemory != 0 || fraction != 1.0f) {
-                sb.append(String.format(",minMem=%s,maxMem=%s,reserved=%s,fraction=%f",
-                        displayableLongValue(minimumMemory), displayableLongValue(maximumMemory),
-                        displayableLongValue(reservedMemory), fraction));
+                sb.append(String.format(MIN_MAX_MEMORY_FORMAT, displayableLongValue(minimumMemory),
+                        displayableLongValue(maximumMemory), displayableLongValue(reservedMemory), fraction));
             }
-            sb.append(')');
             return sb.toString();
+        }
+
+        /**
+         * Parse the String description generated by {@link #toString()}. The
+         * string format is
+         * 
+         * <code><pre>
+         * bufferSize,propertyName=value,...
+         * </pre><code>
+         * 
+         * where propertyNames are <code>count</code>, <code>minCount</code>,
+         * <code>maxCount</code>, <code>minMemory</code>, <code>maxMemory</code>
+         * , <code>reserved</code> or <code>fraction</code>
+         */
+        public void parse(final String string) {
+            final String[] terms = string.split(",", 2);
+            if (terms.length > 1) {
+                checkBufferSize((int) parseLongProperty(string, terms[0]), string);
+                Matcher matcher;
+                matcher = SIMPLE_COUNT_PATTERN.matcher(terms[1]);
+                if (matcher.matches()) {
+                    setCount((int) parseLongProperty(string, matcher.group(1)));
+                    return;
+                }
+                matcher = MIN_MAX_COUNT_PATTERN.matcher(terms[1]);
+                if (matcher.matches()) {
+                    setMinimumCount((int) parseLongProperty(string, matcher.group(1)));
+                    setMaximumCount((int) parseLongProperty(string, matcher.group(2)));
+                    return;
+                }
+                matcher = MIN_MAX_MEMORY_PATTERN.matcher(terms[1]);
+                if (matcher.matches()) {
+                    setMemoryConstraints(string, parseLongProperty(string, matcher.group(1)),
+                            parseLongProperty(string, matcher.group(2)), parseLongProperty(string, matcher.group(3)),
+                            parseFloatProperty(string, matcher.group(4)));
+                    return;
+                }
+            }
+            throw new IllegalArgumentException("Invalid BufferPool memory specification: " + string);
         }
 
         /**
@@ -564,11 +616,9 @@ public class Configuration {
          *             Integer
          */
         public void parseBufferCount(final int bufferSize, final String propertyName, final String propertyValue) {
+            checkBufferSize(bufferSize, propertyName);
             reset();
-            final int count = (int) parseLongProperty(propertyName, propertyValue);
-            Util.rangeCheck(count, BufferPool.MINIMUM_POOL_COUNT, BufferPool.MAXIMUM_POOL_COUNT);
-            setMaximumCount(count);
-            setMinimumCount(count);
+            setCount((int) parseLongProperty(propertyName, propertyValue));
         }
 
         /**
@@ -594,6 +644,7 @@ public class Configuration {
          * @param propertyValue
          */
         public void parseBufferMemory(final int bufferSize, final String propertyName, final String propertyValue) {
+            checkBufferSize(bufferSize, propertyName);
             reset();
             long minimum = 0;
             long maximum = Long.MAX_VALUE;
@@ -614,10 +665,14 @@ public class Configuration {
             }
             if (terms.length > 3 && !terms[3].isEmpty()) {
                 fraction = parseFloatProperty(propertyName, terms[3]);
-                Util.rangeCheck(fraction, 0.0f, 1.0f);
             }
+            setMemoryConstraints(propertyValue, minimum, maximum, reserved, fraction);
+        }
 
+        private void setMemoryConstraints(final String propertyValue, final long minimum, final long maximum,
+                final long reserved, final float fraction) {
             if (minimum >= 0 && minimum <= maximum && maximum - minimum >= reserved && reserved >= 0) {
+                Util.rangeCheck(fraction, 0.0f, 1.0f);
                 setMinimumMemory(minimum);
                 setMaximumMemory(maximum);
                 setReservedMemory(reserved);
@@ -627,7 +682,12 @@ public class Configuration {
             } else {
                 throw new IllegalArgumentException("Invalid BufferPool memory specification: " + propertyValue);
             }
+        }
 
+        private void checkBufferSize(final int size, final String s) {
+            if (size != this.bufferSize) {
+                throw new IllegalArgumentException("Buffer size " + size + " does not match " + s);
+            }
         }
 
     }
@@ -1099,10 +1159,6 @@ public class Configuration {
      *            value is invalid.
      * @param str
      *            The string representation, e.g., "100K".
-     * @param min
-     *            Minimum permissible value
-     * @param max
-     *            Maximum permissible value
      * @return The numeric value of the supplied String, as a floag.
      * @throws IllegalArgumentException
      *             if the supplied String is not a valid floating point
@@ -1226,6 +1282,53 @@ public class Configuration {
     }
 
     /**
+     * Return a summary of the buffer configuration of all buffer pool sizes as
+     * a string. For example, a value such as
+     * 
+     * <code><pre>
+     * 4096,count=1000;16384,minMemory=0,maxMemory=512G,reserved=1G,fraction=0.6
+     * </pre></code>
+     * 
+     * @return describes two buffer pools, on with 4K buffers and the other with
+     *         16K buffers. There the configuration specifies the smaller pool
+     *         by count, and the larger buffers by memory.
+     */
+    public String getBufferPoolConfiguration() {
+        final StringBuilder sb = new StringBuilder();
+        for (final BufferPoolConfiguration bpc : bufferPoolMap.values()) {
+            if (bpc.getMaximumCount() > 0) {
+                if (sb.length() > 0) {
+                    sb.append(";");
+                }
+                sb.append(bpc);
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Parses and sets up the configuration of all buffer pools from the
+     * supplied string.
+     * 
+     * @param string
+     */
+    public void setBufferPoolConfiguration(final String string) {
+        for (final BufferPoolConfiguration bpc : bufferPoolMap.values()) {
+            bpc.reset();
+        }
+        for (final String s : string.split(";")) {
+            try {
+                final int bufferSize = Integer.parseInt(s.split(",")[0]);
+                bufferPoolMap.get(bufferSize).parse(s);
+            } catch (final NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid BufferPool memory specification: " + string);
+            } catch (final ArrayIndexOutOfBoundsException e) {
+                throw new IllegalArgumentException("Invalid BufferPool memory specification: " + string);
+            }
+        }
+    }
+
+    /**
      * Return a List of <code>VolumeSpecification</code> instances for
      * {@link Volume}s that Persistit should load or create during
      * initialization. An application can add <code>VolumeSpecification</code>
@@ -1236,6 +1339,20 @@ public class Configuration {
      */
     public List<VolumeSpecification> getVolumeList() {
         return volumeSpecifications;
+    }
+
+    /**
+     * Copies the supplied {@link VolumeSpecification} elements to the volume
+     * list after first clearing it. This method allows a list of
+     * VolumeSpecifications to be injected as a property.
+     * 
+     * @param list
+     *            List of VolumeSpecifications for volumes to be opened when the
+     *            {@link Persistit#initialize()} method is called
+     */
+    public void setVolumeList(final List<VolumeSpecification> list) {
+        volumeSpecifications.clear();
+        volumeSpecifications.addAll(list);
     }
 
     /**
@@ -1318,7 +1435,8 @@ public class Configuration {
      * from an abrupt termination (crash) to take more time.
      * </p>
      * Default size is
-     * {@value CheckpointManagerMXBean#DEFAULT_CHECKPOINT_INTERVAL_S} <br/>
+     * {@value com.persistit.mxbeans.CheckpointManagerMXBean#DEFAULT_CHECKPOINT_INTERVAL_S}
+     * <br/>
      * Property name is {@value #CHECKPOINT_INTERVAL_PROPERTY_NAME}
      */
     public void setCheckpointInterval(final long checkpointInterval) {

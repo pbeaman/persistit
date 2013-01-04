@@ -20,14 +20,15 @@ To access Persistit, the application first constructs an instance of the ``com.p
   //
   // register any Coder and Renderer instances before initialization
   //
-  db.initialize(configProperties);
+  db.setConfiguration(config);
+  db.initialize();
   try {
       // do application work
   } finally {
       db.close();
   }
 
-The ``configProperties`` describe the memory allocation, initial set of volumes, the journal, and other settings needed to get Persistit started. See :ref:`Configuration` for details.
+where ``config`` is a ``com.persistit.Configuration`` that describes the memory allocation, initial set of volumes, journal file name, and other settings needed to get Persistit started. The configuration can also be specified as a ``java.util.Properties`` collection, or by name of a properties file. See :ref:`Configuration` for details.
 
 The ``com.persistit.Persistit#close`` method gracefully flushes all modified data to disk, stops background threads and unregisters JMX MBeans. 
 

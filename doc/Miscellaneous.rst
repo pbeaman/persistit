@@ -5,6 +5,11 @@ Miscellaneous Topics
 
 Following are some short items you may find useful as you explore Akiban Persistit. Follow links to the API documentation for more details.
 
+TreeBuilder
+-----------
+
+The class ``com.persistit.TreeBuilder`` improves performance of inserting large sets of data when the keys being inserted are non-sequential. TreeBuilder is effective if and only if the size of the data being loaded is significantly larger than the amount of memory available in the buffer pool and keys are inserted in essentially random order.
+
 Histograms
 ----------
 

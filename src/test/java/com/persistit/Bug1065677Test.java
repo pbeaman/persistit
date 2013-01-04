@@ -97,13 +97,13 @@ public class Bug1065677Test extends PersistitUnitTestCase {
 
         _persistit = new Persistit();
         _persistit.getTimestampAllocator().updateTimestamp(lastTimestamp + 1000);
-        _persistit.initialize(config);
+        _persistit.setConfiguration(config);
+        _persistit.initialize();
         _persistit.crash();
         truncate();
 
-        _persistit = new Persistit();
         config.setAppendOnly(true);
-        _persistit.initialize(config);
+        _persistit = new Persistit(config);
 
         doTransaction();
 
@@ -111,8 +111,7 @@ public class Bug1065677Test extends PersistitUnitTestCase {
         jman.rollover();
         _persistit.close();
 
-        _persistit = new Persistit();
-        _persistit.initialize(config);
+        _persistit = new Persistit(config);
         _persistit.close();
 
     }

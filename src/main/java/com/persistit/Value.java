@@ -23,6 +23,7 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
@@ -34,9 +35,11 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.CoderManager;
+import com.persistit.encoding.HandleCache;
 import com.persistit.encoding.SerialValueCoder;
 import com.persistit.encoding.ValueCoder;
 import com.persistit.encoding.ValueDisplayer;
@@ -278,6 +281,7 @@ import com.persistit.util.Util;
  * @version 1.1
  */
 public final class Value {
+
     /**
      * A Value that is always EMPTY - i.e., for which <code>isDefined()</code>
      * is always false.
@@ -300,7 +304,6 @@ public final class Value {
     public final static int MAXIMUM_SIZE = 64 * 1024 * 1024;
 
     private final static int SIZE_GRANULARITY = 256;
-    private final static int SIZE_GROWTH_DENOMINATOR = 8;
 
     private final static char TRUE_CHAR = 'T';
     private final static char FALSE_CHAR = 'F';
@@ -542,9 +545,8 @@ public final class Value {
     };
 
     private final static int TOO_MANY_LEVELS_THRESHOLD = 100;
-    private final static HashMap<Class<?>, Class<?>[]> _arrayTypeCache = new HashMap<Class<?>, Class<?>[]>();
     private final static int SAB_INCREMENT = 1024;
-
+    private final Map<Class<?>, Class<?>[]> _arrayTypeCache = new HashMap<Class<?>, Class<?>[]>();
     private int _maximumSize = DEFAULT_MAXIMUM_SIZE;
 
     private int _size = 0;
@@ -575,7 +577,7 @@ public final class Value {
 
     private final Persistit _persistit;
 
-    private WeakReference<StringBuilder> _stringAssemblyBufferWeakRef;
+    private SoftReference<StringBuilder> _stringAssemblyBufferSoftRef;
 
     /**
      * Construct a <code>Value</code> object with default initial and maximum
@@ -644,8 +646,8 @@ public final class Value {
                 Util.clearBytes(_longBytes, 0, _longBytes.length);
             }
             _longSize = 0;
-            if (_stringAssemblyBufferWeakRef != null) {
-                final StringBuilder sb = _stringAssemblyBufferWeakRef.get();
+            if (_stringAssemblyBufferSoftRef != null) {
+                final StringBuilder sb = _stringAssemblyBufferSoftRef.get();
                 if (sb != null) {
                     final int length = sb.length();
                     for (int index = 0; index < length; index++) {
@@ -659,12 +661,12 @@ public final class Value {
 
     private StringBuilder getStringAssemblyBuffer(final int size) {
         StringBuilder sb = null;
-        if (_stringAssemblyBufferWeakRef != null) {
-            sb = _stringAssemblyBufferWeakRef.get();
+        if (_stringAssemblyBufferSoftRef != null) {
+            sb = _stringAssemblyBufferSoftRef.get();
         }
         if (sb == null) {
             sb = new StringBuilder(size + SAB_INCREMENT);
-            _stringAssemblyBufferWeakRef = new WeakReference<StringBuilder>(sb);
+            _stringAssemblyBufferSoftRef = new SoftReference<StringBuilder>(sb);
         } else {
             sb.setLength(0);
         }
@@ -774,20 +776,17 @@ public final class Value {
      * @return <code>true</code> if the backing byte array was replaced by a
      *         larger array.
      */
-    public boolean ensureFit(int length) {
-
-        if (length > 0 && length * SIZE_GROWTH_DENOMINATOR < _size) {
-            length = _size / SIZE_GROWTH_DENOMINATOR;
-        }
-        final int newSize = _size + length;
-        if (newSize <= _bytes.length) {
+    public boolean ensureFit(final int length) {
+        if (_size + length <= _bytes.length) {
             return false;
         }
-        int newArraySize = ((newSize + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY) * SIZE_GRANULARITY;
-        if (newArraySize > _maximumSize)
+        if (_size + length > _maximumSize) {
+            throw new ConversionException("Requested size=" + (_size + length) + " exceeds maximum size="
+                    + _maximumSize);
+        }
+        int newArraySize = (((_size + length) * 2 + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY) * SIZE_GRANULARITY;
+        if (newArraySize > _maximumSize) {
             newArraySize = _maximumSize;
-        if (newArraySize < newSize) {
-            throw new ConversionException("Requested size=" + newSize + " exceeds maximum size=" + _maximumSize);
         }
         final byte[] bytes = new byte[newArraySize];
         System.arraycopy(_bytes, 0, bytes, 0, _size);
@@ -963,8 +962,36 @@ public final class Value {
         return getTypeHandle() == TYPE_NULL;
     }
 
+    /**
+     * Determine whether the data held by this <code>Value</code> is null. As a
+     * side effect, if <code>skipNull</code> is true and <a
+     * href="#_streamMode">Stream Mode</a> is enabled this method also advances
+     * the cursor to the next field if the current field is null.
+     * 
+     * @param skipNull
+     *            if <code>true</code>, the <code>Value</code> is in stream mode
+     *            and the current field is null, then advance the cursor to next
+     *            field
+     * @return <code>true</code> if the current state of this <code>Value</code>
+     *         represents <i>null</i>.
+     */
+    public boolean isNull(final boolean skipNull) {
+        if (isNull()) {
+            if (skipNull && _depth > 0) {
+                _next++;
+                _serializedItemCount++;
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     boolean isAntiValue() {
-        return getTypeHandle() == CLASS_ANTIVALUE;
+        if (_size == 0) {
+            return false;
+        }
+        return (_bytes[0] & 0xFF) == CLASS_ANTIVALUE;
     }
 
     /**
@@ -1360,7 +1387,7 @@ public final class Value {
         default: {
             if (classHandle >= CLASS1) {
                 try {
-                    final Class<?> clazz = _persistit.classForHandle(classHandle);
+                    final Class<?> clazz = classForHandle(classHandle);
                     ValueCoder coder = null;
                     _depth++;
                     getValueCache().store(currentItemCount, new DisplayMarker(sb.length()));
@@ -1574,7 +1601,15 @@ public final class Value {
         final int saveEnd = _end;
         try {
             final int classHandle = nextType();
-            if (classHandle > 0 && classHandle < CLASSES.length && CLASSES[classHandle] != null) {
+            if (classHandle == CLASS_REREF) {
+                final int base = _bytes[_next++] & 0xFF;
+                final int handle = decodeVariableLengthInt(base);
+                final Object object = getValueCache().get(handle);
+                if (object == null) {
+                    throw new IllegalStateException("Reference to handle " + handle + " has no value");
+                }
+                return object.getClass();
+            } else if (classHandle > 0 && classHandle < CLASSES.length && CLASSES[classHandle] != null) {
                 return CLASSES[classHandle];
             } else if (classHandle == CLASS_ARRAY) {
                 _depth++;
@@ -2370,7 +2405,7 @@ public final class Value {
             final int saveDepth = _depth;
             try {
                 _depth++;
-                final Class<?> cl = _persistit.classForHandle(classHandle);
+                final Class<?> cl = classForHandle(classHandle);
                 final ValueCoder coder = getValueCoder(cl);
 
                 if (coder != null) {
@@ -3416,11 +3451,10 @@ public final class Value {
                     if (cl == Object.class) {
                         handle = CLASS_OBJECT;
                     } else
-                        handle = _persistit.getClassIndex().lookupByClass(cl).getHandle();
+                        handle = handleForClass(cl);
 
                     if (coder != null) {
                         _size += encodeVariableLengthInt(CLASS1, _size, handle - CLASS1);
-
                         coder.put(this, object, context);
                         end = _size;
                     } else {
@@ -3956,8 +3990,12 @@ public final class Value {
      * to be decoded and constructed.
      */
     public void skip() {
-        if (_depth == 0)
+        if (_depth == 0) {
             return;
+        }
+        final int currentHandle = _serializedItemCount++;
+        final int saveNext = _next;
+        final int saveEnd = _end;
         final int classHandle = nextType();
         if (classHandle == 0)
             return;
@@ -3973,6 +4011,7 @@ public final class Value {
         if (size >= 0) {
             _next += size;
         } else {
+            getValueCache().put(currentHandle, new SkippedFieldMarker(this, saveNext, saveEnd));
             closeVariableLengthItem();
         }
     }
@@ -4022,6 +4061,166 @@ public final class Value {
         _serializedItemCount++;
     }
 
+    /**
+     * Optimized put method to be used in specialized circumstances where an
+     * applications can supply a {@link ValueCoder} directly. This method
+     * receives the <code>ValueCoder</code> to be used from the application and
+     * therefore avoids the cost of looking it up from the class of the supplied
+     * <code>Object</code>. For example, suppose the application has registered
+     * a <code>ValueCoder</code> named <code>myCoder</code> to handle
+     * serialization and deserialization for a class called <code>MyClass</code>
+     * . The following
+     * 
+     * <pre>
+     * <code>
+     *   value.directPut(myCoder, myClassValue, context);
+     * </code>
+     * </pre>
+     * 
+     * is equivalent to but somewhat faster than
+     * 
+     * <pre>
+     * <code>
+     *   value.put(myClassValue, context);
+     * </code>
+     * </pre>
+     * 
+     * @param coder
+     *            The <code>ValueCoder</code> registered for the class of
+     *            <code>object</code>
+     * @param object
+     *            The object value to store
+     * @param context
+     *            The <code>CoderContext</code> or <code>null</code>
+     */
+    public void directPut(final ValueCoder coder, final Object object, final CoderContext context) {
+        if (object == null) {
+            putNull();
+            return;
+        }
+        preparePut();
+        _depth++;
+        int end = _size;
+        try {
+            ensureFit(6);
+            final int handle = directHandle(coder, object.getClass());
+            assert handle >= CLASS1 && handle < CLASS5;
+            _size += encodeVariableLengthInt(CLASS1, _size, handle - CLASS1);
+            coder.put(this, object, context);
+            end = _size;
+        } finally {
+            _depth--;
+            _size = end;
+        }
+    }
+
+    /**
+     * Optimized get method to be used in specialized circumstances where an
+     * applications can supply a {@link ValueCoder} directly. This method
+     * receives the <code>ValueCoder</code> to be used from the application and
+     * therefore avoids the cost of looking it up from the class of the supplied
+     * <code>Object</code>. For example, suppose the application has registered
+     * a <code>ValueCoder</code> named <code>myCoder</code> to handle
+     * serialization and deserialization for a class called <code>MyClass</code>
+     * . The following
+     * 
+     * <pre>
+     * <code>
+     *   MyClass myClassValue = (MyClass)value.directGet(myCoder, context);
+     * </code>
+     * </pre>
+     * 
+     * is equivalent to but somewhat faster than
+     * 
+     * <pre>
+     * <code>
+     *   MyClass myClassValue = (MyClass)value.get(null, context);
+     * </code>
+     * </pre>
+     * 
+     * @param coder
+     *            The <code>ValueCoder</code> registered for the class of
+     *            <code>object</code>
+     * @param clazz
+     *            The class of the object value to get
+     * @param context
+     *            The <code>CoderContext</code> or <code>null</code>
+     * @return an object of class <code>clazz</code>, or <code>null</code>
+     */
+    public Object directGet(final ValueRenderer coder, final Class<?> clazz, final CoderContext context) {
+        final int type = nextType();
+        if (type == TYPE_NULL) {
+            return null;
+        }
+        final int expectedType = directHandle(coder, clazz);
+        assert expectedType >= CLASS1 && expectedType < CLASS5;
+        expectType(expectedType, type);
+        _depth++;
+        _serializedItemCount++;
+        try {
+            return coder.get(this, clazz, context);
+        } finally {
+            _depth--;
+        }
+    }
+
+    /**
+     * Optimized get method to be used in specialized circumstances where an
+     * applications can supply a {@link ValueCoder} directly. This method
+     * receives the <code>ValueCoder</code> to be used from the application and
+     * therefore avoids the cost of looking it up from the class of the supplied
+     * <code>Object</code>. For example, suppose the application has registered
+     * a <code>ValueCoder</code> named <code>myCoder</code> to handle
+     * serialization and deserialization for a class called <code>MyClass</code>
+     * . The following
+     * 
+     * <pre>
+     * <code>
+     *   MyClass myClassValue = new MyClass();
+     *   value.directGet(myCoder, myClassValue, context);
+     * </code>
+     * </pre>
+     * 
+     * is equivalent to but somewhat faster than
+     * 
+     * <pre>
+     * <code>
+     *   MyClass myClassValue = new MyClass();
+     *   (MyClass)value.get(myClassValue, context);
+     * </code>
+     * </pre>
+     * 
+     * @param coder
+     *            The <code>ValueCoder</code> registered for the class of
+     *            <code>object</code>
+     * @param target
+     *            A mutable object of type <code>clazz</code> into which a
+     *            {@link ValueRenderer} <i>may</i> decode this
+     *            <code>Value</code>.
+     * @param clazz
+     *            The class of the object value to get
+     * @param context
+     *            The <code>CoderContext</code> or <code>null</code>
+     */
+    public Object directGet(final ValueRenderer coder, final Object target, final Class<?> clazz,
+            final CoderContext context) {
+        final int type = nextType();
+        if (type == TYPE_NULL) {
+            return null;
+        }
+        final int expectedType = directHandle(coder, clazz);
+        assert expectedType >= CLASS1 && expectedType < CLASS5;
+        expectType(expectedType, type);
+        _depth++;
+        _serializedItemCount++;
+        try {
+            coder.render(this, target, clazz, context);
+            return target;
+        } finally {
+            _depth--;
+        }
+    }
+
     long getPointerValue() {
         return _pointer;
     }
@@ -4062,9 +4261,8 @@ public final class Value {
         final CoderManager cm = _persistit.getCoderManager();
         if (cm != null) {
             return cm.getValueCoder(clazz);
-        } else {
-            return null;
         }
+        return null;
     }
 
     void changeLongRecordMode(final boolean mode) {
@@ -4199,28 +4397,34 @@ public final class Value {
             type = _bytes[_next++] & 0xFF;
             if (type >= CLASS1 && type <= CLASS5) {
                 type = decodeVariableLengthInt(type) + CLASS1;
-            } else if (type == Buffer.LONGREC_TYPE)
+            } else if (type == Buffer.LONGREC_TYPE) {
                 return -1;
+            }
         }
         return type;
     }
 
     private int nextType(final int expectedType) {
         final int type = nextType();
-        if (type == expectedType || type == TYPE_NULL)
-            return type;
-
-        throw new ConversionException("Expected a " + classForHandle(expectedType) + " but value is a "
-                + classForHandle(type));
+        if (type != TYPE_NULL) {
+            expectType(expectedType, type);
+        }
+        return type;
     }
 
     private int nextType(final int expectedType1, final int expectedType2) {
         final int type = nextType();
-        if (type == expectedType1 || type == expectedType2 || type == TYPE_NULL)
-            return type;
+        if (type != TYPE_NULL && type != expectedType2) {
+            expectType(expectedType1, type);
+        }
+        return type;
+    }
 
-        throw new ConversionException("Expected a " + classForHandle(expectedType1) + " but value is a "
-                + classForHandle(type));
+    private void expectType(final int expected, final int actual) {
+        if (expected != actual) {
+            throw new ConversionException("Expected a " + classForHandle(expected) + " but value is a "
+                    + classForHandle(actual));
+        }
     }
 
     private Object getExpectedType(final Class<?> type) {
@@ -4358,10 +4562,10 @@ public final class Value {
 
     private ClassInfo classInfoForHandle(final int classHandle) {
         final ClassInfo classInfo = _persistit.getClassIndex().lookupByHandle(classHandle);
-        if (classInfo == null) {
-            throw new ConversionException("Unknown class handle " + classHandle);
+        if (classInfo != null) {
+            return classInfo;
         }
-        return classInfo;
+        throw new ConversionException("Unknown class handle " + classHandle);
     }
 
     private boolean toBoolean(final int index) {
@@ -5015,7 +5219,12 @@ public final class Value {
          * @return The object
          */
         Object get(final int handle) {
-            return _array[handle];
+            Object object = _array[handle];
+            if (object instanceof SkippedFieldMarker) {
+                object = ((SkippedFieldMarker) object).get();
+                _array[handle] = object;
+            }
+            return object;
         }
 
         /**
@@ -5075,6 +5284,35 @@ public final class Value {
         @Override
         public String toString() {
             return "@" + Integer.toString(_start);
+        }
+    }
+
+    private static class SkippedFieldMarker {
+        final Value _value;
+        final int _next;
+        final int _end;
+
+        private SkippedFieldMarker(final Value value, final int next, final int end) {
+            _value = value;
+            _next = next;
+            _end = end;
+        }
+
+        private Object get() {
+            final int saveDepth = _value._depth;
+            final int saveLevel = _value._level;
+            final int saveNext = _value._next;
+            final int saveEnd = _value._end;
+            try {
+                _value._next = _next;
+                _value._end = _end;
+                return _value.get();
+            } finally {
+                _value._end = saveEnd;
+                _value._next = saveNext;
+                _value._level = saveLevel;
+                _value._depth = saveDepth;
+            }
         }
     }
 
@@ -5215,5 +5453,19 @@ public final class Value {
         length = index - saveSize;
         _size = index;
         endVariableSizeItem(length);
+    }
+
+    private int directHandle(final ValueCoder coder, final Class<?> clazz) {
+        if (coder instanceof HandleCache) {
+            final HandleCache cache = (HandleCache) coder;
+            int handle = cache.getHandle();
+            if (handle == 0) {
+                handle = handleForClass(clazz);
+                cache.setHandle(handle);
+            }
+            return handle;
+        } else {
+            return handleForClass(clazz);
+        }
     }
 }

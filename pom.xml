@@ -4,7 +4,7 @@
 
     <groupId>com.akiban</groupId>
     <artifactId>akiban-persistit</artifactId>
-    <version>3.2.1-SNAPSHOT</version>
+    <version>3.2.4-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <parent>
@@ -79,6 +79,12 @@
                     <artifactId>servlet-api</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>3.1.3.RELEASE</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -267,6 +273,7 @@
                         <exclude>src/etc/eclipse*.xml</exclude>
                         <!-- Other -->
                         <exclude>LICENSE.txt</exclude>
+                        <exclude>README.rst</exclude>
                     </excludes>
                 </configuration>
                 <executions>

@@ -15,6 +15,13 @@
 
 package com.persistit;
 
+import static com.persistit.Configuration.APPEND_ONLY_PROPERTY_NAME;
+import static com.persistit.Configuration.BUFFERS_PROPERTY_NAME;
+import static com.persistit.Configuration.ENABLE_JMX_PROPERTY_NAME;
+import static com.persistit.Configuration.JOURNAL_PATH_PROPERTY_NAME;
+import static com.persistit.Configuration.RMI_REGISTRY_PORT_PROPERTY_NAME;
+import static com.persistit.Configuration.VOLUME_PROPERTY_PREFIX;
+
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -703,7 +710,7 @@ public class CLI {
         for (final Integer size : bufferSizes) {
             final int alloc = (int) (size * 1.25);
             final int count = (int) ((bpoolMemory / bufferSizes.size()) / alloc);
-            properties.put(Persistit.BUFFERS_PROPERTY_NAME + size, Integer.toString(count));
+            properties.put(BUFFERS_PROPERTY_NAME + size, Integer.toString(count));
         }
         int index = 0;
         for (final VolumeSpecification vs : volumeSpecifications) {
@@ -711,23 +718,24 @@ public class CLI {
             if (!y) {
                 value += ",readOnly";
             }
-            properties.put(Persistit.VOLUME_PROPERTY_PREFIX + (++index), value);
+            properties.put(VOLUME_PROPERTY_PREFIX + (++index), value);
         }
         if (jpath != null) {
-            properties.put(Persistit.JOURNAL_PATH_PROPERTY_NAME, jpath);
+            properties.put(JOURNAL_PATH_PROPERTY_NAME, jpath);
         }
-        properties.put(Persistit.APPEND_ONLY_PROPERTY, "true");
+        properties.put(APPEND_ONLY_PROPERTY_NAME, "true");
 
         if (rmiport > 0) {
-            properties.put(Persistit.RMI_REGISTRY_PORT, Integer.toString(rmiport));
+            properties.put(RMI_REGISTRY_PORT_PROPERTY_NAME, Integer.toString(rmiport));
         }
-        properties.put(Persistit.JMX_PARAMS, "true");
+        properties.put(ENABLE_JMX_PROPERTY_NAME, "true");
 
         final Persistit persistit = new Persistit();
         if (!y) {
             persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         }
-        persistit.initialize(properties);
+        persistit.setProperties(properties);
+        persistit.initialize();
 
         /**
          * Following is a hack to figure ought whether there is a classIndex in

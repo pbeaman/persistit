@@ -60,16 +60,15 @@ public class BackupTaskTest extends PersistitUnitTestCase {
         backup1.setup(1, "backup file=" + file.getAbsolutePath(), "cli", 0, 5);
         backup1.run();
 
-        final Properties properties = _persistit.getProperties();
+        final Configuration config = _persistit.getConfiguration();
         _persistit.close();
 
-        _persistit = new Persistit();
         final BackupTask backup2 = new BackupTask();
         backup2.setMessageWriter(writer);
         backup2.setPersistit(_persistit);
         backup2.doRestore(file.getAbsolutePath());
 
-        _persistit.initialize(properties);
+        _persistit = new Persistit(config);
         _persistit.checkAllVolumes();
 
         final PersistitMap<Integer, String> pmap2 = new PersistitMap<Integer, String>(_persistit.getExchange(
@@ -103,18 +102,17 @@ public class BackupTaskTest extends PersistitUnitTestCase {
         tw.stop.set(true);
         twThread.join();
 
-        final Properties properties = _persistit.getProperties();
+        final Configuration config = _persistit.getConfiguration();
         _persistit.crash();
         UnitTestProperties.cleanUpDirectory(new File(UnitTestProperties.DATA_PATH));
 
-        _persistit = new Persistit();
         final BackupTask backup2 = new BackupTask();
         backup2.setMessageWriter(writer);
         backup2.setPersistit(_persistit);
         backup2.doRestore(file.getAbsolutePath());
-        properties.setProperty("appendonly", "true");
 
-        _persistit.initialize(properties);
+        config.setAppendOnly(true);
+        _persistit = new Persistit(config);
         _persistit.checkAllVolumes();
         final Exchange exchange = _persistit.getExchange("persistit", "BackupTest", false);
         exchange.to(Key.BEFORE);

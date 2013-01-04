@@ -48,8 +48,10 @@ Review the ``examples`` directory. Here you will find functional examples of var
       example demonstrating use of Persisit’s multi-version currency control (MVCC) transactions
   ``examples/FindFile``
       a somewhat larger example that uses Persistit as the backing store for file finder utility
-  ``example/PersistitMapDemo``
+  ``examples/PersistitMapDemo``
       demonstration of the PersistitMap interface
+  ``examples/SpringFrameworkExample``
+      configures and initializes a Persistit instance through Spring Framework
 
 HelloWorld
 ----------
@@ -123,7 +125,7 @@ Although ``HelloWorld.java`` is not very useful, it demonstrates several of the 
 Initialization and Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Before accessing any data, ``HelloWorld.java`` calls one of the ``com.persistit.Persistit#initialize`` methods of ``com.persistit.Persistit``. This sets up the memory configuration for buffers and the path names of Persistit volume and journal files. Alternative versions of the initialize method accept configuration information from a ``java.util.Properties`` object, from a specified properties file, or by default from the file named ``persistit.properties``.
+Before accessing any data, ``HelloWorld.java`` calls the ``com.persistit.Persistit#initialize()``. This sets up the memory configuration for buffers and the path names of Persistit volume and journal files. Alternative methods accept configuration information from a ``com.persistit.Configuration`` object, a ``java.util.Properties`` object, a specified properties file, or by default from the file named ``persistit.properties`` in the current working directory.
 
 In this example, ``persistit.properties`` looks like this:: 
 

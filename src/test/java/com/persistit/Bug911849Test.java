@@ -18,7 +18,6 @@ package com.persistit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -67,13 +66,11 @@ public class Bug911849Test extends PersistitUnitTestCase {
 
     @Test
     public void testOverlappingCheckpointTransactions() throws Exception {
-        final Properties props = _persistit.getProperties();
         for (int i = 0; i < 10; i++) {
             accumulateRows(10000);
             _persistit.getJournalManager().force();
             _persistit.crash();
-            _persistit = new Persistit();
-            _persistit.initialize(props);
+            _persistit = new Persistit(_config);
             final Exchange exchange = _persistit.getExchange("persistit", "AccumulatorRecoveryTest", false);
             final Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
                     ROW_COUNT_ACCUMULATOR_INDEX);

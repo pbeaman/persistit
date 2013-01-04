@@ -24,7 +24,6 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.util.List;
-import java.util.Properties;
 
 import org.junit.Test;
 
@@ -233,7 +232,6 @@ public class VolumeTest extends PersistitUnitTestCase {
         _persistit.copyBackPages();
 
         final List<File> journalFiles = _persistit.getJournalManager().unitTestGetAllJournalFiles();
-        final Properties properties = _persistit.getProperties();
         _persistit.crash();
 
         /*
@@ -244,8 +242,7 @@ public class VolumeTest extends PersistitUnitTestCase {
             assertEquals("Deleted journal file " + file.getName(), true, success);
         }
 
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
     }
 
     @Test

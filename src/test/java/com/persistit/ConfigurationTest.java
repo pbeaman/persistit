@@ -38,6 +38,8 @@ public class ConfigurationTest extends PersistitUnitTestCase {
 
     private final static String RESOURCE_NAME = "com.persistit.ConfigurationTest";
 
+    private final static String PARSE_MEMORY_EXAMPLE = "1024,count=1000;16384,minMem=0,maxMem=1G,reserved=128M,fraction=0.5";
+
     @Test
     public void testStaticMethods() throws Exception {
         assertEquals(1024, bufferSizeFromPropertyName("buffer.memory.1024"));
@@ -219,10 +221,21 @@ public class ConfigurationTest extends PersistitUnitTestCase {
 
     @Test
     public void canReinitialize() throws Exception {
+        final Configuration config = _persistit.getConfiguration();
         _persistit.close();
         assertTrue("Should have closed all volumes", _persistit.getVolumes().isEmpty());
-        _persistit.initialize(_persistit.getConfiguration());
+        _persistit.setConfiguration(config);
+        _persistit.initialize();
         assertTrue("Should have reopened volumes", !_persistit.getVolumes().isEmpty());
+    }
+
+    @Test
+    public void setBufferConfiguration() throws Exception {
+        final Configuration configuration = new Configuration();
+        configuration.setBufferPoolConfiguration(PARSE_MEMORY_EXAMPLE);
+        assertEquals("toString() of parsed version should be equal", PARSE_MEMORY_EXAMPLE,
+                configuration.getBufferPoolConfiguration());
+
     }
 
     private Configuration testLoadPropertiesBufferSpecificationsHelper(final Properties properties) throws Exception {

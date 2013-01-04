@@ -67,18 +67,29 @@ public class DumpTaskTest extends PersistitUnitTestCase {
     @Test
     public void testDumpCommand() throws Exception {
         store1();
-        final Volume volume = _persistit.getVolume("persistit");
-        final Buffer buffer = _persistit.getBufferPool(16384).getBufferCopy(volume, 1);
         final CLI cli = new CLI(_persistit, null, null);
         final File file = File.createTempFile("DumpTaskTest", ".zip");
         file.deleteOnExit();
-        cli.dump(file.getPath(), true, true, true);
+        final Task task = cli.dump(file.getPath(), true, true, false);
+        task.setPersistit(_persistit);
+        task.run();
 
-        final ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(file)));
-        final ZipEntry ze = zis.getNextEntry();
-        System.out.println(ze);
-        final DataInputStream stream = new DataInputStream(new BufferedInputStream(zis));
-
+        ZipInputStream zis = null;
+        DataInputStream stream = null;
+        try {
+            zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(file)));
+            final ZipEntry ze = zis.getNextEntry();
+            System.out.println(ze);
+            stream = new DataInputStream(new BufferedInputStream(zis));
+        } finally {
+            if (stream != null) {
+                stream.close();
+            }
+            if (zis != null) {
+                zis.close();
+            }
+            file.delete();
+        }
     }
 
     private void store1() throws PersistitException {

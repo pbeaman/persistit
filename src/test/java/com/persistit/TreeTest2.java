@@ -19,7 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.util.Properties;
 
 import org.junit.Test;
 
@@ -51,11 +50,9 @@ public class TreeTest2 extends PersistitUnitTestCase {
             txn.end();
         }
 
-        final Properties properties = _persistit.getProperties();
         _persistit.getJournalManager().flush();
         _persistit.crash();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
 
         volume = _persistit.getVolume("persistit");
         assertTrue(1 != volume.getStructure().directoryExchange().getTree().getRootPageAddr());

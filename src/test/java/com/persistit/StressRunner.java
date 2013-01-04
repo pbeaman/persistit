@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import com.persistit.stress.AbstractSuite;
+import com.persistit.stress.AccumulatorRestartSuite;
+import com.persistit.stress.InsertBigLoad;
 import com.persistit.stress.InsertUUIDs;
 import com.persistit.stress.Mixture1;
 import com.persistit.stress.Mixture2;
@@ -68,7 +70,9 @@ public class StressRunner {
 
     private static List<Class<? extends AbstractSuite>> _classes = new ArrayList<Class<? extends AbstractSuite>>();
     static {
+        _classes.add(AccumulatorRestartSuite.class);
         _classes.add(InsertUUIDs.class);
+        _classes.add(InsertBigLoad.class);
         _classes.add(Mixture1.class);
         _classes.add(Mixture2.class);
         _classes.add(Mixture3.class);

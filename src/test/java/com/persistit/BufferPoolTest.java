@@ -163,4 +163,25 @@ public class BufferPoolTest extends PersistitUnitTestCase {
         }
     }
 
+    @Test
+    public void testEvictVoume() throws Exception {
+        final Volume vol = _persistit.createTemporaryVolume();
+        final Exchange ex = _persistit.getExchange(vol, "BufferPoolTest", true);
+        _persistit.flush();
+        ex.getValue().put(RED_FOX);
+        int i;
+        for (i = 1;; i++) {
+            ex.to(i).store();
+            if (vol.getNextAvailablePage() >= 10) {
+                break;
+            }
+        }
+        vol.getPool().evict(vol);
+        assertTrue("Should be no remaining dirty buffers", vol.getPool().getDirtyPageCount() == 0);
+        for (int j = 0; j < i + 100; j++) {
+            ex.to(j).fetch();
+            assertEquals(j >= 1 && j <= i, ex.getValue().isDefined());
+        }
+    }
+
 }

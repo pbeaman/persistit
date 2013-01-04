@@ -1,9 +1,85 @@
+1076517 : 3.2.2
+
+`InUseExceptions in stress tests`
+
+Stress tests occasionally experienced InUseExceptions, usually signifying
+a deadlock. Two mechanisms were discovered and fixed. Note that an InUseException
+occurs when an attempt to lock a resource such as a Tree or a Buffer is
+unsatisfied for 60 seconds (the current default timeout).  This exception can
+occur for reasons other than deadlock such as an extraordinarily slow I/O 
+operation or as a result of a debug breakpoint in sensitive code.
+
+1079288 : 3.2.2
+
+`Persistit build success is sensitive to locale`
+
+One Persistit unit test depended on locale-specific text formatting, and therefore
+failed when built in a locale which does not conform to en_US formatting rules. 
+
+1079406 : 3.2.2
+
+`Design flaw makes Persistit needlessly difficult to use in Spring Framework`
+
+Persistit initialization API was modified to make it easy to create and use
+a Persistit instance within Spring Framework.
+
+1081659 : 3.2.2
+
+`isNull(true) leaves Value in unsafe state for stream mode get`
+
+The implementation of isNull(boolean) added in Version 3.2.1 contained a bug that
+made stream-mode get operations fail.
+
+1074372 : 3.2.2
+
+`Stress tests induce RebalanceException`
+
+Code was added to handle a rare situation
+in which removing a key at the boundary between two pages requires one of the pages to split. Formerly this condition
+was not handled properly and instead caused the application thread to receive a RebalanceException.
+
+1076403 : 3.2.1
+
+`NPE while starting AdminUI`
+
+Localized property files are used for text labels in the AdminUI. Only an
+English file was provided by default so starting the UI in another language
+would case a NullPointerException. Move the current English property file
+to the default name so it is always selected.
+
+1073357 : 3.2.1
+
+`Value.getType() is not reliable for CLASS_REREF`
+
+A special internal tag, CLASS_REFREF, is used when appending the same object 
+multiple times to a Value in stream mode. This is so cycles can be handled
+correctly in a generic object graph. The getType() method, which returns the
+Class of the encoded object without fully decoding it, did not always return
+the most specific specific Class for this internal tag.
+
 1046049 : 3.2.1
 
 `Filtered traverse in LTEQ direction appears not to work`
 
 A bug in the com.persistit.KeyFilter caused reverse-direction traversal using
 a KeyFilter with a range term to return incorrect results.
+
+1042960 : 3.2.1
+
+`Value.isNull slightly non-intuitive in stream mode`
+
+When operating on a Value in stream mode it is a common pattern to check if the
+current position is null before attempting to decode it. There is little reason
+to then decode if it is null. A new method was added, isNull(boolean skipIfNull),
+that can be used to perform this in a single call.
+
+1023549 : 3.2.1
+
+`traverse(EQ, false, 0) returns incorrect result`
+
+A traverse with the given parameters should return true if the key exists, without
+fetching any of the value bytes. If the given key was removed and then immediately
+traversed for existence, true would be returned instead of false.
 
 1065677 : 3.2.0
 

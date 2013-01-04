@@ -195,10 +195,8 @@ public class ClassIndexTest extends PersistitUnitTestCase {
             txn.end();
         }
 
-        final Configuration config = _persistit.getConfiguration();
         _persistit.crash();
-        _persistit = new Persistit();
-        _persistit.initialize(config);
+        _persistit = new Persistit(_config);
         ex = _persistit.getExchange("persistit", "ClassIndexTest", false);
         final Object b = ex.to("B").fetch().getValue().get();
         final Object a = ex.to("A").fetch().getValue().get();

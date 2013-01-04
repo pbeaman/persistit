@@ -80,11 +80,9 @@ public class Bug777918Test extends PersistitUnitTestCase {
             ex.to(i).store();
         }
         _persistit.getJournalManager().rollover();
-        final Properties properties = _persistit.getProperties();
         _persistit.close();
 
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         _persistit.checkAllVolumes();
         ex = _persistit.getExchange("persistit", "Bug777918Test", false);
         // ensure updates after the checkpoint did make it, i.e.,
@@ -93,8 +91,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
             assertEquals(true, ex.to(i).isValueDefined());
         }
         _persistit.close();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         _persistit.checkAllVolumes();
         ex = _persistit.getExchange("persistit", "Bug777918Test", false);
         // ensure updates after the checkpoint did make it, i.e.,
@@ -116,15 +113,12 @@ public class Bug777918Test extends PersistitUnitTestCase {
             ex.to(i).store();
         }
         _persistit.flush();
-        final Properties properties = _persistit.getProperties();
         _persistit.crash();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         _persistit.checkAllVolumes();
         _persistit.close();
 
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         _persistit.checkAllVolumes();
         ex = _persistit.getExchange("persistit", "Bug777918Test", false);
         // ensure updates after the checkpoint didn't make it
@@ -152,14 +146,11 @@ public class Bug777918Test extends PersistitUnitTestCase {
             ex.getTransaction().end();
         }
         _persistit.flush();
-        final Properties properties = _persistit.getProperties();
         _persistit.crash();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         _persistit.checkAllVolumes();
         _persistit.close();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         _persistit.checkAllVolumes();
         ex = _persistit.getExchange("persistit", "Bug777918Test", false);
         // ensure updates after the checkpoint didn't make it
@@ -171,7 +162,6 @@ public class Bug777918Test extends PersistitUnitTestCase {
     @Test
     public void testMakeBranchTxnLongRecord() throws Exception {
         final StringBuilder sb = new StringBuilder();
-        final Properties properties = _persistit.getProperties();
 
         while (sb.length() < 20000) {
             sb.append(RED_FOX);
@@ -198,13 +188,13 @@ public class Bug777918Test extends PersistitUnitTestCase {
         _persistit.crash();
         _persistit = new Persistit();
         _persistit.getRecoveryManager().setDefaultCommitListener(new TestCrashingRecoveryListener());
-
+        _persistit.setConfiguration(_config);
         //
         // The recovery process deliberately crashes after applying some
         // transactions.
         //
         try {
-            _persistit.initialize(properties);
+            _persistit.initialize();
         } catch (final MissingThreadException e) {
             // expected
         } catch (final TestException e) {
@@ -214,8 +204,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
         // This startup should divide the pages into page- and branch-map
         // and apply committed transactions using branch-map pages.
         //
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         _persistit.checkAllVolumes();
 
         ex = _persistit.getExchange("persistit", "Bug777918Test", false);

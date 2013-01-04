@@ -21,8 +21,6 @@ import static com.persistit.util.ThreadSequencer.disableSequencer;
 import static com.persistit.util.ThreadSequencer.enableSequencer;
 import static org.junit.Assert.assertNull;
 
-import java.util.Properties;
-
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -93,14 +91,14 @@ public class Bug942669Test extends PersistitUnitTestCase {
         _persistit.checkpoint();
         txn.commit();
         txn.end();
+        final Configuration config = _persistit.getConfiguration();
         _persistit.crash();
-        final Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
-
+        _persistit.setConfiguration(config);
         enableSequencer(true);
         addSchedules(RECOVERY_PRUNING_SCHEDULE);
 
-        _persistit.initialize(properties);
+        _persistit.initialize();
         _persistit.copyBackPages();
         disableSequencer();
     }
@@ -144,12 +142,11 @@ public class Bug942669Test extends PersistitUnitTestCase {
          */
         _persistit.copyBackPages();
         _persistit.copyBackPages();
+        final Configuration config = _persistit.getConfiguration();
 
         _persistit.close();
 
-        final Properties properties = _persistit.getProperties();
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(config);
         _persistit.copyBackPages();
         assertNull(_persistit.getJournalManager().getLastCopierException());
     }

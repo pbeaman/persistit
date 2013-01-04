@@ -57,7 +57,7 @@ class VolumeStructure {
     private final Map<String, WeakReference<Tree>> _treeNameHashMap = new HashMap<String, WeakReference<Tree>>();
     private Tree _directoryTree;
 
-    private static class Chain {
+    static class Chain {
         final long _left;
         final long _right;
 
@@ -526,8 +526,7 @@ class VolumeStructure {
         deallocateGarbageChain(list);
     }
 
-    private void deallocateGarbageChain(final List<Chain> chains) throws PersistitException {
-
+    void deallocateGarbageChain(final List<Chain> chains) throws PersistitException {
         _volume.getStorage().claimHeadBuffer();
         try {
             while (!chains.isEmpty()) {
@@ -608,7 +607,7 @@ class VolumeStructure {
         deallocateGarbageChain(chains);
     }
 
-    private void harvestLongRecords(final Buffer buffer, final int start, final int end, final List<Chain> chains)
+    void harvestLongRecords(final Buffer buffer, final int start, final int end, final List<Chain> chains)
             throws PersistitException {
         assert buffer.isOwnedAsWriterByMe() : "Harvesting from page owned by another thread: " + buffer;
         if (buffer.isDataPage()) {
@@ -624,7 +623,7 @@ class VolumeStructure {
                      * Detects whether and prevents same pointer from being read
                      * and deallocated twice.
                      */
-                    buffer.setLongRecordPointer(p, INVALID_PAGE_ADDRESS);
+                    buffer.neuterLongRecord(p);
                 }
             }
         }

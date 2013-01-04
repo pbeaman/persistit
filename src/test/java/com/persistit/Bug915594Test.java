@@ -17,8 +17,6 @@ package com.persistit;
 
 import static org.junit.Assert.assertTrue;
 
-import java.util.Properties;
-
 import org.junit.Test;
 
 /**
@@ -84,13 +82,11 @@ public class Bug915594Test extends PersistitUnitTestCase {
         txn.rollback();
         txn.end();
         _persistit.checkpoint();
-        final Properties properties = _persistit.getProperties();
         ex = null;
         txn = null;
         _persistit.close();
 
-        _persistit = new Persistit();
-        _persistit.initialize(properties);
+        _persistit = new Persistit(_config);
         final Exchange ex2 = _persistit.getExchange("persistit", "Bug915594Test", true);
         assertTrue(!ex2.clear().next(true));
     }

@@ -15,6 +15,11 @@
 
 package com.persistit;
 
+import static com.persistit.StatisticsTask.COUNT_FORMAT;
+import static com.persistit.StatisticsTask.PCOUNT_FORMAT;
+import static com.persistit.StatisticsTask.PHEADER_FORMAT;
+import static com.persistit.StatisticsTask.PRATE_FORMAT;
+import static com.persistit.StatisticsTask.RATE_FORMAT;
 import static org.junit.Assert.assertEquals;
 
 import java.io.BufferedReader;
@@ -35,23 +40,23 @@ public class StatisticsTaskTest extends PersistitUnitTestCase {
         final Stat stat = new Stat("foo");
         stat.update(0, 1234);
         stat.update(10000000000L, 2345);
-        assertEquals("foo=2345", stat.toString(Display.TOTAL));
-        assertEquals("foo=1111", stat.toString(Display.CHANGE));
-        assertEquals("foo=111.100", stat.toString(Display.RATE));
+        assertEquals(String.format(COUNT_FORMAT, "foo", 2345), stat.toString(Display.TOTAL));
+        assertEquals(String.format(COUNT_FORMAT, "foo", 1111), stat.toString(Display.CHANGE));
+        assertEquals(String.format(RATE_FORMAT, "foo", 111.1f), stat.toString(Display.RATE));
         final StringWriter sw = new StringWriter();
         final PrintWriter pw = new PrintWriter(sw);
         sw.getBuffer().setLength(0);
         stat.printHeader(pw);
-        assertEquals("        foo", sw.toString());
+        assertEquals(String.format(PHEADER_FORMAT, "foo"), sw.toString());
         sw.getBuffer().setLength(0);
         stat.printValue(pw, Display.TOTAL);
-        assertEquals("      2,345", sw.toString());
+        assertEquals(String.format(PCOUNT_FORMAT, 2345), sw.toString());
         sw.getBuffer().setLength(0);
         stat.printValue(pw, Display.CHANGE);
-        assertEquals("      1,111", sw.toString());
+        assertEquals(String.format(PCOUNT_FORMAT, 1111), sw.toString());
         sw.getBuffer().setLength(0);
         stat.printValue(pw, Display.RATE);
-        assertEquals("    111.100", sw.toString());
+        assertEquals(String.format(PRATE_FORMAT, 111.1f), sw.toString());
 
     }
 
@@ -73,6 +78,7 @@ public class StatisticsTaskTest extends PersistitUnitTestCase {
             System.out.println(line);
         }
         assertEquals(5, lines);
+        reader.close();
     }
 
     @Override

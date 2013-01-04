@@ -43,7 +43,8 @@ public class Log4JLoggerTest extends PersistitUnitTestCase {
         BasicConfigurator.configure();
         final Persistit persistit = new Persistit();
         persistit.setPersistitLogger(new Log4JAdapter(logger));
-        persistit.initialize(UnitTestProperties.getAlternateProperties(true));
+        persistit.setProperties(UnitTestProperties.getAlternateProperties(true));
+        persistit.initialize();
         try {
             test1();
         } finally {

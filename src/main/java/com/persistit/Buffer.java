@@ -246,6 +246,7 @@ public class Buffer extends SharedResource {
     final static int LONGREC_PREFIX_OFFSET = 20;
     final static int LONGREC_SIZE = LONGREC_PREFIX_OFFSET + LONGREC_PREFIX_SIZE;
 
+    final static int ANTIVALUE_TYPE = Value.CLASS_ANTIVALUE;
     /**
      * Implicit overhead size
      */
@@ -1182,7 +1183,7 @@ public class Buffer extends SharedResource {
         return pointer;
     }
 
-    void setLongRecordPointer(final int foundAt, final long pointer) {
+    void neuterLongRecord(final int foundAt) {
         assert isDataPage() : "Invalid page type for long records: " + this;
         final int kbData = getInt(foundAt & P_MASK);
         final int tail = decodeKeyBlockTail(kbData);
@@ -1196,9 +1197,10 @@ public class Buffer extends SharedResource {
         if ((_bytes[tail + _tailHeaderSize + klength] & 0xFF) != LONGREC_TYPE) {
             return;
         }
-
-        putLong(tail + _tailHeaderSize + klength + LONGREC_PAGE_OFFSET, (int) pointer);
-
+        /*
+         * Value will now be undefined rather than a long record.
+         */
+        putByte(tail + _tailHeaderSize + klength, ANTIVALUE_TYPE);
     }
 
     long getPointer(final int foundAt) throws PersistitException {
@@ -3597,7 +3599,6 @@ public class Buffer extends SharedResource {
      * @throws PersistitException
      */
     boolean pruneMvvValues(final Tree tree, final boolean pruneLongMVVs) throws PersistitException {
-
         boolean changed = false;
         try {
             boolean hasLongMvvRecords = false;

@@ -92,13 +92,14 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         }
 
         _persistit.getJournalManager().flush();
+        final Configuration config = _persistit.getConfiguration();
         _persistit.crash();
-        final Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.getJournalManager().setAppendOnly(true);
         final RecoveryManager plan = _persistit.getRecoveryManager();
         plan.setRecoveryDisabledForTestMode(true);
-        _persistit.initialize(saveProperties);
+        _persistit.setConfiguration(config);
+        _persistit.initialize();
         assertEquals(15, plan.getCommittedCount());
         plan.setRecoveryDisabledForTestMode(false);
         final Set<Long> recoveryTimestamps = new HashSet<Long>();
@@ -251,12 +252,9 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         for (int i = 0; i < threads.length; i++) {
             threads[i].join();
         }
-
+        final Configuration config = _persistit.getConfiguration();
         _persistit.crash();
-
-        final Properties props = _persistit.getProperties();
-        _persistit = new Persistit();
-        _persistit.initialize(props);
+        _persistit = new Persistit(config);
 
         verifyRowCount();
     }
