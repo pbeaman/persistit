@@ -311,7 +311,7 @@ class VolumeStructure {
         removeTree(treeRootPage, treeDepth);
         return true;
     }
-    
+
     void removeTree(final long treeRootPage, final int treeDepth) throws PersistitException {
         int depth = treeDepth;
         long page = treeRootPage;
@@ -345,8 +345,6 @@ class VolumeStructure {
             }
         }
     }
-    
-    
 
     /**
      * Called by Exchange to recreate a Tree after a volume has been truncated.

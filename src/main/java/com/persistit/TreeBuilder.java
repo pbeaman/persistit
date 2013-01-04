@@ -162,7 +162,6 @@ public class TreeBuilder {
         }
     };
 
-
     private final Comparator<Tree> _defaultTreeComparator = new Comparator<Tree>() {
         @Override
         public int compare(final Tree a, final Tree b) {

@@ -268,7 +268,7 @@ abstract class SharedResource {
     public boolean isAvailable(final boolean writer) {
         return writer ? _sync.isAvailable(_sync.state()) : _sync.isAvailableShared(_sync.state());
     }
-    
+
     Persistit getPersistit() {
         return _persistit;
     }

@@ -41,6 +41,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -52,7 +53,6 @@ import javax.management.ObjectName;
 import com.persistit.Accumulator.AccumulatorRef;
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.Configuration.BufferPoolConfiguration;
-import com.persistit.TimelyResource.TimelyResourceRef;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
@@ -263,7 +263,7 @@ public class Persistit {
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
-    private final Set<TimelyResource<? extends PrunableResource>.TimelyResourceRef> _timelyResources = new HashSet<TimelyResource<? extends PrunableResource>.TimelyResourceRef>();
+    private final Map<TimelyResource<? extends PrunableResource>.TimelyResourceRef, TimelyResource<? extends PrunableResource>.TimelyResourceRef> _timelyResources = new ConcurrentHashMap<TimelyResource<? extends PrunableResource>.TimelyResourceRef, TimelyResource<? extends PrunableResource>.TimelyResourceRef>();
 
     private final WeakHashMap<SessionId, CLI> _cliSessionMap = new WeakHashMap<SessionId, CLI>();
 
@@ -1509,7 +1509,7 @@ public class Persistit {
         }
 
         for (final Iterator<TimelyResource<? extends PrunableResource>.TimelyResourceRef> iter = _timelyResources
-                .iterator(); iter.hasNext();) {
+                .keySet().iterator(); iter.hasNext();) {
             try {
                 if (iter.next().prune()) {
                     iter.remove();
@@ -2388,8 +2388,8 @@ public class Persistit {
         _suspendUpdates.set(suspended);
     }
 
-    void addTimelyResourceRef(final TimelyResource<? extends PrunableResource>.TimelyResourceRef resource) {
-        _timelyResources.add(resource);
+    synchronized void addTimelyResourceRef(final TimelyResource<? extends PrunableResource>.TimelyResourceRef resource) {
+        _timelyResources.put(resource, resource);
     }
 
     void addAccumulator(final Accumulator accumulator) throws PersistitException {

@@ -72,14 +72,14 @@ public class Tree extends SharedResource {
     private final TreeStatistics _treeStatistics = new TreeStatistics();
 
     private final TimelyResource<Version> _timelyResource;
-    
+
     private VersionCreator<Version> _creator = new VersionCreator<Version>() {
 
         @Override
         public Version createVersion() throws PersistitException {
             return new Version();
         }
-        
+
     };
 
     private class Version implements PrunableResource {
