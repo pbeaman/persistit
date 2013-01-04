@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.persistit.TimelyResource.VersionCreator;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.Debug;
@@ -63,15 +64,34 @@ public class Tree extends SharedResource {
 
     private final String _name;
     private final Volume _volume;
-    private volatile long _rootPageAddr;
-    private volatile int _depth;
-    private final AtomicLong _changeCount = new AtomicLong(0);
     private final AtomicReference<Object> _appCache = new AtomicReference<Object>();
     private final AtomicInteger _handle = new AtomicInteger();
 
     private final Accumulator[] _accumulators = new Accumulator[MAX_ACCUMULATOR_COUNT];
 
     private final TreeStatistics _treeStatistics = new TreeStatistics();
+
+    private final TimelyResource<Version> _timelyResource;
+    
+    private VersionCreator<Version> _creator = new VersionCreator<Version>() {
+
+        @Override
+        public Version createVersion() throws PersistitException {
+            return new Version();
+        }
+        
+    };
+
+    private class Version implements PrunableResource {
+        volatile long _rootPageAddr;
+        volatile int _depth;
+        final AtomicLong _changeCount = new AtomicLong(0);
+
+        public boolean prune() throws PersistitException {
+            _volume.getStructure().removeTree(_rootPageAddr, _depth);
+            return true;
+        }
+    }
 
     Tree(final Persistit persistit, final Volume volume, final String name) {
         super(persistit);
@@ -83,6 +103,15 @@ public class Tree extends SharedResource {
         _name = name;
         _volume = volume;
         _generation.set(1);
+        _timelyResource = new TimelyResource<Version>(persistit);
+    }
+
+    private Version version() {
+        try {
+            return _timelyResource.getVersion(_persistit.getTransaction(), _creator);
+        } catch (Exception e) {
+            throw new RuntimeException(e); // TODO
+        }
     }
 
     /**
@@ -106,7 +135,9 @@ public class Tree extends SharedResource {
 
     @Override
     public boolean equals(final Object o) {
-        if (o instanceof Tree) {
+        if (o == this) {
+            return true;
+        } else if (o instanceof Tree) {
             final Tree tree = (Tree) o;
             return _name.equals(tree._name) && _volume.equals(tree.getVolume());
         } else {
@@ -122,20 +153,21 @@ public class Tree extends SharedResource {
      * @return The page address
      */
     public long getRootPageAddr() {
-        return _rootPageAddr;
+        return version()._rootPageAddr;
     }
 
     /**
      * @return the number of levels of the <code>Tree</code>.
      */
     public int getDepth() {
-        return _depth;
+        return version()._depth;
     }
 
     void changeRootPageAddr(final long rootPageAddr, final int deltaDepth) throws PersistitException {
         Debug.$assert0.t(isOwnedAsWriterByMe());
-        _rootPageAddr = rootPageAddr;
-        _depth += deltaDepth;
+        final Version version = version();
+        version._rootPageAddr = rootPageAddr;
+        version._depth += deltaDepth;
     }
 
     void bumpChangeCount() {
@@ -143,7 +175,7 @@ public class Tree extends SharedResource {
         // Note: the changeCount only gets written when there's a structure
         // change in the tree that causes it to be committed.
         //
-        _changeCount.incrementAndGet();
+        version()._changeCount.incrementAndGet();
     }
 
     /**
@@ -151,7 +183,7 @@ public class Tree extends SharedResource {
      *         this tree; does not including replacement of an existing value
      */
     long getChangeCount() {
-        return _changeCount.get();
+        return version()._changeCount.get();
     }
 
     /**
@@ -161,9 +193,10 @@ public class Tree extends SharedResource {
      */
     int store(final byte[] bytes, final int index) {
         final byte[] nameBytes = Util.stringToBytes(_name);
-        Util.putLong(bytes, index, _rootPageAddr);
-        Util.putLong(bytes, index + 8, getChangeCount());
-        Util.putShort(bytes, index + 16, _depth);
+        final Version version = version();
+        Util.putLong(bytes, index, version._rootPageAddr);
+        Util.putLong(bytes, index + 8, version._changeCount.get());
+        Util.putShort(bytes, index + 16, version._depth);
         Util.putShort(bytes, index + 18, nameBytes.length);
         Util.putBytes(bytes, index + 20, nameBytes);
         return 20 + nameBytes.length;
@@ -183,9 +216,10 @@ public class Tree extends SharedResource {
         if (!_name.equals(name)) {
             throw new IllegalStateException("Invalid tree name recorded: " + name + " for tree " + _name);
         }
-        _rootPageAddr = Util.getLong(bytes, index);
-        _changeCount.set(Util.getLong(bytes, index + 8));
-        _depth = Util.getShort(bytes, index + 16);
+        final Version version = version();
+        version._rootPageAddr = Util.getLong(bytes, index);
+        version._changeCount.set(Util.getLong(bytes, index + 8));
+        version._depth = Util.getShort(bytes, index + 16);
         return length;
     }
 
@@ -196,7 +230,8 @@ public class Tree extends SharedResource {
      * @throws PersistitException
      */
     void setRootPageAddress(final long rootPageAddr) throws PersistitException {
-        if (_rootPageAddr != rootPageAddr) {
+        final Version version = version();
+        if (version._rootPageAddr != rootPageAddr) {
             // Derive the index depth
             Buffer buffer = null;
             try {
@@ -206,8 +241,8 @@ public class Tree extends SharedResource {
                     throw new CorruptVolumeException(String.format("Tree root page %,d has invalid type %s",
                             rootPageAddr, buffer.getPageTypeName()));
                 }
-                _rootPageAddr = rootPageAddr;
-                _depth = type - Buffer.PAGE_TYPE_DATA + 1;
+                version._rootPageAddr = rootPageAddr;
+                version._depth = type - Buffer.PAGE_TYPE_DATA + 1;
             } finally {
                 if (buffer != null) {
                     buffer.releaseTouched();
@@ -222,9 +257,10 @@ public class Tree extends SharedResource {
      * <code>Tree</code> to fail.
      */
     void invalidate() {
+        final Version version = version();
         super.clearValid();
-        _depth = -1;
-        _rootPageAddr = -1;
+        version._depth = -1;
+        version._rootPageAddr = -1;
         _generation.set(-1);
     }
 
@@ -244,7 +280,8 @@ public class Tree extends SharedResource {
      */
     @Override
     public String toString() {
-        return "<Tree " + _name + " rootPageAddr=" + _rootPageAddr + " depth=" + _depth + " status="
+        final Version version = version();
+        return "<Tree " + _name + " rootPageAddr=" + version._rootPageAddr + " depth=" + version._depth + " status="
                 + getStatusDisplayString() + ">";
     }
 
@@ -274,7 +311,7 @@ public class Tree extends SharedResource {
     }
 
     /**
-     * Assign are set the tree handle. The tree must may not be a member of a
+     * Assign and set the tree handle. The tree must may not be a member of a
      * temporary volume.
      * 
      * @throws PersistitException

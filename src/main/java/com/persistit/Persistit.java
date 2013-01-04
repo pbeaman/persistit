@@ -52,6 +52,7 @@ import javax.management.ObjectName;
 import com.persistit.Accumulator.AccumulatorRef;
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.Configuration.BufferPoolConfiguration;
+import com.persistit.TimelyResource.TimelyResourceRef;
 import com.persistit.Transaction.CommitPolicy;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
@@ -253,8 +254,6 @@ public class Persistit {
 
     private final TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
 
-    private final TimelyResourceManager _timelyResourceManager = new TimelyResourceManager(this);
-
     private final Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
 
     private final Map<ObjectName, Object> _mxbeans = new TreeMap<ObjectName, Object>();
@@ -263,6 +262,8 @@ public class Persistit {
             .synchronizedList(new ArrayList<AlertMonitorMXBean>());
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
+
+    private final Set<TimelyResource<? extends PrunableResource>.TimelyResourceRef> _timelyResources = new HashSet<TimelyResource<? extends PrunableResource>.TimelyResourceRef>();
 
     private final WeakHashMap<SessionId, CLI> _cliSessionMap = new WeakHashMap<SessionId, CLI>();
 
@@ -1507,7 +1508,17 @@ public class Persistit {
             volume.getStructure().flushStatistics();
         }
 
-        _timelyResourceManager.prune();
+        for (final Iterator<TimelyResource<? extends PrunableResource>.TimelyResourceRef> iter = _timelyResources
+                .iterator(); iter.hasNext();) {
+            try {
+                if (iter.next().prune()) {
+                    iter.remove();
+                }
+            } catch (PersistitException e) {
+                _logBase.timelyResourcePruneException.log(e);
+            }
+        }
+
     }
 
     /**
@@ -2214,10 +2225,6 @@ public class Persistit {
         return _transactionIndex;
     }
 
-    TimelyResourceManager getTimelyResourceManager() {
-        return _timelyResourceManager;
-    }
-
     /**
      * Replaces the current logger implementation.
      * 
@@ -2379,6 +2386,10 @@ public class Persistit {
      */
     public void setUpdateSuspended(final boolean suspended) {
         _suspendUpdates.set(suspended);
+    }
+
+    void addTimelyResourceRef(final TimelyResource<? extends PrunableResource>.TimelyResourceRef resource) {
+        _timelyResources.add(resource);
     }
 
     void addAccumulator(final Accumulator accumulator) throws PersistitException {

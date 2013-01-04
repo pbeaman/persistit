@@ -43,8 +43,9 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         }
 
         @Override
-        public void prune() {
+        public boolean prune() {
             _pruned.incrementAndGet();
+            return true;
         }
 
         @Override
@@ -61,7 +62,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
 
     private void testAddAndPruneResources1(final boolean withTransactions) throws Exception {
         final Transaction txn = _persistit.getTransaction();
-        final TimelyResource<TestResource> tr = new TimelyResource<TestResource>(_persistit, "foo");
+        final TimelyResource<TestResource> tr = new TimelyResource<TestResource>(_persistit);
         final long[] history = new long[5];
         final TestResource[] resources = new TestResource[5];
         for (int i = 0; i < 5; i++) {
@@ -102,7 +103,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
 
     @Test
     public void concurrentAddAndPruneResources() throws Exception {
-        final TimelyResource<TestResource> tr = new TimelyResource<TestResource>(_persistit, "foo");
+        final TimelyResource<TestResource> tr = new TimelyResource<TestResource>(_persistit);
         final Random random = new Random(1);
         final long expires = System.nanoTime() + 10 * NS_PER_S;
         final AtomicInteger sequence = new AtomicInteger();

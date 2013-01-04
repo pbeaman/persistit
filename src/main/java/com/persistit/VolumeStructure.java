@@ -308,7 +308,11 @@ class VolumeStructure {
         // pages formerly associated with it. If this fails we'll be
         // left with allocated pages that are not available on the garbage
         // chain for reuse.
-
+        removeTree(treeRootPage, treeDepth);
+        return true;
+    }
+    
+    void removeTree(final long treeRootPage, final int treeDepth) throws PersistitException {
         int depth = treeDepth;
         long page = treeRootPage;
         while (page != -1) {
@@ -340,8 +344,9 @@ class VolumeStructure {
                 deallocateGarbageChain(deallocate, 0);
             }
         }
-        return true;
     }
+    
+    
 
     /**
      * Called by Exchange to recreate a Tree after a volume has been truncated.

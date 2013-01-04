@@ -21,6 +21,7 @@ import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,23 +53,44 @@ public class TimelyResource<T extends PrunableResource> {
         T createVersion() throws PersistitException;
     }
 
-    private final Persistit _persistit;
+    class TimelyResourceRef {
+        TimelyResource<T> _strong;
+        WeakReference<TimelyResource<T>> _weak;
 
-    private final Object _key;
+        private TimelyResourceRef(final TimelyResource<T> resource) {
+            _weak = new WeakReference<TimelyResource<T>>(resource);
+        }
 
-    private volatile Entry _first;
+        boolean prune() throws PersistitException {
+            TimelyResource<T> resource = _strong;
+            if (resource != null && resource.prune()) {
+                _strong = null;
+            }
+            return _weak.get() == null && _strong == null;
+        }
 
-    TimelyResource(final Persistit persistit, final Object key) {
-        _persistit = persistit;
-        _key = key;
+        private boolean delete() throws PersistitException {
+            _strong = _weak.get();
+            return prune();
+        }
     }
 
-    public Object getKey() {
-        return _key;
+    private final Persistit _persistit;
+    private final TimelyResourceRef _ref;
+    private Entry _first;
+
+    TimelyResource(final Persistit persistit) {
+        _persistit = persistit;
+        _ref = new TimelyResourceRef(this);
+        _persistit.addTimelyResourceRef(_ref);
+    }
+
+    public boolean delete() throws PersistitException {
+        return _ref.delete();
     }
 
     public void addVersion(final T resource, final Transaction txn) throws PersistitException, RollbackException {
-        if (txn.isActive()) {
+        if (txn != null && txn.isActive()) {
             addVersion(new Entry(tss2vh(txn.getStartTimestamp(), txn.getStep()), resource), txn);
         } else {
             addVersion(new Entry(tss2vh(_persistit.getTimestampAllocator().updateTimestamp(), 0), resource), txn);
@@ -76,7 +98,7 @@ public class TimelyResource<T extends PrunableResource> {
     }
 
     public T getVersion(final Transaction txn) throws TimeoutException, PersistitInterruptedException {
-        if (txn.isActive()) {
+        if (txn != null && txn.isActive()) {
             return getVersion(txn.getStartTimestamp(), txn.getStep());
         } else {
             return getVersion(UNCOMMITTED, 0);
@@ -93,8 +115,9 @@ public class TimelyResource<T extends PrunableResource> {
         return version;
     }
 
-    public void prune() throws TimeoutException, PersistitException {
+    public boolean prune() throws TimeoutException, PersistitException {
         final List<Entry> entriesToPrune = new ArrayList<Entry>();
+        boolean done = true;
         synchronized (this) {
             try {
                 final TransactionIndex ti = _persistit.getTransactionIndex();
@@ -160,8 +183,9 @@ public class TimelyResource<T extends PrunableResource> {
             }
         }
         for (final Entry e : entriesToPrune) {
-            e.prune();
+            done &= e.prune();
         }
+        return done;
     }
 
     @Override
@@ -225,9 +249,9 @@ public class TimelyResource<T extends PrunableResource> {
                             }
                             if (depends != 0 && depends != ABORTED) {
                                 /*
-                                 * version is from a concurrent txn that already
-                                 * committed or timed out waiting to see. Either
-                                 * way, must abort.
+                                 * version is from a concurrent transaction that
+                                 * already committed or timed out waiting to
+                                 * see. Either way, must abort.
                                  */
                                 throw new RollbackException();
                             }
@@ -340,11 +364,8 @@ public class TimelyResource<T extends PrunableResource> {
             return _version;
         }
 
-        private void prune() throws PersistitException {
-            if (_resource != null) {
-                _resource.prune();
-            }
-            setPrevious(null);
+        private boolean prune() throws PersistitException {
+            return _resource.prune();
         }
 
         @Override
