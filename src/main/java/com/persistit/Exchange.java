@@ -2611,7 +2611,6 @@ public class Exchange implements ReadOnlyExchange {
      * 
      * @throws PersistitException
      */
-    @Override
     public boolean hasNext() throws PersistitException {
         return traverse(GT, false, -1);
     }
@@ -2625,7 +2624,6 @@ public class Exchange implements ReadOnlyExchange {
      * 
      * @throws PersistitException
      */
-    @Override
     public boolean hasNext(final KeyFilter filter) throws PersistitException {
         if (filter == null)
             return hasNext();
@@ -2652,7 +2650,6 @@ public class Exchange implements ReadOnlyExchange {
      * 
      * @throws PersistitException
      */
-    @Override
     public boolean hasNext(final boolean deep) throws PersistitException {
         return traverse(GT, deep, -1);
     }
@@ -2666,7 +2663,6 @@ public class Exchange implements ReadOnlyExchange {
      * @return <code>true</code> if the key has a predecessor
      * @throws PersistitException
      */
-    @Override
     public boolean hasPrevious() throws PersistitException {
         return traverse(LT, false, -1);
     }
@@ -2688,7 +2684,6 @@ public class Exchange implements ReadOnlyExchange {
      * 
      * @throws PersistitException
      */
-    @Override
     public boolean hasPrevious(final boolean deep) throws PersistitException {
         return traverse(LT, deep, -1);
     }
@@ -2702,7 +2697,6 @@ public class Exchange implements ReadOnlyExchange {
      * 
      * @throws PersistitException
      */
-    @Override
     public boolean hasPrevious(final KeyFilter filter) throws PersistitException {
         if (filter == null)
             return hasPrevious();
@@ -3065,7 +3059,6 @@ public class Exchange implements ReadOnlyExchange {
      *         children
      * @throws PersistitException
      */
-    @Override
     public boolean hasChildren() throws PersistitException {
         assertCorrectThread(true);
         _key.copyTo(_spareKey2);

@@ -61,9 +61,10 @@ public class TraverseVisitorTest extends PersistitUnitTestCase {
                 final int v = visited.get();
                 final boolean leftEdge = reverse.get() ? v == 1000 : v == 1;
                 final boolean rightEdge = reverse.get() ? v == 1 : v == 1000;
-                assertEquals(!rightEdge, ex.hasNext());
-                assertEquals(!leftEdge, ex.hasPrevious());
-                assertFalse(ex.hasChildren());
+                final Exchange mutableExchange = new Exchange((Exchange)ex);
+                assertEquals(!rightEdge, mutableExchange.hasNext());
+                assertEquals(!leftEdge, mutableExchange.hasPrevious());
+                assertFalse(mutableExchange.hasChildren());
                 return v < limit.get();
             }
         };
