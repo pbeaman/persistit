@@ -2424,7 +2424,7 @@ public class Exchange implements ReadOnlyExchange {
 
     public boolean traverse(final Direction direction, final boolean deep, final int minimumBytes,
             final TraverseVisitor visitor) throws PersistitException {
-        return traverse(direction, deep, Math.min(0, minimumBytes), 0, 0, visitor);
+        return traverse(direction, deep, Math.max(0, minimumBytes), 0, 0, visitor);
     }
 
     /**
@@ -2716,7 +2716,6 @@ public class Exchange implements ReadOnlyExchange {
      * 
      * @throws PersistitException
      */
-    @Override
     public boolean isValueDefined() throws PersistitException {
         return traverse(EQ, true, -1);
     }
