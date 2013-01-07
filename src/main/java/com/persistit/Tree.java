@@ -33,6 +33,20 @@ import com.persistit.util.Util;
  * {@link Accumulator}s for a B-Tree.
  * </p>
  * <p>
+ * As of Persistit 3.3, this class supports transaction versions. A new
+ * <code>Tree</code> created within the cope of a {@link Transaction} is not
+ * visible within the other transactions until it commits. Similarly, if a
+ * <code>Tree</code> is removed within the scope of a transaction, other
+ * transactions that started before the current transaction commits will
+ * continue to be able to read and write the <code>Tree</code>. As a
+ * side-effect, the physical storage for a <code>Tree</code> is not deallocated
+ * until there are no remaining active transactions that started before the
+ * commit timestamp of the current transaction. Concurrent transactions that
+ * attempt to create or remove the same
+ * <code>Tree<code> instance are subject to a
+ * a write-write dependency (see {@link Transaction}); all but one such transaction must roll back.
+ * </p>
+ * <p>
  * <code>Tree</code> instances are created by
  * {@link Volume#getTree(String, boolean)}. If the <code>Volume</code> already
  * has a B-Tree with the specified name, then the <code>Tree</code> object
@@ -71,18 +85,18 @@ public class Tree extends SharedResource {
 
     private final TreeStatistics _treeStatistics = new TreeStatistics();
 
-    private final TimelyResource<Version> _timelyResource;
+    private final TimelyResource<TreeVersion> _timelyResource;
 
-    private VersionCreator<Version> _creator = new VersionCreator<Version>() {
+    private VersionCreator<TreeVersion> _creator = new VersionCreator<TreeVersion>() {
 
         @Override
-        public Version createVersion() throws PersistitException {
-            return new Version();
+        public TreeVersion createVersion() throws PersistitException {
+            return new TreeVersion();
         }
 
     };
 
-    private class Version implements PrunableResource {
+    private class TreeVersion implements PrunableResource {
         volatile long _rootPageAddr;
         volatile int _depth;
         final AtomicLong _changeCount = new AtomicLong(0);
@@ -103,10 +117,10 @@ public class Tree extends SharedResource {
         _name = name;
         _volume = volume;
         _generation.set(1);
-        _timelyResource = new TimelyResource<Version>(persistit);
+        _timelyResource = new TimelyResource<TreeVersion>(persistit);
     }
 
-    private Version version() {
+    private TreeVersion version() {
         try {
             return _timelyResource.getVersion(_persistit.getTransaction(), _creator);
         } catch (Exception e) {
@@ -165,7 +179,7 @@ public class Tree extends SharedResource {
 
     void changeRootPageAddr(final long rootPageAddr, final int deltaDepth) throws PersistitException {
         Debug.$assert0.t(isOwnedAsWriterByMe());
-        final Version version = version();
+        final TreeVersion version = version();
         version._rootPageAddr = rootPageAddr;
         version._depth += deltaDepth;
     }
@@ -193,7 +207,7 @@ public class Tree extends SharedResource {
      */
     int store(final byte[] bytes, final int index) {
         final byte[] nameBytes = Util.stringToBytes(_name);
-        final Version version = version();
+        final TreeVersion version = version();
         Util.putLong(bytes, index, version._rootPageAddr);
         Util.putLong(bytes, index + 8, version._changeCount.get());
         Util.putShort(bytes, index + 16, version._depth);
@@ -216,7 +230,7 @@ public class Tree extends SharedResource {
         if (!_name.equals(name)) {
             throw new IllegalStateException("Invalid tree name recorded: " + name + " for tree " + _name);
         }
-        final Version version = version();
+        final TreeVersion version = version();
         version._rootPageAddr = Util.getLong(bytes, index);
         version._changeCount.set(Util.getLong(bytes, index + 8));
         version._depth = Util.getShort(bytes, index + 16);
@@ -230,7 +244,7 @@ public class Tree extends SharedResource {
      * @throws PersistitException
      */
     void setRootPageAddress(final long rootPageAddr) throws PersistitException {
-        final Version version = version();
+        final TreeVersion version = version();
         if (version._rootPageAddr != rootPageAddr) {
             // Derive the index depth
             Buffer buffer = null;
@@ -257,7 +271,7 @@ public class Tree extends SharedResource {
      * <code>Tree</code> to fail.
      */
     void invalidate() {
-        final Version version = version();
+        final TreeVersion version = version();
         super.clearValid();
         version._depth = -1;
         version._rootPageAddr = -1;
@@ -280,7 +294,7 @@ public class Tree extends SharedResource {
      */
     @Override
     public String toString() {
-        final Version version = version();
+        final TreeVersion version = version();
         return "<Tree " + _name + " rootPageAddr=" + version._rootPageAddr + " depth=" + version._depth + " status="
                 + getStatusDisplayString() + ">";
     }
