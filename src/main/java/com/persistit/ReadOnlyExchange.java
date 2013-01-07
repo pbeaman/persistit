@@ -15,8 +15,6 @@
 
 package com.persistit;
 
-import com.persistit.exception.PersistitException;
-
 /**
  * Methods of the {@link Exchange} class that are safe to use within a
  * {@link Exchange.TraverseVisitor}.

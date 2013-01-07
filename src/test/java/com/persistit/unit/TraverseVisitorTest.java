@@ -16,7 +16,6 @@
 package com.persistit.unit;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,7 +32,7 @@ import com.persistit.exception.PersistitException;
 public class TraverseVisitorTest extends PersistitUnitTestCase {
 
     private final AtomicInteger visited = new AtomicInteger();
-    private final AtomicInteger limit = new AtomicInteger(Integer.MAX_VALUE);
+    private final AtomicInteger visitLimit = new AtomicInteger(Integer.MAX_VALUE);
     private final AtomicBoolean reverse = new AtomicBoolean();
 
     @Test
@@ -43,7 +42,7 @@ public class TraverseVisitorTest extends PersistitUnitTestCase {
             @Override
             public boolean visit(final ReadOnlyExchange ex) {
                 visited.incrementAndGet();
-                return visited.get() < limit.get();
+                return visited.get() < visitLimit.get();
             }
         };
         doCombo(tv);
@@ -59,13 +58,7 @@ public class TraverseVisitorTest extends PersistitUnitTestCase {
             public boolean visit(final ReadOnlyExchange ex) throws PersistitException {
                 visited.incrementAndGet();
                 final int v = visited.get();
-                final boolean leftEdge = reverse.get() ? v == 1000 : v == 1;
-                final boolean rightEdge = reverse.get() ? v == 1 : v == 1000;
-                final Exchange mutableExchange = new Exchange((Exchange) ex);
-                assertEquals(!rightEdge, mutableExchange.hasNext());
-                assertEquals(!leftEdge, mutableExchange.hasPrevious());
-                assertFalse(mutableExchange.hasChildren());
-                return v < limit.get();
+                return v < visitLimit.get();
             }
         };
 
@@ -92,7 +85,7 @@ public class TraverseVisitorTest extends PersistitUnitTestCase {
                 } else {
                     ex.getKey().append("a");
                 }
-                return v < limit.get();
+                return v < visitLimit.get();
             }
         };
 
@@ -108,43 +101,66 @@ public class TraverseVisitorTest extends PersistitUnitTestCase {
             ex.getValue().put(mockValue);
             ex.store();
         }
+        final int max = Integer.MAX_VALUE;
+        doTraverse(ex, tv, false, Key.GT, max, 1000);
+        doTraverse(ex, tv, false, Key.GT, max, 1000);
+        doTraverse(ex, tv, false, Key.LT, max, 1000);
+        doTraverse(ex, tv, false, Key.LT, max, 1000);
+        doTraverse(ex, tv, false, Key.GT, 1, 1);
+        doTraverse(ex, tv, false, Key.GT, 1, 1);
+        doTraverse(ex, tv, false, Key.GT, 10, 10);
+        doTraverse(ex, tv, false, Key.GT, 10, 10);
+        doTraverse(ex, tv, false, Key.LT, 1, 1);
+        doTraverse(ex, tv, false, Key.LT, 1, 1);
+        doTraverse(ex, tv, false, Key.LT, 10, 10);
+        doTraverse(ex, tv, false, Key.LT, 10, 10);
 
-        doTraverse(ex, tv, false, Key.GT, Integer.MAX_VALUE);
-        doTraverse(ex, tv, false, Key.GT, Integer.MAX_VALUE);
-        doTraverse(ex, tv, false, Key.LT, Integer.MAX_VALUE);
-        doTraverse(ex, tv, false, Key.LT, Integer.MAX_VALUE);
-        doTraverse(ex, tv, false, Key.GT, 1);
-        doTraverse(ex, tv, false, Key.GT, 1);
-        doTraverse(ex, tv, false, Key.GT, 10);
-        doTraverse(ex, tv, false, Key.GT, 10);
-        doTraverse(ex, tv, false, Key.LT, 1);
-        doTraverse(ex, tv, false, Key.LT, 1);
-        doTraverse(ex, tv, false, Key.LT, 10);
-        doTraverse(ex, tv, false, Key.LT, 10);
+        doTraverse(ex, tv, true, Key.GT, max, 1000);
+        doTraverse(ex, tv, true, Key.GT, max, 1000);
+        doTraverse(ex, tv, true, Key.LT, max, 1000);
+        doTraverse(ex, tv, true, Key.LT, max, 1000);
+        doTraverse(ex, tv, true, Key.GT, 1, 1);
+        doTraverse(ex, tv, true, Key.GT, 1, 1);
+        doTraverse(ex, tv, true, Key.GT, 10, 10);
+        doTraverse(ex, tv, true, Key.GT, 10, 10);
+        doTraverse(ex, tv, true, Key.LT, 1, 1);
+        doTraverse(ex, tv, true, Key.LT, 1, 1);
+        doTraverse(ex, tv, true, Key.LT, 10, 10);
+        doTraverse(ex, tv, true, Key.LT, 10, 10);
 
-        doTraverse(ex, tv, true, Key.GT, Integer.MAX_VALUE);
-        doTraverse(ex, tv, true, Key.GT, Integer.MAX_VALUE);
-        doTraverse(ex, tv, true, Key.LT, Integer.MAX_VALUE);
-        doTraverse(ex, tv, true, Key.LT, Integer.MAX_VALUE);
-        doTraverse(ex, tv, true, Key.GT, 1);
-        doTraverse(ex, tv, true, Key.GT, 1);
-        doTraverse(ex, tv, true, Key.GT, 10);
-        doTraverse(ex, tv, true, Key.GT, 10);
-        doTraverse(ex, tv, true, Key.LT, 1);
-        doTraverse(ex, tv, true, Key.LT, 1);
-        doTraverse(ex, tv, true, Key.LT, 10);
-        doTraverse(ex, tv, true, Key.LT, 10);
+        doTraverse(ex, tv, false, Key.GTEQ, max, 1000);
+        doTraverse(ex, tv, false, Key.GTEQ, max, 1000);
+        doTraverse(ex, tv, false, Key.LTEQ, max, 1000);
+        doTraverse(ex, tv, false, Key.LTEQ, max, 1000);
 
+        doTraverseFrom(1, ex, tv, false, Key.GT, max, 998);
+        doTraverseFrom(1, ex, tv, false, Key.GTEQ, max, 999);
+        doTraverseFrom(998, ex, tv, false, Key.LT, max, 998);
+        doTraverseFrom(998, ex, tv, false, Key.LTEQ, max, 999);
+
+        doTraverseFrom(500, ex, tv, false, Key.EQ, max, 1);
+        doTraverseFrom(1001, ex, tv, false, Key.EQ, max, 0);
     }
 
     private void doTraverse(final Exchange ex, final TraverseVisitor tv, final boolean deep,
-            final Key.Direction direction, final int max) throws PersistitException {
+            final Key.Direction direction, final int limit, final int expected) throws PersistitException {
+        ex.clear().append(direction == Key.LT || direction == Key.LTEQ ? Key.AFTER : Key.BEFORE);
+        doTraverse0(ex, tv, deep, direction, limit, expected);
+    }
+
+    private void doTraverseFrom(final int from, final Exchange ex, final TraverseVisitor tv, final boolean deep,
+            final Key.Direction direction, final int limit, final int expected) throws PersistitException {
+        ex.clear().append(from);
+        doTraverse0(ex, tv, deep, direction, limit, expected);
+    }
+
+    private void doTraverse0(final Exchange ex, final TraverseVisitor tv, final boolean deep,
+            final Key.Direction direction, final int limit, final int expected) throws PersistitException {
         reverse.set(direction == Key.LT || direction == Key.LTEQ);
         visited.set(0);
-        limit.set(max);
-        ex.clear().to(reverse.get() ? Key.AFTER : Key.BEFORE);
-        assertEquals(max < 1000, ex.traverse(direction, deep, Integer.MAX_VALUE, tv));
-        assertEquals(Math.min(max, 1000), visited.get());
+        visitLimit.set(limit);
+        assertEquals(limit < 1000, ex.traverse(direction, deep, Integer.MAX_VALUE, tv));
+        assertEquals(expected, visited.get());
     }
 
 }

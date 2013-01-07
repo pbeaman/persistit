@@ -2074,7 +2074,6 @@ public class Exchange implements ReadOnlyExchange {
             final int minKeyDepth, final int matchUpToIndex, final TraverseVisitor visitor) throws PersistitException {
         assertCorrectThread(true);
         _persistit.checkClosed();
-
         final Key spareKey = _spareKey1;
         final boolean doFetch = minimumBytes > 0;
         final boolean doModify = minimumBytes >= 0;
@@ -2082,8 +2081,9 @@ public class Exchange implements ReadOnlyExchange {
         final Value outValue = doFetch ? _value : _spareValue;
         outValue.clear();
 
+        Direction dir = direction;
         Buffer buffer = null;
-        boolean edge = direction == EQ || direction == GTEQ || direction == LTEQ;
+        boolean edge = dir == EQ || dir == GTEQ || dir == LTEQ;
         boolean nudged = false;
 
         if (_key.getEncodedSize() == 0) {
@@ -2165,11 +2165,11 @@ public class Exchange implements ReadOnlyExchange {
                     matches = true;
                 } else if (edge && !deep && Buffer.decodeDepth(foundAt) == index) {
                     matches = true;
-                } else if (direction == EQ) {
+                } else if (dir == EQ) {
                     matches = false;
                 } else {
                     edge = false;
-                    foundAt = buffer.traverse(_key, direction, foundAt);
+                    foundAt = buffer.traverse(_key, dir, foundAt);
                     if (buffer.isAfterRightEdge(foundAt)) {
                         final long rightSiblingPage = buffer.getRightSibling();
 
@@ -2183,7 +2183,7 @@ public class Exchange implements ReadOnlyExchange {
                             //
                             buffer = rightSibling;
                             checkPageType(buffer, PAGE_TYPE_DATA, false);
-                            foundAt = buffer.traverse(_key, direction, buffer.toKeyBlock(0));
+                            foundAt = buffer.traverse(_key, dir, buffer.toKeyBlock(0));
                             matches = !buffer.isAfterRightEdge(foundAt);
                         } else {
                             matches = false;
@@ -2233,14 +2233,14 @@ public class Exchange implements ReadOnlyExchange {
                     matches = false;
                 } else {
                     if (deep) {
-                        matches |= direction != EQ;
+                        matches |= dir != EQ;
                         index = _key.getEncodedSize();
 
                         if (matches) {
                             matches = fetchFromBufferInternal(buffer, outValue, foundAt, minimumBytes);
-                            if (!matches && direction != EQ) {
+                            if (!matches && dir != EQ) {
                                 nudged = false;
-                                nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
+                                nudgeForMVCC = (dir == GTEQ || dir == LTEQ);
                                 buffer.release();
                                 buffer = null;
                                 continue;
@@ -2269,10 +2269,10 @@ public class Exchange implements ReadOnlyExchange {
                                     nudged = false;
                                     buffer.release();
                                     buffer = null;
-                                    if (direction == EQ) {
+                                    if (dir == EQ) {
                                         matches = false;
                                     } else {
-                                        nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
+                                        nudgeForMVCC = (dir == GTEQ || dir == LTEQ);
                                         continue;
                                     }
                                 }
@@ -2330,6 +2330,14 @@ public class Exchange implements ReadOnlyExchange {
                 _tree.getStatistics().bumpTraverseCounter();
                 if (matches && visitor != null && visitor.visit(this)) {
                     nudged = false;
+                    edge = false;
+                    if (dir == GTEQ) {
+                        dir = GT;
+                    } else if (dir == LTEQ) {
+                        dir = LT;
+                    } else if (dir == EQ) {
+                        return false;
+                    }
                     continue;
                 }
                 return matches;
