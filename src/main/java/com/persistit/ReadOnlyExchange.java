@@ -81,17 +81,4 @@ public interface ReadOnlyExchange {
      * @return The <code>Transaction</code> context for this thread.
      */
     public Transaction getTransaction();
-
-    /**
-     * Determines whether the current key has an associated value - that is,
-     * whether a {@link #fetch} operation would return a defined value - without
-     * actually changing the state of either the <code>Key</code> or the
-     * <code>Value</code>.
-     * 
-     * @return <code>true</code> if the key has an associated value
-     * 
-     * @throws PersistitException
-     */
-    public boolean isValueDefined() throws PersistitException;
-
 }
