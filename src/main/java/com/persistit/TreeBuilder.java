@@ -550,7 +550,7 @@ public class TreeBuilder {
         for (final Volume volume : _sortVolumes) {
             try {
                 volume.close();
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 if (exception == null) {
                     exception = e;
                 }
