@@ -17,7 +17,7 @@ package com.persistit;
 
 import static com.persistit.TransactionIndex.tss2vh;
 import static com.persistit.TransactionIndex.vh2ts;
-import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.TransactionStatus.*;
 import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
@@ -77,7 +77,7 @@ public class TimelyResource<T extends PrunableResource> {
 
     private final Persistit _persistit;
     private final TimelyResourceRef _ref;
-    private Entry _first;
+    private volatile Entry _first;
 
     TimelyResource(final Persistit persistit) {
         _persistit = persistit;
@@ -128,8 +128,11 @@ public class TimelyResource<T extends PrunableResource> {
 
                 Entry newer = null;
                 Entry latest = null;
+                boolean isPrimordial = true;
+
                 for (Entry tr = _first; tr != null; tr = tr.getPrevious()) {
                     boolean keepIt = false;
+                    isPrimordial &= newer == null;
                     final long versionHandle = tr.getVersion();
                     final long tc = ti.commitStatus(versionHandle, UNCOMMITTED, 0);
                     if (tc >= 0) {
@@ -140,8 +143,10 @@ public class TimelyResource<T extends PrunableResource> {
                             }
                             uncommittedTransactionTs = ts;
                             keepIt = true;
-                        } else if (tc > 0) {
-                            if (latest == null || ti.hasConcurrentTransaction(tc, lastVersionTc)) {
+                            isPrimordial = false;
+                        } else if (tc > PRIMORDIAL) {
+                            final boolean hasConcurrent = ti.hasConcurrentTransaction(tc, lastVersionTc);
+                            if (latest == null || hasConcurrent) {
                                 keepIt = true;
                                 if (latest == null) {
                                     latest = tr;
@@ -156,10 +161,11 @@ public class TimelyResource<T extends PrunableResource> {
                             assert tc < lastVersionTc || lastVersionTc == UNCOMMITTED;
                             lastVersionHandle = versionHandle;
                             lastVersionTc = tc;
-                        } else {
-                            if (tc == 0) {
-                                keepIt = true;
+                            if (hasConcurrent) {
+                                isPrimordial = false;
                             }
+                        } else {
+                            keepIt = true;
                         }
                     } else {
                         assert tc == ABORTED;
@@ -177,6 +183,10 @@ public class TimelyResource<T extends PrunableResource> {
                 }
                 if (_first != null && _first.getResource() == null && _first.getPrevious() == null) {
                     _first = null;
+                }
+                if (isPrimordial) {
+                    assert _first != null && _first.getPrevious() == null;
+                    _first.setPrimordial();
                 }
             } catch (final InterruptedException ie) {
                 throw new PersistitInterruptedException(ie);
@@ -297,6 +307,15 @@ public class TimelyResource<T extends PrunableResource> {
     T getVersion(final long ts, final int step) throws TimeoutException, PersistitInterruptedException {
         final TransactionIndex ti = _persistit.getTransactionIndex();
         try {
+            /*
+             * Note: not necessary to synchronize here. A concurrent transaction may
+             * modify _first, but this method does not need to see that version since it
+             * has not been committed.  Conversely, if there is some transaction that committed
+             * before this transaction's start timestamp, then there is a happened-before
+             * relationship due to the synchronization in transaction registration; since _first
+             * is volatile, we are guaranteed to see the modification made by the committed
+             * transaction.
+             */
             for (Entry e = _first; e != null; e = e._previous) {
                 final long commitTs = ti.commitStatus(e.getVersion(), ts, step);
                 if (commitTs >= 0 && commitTs != UNCOMMITTED) {
@@ -339,7 +358,7 @@ public class TimelyResource<T extends PrunableResource> {
 
     private class Entry {
 
-        private final long _version;
+        private long _version;
         private final T _resource;
         private volatile Entry _previous;
 
@@ -362,6 +381,10 @@ public class TimelyResource<T extends PrunableResource> {
 
         public long getVersion() {
             return _version;
+        }
+        
+        public void setPrimordial() {
+            _version = PRIMORDIAL;
         }
 
         private boolean prune() throws PersistitException {

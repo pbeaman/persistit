@@ -147,12 +147,13 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
                 try {
                     final int id = sequence.incrementAndGet();
                     tr.addVersion(new TestResource(id), txn);
-                    final int delay = (1 << random.nextInt(8));
-                    // Up to 1/4 of a second
+                    final int delay = (1 << random.nextInt(3));
+                    // Up to 7/1000 of a second
                     Util.sleep(delay);
                     final TestResource mine = tr.getVersion(txn);
+                    assertEquals("Should not have been pruned yet", 0, mine._pruned.get());
                     assertEquals("Wrong resource", id, mine._id);
-                    if (random.nextInt(5) == 0) {
+                    if (random.nextInt(10) == 0) {
                         txn.rollback();
                     } else {
                         txn.commit();
