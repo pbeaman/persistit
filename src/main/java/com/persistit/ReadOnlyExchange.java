@@ -15,10 +15,7 @@
 
 package com.persistit;
 
-import static com.persistit.Key.EQ;
-
 import com.persistit.exception.PersistitException;
-
 
 /**
  * Methods of the {@link Exchange} class that are safe to use within a
@@ -84,7 +81,7 @@ public interface ReadOnlyExchange {
      * @return The <code>Transaction</code> context for this thread.
      */
     public Transaction getTransaction();
-    
+
     /**
      * Determines whether the current key has an associated value - that is,
      * whether a {@link #fetch} operation would return a defined value - without
