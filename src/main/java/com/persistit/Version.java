@@ -34,14 +34,16 @@ interface Version {
         /**
          * Clean up any state held by this resource. For example, when a
          * {@link Tree} is pruned, all pages allocated to its content are
-         * deallocated. This method is called when a newer TimelyResource has
-         * been created and is visible to all active transactions.
+         * deallocated. This method is called when a newer
+         * <code>TimelyResource</code> has been created and is visible to all
+         * active transactions.
          * 
          * @return <code>true</code> if all pruning work for this resource has
          *         been completed, <code>false</code> if the prune method should
          *         be called again later
          */
         boolean prune() throws PersistitException;
+
     }
 
     /**

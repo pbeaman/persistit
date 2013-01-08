@@ -23,6 +23,7 @@ import com.persistit.Version.PrunableVersion;
 import com.persistit.Version.VersionCreator;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.RollbackException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -34,7 +35,7 @@ import com.persistit.util.Util;
  * {@link Accumulator}s for a B-Tree.
  * </p>
  * <p>
- * As of Persistit 3.3, this class supports transaction versions. A new
+ * As of Persistit 3.3, this class supports version within transactions. A new
  * <code>Tree</code> created within the cope of a {@link Transaction} is not
  * visible within the other transactions until it commits. Similarly, if a
  * <code>Tree</code> is removed within the scope of a transaction, other
@@ -91,29 +92,23 @@ public class Tree extends SharedResource {
     private VersionCreator<Tree, TreeVersion> _creator = new VersionCreator<Tree, TreeVersion>() {
 
         @Override
-        public TreeVersion createVersion(final TimelyResource resource) throws PersistitException {
+        public TreeVersion createVersion(final TimelyResource<Tree, ? extends TreeVersion> resource)
+                throws PersistitException {
             TreeVersion version = new TreeVersion();
-            
+
             return version;
         }
-
     };
 
     class TreeVersion implements PrunableVersion {
         volatile long _rootPageAddr;
         volatile int _depth;
+        volatile long _generation = _persistit.getCurrentTimestamp();
         final AtomicLong _changeCount = new AtomicLong();
-        final AtomicLong _generation = new AtomicLong(_persistit.getCurrentTimestamp());
 
-        void init(final long rootPageAddr, final int depth, final long changeCount) {
-            _rootPageAddr = rootPageAddr;
-            _depth = depth;
-            _changeCount.set(changeCount);
-        }
-        
         @Override
         public boolean prune() throws PersistitException {
-            _volume.getStructure().removeTree(_rootPageAddr, _depth);
+            _volume.getStructure().deallocateTree(_rootPageAddr, _depth);
             return true;
         }
     }
@@ -136,6 +131,10 @@ public class Tree extends SharedResource {
         } catch (Exception e) {
             throw new RuntimeException(e); // TODO
         }
+    }
+
+    void remove() throws RollbackException, PersistitException {
+        _timelyResource.addVersion(new TreeVersion(), _persistit.getTransaction());
     }
 
     /**
@@ -186,15 +185,15 @@ public class Tree extends SharedResource {
     public int getDepth() {
         return version()._depth;
     }
-    
+
     public long getGeneration() {
-        return version()._generation.get();
+        return version()._generation;
     }
 
     void bumpGeneration() {
-        version()._generation.incrementAndGet();
+        version()._generation = _persistit.getTimestampAllocator().updateTimestamp();
     }
-    
+
     void changeRootPageAddr(final long rootPageAddr, final int deltaDepth) throws PersistitException {
         Debug.$assert0.t(isOwnedAsWriterByMe());
         final TreeVersion version = version();
@@ -293,7 +292,11 @@ public class Tree extends SharedResource {
         super.clearValid();
         version._depth = -1;
         version._rootPageAddr = -1;
-        version._generation.set(-1);
+        version._generation = _persistit.getTimestampAllocator().updateTimestamp();
+    }
+
+    void setPrimordial() {
+        _timelyResource.setPrimordial();
     }
 
     /**

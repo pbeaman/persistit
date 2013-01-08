@@ -15,20 +15,6 @@
 
 package com.persistit;
 
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_A;
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_B;
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_C;
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_SCHEDULE;
-import static com.persistit.util.ThreadSequencer.addSchedules;
-import static com.persistit.util.ThreadSequencer.array;
-import static com.persistit.util.ThreadSequencer.describeHistory;
-import static com.persistit.util.ThreadSequencer.describePartialOrdering;
-import static com.persistit.util.ThreadSequencer.disableSequencer;
-import static com.persistit.util.ThreadSequencer.enableSequencer;
-import static com.persistit.util.ThreadSequencer.historyMeetsPartialOrdering;
-import static com.persistit.util.ThreadSequencer.out;
-import static com.persistit.util.ThreadSequencer.rawSequenceHistoryCopy;
-import static com.persistit.util.ThreadSequencer.sequence;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -38,7 +24,6 @@ import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.junit.Test;
 
@@ -49,9 +34,6 @@ import com.persistit.unit.UnitTestProperties;
 
 public class TreeLifetimeTest extends PersistitUnitTestCase {
     private static final String TREE_NAME = "tree_one";
-    final int A = TREE_CREATE_REMOVE_A;
-    final int B = TREE_CREATE_REMOVE_B;
-    final int C = TREE_CREATE_REMOVE_C;
 
     private Volume getVolume() {
         return _persistit.getVolume(UnitTestProperties.VOLUME_NAME);
@@ -143,71 +125,4 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         assertNull("Tree should not exist after cleanup action", getVolume().getTree(TREE_NAME, false));
     }
 
-    @Test
-    public void testReanimatedTreeCreateAndRemoveSynchronization() throws PersistitException, InterruptedException {
-        enableSequencer(true);
-        addSchedules(TREE_CREATE_REMOVE_SCHEDULE);
-
-        final ConcurrentLinkedQueue<Throwable> threadErrors = new ConcurrentLinkedQueue<Throwable>();
-
-        final Exchange origEx = getExchange(true);
-        for (int i = 0; i < 5; ++i) {
-            origEx.clear().append(i).store();
-        }
-        _persistit.releaseExchange(origEx);
-
-        final Thread thread1 = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Exchange ex = null;
-                try {
-                    ex = getExchange(false);
-                    ex.removeTree();
-                } catch (final Throwable t) {
-                    threadErrors.add(t);
-                }
-                if (ex != null) {
-                    _persistit.releaseExchange(ex);
-                }
-            }
-        });
-
-        final Thread thread2 = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                sequence(TREE_CREATE_REMOVE_B);
-                Exchange ex = null;
-                try {
-                    ex = getExchange(true);
-                    int count = 0;
-                    while (ex.next(true)) {
-                        ++count;
-                    }
-                    sequence(TREE_CREATE_REMOVE_C);
-                    assertEquals("New tree has zero keys in it", 0, count);
-                } catch (final Throwable t) {
-                    threadErrors.add(t);
-                }
-                if (ex != null) {
-                    _persistit.releaseExchange(ex);
-                }
-            }
-        });
-
-        thread1.start();
-        thread2.start();
-
-        thread1.join();
-        thread2.join();
-
-        assertEquals("Threads had no exceptions", "[]", threadErrors.toString());
-
-        final int[] actual = rawSequenceHistoryCopy();
-        final int[][] expectedSequence = { array(A, B), array(out(B)), array(C), array(out(A), out(C)) };
-        if (!historyMeetsPartialOrdering(actual, expectedSequence)) {
-            assertEquals("Unexpected sequencing", describePartialOrdering(expectedSequence), describeHistory(actual));
-        }
-
-        disableSequencer();
-    }
 }

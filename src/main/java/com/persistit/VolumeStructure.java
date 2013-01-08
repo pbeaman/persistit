@@ -15,9 +15,6 @@
 
 package com.persistit;
 
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_A;
-import static com.persistit.util.ThreadSequencer.sequence;
-
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -206,6 +203,7 @@ class VolumeStructure {
         if (value.isDefined()) {
             value.get(tree);
             loadTreeStatistics(tree);
+            tree.setPrimordial();
             tree.setValid();
         } else if (createIfNecessary) {
             final long rootPageAddr = createTreeRoot(tree);
@@ -300,43 +298,31 @@ class VolumeStructure {
         if (tree == _directoryTree) {
             throw new IllegalArgumentException("Can't delete the Directory tree");
         }
-        _persistit.checkSuspended();
 
         if (!tree.claim(true)) {
             throw new InUseException("Unable to acquire writer claim on " + tree);
         }
 
-        final int treeDepth = tree.getDepth();
-        final long treeRootPage = tree.getRootPageAddr();
-
         try {
-            tree.discardAccumulators();
+            final Exchange ex = directoryExchange();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
+            tree.remove();
 
-            synchronized (this) {
-                _treeNameHashMap.remove(tree.getName());
-                tree.bumpGeneration();
-                tree.invalidate();
-
-                tree.changeRootPageAddr(-1, 0);
-                final Exchange ex = directoryExchange();
-                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
-                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
-                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
-            }
-            sequence(TREE_CREATE_REMOVE_A);
         } finally {
             tree.release();
         }
 
-        // The Tree is now gone. The following deallocates the
-        // pages formerly associated with it. If this fails we'll be
-        // left with allocated pages that are not available on the garbage
-        // chain for reuse.
-        removeTree(treeRootPage, treeDepth);
         return true;
     }
 
-    void removeTree(final long treeRootPage, final int treeDepth) throws PersistitException {
+    synchronized void removed(final Tree tree) {
+        tree.discardAccumulators(); // TODO
+        _treeNameHashMap.remove(tree.getName());
+    }
+
+    void deallocateTree(final long treeRootPage, final int treeDepth) throws PersistitException {
         int depth = treeDepth;
         long page = treeRootPage;
         while (page != -1) {

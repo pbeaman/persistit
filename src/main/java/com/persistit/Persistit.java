@@ -1507,7 +1507,7 @@ public class Persistit {
         for (final Volume volume : volumes) {
             volume.getStructure().flushStatistics();
         }
-        
+
         pruneTimelyResources();
     }
 
@@ -2440,7 +2440,7 @@ public class Persistit {
         }
         return result;
     }
-    
+
     void pruneTimelyResources() {
         final List<TimelyResource<?, ?>> resourcesToPrune = new ArrayList<TimelyResource<?, ?>>();
         synchronized (this) {

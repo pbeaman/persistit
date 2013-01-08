@@ -89,26 +89,28 @@ public class TimelyResource<T extends Object, V extends Version> {
         return _container;
     }
 
-    public boolean delete(final Transaction txn) throws PersistitException {
-        addVersion0(null, txn);
-        prune();
-        return _first == null;
+    private long tss2v(final Transaction txn) {
+        if (txn == null || !txn.isActive()) {
+            return tss2vh(_persistit.getTimestampAllocator().updateTimestamp(), 0);
+        } else {
+            return tss2vh(txn.getStartTimestamp(), txn.getStep());
+        }
+    }
+
+    public synchronized void delete(final Transaction txn) throws RollbackException, PersistitException {
+        if (_first != null) {
+            final V resource = _first.getResource();
+            final Entry entry = new Entry(tss2v(txn), resource);
+            entry.setDeleted();
+            addVersion(entry, txn);
+        }
     }
 
     public void addVersion(final V resource, final Transaction txn) throws PersistitException, RollbackException {
         if (resource == null) {
             throw new NullPointerException("Null resource");
         }
-        addVersion0(resource, txn);
-    }
-
-    private void addVersion0(final V resource, final Transaction txn) throws PersistitException, RollbackException {
-
-        if (txn != null && txn.isActive()) {
-            addVersion(new Entry(tss2vh(txn.getStartTimestamp(), txn.getStep()), resource), txn);
-        } else {
-            addVersion(new Entry(tss2vh(_persistit.getTimestampAllocator().updateTimestamp(), 0), resource), txn);
-        }
+        addVersion(new Entry(tss2v(txn), resource), txn);
     }
 
     public V getVersion(final Transaction txn) throws TimeoutException, PersistitInterruptedException {
@@ -168,6 +170,14 @@ public class TimelyResource<T extends Object, V extends Version> {
         return sb.toString();
     }
 
+    synchronized void setPrimordial() {
+        if (_first != null && _first.getPrevious() == null) {
+            _first.setPrimordial();
+        } else {
+            throw new IllegalStateException("Cannot be made primordial: " + this);
+        }
+    }
+
     /**
      * Remove all obsolete <code>Version</code> instances. For each instance
      * that implements <code>PrunableVersion</code>, invoke its
@@ -190,10 +200,10 @@ public class TimelyResource<T extends Object, V extends Version> {
                 Entry latest = null;
                 boolean isPrimordial = true;
 
-                for (Entry tr = _first; tr != null; tr = tr.getPrevious()) {
+                for (Entry entry = _first; entry != null; entry = entry.getPrevious()) {
                     boolean keepIt = false;
                     isPrimordial &= newer == null;
-                    final long versionHandle = tr.getVersion();
+                    final long versionHandle = entry.getVersion();
                     final long tc = ti.commitStatus(versionHandle, UNCOMMITTED, 0);
                     if (tc >= 0) {
                         if (tc == UNCOMMITTED) {
@@ -209,7 +219,7 @@ public class TimelyResource<T extends Object, V extends Version> {
                             if (latest == null || hasConcurrent) {
                                 keepIt = true;
                                 if (latest == null) {
-                                    latest = tr;
+                                    latest = entry;
                                 }
                             }
                             /*
@@ -224,7 +234,7 @@ public class TimelyResource<T extends Object, V extends Version> {
                             if (hasConcurrent) {
                                 isPrimordial = false;
                             }
-                        } else if (tr.getResource() != null) {
+                        } else if (entry.isDeleted()) {
                             keepIt = true;
                         } else {
                             isPrimordial = false;
@@ -233,19 +243,19 @@ public class TimelyResource<T extends Object, V extends Version> {
                         assert tc == ABORTED;
                     }
                     if (keepIt) {
-                        newer = tr;
+                        newer = entry;
                     } else {
-                        if (tr.getResource() != null) {
-                            entriesToPrune.add(tr);
+                        if (!entry.isDeleted()) {
+                            entriesToPrune.add(entry);
                         }
                         if (newer == null) {
-                            _first = tr.getPrevious();
+                            _first = entry.getPrevious();
                         } else {
-                            newer.setPrevious(tr.getPrevious());
+                            newer.setPrevious(entry.getPrevious());
                         }
                     }
                 }
-                if (_first != null && _first.getResource() == null && _first.getPrevious() == null) {
+                if (_first != null && _first.isDeleted() && _first.getPrevious() == null) {
                     _first = null;
                 }
                 if (isPrimordial && _first != null) {
@@ -266,73 +276,46 @@ public class TimelyResource<T extends Object, V extends Version> {
      * information. This method checks for write-write dependencies throws a
      * RollbackException if there is a conflict.
      * 
-     * @param tr
+     * @param entry
      * @param txn
      * @throws PersistitException
      * @throws RollbackException
      */
-    private void addVersion(final Entry tr, final Transaction txn) throws PersistitException, RollbackException {
+    private void addVersion(final Entry entry, final Transaction txn) throws PersistitException, RollbackException {
         final TransactionIndex ti = _persistit.getTransactionIndex();
-        Entry toPrune = null;
-        while (toPrune == null) {
+        while (true) {
             try {
                 synchronized (this) {
-                    if (_first == null) {
-                        _first = tr;
-                        break;
-                    }
-                    Entry newer = null;
-                    if (_first.getVersion() > tr.getVersion()) {
-                        /*
-                         * This thread lost a race to make the most recent
-                         * version
-                         */
-                        throw new RollbackException();
-                    }
-                    for (Entry e = _first; e != null; e = e.getPrevious()) {
-                        /*
-                         * If this is a version replacing a version created by
-                         * this transaction, then as a short-cut, simply remove
-                         * the other one and splice this in.
-                         */
-                        if (e.getVersion() == tr.getVersion()) {
-                            tr.setPrevious(e.getPrevious());
-                            if (newer == null) {
-                                _first = tr;
-                            } else {
-                                newer.setPrevious(tr);
-                            }
-                            toPrune = e;
-                            break;
-                        } else if (txn.isActive()) {
-                            final long version = e.getVersion();
-                            final long depends = ti.wwDependency(version, txn.getTransactionStatus(), 0);
-                            if (depends == TIMED_OUT) {
-                                throw new WWRetryException(version);
-                            }
-                            if (depends != 0 && depends != ABORTED) {
-                                /*
-                                 * version is from a concurrent transaction that
-                                 * already committed or timed out waiting to
-                                 * see. Either way, must abort.
-                                 */
-                                throw new RollbackException();
+                    if (_first != null) {
+                        if (_first.getVersion() > entry.getVersion()) {
+                            /*
+                             * This thread lost a race to make the most recent
+                             * version
+                             */
+                            throw new RollbackException();
+                        }
+                        if (txn.isActive()) {
+                            for (Entry e = _first; e != null; e = e.getPrevious()) {
+                                final long version = e.getVersion();
+                                final long depends = ti.wwDependency(version, txn.getTransactionStatus(), 0);
+                                if (depends == TIMED_OUT) {
+                                    throw new WWRetryException(version);
+                                }
+                                if (depends != 0 && depends != ABORTED) {
+                                    /*
+                                     * version is from a concurrent transaction
+                                     * that already committed or timed out
+                                     * waiting to see. Either way, must abort.
+                                     */
+                                    throw new RollbackException();
+                                }
                             }
                         }
-                        newer = e;
-
                     }
-                    if (_first != null && tr.getVersion() <= _first.getVersion()) {
-                        throw new RollbackException();
-                    }
-                    tr.setPrevious(_first);
-                    _first = tr;
-                    /*
-                     * Done - exit retry loop here
-                     */
+                    entry.setPrevious(_first);
+                    _first = entry;
                     break;
                 }
-
             } catch (final WWRetryException re) {
                 try {
                     final long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
@@ -342,7 +325,6 @@ public class TimelyResource<T extends Object, V extends Version> {
                          * version is from concurrent txn that already committed
                          * or timed out waiting to see. Either way, must abort.
                          */
-                        txn.rollback();
                         throw new RollbackException();
                     }
                 } catch (final InterruptedException ie) {
@@ -351,9 +333,6 @@ public class TimelyResource<T extends Object, V extends Version> {
             } catch (final InterruptedException ie) {
                 throw new PersistitInterruptedException(ie);
             }
-        }
-        if (toPrune != null) {
-            toPrune.prune();
         }
     }
 
@@ -416,6 +395,7 @@ public class TimelyResource<T extends Object, V extends Version> {
 
         private long _version;
         private final V _resource;
+        private volatile boolean _deleted;
         private volatile Entry _previous;
 
         private Entry(final long versionHandle, final V resource) {
@@ -441,6 +421,14 @@ public class TimelyResource<T extends Object, V extends Version> {
 
         private void setPrimordial() {
             _version = PRIMORDIAL;
+        }
+
+        private void setDeleted() {
+            _deleted = true;
+        }
+
+        private boolean isDeleted() {
+            return _deleted;
         }
 
         private boolean prune() throws PersistitException {

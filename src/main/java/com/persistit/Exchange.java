@@ -2966,30 +2966,15 @@ public class Exchange {
      */
     public void removeTree() throws PersistitException {
         assertCorrectThread(true);
+        _persistit.checkSuspended();
         _persistit.checkClosed();
 
-        final long timestamp = _persistit.getCurrentTimestamp();
-        for (int i = 0; i < 100; i++) {
-            _persistit.checkClosed();
-            _persistit.checkSuspended();
-            _persistit.getJournalManager().pruneObsoleteTransactions();
-            if (_persistit.getJournalManager().getEarliestAbortedTransactionTimestamp() > timestamp) {
-                break;
-            }
-            Util.sleep(1000);
-        }
+        _volume.getStructure().removeTree(_tree);
         if (!_ignoreTransactions) {
             _transaction.removeTree(this);
         }
-
-        clear();
-
+        _key.clear();
         _value.clear();
-        /*
-         * Remove from directory tree.
-         */
-        _volume.getStructure().removeTree(_tree);
-
         initCache();
     }
 
