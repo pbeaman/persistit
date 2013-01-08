@@ -29,6 +29,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,7 +42,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -263,7 +263,7 @@ public class Persistit {
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
-    private final Map<TimelyResource<? extends PrunableResource>.TimelyResourceRef, TimelyResource<? extends PrunableResource>.TimelyResourceRef> _timelyResources = new ConcurrentHashMap<TimelyResource<? extends PrunableResource>.TimelyResourceRef, TimelyResource<? extends PrunableResource>.TimelyResourceRef>();
+    private final Set<WeakReference<TimelyResource<?, ?>>> _timelyResourceSet = new HashSet<WeakReference<TimelyResource<?, ?>>>();
 
     private final WeakHashMap<SessionId, CLI> _cliSessionMap = new WeakHashMap<SessionId, CLI>();
 
@@ -1507,18 +1507,8 @@ public class Persistit {
         for (final Volume volume : volumes) {
             volume.getStructure().flushStatistics();
         }
-
-        for (final Iterator<TimelyResource<? extends PrunableResource>.TimelyResourceRef> iter = _timelyResources
-                .keySet().iterator(); iter.hasNext();) {
-            try {
-                if (iter.next().prune()) {
-                    iter.remove();
-                }
-            } catch (PersistitException e) {
-                _logBase.timelyResourcePruneException.log(e);
-            }
-        }
-
+        
+        pruneTimelyResources();
     }
 
     /**
@@ -2388,8 +2378,8 @@ public class Persistit {
         _suspendUpdates.set(suspended);
     }
 
-    synchronized void addTimelyResourceRef(final TimelyResource<? extends PrunableResource>.TimelyResourceRef resource) {
-        _timelyResources.put(resource, resource);
+    synchronized void addTimelyResource(final TimelyResource<?, ? extends Version> resource) {
+        _timelyResourceSet.add(new WeakReference<TimelyResource<?, ?>>(resource));
     }
 
     void addAccumulator(final Accumulator accumulator) throws PersistitException {
@@ -2449,6 +2439,36 @@ public class Persistit {
             Collections.sort(result, Accumulator.SORT_COMPARATOR);
         }
         return result;
+    }
+    
+    void pruneTimelyResources() {
+        final List<TimelyResource<?, ?>> resourcesToPrune = new ArrayList<TimelyResource<?, ?>>();
+        synchronized (this) {
+            for (final Iterator<WeakReference<TimelyResource<?, ?>>> iter = _timelyResourceSet.iterator(); iter
+                    .hasNext();) {
+                final WeakReference<TimelyResource<?, ?>> ref = iter.next();
+                final TimelyResource<?, ?> resource = ref.get();
+                if (resource != null) {
+                    resourcesToPrune.add(resource);
+                }
+            }
+        }
+        for (final TimelyResource<?, ?> resource : resourcesToPrune) {
+            try {
+                resource.prune();
+            } catch (PersistitException e) {
+                _logBase.timelyResourcePruneException.log(e);
+            }
+        }
+        synchronized (this) {
+            for (final Iterator<WeakReference<TimelyResource<?, ?>>> iter = _timelyResourceSet.iterator(); iter
+                    .hasNext();) {
+                final WeakReference<TimelyResource<?, ?>> ref = iter.next();
+                if (ref.get() == null) {
+                    iter.remove();
+                }
+            }
+        }
     }
 
     synchronized CLI getSessionCLI() {

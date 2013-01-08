@@ -18,6 +18,7 @@ package com.persistit;
 import static com.persistit.TransactionIndex.tss2vh;
 import static com.persistit.TransactionIndex.vh2ts;
 import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.TransactionStatus.PRIMORDIAL;
 import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
@@ -25,6 +26,8 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.persistit.Version.PrunableVersion;
+import com.persistit.Version.VersionCreator;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
@@ -32,64 +35,75 @@ import com.persistit.exception.TimeoutException;
 import com.persistit.exception.WWRetryException;
 
 /**
- * Transactionally manage versions of objects such as {@link Tree}.
- * 
- * A TimelyResource instance has an identity, such as a TreeName or an
- * Accumulator identifier which serves as its key in a map managed by the host
- * Persistit instance.
- * 
- * A TimelyResource instance manages zero or more objects of type T (e.g.,
- * {@link Tree}), where each object is a version. Applications invoke
- * {@link #getVersion(Transaction)} to access the latest version created before
- * the transaction's start timestamp.
+ * <p>
+ * Transactionally manage multiple versions of objects. For example, an object
+ * which caches state created and either committed or rolled back by a
+ * transaction may be use a TimelyResource to hold its versions. Each version
+ * must implement {@link Version}. The {@link Version#prune()} method is called
+ * when <code>TimelyResource</code> detects that the version is obsolete.
+ * </p>
+ * <p>
+ * <code>TimelyResource</code> is parameterized with two types T and V. T is the
+ * type of a "container" class that utilizes a <code>TimelyResource</code> and V
+ * is the concrete type of a {@link Version} which holds information about one
+ * version. For example, a
+ * <code>TimelyResource&lt;Tree, Tree.TreeVersion&gt;</code> is used to hold
+ * version information for a {@link Tree}.
+ * </p>
+ * <p>
+ * The method {@link #addVersion(Version, Transaction)} attempts to add a new
+ * version on behalf of the supplied transaction.
+ * </p>
+ * <p>
+ * The method {@link #getVersion(Transaction)} returns the snapshot version
+ * associated with the transaction, in other words, an instance of a P which was
+ * either committed last before this transaction started, or which was created
+ * by this transaction. If there is no such version the method returns
+ * <code>null</code>.
+ * </p>
+ * <p>
+ * The method {@link #getVersion(Transaction, VersionCreator)} does the same
+ * thing, except that if there is no application version the
+ * {@link VersionCreator#createVersion(TimelyResource)} method s called to
+ * construct a new version.
+ * </p>
  * 
  * @author peter
  * 
  * @param <T>
+ * @param <V>
  */
-public class TimelyResource<T extends PrunableResource> {
-
-    interface VersionCreator<T> {
-        T createVersion() throws PersistitException;
-    }
-
-    class TimelyResourceRef {
-        TimelyResource<T> _strong;
-        WeakReference<TimelyResource<T>> _weak;
-
-        private TimelyResourceRef(final TimelyResource<T> resource) {
-            _weak = new WeakReference<TimelyResource<T>>(resource);
-        }
-
-        boolean prune() throws PersistitException {
-            TimelyResource<T> resource = _strong;
-            if (resource != null && resource.prune()) {
-                _strong = null;
-            }
-            return _weak.get() == null && _strong == null;
-        }
-
-        private boolean delete() throws PersistitException {
-            _strong = _weak.get();
-            return prune();
-        }
-    }
+public class TimelyResource<T extends Object, V extends Version> {
 
     private final Persistit _persistit;
-    private final TimelyResourceRef _ref;
-    private Entry _first;
+    private final T _container;
+    private volatile Entry _first;
 
-    TimelyResource(final Persistit persistit) {
+    public TimelyResource(final Persistit persistit, final T container) {
         _persistit = persistit;
-        _ref = new TimelyResourceRef(this);
-        _persistit.addTimelyResourceRef(_ref);
+        _container = container;
+        _persistit.addTimelyResource(this);
     }
 
-    public boolean delete() throws PersistitException {
-        return _ref.delete();
+    public T getContainer() {
+        return _container;
     }
 
-    public void addVersion(final T resource, final Transaction txn) throws PersistitException, RollbackException {
+    public boolean delete(final Transaction txn) throws PersistitException {
+        addVersion0(null, txn);
+        prune();
+        return _first == null;
+    }
+
+    public void addVersion(final V resource, final Transaction txn) throws PersistitException, RollbackException {
+        if (resource == null) {
+            throw new NullPointerException("Null resource");
+        }
+        addVersion0(resource, txn);
+    }
+
+    private void addVersion0(final V resource, final Transaction txn) throws PersistitException, RollbackException {
+
         if (txn != null && txn.isActive()) {
             addVersion(new Entry(tss2vh(txn.getStartTimestamp(), txn.getStep()), resource), txn);
         } else {
@@ -97,7 +111,7 @@ public class TimelyResource<T extends PrunableResource> {
         }
     }
 
-    public T getVersion(final Transaction txn) throws TimeoutException, PersistitInterruptedException {
+    public V getVersion(final Transaction txn) throws TimeoutException, PersistitInterruptedException {
         if (txn != null && txn.isActive()) {
             return getVersion(txn.getStartTimestamp(), txn.getStep());
         } else {
@@ -105,87 +119,33 @@ public class TimelyResource<T extends PrunableResource> {
         }
     }
 
-    public T getVersion(final Transaction txn, final VersionCreator<T> creator) throws PersistitException,
+    public V getVersion(final Transaction txn, final VersionCreator<T, V> creator) throws PersistitException,
             RollbackException {
-        T version = getVersion(txn);
+        V version = getVersion(txn);
         if (version == null) {
-            version = creator.createVersion();
+            version = creator.createVersion(this);
             addVersion(version, txn);
         }
         return version;
     }
 
-    public boolean prune() throws TimeoutException, PersistitException {
-        final List<Entry> entriesToPrune = new ArrayList<Entry>();
-        boolean done = true;
-        synchronized (this) {
-            try {
-                final TransactionIndex ti = _persistit.getTransactionIndex();
+    /**
+     * @return <code>true</code> if and only if this <code>TimelyResource</code>
+     *         has no <code>Version</code> instances.
+     */
+    public boolean isEmpty() {
+        return _first == null;
+    }
 
-                long lastVersionHandle = Long.MAX_VALUE;
-                long lastVersionTc = UNCOMMITTED;
-                long uncommittedTransactionTs = 0;
-
-                Entry newer = null;
-                Entry latest = null;
-                for (Entry tr = _first; tr != null; tr = tr.getPrevious()) {
-                    boolean keepIt = false;
-                    final long versionHandle = tr.getVersion();
-                    final long tc = ti.commitStatus(versionHandle, UNCOMMITTED, 0);
-                    if (tc >= 0) {
-                        if (tc == UNCOMMITTED) {
-                            final long ts = vh2ts(versionHandle);
-                            if (uncommittedTransactionTs != 0 && uncommittedTransactionTs != ts) {
-                                throw new IllegalStateException("Multiple uncommitted versions");
-                            }
-                            uncommittedTransactionTs = ts;
-                            keepIt = true;
-                        } else if (tc > 0) {
-                            if (latest == null || ti.hasConcurrentTransaction(tc, lastVersionTc)) {
-                                keepIt = true;
-                                if (latest == null) {
-                                    latest = tr;
-                                }
-                            }
-                            /*
-                             * Note: versions and tcs can be the same when there
-                             * are multiple steps
-                             */
-                            assert versionHandle < lastVersionHandle
-                                    || vh2ts(versionHandle) == vh2ts(lastVersionHandle);
-                            assert tc < lastVersionTc || lastVersionTc == UNCOMMITTED;
-                            lastVersionHandle = versionHandle;
-                            lastVersionTc = tc;
-                        } else {
-                            if (tc == 0) {
-                                keepIt = true;
-                            }
-                        }
-                    } else {
-                        assert tc == ABORTED;
-                    }
-                    if (keepIt) {
-                        newer = tr;
-                    } else {
-                        entriesToPrune.add(tr);
-                        if (newer == null) {
-                            _first = tr.getPrevious();
-                        } else {
-                            newer.setPrevious(tr.getPrevious());
-                        }
-                    }
-                }
-                if (_first != null && _first.getResource() == null && _first.getPrevious() == null) {
-                    _first = null;
-                }
-            } catch (final InterruptedException ie) {
-                throw new PersistitInterruptedException(ie);
-            }
+    /**
+     * @return Count of versions currently being managed.
+     */
+    public int getVersionCount() {
+        int count = 0;
+        for (Entry e = _first; e != null; e = e._previous) {
+            count++;
         }
-        for (final Entry e : entriesToPrune) {
-            done &= e.prune();
-        }
-        return done;
+        return count;
     }
 
     @Override
@@ -208,7 +168,110 @@ public class TimelyResource<T extends PrunableResource> {
         return sb.toString();
     }
 
-    void addVersion(final Entry tr, final Transaction txn) throws PersistitException, RollbackException {
+    /**
+     * Remove all obsolete <code>Version</code> instances. For each instance
+     * that implements <code>PrunableVersion</code>, invoke its
+     * {@link PrunableVersion#prune()} method.
+     * 
+     * @throws TimeoutException
+     * @throws PersistitException
+     */
+    void prune() throws TimeoutException, PersistitException {
+        final List<Entry> entriesToPrune = new ArrayList<Entry>();
+        synchronized (this) {
+            try {
+                final TransactionIndex ti = _persistit.getTransactionIndex();
+
+                long lastVersionHandle = Long.MAX_VALUE;
+                long lastVersionTc = UNCOMMITTED;
+                long uncommittedTransactionTs = 0;
+
+                Entry newer = null;
+                Entry latest = null;
+                boolean isPrimordial = true;
+
+                for (Entry tr = _first; tr != null; tr = tr.getPrevious()) {
+                    boolean keepIt = false;
+                    isPrimordial &= newer == null;
+                    final long versionHandle = tr.getVersion();
+                    final long tc = ti.commitStatus(versionHandle, UNCOMMITTED, 0);
+                    if (tc >= 0) {
+                        if (tc == UNCOMMITTED) {
+                            final long ts = vh2ts(versionHandle);
+                            if (uncommittedTransactionTs != 0 && uncommittedTransactionTs != ts) {
+                                throw new IllegalStateException("Multiple uncommitted versions");
+                            }
+                            uncommittedTransactionTs = ts;
+                            keepIt = true;
+                            isPrimordial = false;
+                        } else if (tc > PRIMORDIAL) {
+                            final boolean hasConcurrent = ti.hasConcurrentTransaction(tc, lastVersionTc);
+                            if (latest == null || hasConcurrent) {
+                                keepIt = true;
+                                if (latest == null) {
+                                    latest = tr;
+                                }
+                            }
+                            /*
+                             * Note: versions and tcs can be the same when there
+                             * are multiple steps
+                             */
+                            assert versionHandle < lastVersionHandle
+                                    || vh2ts(versionHandle) == vh2ts(lastVersionHandle);
+                            assert tc <= lastVersionTc || lastVersionTc == UNCOMMITTED;
+                            lastVersionHandle = versionHandle;
+                            lastVersionTc = tc;
+                            if (hasConcurrent) {
+                                isPrimordial = false;
+                            }
+                        } else if (tr.getResource() != null) {
+                            keepIt = true;
+                        } else {
+                            isPrimordial = false;
+                        }
+                    } else {
+                        assert tc == ABORTED;
+                    }
+                    if (keepIt) {
+                        newer = tr;
+                    } else {
+                        if (tr.getResource() != null) {
+                            entriesToPrune.add(tr);
+                        }
+                        if (newer == null) {
+                            _first = tr.getPrevious();
+                        } else {
+                            newer.setPrevious(tr.getPrevious());
+                        }
+                    }
+                }
+                if (_first != null && _first.getResource() == null && _first.getPrevious() == null) {
+                    _first = null;
+                }
+                if (isPrimordial && _first != null) {
+                    assert _first.getPrevious() == null;
+                    _first.setPrimordial();
+                }
+            } catch (final InterruptedException ie) {
+                throw new PersistitInterruptedException(ie);
+            }
+        }
+        for (final Entry e : entriesToPrune) {
+            e.prune();
+        }
+    }
+
+    /**
+     * Helper method that adds an Entry containing a Version and its timestamp
+     * information. This method checks for write-write dependencies throws a
+     * RollbackException if there is a conflict.
+     * 
+     * @param tr
+     * @param txn
+     * @throws PersistitException
+     * @throws RollbackException
+     */
+    private void addVersion(final Entry tr, final Transaction txn) throws PersistitException, RollbackException {
         final TransactionIndex ti = _persistit.getTransactionIndex();
         Entry toPrune = null;
         while (toPrune == null) {
@@ -259,8 +322,8 @@ public class TimelyResource<T extends PrunableResource> {
                         newer = e;
 
                     }
-                    if (_first != null) {
-                        assert tr.getVersion() > _first.getVersion();
+                    if (_first != null && tr.getVersion() <= _first.getVersion()) {
+                        throw new RollbackException();
                     }
                     tr.setPrevious(_first);
                     _first = tr;
@@ -294,9 +357,29 @@ public class TimelyResource<T extends PrunableResource> {
         }
     }
 
-    T getVersion(final long ts, final int step) throws TimeoutException, PersistitInterruptedException {
+    /**
+     * Get the <code>Version</code> from the snapshot view specified by the
+     * supplied timestamp and step.
+     * 
+     * @param ts
+     * @param step
+     * @return
+     * @throws TimeoutException
+     * @throws PersistitInterruptedException
+     */
+    V getVersion(final long ts, final int step) throws TimeoutException, PersistitInterruptedException {
         final TransactionIndex ti = _persistit.getTransactionIndex();
         try {
+            /*
+             * Note: not necessary to synchronize here. A concurrent transaction
+             * may modify _first, but this method does not need to see that
+             * version since it has not been committed. Conversely, if there is
+             * some transaction that committed before this transaction's start
+             * timestamp, then there is a happened-before relationship due to
+             * the synchronization in transaction registration; since _first is
+             * volatile, we are guaranteed to see the modification made by the
+             * committed transaction.
+             */
             for (Entry e = _first; e != null; e = e._previous) {
                 final long commitTs = ti.commitStatus(e.getVersion(), ts, step);
                 if (commitTs >= 0 && commitTs != UNCOMMITTED) {
@@ -307,14 +390,6 @@ public class TimelyResource<T extends PrunableResource> {
         } catch (final InterruptedException e) {
             throw new PersistitInterruptedException(e);
         }
-    }
-
-    int versionCount() {
-        int count = 0;
-        for (Entry e = _first; e != null; e = e._previous) {
-            count++;
-        }
-        return count;
     }
 
     /**
@@ -339,20 +414,20 @@ public class TimelyResource<T extends PrunableResource> {
 
     private class Entry {
 
-        private final long _version;
-        private final T _resource;
+        private long _version;
+        private final V _resource;
         private volatile Entry _previous;
 
-        public Entry(final long versionHandle, final T resource) {
+        private Entry(final long versionHandle, final V resource) {
             _version = versionHandle;
             _resource = resource;
         }
 
-        public T getResource() {
+        private V getResource() {
             return _resource;
         }
 
-        public Entry getPrevious() {
+        private Entry getPrevious() {
             return _previous;
         }
 
@@ -360,12 +435,20 @@ public class TimelyResource<T extends PrunableResource> {
             _previous = tr;
         }
 
-        public long getVersion() {
+        private long getVersion() {
             return _version;
         }
 
+        private void setPrimordial() {
+            _version = PRIMORDIAL;
+        }
+
         private boolean prune() throws PersistitException {
-            return _resource.prune();
+            if (_resource instanceof PrunableVersion) {
+                return ((PrunableVersion) _resource).prune();
+            } else {
+                return true;
+            }
         }
 
         @Override

@@ -19,7 +19,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.persistit.TimelyResource.VersionCreator;
+import com.persistit.Version.PrunableVersion;
+import com.persistit.Version.VersionCreator;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.Debug;
@@ -85,22 +86,32 @@ public class Tree extends SharedResource {
 
     private final TreeStatistics _treeStatistics = new TreeStatistics();
 
-    private final TimelyResource<TreeVersion> _timelyResource;
+    private final TimelyResource<Tree, TreeVersion> _timelyResource;
 
-    private VersionCreator<TreeVersion> _creator = new VersionCreator<TreeVersion>() {
+    private VersionCreator<Tree, TreeVersion> _creator = new VersionCreator<Tree, TreeVersion>() {
 
         @Override
-        public TreeVersion createVersion() throws PersistitException {
-            return new TreeVersion();
+        public TreeVersion createVersion(final TimelyResource resource) throws PersistitException {
+            TreeVersion version = new TreeVersion();
+            
+            return version;
         }
 
     };
 
-    private class TreeVersion implements PrunableResource {
+    class TreeVersion implements PrunableVersion {
         volatile long _rootPageAddr;
         volatile int _depth;
-        final AtomicLong _changeCount = new AtomicLong(0);
+        final AtomicLong _changeCount = new AtomicLong();
+        final AtomicLong _generation = new AtomicLong(_persistit.getCurrentTimestamp());
 
+        void init(final long rootPageAddr, final int depth, final long changeCount) {
+            _rootPageAddr = rootPageAddr;
+            _depth = depth;
+            _changeCount.set(changeCount);
+        }
+        
+        @Override
         public boolean prune() throws PersistitException {
             _volume.getStructure().removeTree(_rootPageAddr, _depth);
             return true;
@@ -116,8 +127,7 @@ public class Tree extends SharedResource {
         }
         _name = name;
         _volume = volume;
-        _generation.set(1);
-        _timelyResource = new TimelyResource<TreeVersion>(persistit);
+        _timelyResource = new TimelyResource<Tree, TreeVersion>(persistit, this);
     }
 
     private TreeVersion version() {
@@ -176,7 +186,15 @@ public class Tree extends SharedResource {
     public int getDepth() {
         return version()._depth;
     }
+    
+    public long getGeneration() {
+        return version()._generation.get();
+    }
 
+    void bumpGeneration() {
+        version()._generation.incrementAndGet();
+    }
+    
     void changeRootPageAddr(final long rootPageAddr, final int deltaDepth) throws PersistitException {
         Debug.$assert0.t(isOwnedAsWriterByMe());
         final TreeVersion version = version();
@@ -275,7 +293,7 @@ public class Tree extends SharedResource {
         super.clearValid();
         version._depth = -1;
         version._rootPageAddr = -1;
-        _generation.set(-1);
+        version._generation.set(-1);
     }
 
     /**
