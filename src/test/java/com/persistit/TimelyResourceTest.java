@@ -53,6 +53,11 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             _pruned.incrementAndGet();
             return true;
         }
+        
+        @Override
+        public void vacate() {
+            System.out.println("No more versions");
+        }
 
         @Override
         public String toString() {
@@ -78,6 +83,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             }
             final TestResource resource = new TestResource(i);
             resources[i] = resource;
+            tr.delete(txn);
             tr.addVersion(resource, txn);
             if (withTransactions) {
                 txn.commit();
@@ -85,7 +91,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             }
             history[i] = _persistit.getTimestampAllocator().updateTimestamp();
         }
-        assertEquals("Incorrect version count", 5, tr.getVersionCount());
+        assertEquals("Incorrect version count", 9, tr.getVersionCount());
 
         for (int i = 0; i < 5; i++) {
             final TestResource t = tr.getVersion(history[i], 0);

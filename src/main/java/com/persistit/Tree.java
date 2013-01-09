@@ -94,9 +94,7 @@ public class Tree extends SharedResource {
         @Override
         public TreeVersion createVersion(final TimelyResource<Tree, ? extends TreeVersion> resource)
                 throws PersistitException {
-            TreeVersion version = new TreeVersion();
-
-            return version;
+            return new TreeVersion();
         }
     };
 
@@ -110,6 +108,10 @@ public class Tree extends SharedResource {
         public boolean prune() throws PersistitException {
             _volume.getStructure().deallocateTree(_rootPageAddr, _depth);
             return true;
+        }
+        @Override
+        public void vacate() {
+            _volume.getStructure().removed(Tree.this);
         }
     }
 
@@ -133,8 +135,8 @@ public class Tree extends SharedResource {
         }
     }
 
-    void remove() throws RollbackException, PersistitException {
-        _timelyResource.addVersion(new TreeVersion(), _persistit.getTransaction());
+    void delete() throws RollbackException, PersistitException {
+        _timelyResource.delete(_persistit.getTransaction());
     }
 
     /**

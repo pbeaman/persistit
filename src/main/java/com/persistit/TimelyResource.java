@@ -22,7 +22,6 @@ import static com.persistit.TransactionStatus.PRIMORDIAL;
 import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -188,64 +187,44 @@ public class TimelyResource<T extends Object, V extends Version> {
      */
     void prune() throws TimeoutException, PersistitException {
         final List<Entry> entriesToPrune = new ArrayList<Entry>();
+        final TransactionIndex ti = _persistit.getTransactionIndex();
+
         synchronized (this) {
             try {
-                final TransactionIndex ti = _persistit.getTransactionIndex();
-
-                long lastVersionHandle = Long.MAX_VALUE;
-                long lastVersionTc = UNCOMMITTED;
-                long uncommittedTransactionTs = 0;
 
                 Entry newer = null;
                 Entry latest = null;
                 boolean isPrimordial = true;
+                long lastCommit = UNCOMMITTED;
 
                 for (Entry entry = _first; entry != null; entry = entry.getPrevious()) {
                     boolean keepIt = false;
-                    isPrimordial &= newer == null;
                     final long versionHandle = entry.getVersion();
                     final long tc = ti.commitStatus(versionHandle, UNCOMMITTED, 0);
-                    if (tc >= 0) {
+                    if (tc >= PRIMORDIAL) {
                         if (tc == UNCOMMITTED) {
-                            final long ts = vh2ts(versionHandle);
-                            if (uncommittedTransactionTs != 0 && uncommittedTransactionTs != ts) {
-                                throw new IllegalStateException("Multiple uncommitted versions");
-                            }
-                            uncommittedTransactionTs = ts;
                             keepIt = true;
                             isPrimordial = false;
-                        } else if (tc > PRIMORDIAL) {
-                            final boolean hasConcurrent = ti.hasConcurrentTransaction(tc, lastVersionTc);
+                        } else {
+                            final boolean hasConcurrent = ti.hasConcurrentTransaction(tc, lastCommit);
                             if (latest == null || hasConcurrent) {
                                 keepIt = true;
                                 if (latest == null) {
                                     latest = entry;
                                 }
                             }
-                            /*
-                             * Note: versions and tcs can be the same when there
-                             * are multiple steps
-                             */
-                            assert versionHandle < lastVersionHandle
-                                    || vh2ts(versionHandle) == vh2ts(lastVersionHandle);
-                            assert tc <= lastVersionTc || lastVersionTc == UNCOMMITTED;
-                            lastVersionHandle = versionHandle;
-                            lastVersionTc = tc;
-                            if (hasConcurrent) {
+                            if (keepIt && ti.hasConcurrentTransaction(0,  tc)) {
                                 isPrimordial = false;
                             }
-                        } else if (entry.isDeleted()) {
-                            keepIt = true;
-                        } else {
-                            isPrimordial = false;
                         }
+                        lastCommit = tc;
                     } else {
                         assert tc == ABORTED;
                     }
                     if (keepIt) {
                         newer = entry;
                     } else {
-                        if (!entry.isDeleted()) {
+                        if (tc == ABORTED ^ entry.isDeleted()) {
                             entriesToPrune.add(entry);
                         }
                         if (newer == null) {
@@ -256,11 +235,21 @@ public class TimelyResource<T extends Object, V extends Version> {
                     }
                 }
                 if (_first != null && _first.isDeleted() && _first.getPrevious() == null) {
+                    entriesToPrune.add(_first);
                     _first = null;
                 }
                 if (isPrimordial && _first != null) {
                     assert _first.getPrevious() == null;
-                    _first.setPrimordial();
+                    if (_first.isDeleted()) {
+                        V version = _first.getResource();
+                        if (version instanceof PrunableVersion) {
+                            ((PrunableVersion)version).vacate();
+                        }
+                        entriesToPrune.add(_first);
+                        _first = null;
+                    } else {
+                        _first.setPrimordial();
+                    }
                 }
             } catch (final InterruptedException ie) {
                 throw new PersistitInterruptedException(ie);
@@ -448,7 +437,7 @@ public class TimelyResource<T extends Object, V extends Version> {
             } catch (final Exception e) {
                 tcStatus = e.toString();
             }
-            return String.format("(tc=%s ts=%s)->%s%s", TransactionStatus.versionString(_version), tcStatus, _resource,
+            return String.format("(ts=%s tc=%s)->%s%s", TransactionStatus.versionString(_version), tcStatus, _resource,
                     _previous != null ? "*" : "");
         }
     }

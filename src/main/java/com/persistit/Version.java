@@ -44,6 +44,14 @@ interface Version {
          */
         boolean prune() throws PersistitException;
 
+        /**
+         * Called after the last known <code>Version</code> managed by a
+         * <code>TimelyResource</code> has been pruned.
+         * 
+         * @throws PersistitException
+         */
+        void vacate() throws PersistitException;
+
     }
 
     /**
