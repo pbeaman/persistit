@@ -213,7 +213,7 @@ public class TimelyResource<T extends Object, V extends Version> {
                                     latest = entry;
                                 }
                             }
-                            if (keepIt && ti.hasConcurrentTransaction(0,  tc)) {
+                            if (keepIt && ti.hasConcurrentTransaction(0, tc)) {
                                 isPrimordial = false;
                             }
                         }
@@ -243,7 +243,7 @@ public class TimelyResource<T extends Object, V extends Version> {
                     if (_first.isDeleted()) {
                         V version = _first.getResource();
                         if (version instanceof PrunableVersion) {
-                            ((PrunableVersion)version).vacate();
+                            ((PrunableVersion) version).vacate();
                         }
                         entriesToPrune.add(_first);
                         _first = null;
@@ -351,6 +351,9 @@ public class TimelyResource<T extends Object, V extends Version> {
             for (Entry e = _first; e != null; e = e._previous) {
                 final long commitTs = ti.commitStatus(e.getVersion(), ts, step);
                 if (commitTs >= 0 && commitTs != UNCOMMITTED) {
+                    if (e.isDeleted()) {
+                        return null;
+                    }
                     return e.getResource();
                 }
             }

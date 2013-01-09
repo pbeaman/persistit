@@ -53,7 +53,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             _pruned.incrementAndGet();
             return true;
         }
-        
+
         @Override
         public void vacate() {
             System.out.println("No more versions");

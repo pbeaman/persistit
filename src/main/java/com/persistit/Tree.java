@@ -109,6 +109,7 @@ public class Tree extends SharedResource {
             _volume.getStructure().deallocateTree(_rootPageAddr, _depth);
             return true;
         }
+
         @Override
         public void vacate() {
             _volume.getStructure().removed(Tree.this);
@@ -133,6 +134,15 @@ public class Tree extends SharedResource {
         } catch (Exception e) {
             throw new RuntimeException(e); // TODO
         }
+    }
+    
+    boolean hasVersion() {
+        try {
+            return _timelyResource.getVersion(_persistit.getTransaction()) != null;
+        } catch (Exception e) {
+            throw new RuntimeException(e); // TODO
+        }
+        
     }
 
     void delete() throws RollbackException, PersistitException {

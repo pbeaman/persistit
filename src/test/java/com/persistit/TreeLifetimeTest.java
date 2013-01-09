@@ -44,11 +44,34 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
     }
 
     @Test
-    public void testRemovedTreeGoesToGarbageChain() throws PersistitException {
+    public void testRemovedTreeGoesToGarbageChainNoTxn() throws PersistitException {
+        Exchange ex = getExchange(true);
+        for (int i = 0; i < 5; ++i) {
+            ex.clear().append(i).getValue().clear().put(i);
+            ex.store();
+        }
+        _persistit.releaseExchange(ex);
+        ex = null;
+
+        ex = getExchange(false);
+        final long treeRoot = ex.getTree().getRootPageAddr();
+        ex.removeTree();
+        _persistit.releaseExchange(ex);
+        ex = null;
+        _persistit.cleanup();
+
+        final List<Long> garbage = getVolume().getStructure().getGarbageList();
+        assertTrue("Expected tree root <" + treeRoot + "> in garbage list <" + garbage.toString() + ">",
+                garbage.contains(treeRoot));
+    }
+
+    @Test
+    public void testRemovedTreeGoesToGarbageChainTxn() throws PersistitException {
         final Transaction txn = _persistit.getTransaction();
+        Exchange ex;
 
         txn.begin();
-        Exchange ex = getExchange(true);
+        ex = getExchange(true);
         for (int i = 0; i < 5; ++i) {
             ex.clear().append(i).getValue().clear().put(i);
             ex.store();
@@ -66,7 +89,7 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         txn.end();
         _persistit.releaseExchange(ex);
         ex = null;
-
+        _persistit.cleanup();
         final List<Long> garbage = getVolume().getStructure().getGarbageList();
         assertTrue("Expected tree root <" + treeRoot + "> in garbage list <" + garbage.toString() + ">",
                 garbage.contains(treeRoot));

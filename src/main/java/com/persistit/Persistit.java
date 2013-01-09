@@ -1507,7 +1507,7 @@ public class Persistit {
         for (final Volume volume : volumes) {
             volume.getStructure().flushStatistics();
         }
-
+        _transactionIndex.updateActiveTransactionCache();
         pruneTimelyResources();
     }
 

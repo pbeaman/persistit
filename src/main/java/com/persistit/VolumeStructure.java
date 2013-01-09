@@ -188,18 +188,22 @@ class VolumeStructure {
         if (DIRECTORY_TREE_NAME.equals(name)) {
             throw new IllegalArgumentException("Tree name is reserved: " + name);
         }
-        Tree tree;
+        Tree tree = null;
         final WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
         if (treeRef != null) {
             tree = treeRef.get();
             if (tree != null && tree.isValid()) {
-                return tree;
+                if (tree.hasVersion()) {
+                    return tree;
+                }
             }
+        }
+        if (tree == null) {
+            tree = new Tree(_persistit, _volume, name);
         }
         final Exchange ex = directoryExchange();
         ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(name);
         final Value value = ex.fetch().getValue();
-        tree = new Tree(_persistit, _volume, name);
         if (value.isDefined()) {
             value.get(tree);
             loadTreeStatistics(tree);

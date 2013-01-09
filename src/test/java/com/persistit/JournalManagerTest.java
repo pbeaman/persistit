@@ -57,6 +57,12 @@ public class JournalManagerTest extends PersistitUnitTestCase {
      */
 
     private final String _volumeName = "persistit";
+    
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
+        _persistit.getExchange(_volumeName, "JournalManagerTest1", true);
+    }
 
     @Test
     public void testJournalRecords() throws Exception {
@@ -297,6 +303,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         // Allow test to control when pruning will happen
         _persistit.getJournalManager().setRollbackPruningEnabled(false);
         _persistit.getJournalManager().setWritePagePruningEnabled(false);
+
         final Transaction txn = _persistit.getTransaction();
         for (int i = 0; i < 10; i++) {
             txn.begin();
