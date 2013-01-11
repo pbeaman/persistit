@@ -94,11 +94,15 @@ final class ClassIndex {
      * 
      * @param persistit
      *            Owning Persistit instance.
+     * @throws PersistitException
      */
     ClassIndex(final Persistit persistit) {
         _persistit = persistit;
     }
 
+    void initialize() throws PersistitException {
+        getExchange();
+    }
     /**
      * @return Number of <code>ClassInfo</code> objects currently stored in this
      *         ClassIndex.
@@ -178,8 +182,9 @@ final class ClassIndex {
             } catch (final PersistitException pe) {
                 throw new ConversionException(pe);
             } finally {
-                if (ex != null)
+                if (ex != null) {
                     releaseExchange(ex);
+                }
             }
         }
     }

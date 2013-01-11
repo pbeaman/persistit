@@ -21,6 +21,7 @@ public class Bug932097Test extends PersistitUnitTestCase {
 
     @Test
     public void testInjectedAbortTransactionStatus() throws Exception {
+        final Exchange ex = _persistit.getExchange("persistit", "test", true);
         /*
          * Create a bunch of incomplete transactions
          */
@@ -28,7 +29,6 @@ public class Bug932097Test extends PersistitUnitTestCase {
             _persistit.setSessionId(new SessionId());
             final Transaction txn = _persistit.getTransaction();
             txn.begin();
-            final Exchange ex = _persistit.getExchange("persistit", "test", true);
             ex.getValue().put(RED_FOX);
             txn.begin();
             for (int k = 1; k < 10; k++) {

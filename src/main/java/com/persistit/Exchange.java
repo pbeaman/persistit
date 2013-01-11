@@ -468,6 +468,7 @@ public class Exchange {
     }
 
     void removeState(final boolean secure) {
+        assertCorrectThread(false);
         _key.clear(secure);
         _value.clear(secure);
         _spareKey1.clear(secure);
@@ -3865,11 +3866,19 @@ public class Exchange {
 
     private boolean checkThread(final boolean set) {
         final Thread t = Thread.currentThread();
-        final boolean okay = _thread == null || _thread == t;
-        if (okay) {
-            _thread = set ? t : null;
+        if (_thread == t) {
+            if (!set) {
+                _thread = null;
+            }
+            return true;
         }
-        return okay;
+        if (_thread == null) {
+            if (set) {
+                _thread = t;
+            }
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -3884,7 +3893,7 @@ public class Exchange {
         assertCorrectThread(true);
         return _transaction;
     }
-
+    
     LongRecordHelper getLongRecordHelper() {
         if (_longRecordHelper == null) {
             _longRecordHelper = new LongRecordHelper(_persistit, this);

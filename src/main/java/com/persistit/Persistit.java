@@ -437,6 +437,7 @@ public class Persistit {
             startJournal();
             startBufferPools();
             preloadBufferPools();
+            initializeClassIndex();
             finishRecovery();
             startCheckpointManager();
             startTransactionIndexPollTask();
@@ -668,6 +669,10 @@ public class Persistit {
         _defaultJoinPolicy = _configuration.getJoinPolicy();
         _defaultCommitPolicy = _configuration.getCommitPolicy();
         _enableBufferInventory.set(_configuration.isBufferInventoryEnabled());
+    }
+    
+    private void initializeClassIndex() throws PersistitException {
+        _classIndex.initialize();
     }
 
     void startCheckpointManager() {
@@ -963,7 +968,6 @@ public class Persistit {
         }
         List<Exchange> stack;
         final SessionId sessionId = getSessionId();
-
         synchronized (_exchangePoolMap) {
             stack = _exchangePoolMap.get(sessionId);
             if (stack == null) {

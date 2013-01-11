@@ -42,7 +42,6 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
 
     @Test
     public void simplePruning() throws Exception {
-        vstruc().directoryExchange();
 
         final Transaction txn = _persistit.getTransaction();
         for (int i = 0; i < 2; i++) {
@@ -58,5 +57,10 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
         Thread.sleep(5000);
         assertEquals("There should be no tree", null, tree("ttlt"));
         assertTrue(vstruc().getGarbageRoot() != 0);
+    }
+    
+    @Test
+    public void removeTreeIsNotVisibleUntilCommit() throws Exception {
+        
     }
 }
