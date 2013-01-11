@@ -23,7 +23,9 @@ import com.persistit.Version.PrunableVersion;
 import com.persistit.Version.VersionCreator;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
+import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -101,18 +103,27 @@ public class Tree extends SharedResource {
     class TreeVersion implements PrunableVersion {
         volatile long _rootPageAddr;
         volatile int _depth;
-        volatile long _generation = _persistit.getCurrentTimestamp();
+        volatile long _generation = _persistit.getTimestampAllocator().updateTimestamp();
         final AtomicLong _changeCount = new AtomicLong();
+        volatile boolean _pruned;
 
         @Override
         public boolean prune() throws PersistitException {
+            assert !_pruned;
             _volume.getStructure().deallocateTree(_rootPageAddr, _depth);
+            _pruned = true;
+            _rootPageAddr = -1;
             return true;
         }
 
         @Override
         public void vacate() {
             _volume.getStructure().removed(Tree.this);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("Tree(%d,%d)%s", _rootPageAddr, _depth, _pruned ? "#" : "");
         }
     }
 
@@ -130,23 +141,30 @@ public class Tree extends SharedResource {
 
     private TreeVersion version() {
         try {
-            return _timelyResource.getVersion(_persistit.getTransaction(), _creator);
+            return _timelyResource.getVersion(_creator);
         } catch (Exception e) {
             throw new RuntimeException(e); // TODO
         }
     }
     
+    boolean isTransactionPrivate() throws TimeoutException, PersistitInterruptedException {
+        return _timelyResource.isTransactionPrivate();
+    }
+
     boolean hasVersion() {
         try {
-            return _timelyResource.getVersion(_persistit.getTransaction()) != null;
+            return _timelyResource.getVersion() != null;
         } catch (Exception e) {
             throw new RuntimeException(e); // TODO
         }
-        
+    }
+
+    boolean hasVersion(final long versionHandle) throws TimeoutException, PersistitInterruptedException {
+        return _timelyResource.getVersion(versionHandle) != null;
     }
 
     void delete() throws RollbackException, PersistitException {
-        _timelyResource.delete(_persistit.getTransaction());
+        _timelyResource.delete();
     }
 
     /**
@@ -188,7 +206,8 @@ public class Tree extends SharedResource {
      * @return The page address
      */
     public long getRootPageAddr() {
-        return version()._rootPageAddr;
+        TreeVersion version = version();
+        return version._rootPageAddr;
     }
 
     /**
@@ -211,6 +230,9 @@ public class Tree extends SharedResource {
         final TreeVersion version = version();
         version._rootPageAddr = rootPageAddr;
         version._depth += deltaDepth;
+//        if (rootPageAddr == 154) {
+//            System.out.printf("Changing root to %s\n", version);
+//        }
     }
 
     void bumpChangeCount() {
@@ -274,6 +296,9 @@ public class Tree extends SharedResource {
      */
     void setRootPageAddress(final long rootPageAddr) throws PersistitException {
         final TreeVersion version = version();
+//        if (rootPageAddr == 154) {
+//            System.out.printf("setRootPageAddress=%s\n", version);
+//        }
         if (version._rootPageAddr != rootPageAddr) {
             // Derive the index depth
             Buffer buffer = null;

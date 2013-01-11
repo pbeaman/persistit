@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import static com.persistit.TransactionIndex.tss2vh;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 import static com.persistit.util.Util.NS_PER_S;
 import static org.junit.Assert.assertEquals;
@@ -83,7 +84,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             }
             final TestResource resource = new TestResource(i);
             resources[i] = resource;
-            tr.delete(txn);
+            tr.delete();
             tr.addVersion(resource, txn);
             if (withTransactions) {
                 txn.commit();
@@ -94,16 +95,16 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         assertEquals("Incorrect version count", 9, tr.getVersionCount());
 
         for (int i = 0; i < 5; i++) {
-            final TestResource t = tr.getVersion(history[i], 0);
+            final TestResource t = tr.getVersion(tss2vh(history[i], 0));
             assertTrue("Missing version", t != null);
             assertEquals("Wrong version", i, t._id);
         }
         _persistit.getTransactionIndex().updateActiveTransactionCache();
         tr.prune();
         assertEquals("Should have one version left", 1, tr.getVersionCount());
-        assertEquals("Wrong version", 4, tr.getVersion(UNCOMMITTED, 0)._id);
+        assertEquals("Wrong version", 4, tr.getVersion(tss2vh(UNCOMMITTED, 0))._id);
 
-        tr.delete(txn);
+        tr.delete();
 
         assertEquals("Should have two versions left", 2, tr.getVersionCount());
         _persistit.getTransactionIndex().updateActiveTransactionCache();
@@ -165,7 +166,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
                     final int delay = (1 << random.nextInt(3));
                     // Up to 7/1000 of a second
                     Util.sleep(delay);
-                    final TestResource mine = tr.getVersion(txn);
+                    final TestResource mine = tr.getVersion();
                     assertEquals("Should not have been pruned yet", 0, mine._pruned.get());
                     assertEquals("Wrong resource", id, mine._id);
                     if (random.nextInt(10) == 0) {
@@ -206,11 +207,11 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         final Transaction txn2 = _persistit.getTransaction();
         TestResource v1;
         txn1.begin();
-        v1 = tr.getVersion(txn1, creator);
+        v1 = tr.getVersion(creator);
         assert v1._id == _idCounter;
         txn2.begin();
         txn1.incrementStep();
-        tr.delete(txn1);
+        tr.delete();
         tr.prune();
         assertEquals("Should still be two versions", 2, tr.getVersionCount());
         txn2.commit();
@@ -218,6 +219,8 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         _persistit.getTransactionIndex().updateActiveTransactionCache();
         tr.prune();
         assertEquals("Should now have no versions", 0, tr.getVersionCount());
+        txn1.end();
+        txn2.end();
 
     }
 
@@ -251,7 +254,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
                     final Transaction txn = _persistit.getTransaction();
                     try {
                         txn.begin();
-                        final TestResource t = tr.getVersion(txn);
+                        final TestResource t = tr.getVersion();
                         assertEquals(t._id, tr.getContainer()._idCounter);
                         semaphore2.release();
                         semaphore1.acquire();

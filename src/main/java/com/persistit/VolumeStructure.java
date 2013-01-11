@@ -23,13 +23,11 @@ import java.util.Map;
 
 import com.persistit.AlertMonitor.AlertLevel;
 import com.persistit.AlertMonitor.Event;
-import com.persistit.Tree.TreeVersion;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
-import com.persistit.util.Util;
 
 class VolumeStructure {
     /**
@@ -222,30 +220,10 @@ class VolumeStructure {
             tree.loadHandle();
         }
         _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
+//        if (tree.getName().contains("100")) {
+//            System.out.printf("getTree got %s\n", tree);
+//        }
         return tree;
-    }
-
-    void loadTreeVersion(final String expectedName, final TreeVersion version) throws PersistitException {
-        final Exchange ex = directoryExchange();
-        ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(expectedName);
-        final Value value = ex.fetch().getValue();
-        if (value.isDefined()) {
-            int index = 1;
-            int length = value.getEncodedSize();
-            byte[] bytes = value.getEncodedBytes();
-            final int nameLength = length < 20 ? -1 : Util.getShort(bytes, index + 18);
-            if (nameLength < 1 || nameLength + 20 > length) {
-                throw new IllegalStateException("Invalid tree record is too short for tree " + expectedName + ": "
-                        + length);
-            }
-            final String name = new String(bytes, index + 20, nameLength);
-            if (!expectedName.equals(name)) {
-                throw new IllegalStateException("Invalid tree name recorded: " + name + " for tree " + expectedName);
-            }
-            version._rootPageAddr = Util.getLong(bytes, index);
-            version._changeCount.set(Util.getLong(bytes, index + 8));
-            version._depth = Util.getShort(bytes, index + 16);
-        }
     }
 
     /**
@@ -276,6 +254,10 @@ class VolumeStructure {
             final Exchange ex = directoryExchange();
             ex.getValue().put(tree);
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).store();
+
+//            if (tree.getName().contains("100")) {
+//                System.out.printf("updateDirectoryTree %s (value=%s)\n", tree, ex.getValue());
+//            }
         }
     }
 
@@ -306,6 +288,9 @@ class VolumeStructure {
         if (!tree.claim(true)) {
             throw new InUseException("Unable to acquire writer claim on " + tree);
         }
+//        if (tree.getName().contains("100")) {
+//            System.out.printf("removeTree(%s)\n", tree);
+//        }
 
         try {
             final Exchange ex = directoryExchange();
@@ -313,7 +298,6 @@ class VolumeStructure {
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
             tree.delete();
-
         } finally {
             tree.release();
         }
@@ -327,6 +311,10 @@ class VolumeStructure {
     }
 
     void deallocateTree(final long treeRootPage, final int treeDepth) throws PersistitException {
+//        if (treeRootPage == 154) {
+//            System.out.printf("Deallocating root page %d\n", treeRootPage);
+//        }
+
         int depth = treeDepth;
         long page = treeRootPage;
         while (page != -1) {

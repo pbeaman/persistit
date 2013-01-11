@@ -1500,13 +1500,7 @@ public class Persistit {
                 }
             }
         }
-        final List<Volume> volumes;
-        synchronized (this) {
-            volumes = new ArrayList<Volume>(_volumes);
-        }
-        for (final Volume volume : volumes) {
-            volume.getStructure().flushStatistics();
-        }
+        flushStatistics();
         _transactionIndex.updateActiveTransactionCache();
         pruneTimelyResources();
     }
@@ -1640,7 +1634,7 @@ public class Persistit {
 
             if (flush) {
                 for (final Volume volume : volumes) {
-                    volume.getStructure().flushStatistics();
+                    flushStatistics();
                     volume.getStorage().flush();
                 }
             }
@@ -1853,7 +1847,6 @@ public class Persistit {
             return false;
         }
         for (final Volume volume : _volumes) {
-            volume.getStructure().flushStatistics();
             volume.getStorage().flush();
             volume.getStorage().force();
         }
@@ -1876,6 +1869,27 @@ public class Persistit {
 
         for (final Transaction transaction : transactions) {
             transaction.flushOnCheckpoint(checkpointTimestamp);
+        }
+    }
+
+    void flushStatistics() {
+        try {
+            Transaction txn = getTransaction();
+            txn.begin();
+            try {
+                final List<Volume> volumes;
+                synchronized (this) {
+                    volumes = new ArrayList<Volume>(_volumes);
+                }
+                for (final Volume volume : volumes) {
+                    volume.getStructure().flushStatistics();
+                }
+                txn.commit();
+            } finally {
+                txn.end();
+            }
+        } catch (Exception e) {
+            _logBase.exception.log(e);
         }
     }
 
@@ -2457,7 +2471,7 @@ public class Persistit {
             try {
                 resource.prune();
             } catch (PersistitException e) {
-                _logBase.timelyResourcePruneException.log(e);
+                _logBase.timelyResourcePruneException.log(e, resource);
             }
         }
         synchronized (this) {

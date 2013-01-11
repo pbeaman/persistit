@@ -409,7 +409,6 @@ public class Exchange {
     }
 
     void init(final Volume volume, final String treeName, final boolean create) throws PersistitException {
-        assertCorrectThread(true);
         if (volume == null) {
             throw new NullPointerException();
         }
@@ -469,7 +468,6 @@ public class Exchange {
     }
 
     void removeState(final boolean secure) {
-        assertCorrectThread(false);
         _key.clear(secure);
         _value.clear(secure);
         _spareKey1.clear(secure);
@@ -487,7 +485,6 @@ public class Exchange {
      * Drop all cached optimization information
      */
     public void initCache() {
-        assertCorrectThread(true);
         for (int level = 0; level < MAX_TREE_DEPTH; level++) {
             if (_levelCache[level] != null)
                 _levelCache[level].invalidate();
@@ -1307,7 +1304,7 @@ public class Exchange {
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
-        if (!_ignoreTransactions && !_transaction.isActive()) {
+        if (!_ignoreTransactions && !_transaction.isActive() && !isDirectoryExchange()) {
             _persistit.getJournalManager().throttle();
         }
         // TODO: directoryExchange, and lots of tests, don't use transactions.
@@ -1344,6 +1341,9 @@ public class Exchange {
      */
     boolean storeInternal(Key key, final Value value, int level, final int options) throws PersistitException {
 
+        if (_tree.getRootPageAddr() == 0) {
+            System.out.printf("Bad tree: " + _tree);
+        }
         final boolean doMVCC = (options & StoreOptions.MVCC) > 0;
         final boolean doFetch = (options & StoreOptions.FETCH) > 0;
 
@@ -1501,8 +1501,8 @@ public class Exchange {
                                 fetchFromValueInternal(_spareValue, Integer.MAX_VALUE, buffer);
                             }
                         }
-
-                        if (doMVCC) {
+                        
+                        if (doMVCC & (_spareValue.isDefined() || !_tree.isTransactionPrivate())) {
                             valueToStore = spareValue;
                             final int valueSize = value.getEncodedSize();
                             int retries = VERSIONS_OUT_OF_ORDER_RETRY_COUNT;
@@ -2926,7 +2926,6 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
-        assertCorrectThread(true);
         _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
         final boolean result = traverse(GT, true, 0, _key.getDepth() + 1, size);
@@ -2970,6 +2969,7 @@ public class Exchange {
         _persistit.checkClosed();
 
         _volume.getStructure().removeTree(_tree);
+        _tree.delete();
         if (!_ignoreTransactions) {
             _transaction.removeTree(this);
         }
@@ -3133,7 +3133,8 @@ public class Exchange {
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
-        if (!_ignoreTransactions && !_transaction.isActive()) {
+        
+        if (!_ignoreTransactions && !_transaction.isActive() && !isDirectoryExchange()) {
             _persistit.getJournalManager().throttle();
         }
 
@@ -3144,6 +3145,15 @@ public class Exchange {
         // Record the delete operation on the journal
 
         _transaction.remove(this, key1, key2);
+
+        /*
+         * If the Tree was created within this transaction then we can just range-delete the
+         * tree since it is not visible outside this transaction.
+         */
+        
+        if (_tree.isTransactionPrivate()) {
+            return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
+        }
 
         checkLevelCache();
 
@@ -3909,7 +3919,6 @@ public class Exchange {
      *         <code>false</code>.
      */
     boolean isDirectoryExchange() {
-        assertCorrectThread(true);
         return _isDirectoryExchange;
     }
 

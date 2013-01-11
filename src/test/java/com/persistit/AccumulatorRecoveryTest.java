@@ -166,6 +166,11 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
                 return true;
             }
 
+            @Override
+            public boolean createTree(long timestamp) throws PersistitException {
+                return true;
+            }
+
         };
         plan.applyAllRecoveredTransactions(commitListener, plan.getDefaultRollbackListener());
         assertEquals(15, recoveryTimestamps.size());

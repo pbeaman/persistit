@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import com.persistit.util.Util;
+
 interface ValueHelper {
 
     int requiredLength(final byte[] target, int targetOffset, int targetLength);
@@ -102,6 +104,11 @@ interface ValueHelper {
         public boolean isMVV() {
             return false;
         }
+        
+        @Override
+        public String toString() {
+            return _value != null ? Util.hexDump(_value.getEncodedBytes(), 0, _value.getEncodedSize()) : "null";
+        }
     };
 
     static class MVVValueWriter implements ValueHelper {
@@ -144,6 +151,11 @@ interface ValueHelper {
         @Override
         public boolean isMVV() {
             return true;
+        }
+        
+        @Override
+        public String toString() {
+            return _value != null ? Util.hexDump(_value.getEncodedBytes(), 0, _value.getEncodedSize()) : "null";
         }
     };
 }

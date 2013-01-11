@@ -16,6 +16,7 @@
 package com.persistit;
 
 import static com.persistit.TransactionIndex.tss2vh;
+import static com.persistit.TransactionIndex.vh2step;
 import static com.persistit.TransactionIndex.vh2ts;
 import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.PRIMORDIAL;
@@ -96,12 +97,17 @@ public class TimelyResource<T extends Object, V extends Version> {
         }
     }
 
-    public synchronized void delete(final Transaction txn) throws RollbackException, PersistitException {
+    public synchronized void delete() throws RollbackException, PersistitException {
         if (_first != null) {
             final V resource = _first.getResource();
+            final Transaction txn = _persistit.getTransaction();
             final Entry entry = new Entry(tss2v(txn), resource);
-            entry.setDeleted();
-            addVersion(entry, txn);
+            if (_first.isDeleted()) {
+                // System.out.println("boo");
+            } else {
+                entry.setDeleted();
+                addVersion(entry, txn);
+            }
         }
     }
 
@@ -112,17 +118,22 @@ public class TimelyResource<T extends Object, V extends Version> {
         addVersion(new Entry(tss2v(txn), resource), txn);
     }
 
-    public V getVersion(final Transaction txn) throws TimeoutException, PersistitInterruptedException {
-        if (txn != null && txn.isActive()) {
-            return getVersion(txn.getStartTimestamp(), txn.getStep());
-        } else {
-            return getVersion(UNCOMMITTED, 0);
+    public V getVersion() throws TimeoutException, PersistitInterruptedException {
+        final Entry first = _first;
+        if (first != null && first.getVersion() == PRIMORDIAL) {
+            return first.getResource();
         }
+        final Transaction txn = _persistit.getTransaction();
+        return getVersion(tss2v(txn));
     }
 
-    public V getVersion(final Transaction txn, final VersionCreator<T, V> creator) throws PersistitException,
-            RollbackException {
-        V version = getVersion(txn);
+    public V getVersion(final VersionCreator<T, V> creator) throws PersistitException, RollbackException {
+        final Entry first = _first;
+        if (first != null && first.getVersion() == PRIMORDIAL) {
+            return first.getResource();
+        }
+        final Transaction txn = _persistit.getTransaction();
+        V version = getVersion(tss2v(txn));
         if (version == null) {
             version = creator.createVersion(this);
             addVersion(version, txn);
@@ -136,6 +147,25 @@ public class TimelyResource<T extends Object, V extends Version> {
      */
     public boolean isEmpty() {
         return _first == null;
+    }
+    
+    public boolean isTransactionPrivate() throws TimeoutException, PersistitInterruptedException {
+        Entry entry = _first;
+        if (entry != null && entry.getVersion() == PRIMORDIAL) {
+            return false;
+        }
+        final Transaction txn = _persistit.getTransaction();
+        final long versionHandle = tss2v(txn);
+        entry = getEntry(versionHandle);
+        if (entry == null) {
+            return true;
+        } else {
+            final boolean result = entry.getVersion() >= versionHandle;
+//            if (!result) {
+//                System.out.printf("Not transction-private: %s at %d\n", entry, versionHandle);
+//            }
+            return result;
+        }
     }
 
     /**
@@ -187,6 +217,8 @@ public class TimelyResource<T extends Object, V extends Version> {
      */
     void prune() throws TimeoutException, PersistitException {
         final List<Entry> entriesToPrune = new ArrayList<Entry>();
+        PrunableVersion versionToVacate = null;
+        
         final TransactionIndex ti = _persistit.getTransactionIndex();
 
         synchronized (this) {
@@ -234,16 +266,16 @@ public class TimelyResource<T extends Object, V extends Version> {
                         }
                     }
                 }
-                if (_first != null && _first.isDeleted() && _first.getPrevious() == null) {
-                    entriesToPrune.add(_first);
-                    _first = null;
-                }
+//                if (_first != null && _first.isDeleted() && _first.getPrevious() == null) {
+//                    entriesToPrune.add(_first);
+//                    _first = null;
+//                }
                 if (isPrimordial && _first != null) {
                     assert _first.getPrevious() == null;
                     if (_first.isDeleted()) {
                         V version = _first.getResource();
                         if (version instanceof PrunableVersion) {
-                            ((PrunableVersion) version).vacate();
+                            versionToVacate = (PrunableVersion)version;
                         }
                         entriesToPrune.add(_first);
                         _first = null;
@@ -256,6 +288,9 @@ public class TimelyResource<T extends Object, V extends Version> {
             }
         }
         for (final Entry e : entriesToPrune) {
+            if (versionToVacate != null) {
+                versionToVacate.vacate();
+            }
             e.prune();
         }
     }
@@ -327,15 +362,20 @@ public class TimelyResource<T extends Object, V extends Version> {
 
     /**
      * Get the <code>Version</code> from the snapshot view specified by the
-     * supplied timestamp and step.
+     * supplied version handle.
      * 
-     * @param ts
-     * @param step
+     * @param version
+     *            versionHandle
      * @return
      * @throws TimeoutException
      * @throws PersistitInterruptedException
      */
-    V getVersion(final long ts, final int step) throws TimeoutException, PersistitInterruptedException {
+    V getVersion(final long version) throws TimeoutException, PersistitInterruptedException {
+        Entry e = getEntry(version);
+        return e == null ? null : e.getResource();
+    }
+    
+    Entry getEntry(final long version) throws TimeoutException, PersistitInterruptedException {
         final TransactionIndex ti = _persistit.getTransactionIndex();
         try {
             /*
@@ -349,12 +389,12 @@ public class TimelyResource<T extends Object, V extends Version> {
              * committed transaction.
              */
             for (Entry e = _first; e != null; e = e._previous) {
-                final long commitTs = ti.commitStatus(e.getVersion(), ts, step);
+                final long commitTs = ti.commitStatus(e.getVersion(), vh2ts(version), vh2step(version));
                 if (commitTs >= 0 && commitTs != UNCOMMITTED) {
                     if (e.isDeleted()) {
                         return null;
                     }
-                    return e.getResource();
+                    return e;
                 }
             }
             return null;

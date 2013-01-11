@@ -2851,6 +2851,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             return false;
         }
 
+        @Override
+        public boolean createTree(long timestamp) throws PersistitException {
+            return false;
+        }
+
     }
 
     /**

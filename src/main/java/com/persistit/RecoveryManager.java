@@ -226,18 +226,25 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     static class DefaultRecoveryListener implements TransactionPlayerListener {
         @Override
         public void store(final long address, final long timestamp, final Exchange exchange) throws PersistitException {
-            exchange.store();
+            if (exchange.getTree() != exchange.getVolume().getStructure().getDirectoryTree()) {
+                exchange.store();
+            }
         }
 
         @Override
         public void removeKeyRange(final long address, final long timestamp, final Exchange exchange, final Key from,
                 final Key to) throws PersistitException {
-            exchange.raw_removeKeyRangeInternal(from, to, false, false);
+            if (exchange.getTree() != exchange.getVolume().getStructure().getDirectoryTree()) {
+                exchange.raw_removeKeyRangeInternal(from, to, false, false);
+            }
         }
 
         @Override
         public void removeTree(final long address, final long timestamp, final Exchange exchange)
                 throws PersistitException {
+//            if (exchange.toString().contains("Test100")) {
+//                System.out.printf("Recovery removeTree %s\n", exchange);
+//            }
             exchange.removeTree();
         }
 
@@ -272,6 +279,11 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
         @Override
         public boolean requiresLongRecordConversion() {
+            return true;
+        }
+
+        @Override
+        public boolean createTree(long timestamp) throws PersistitException {
             return true;
         }
 
@@ -333,6 +345,11 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
         @Override
         public boolean requiresLongRecordConversion() {
+            return false;
+        }
+
+        @Override
+        public boolean createTree(long timestamp) throws PersistitException {
             return false;
         }
 

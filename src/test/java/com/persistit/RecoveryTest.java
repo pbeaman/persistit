@@ -159,6 +159,11 @@ public class RecoveryTest extends PersistitUnitTestCase {
                 return true;
             }
 
+            @Override
+            public boolean createTree(long timestamp) throws PersistitException {
+                return true;
+            }
+
         };
         plan.applyAllRecoveredTransactions(actor, plan.getDefaultRollbackListener());
         assertEquals(15, recoveryTimestamps.size());
@@ -381,9 +386,13 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertTrue(_persistit.getJournalManager().getHandleCount() > updatedHandleValue);
     }
 
+    private final static int T1 = 1000;
+    private final static int T2 = 2000;
+
     @Test
     public void testIndexHoles() throws Exception {
         _persistit.getJournalManager().setAppendOnly(true);
+
         final Transaction transaction = _persistit.getTransaction();
         final StringBuilder sb = new StringBuilder();
         while (sb.length() < 1000) {
@@ -392,7 +401,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
         final String s = sb.toString();
         for (int cycle = 0; cycle < 2; cycle++) {
-            for (int i = 1000; i < 2000; i++) {
+            for (int i = T1; i < T2; i++) {
                 final Exchange exchange = _persistit.getExchange("persistit", "RecoveryTest" + i, true);
                 transaction.begin();
                 try {
@@ -407,7 +416,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
 
             for (int j = 0; j < 20; j++) {
-                for (int i = 1000; i < 2000; i++) {
+                for (int i = T1; i < T2; i++) {
                     final Exchange exchange = _persistit.getExchange("persistit", "RecoveryTest" + i, true);
                     transaction.begin();
                     try {
@@ -419,7 +428,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
                 }
             }
 
-            for (int i = 1000; i < 2000; i += 2) {
+            for (int i = T1; i < T2; i += 2) {
                 transaction.begin();
                 try {
                     final Exchange exchange = _persistit.getExchange("persistit", "RecoveryTest" + i, true);
@@ -430,6 +439,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
                 }
             }
         }
+        _persistit.checkAllVolumes();
         _persistit.crash();
 
         _persistit = new Persistit();

@@ -57,7 +57,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
      */
 
     private final String _volumeName = "persistit";
-    
+
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -218,6 +218,11 @@ public class JournalManagerTest extends PersistitUnitTestCase {
 
             @Override
             public boolean requiresLongRecordConversion() {
+                return true;
+            }
+
+            @Override
+            public boolean createTree(long timestamp) throws PersistitException {
                 return true;
             }
 
