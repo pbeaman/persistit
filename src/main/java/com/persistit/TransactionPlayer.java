@@ -16,6 +16,7 @@
 package com.persistit;
 
 import static com.persistit.TransactionIndex.ts2vh;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -312,7 +313,7 @@ class TransactionPlayer {
         if (VolumeStructure.DIRECTORY_TREE_NAME.equals(td.getTreeName())) {
             return volume.getStructure().directoryExchange();
         } else {
-            Tree tree = volume.getStructure().getTreeInternal(td.getTreeName());
+            final Tree tree = volume.getStructure().getTreeInternal(td.getTreeName());
             if (!listener.createTree(timestamp) && (tree == null || !tree.hasVersion(ts2vh(timestamp)))) {
                 return null;
             }

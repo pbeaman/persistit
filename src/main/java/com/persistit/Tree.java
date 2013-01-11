@@ -91,7 +91,7 @@ public class Tree extends SharedResource {
 
     private final TimelyResource<Tree, TreeVersion> _timelyResource;
 
-    private VersionCreator<Tree, TreeVersion> _creator = new VersionCreator<Tree, TreeVersion>() {
+    private final VersionCreator<Tree, TreeVersion> _creator = new VersionCreator<Tree, TreeVersion>() {
 
         @Override
         public TreeVersion createVersion(final TimelyResource<Tree, ? extends TreeVersion> resource)
@@ -142,11 +142,11 @@ public class Tree extends SharedResource {
     private TreeVersion version() {
         try {
             return _timelyResource.getVersion(_creator);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new RuntimeException(e); // TODO
         }
     }
-    
+
     boolean isTransactionPrivate() throws TimeoutException, PersistitInterruptedException {
         return _timelyResource.isTransactionPrivate();
     }
@@ -154,7 +154,7 @@ public class Tree extends SharedResource {
     boolean hasVersion() {
         try {
             return _timelyResource.getVersion() != null;
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new RuntimeException(e); // TODO
         }
     }
@@ -206,7 +206,7 @@ public class Tree extends SharedResource {
      * @return The page address
      */
     public long getRootPageAddr() {
-        TreeVersion version = version();
+        final TreeVersion version = version();
         return version._rootPageAddr;
     }
 
@@ -217,10 +217,12 @@ public class Tree extends SharedResource {
         return version()._depth;
     }
 
+    @Override
     public long getGeneration() {
         return version()._generation;
     }
 
+    @Override
     void bumpGeneration() {
         version()._generation = _persistit.getTimestampAllocator().updateTimestamp();
     }
@@ -230,9 +232,6 @@ public class Tree extends SharedResource {
         final TreeVersion version = version();
         version._rootPageAddr = rootPageAddr;
         version._depth += deltaDepth;
-//        if (rootPageAddr == 154) {
-//            System.out.printf("Changing root to %s\n", version);
-//        }
     }
 
     void bumpChangeCount() {
@@ -296,9 +295,6 @@ public class Tree extends SharedResource {
      */
     void setRootPageAddress(final long rootPageAddr) throws PersistitException {
         final TreeVersion version = version();
-//        if (rootPageAddr == 154) {
-//            System.out.printf("setRootPageAddress=%s\n", version);
-//        }
         if (version._rootPageAddr != rootPageAddr) {
             // Derive the index depth
             Buffer buffer = null;

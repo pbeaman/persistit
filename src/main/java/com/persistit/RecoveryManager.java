@@ -242,9 +242,6 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         @Override
         public void removeTree(final long address, final long timestamp, final Exchange exchange)
                 throws PersistitException {
-//            if (exchange.toString().contains("Test100")) {
-//                System.out.printf("Recovery removeTree %s\n", exchange);
-//            }
             exchange.removeTree();
         }
 
@@ -283,7 +280,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         @Override
-        public boolean createTree(long timestamp) throws PersistitException {
+        public boolean createTree(final long timestamp) throws PersistitException {
             return true;
         }
 
@@ -349,7 +346,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         @Override
-        public boolean createTree(long timestamp) throws PersistitException {
+        public boolean createTree(final long timestamp) throws PersistitException {
             return false;
         }
 

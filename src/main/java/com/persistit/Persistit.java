@@ -1874,7 +1874,7 @@ public class Persistit {
 
     void flushStatistics() {
         try {
-            Transaction txn = getTransaction();
+            final Transaction txn = getTransaction();
             txn.begin();
             try {
                 final List<Volume> volumes;
@@ -1888,7 +1888,7 @@ public class Persistit {
             } finally {
                 txn.end();
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             _logBase.exception.log(e);
         }
     }
@@ -2470,7 +2470,7 @@ public class Persistit {
         for (final TimelyResource<?, ?> resource : resourcesToPrune) {
             try {
                 resource.prune();
-            } catch (PersistitException e) {
+            } catch (final PersistitException e) {
                 _logBase.timelyResourcePruneException.log(e, resource);
             }
         }

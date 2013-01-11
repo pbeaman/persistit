@@ -259,7 +259,7 @@ abstract class SharedResource {
     /**
      * A counter that increments every time the resource is changed.
      */
-    private AtomicLong _generation = new AtomicLong();
+    private final AtomicLong _generation = new AtomicLong();
 
     protected SharedResource(final Persistit persistit) {
         _persistit = persistit;

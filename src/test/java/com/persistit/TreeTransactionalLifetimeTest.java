@@ -43,7 +43,7 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
     @Test
     public void simplePruning() throws Exception {
         vstruc().directoryExchange();
-        
+
         final Transaction txn = _persistit.getTransaction();
         for (int i = 0; i < 2; i++) {
             txn.begin();

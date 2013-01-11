@@ -167,7 +167,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             }
 
             @Override
-            public boolean createTree(long timestamp) throws PersistitException {
+            public boolean createTree(final long timestamp) throws PersistitException {
                 return true;
             }
 

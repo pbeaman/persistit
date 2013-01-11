@@ -220,9 +220,7 @@ class VolumeStructure {
             tree.loadHandle();
         }
         _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
-//        if (tree.getName().contains("100")) {
-//            System.out.printf("getTree got %s\n", tree);
-//        }
+
         return tree;
     }
 
@@ -254,10 +252,6 @@ class VolumeStructure {
             final Exchange ex = directoryExchange();
             ex.getValue().put(tree);
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).store();
-
-//            if (tree.getName().contains("100")) {
-//                System.out.printf("updateDirectoryTree %s (value=%s)\n", tree, ex.getValue());
-//            }
         }
     }
 
@@ -288,10 +282,6 @@ class VolumeStructure {
         if (!tree.claim(true)) {
             throw new InUseException("Unable to acquire writer claim on " + tree);
         }
-//        if (tree.getName().contains("100")) {
-//            System.out.printf("removeTree(%s)\n", tree);
-//        }
-
         try {
             final Exchange ex = directoryExchange();
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
@@ -311,10 +301,6 @@ class VolumeStructure {
     }
 
     void deallocateTree(final long treeRootPage, final int treeDepth) throws PersistitException {
-//        if (treeRootPage == 154) {
-//            System.out.printf("Deallocating root page %d\n", treeRootPage);
-//        }
-
         int depth = treeDepth;
         long page = treeRootPage;
         while (page != -1) {

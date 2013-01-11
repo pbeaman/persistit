@@ -102,9 +102,7 @@ public class TimelyResource<T extends Object, V extends Version> {
             final V resource = _first.getResource();
             final Transaction txn = _persistit.getTransaction();
             final Entry entry = new Entry(tss2v(txn), resource);
-            if (_first.isDeleted()) {
-                // System.out.println("boo");
-            } else {
+            if (!_first.isDeleted()) {
                 entry.setDeleted();
                 addVersion(entry, txn);
             }
@@ -148,7 +146,7 @@ public class TimelyResource<T extends Object, V extends Version> {
     public boolean isEmpty() {
         return _first == null;
     }
-    
+
     public boolean isTransactionPrivate() throws TimeoutException, PersistitInterruptedException {
         Entry entry = _first;
         if (entry != null && entry.getVersion() == PRIMORDIAL) {
@@ -161,9 +159,6 @@ public class TimelyResource<T extends Object, V extends Version> {
             return true;
         } else {
             final boolean result = entry.getVersion() >= versionHandle;
-//            if (!result) {
-//                System.out.printf("Not transction-private: %s at %d\n", entry, versionHandle);
-//            }
             return result;
         }
     }
@@ -218,7 +213,7 @@ public class TimelyResource<T extends Object, V extends Version> {
     void prune() throws TimeoutException, PersistitException {
         final List<Entry> entriesToPrune = new ArrayList<Entry>();
         PrunableVersion versionToVacate = null;
-        
+
         final TransactionIndex ti = _persistit.getTransactionIndex();
 
         synchronized (this) {
@@ -266,16 +261,12 @@ public class TimelyResource<T extends Object, V extends Version> {
                         }
                     }
                 }
-//                if (_first != null && _first.isDeleted() && _first.getPrevious() == null) {
-//                    entriesToPrune.add(_first);
-//                    _first = null;
-//                }
                 if (isPrimordial && _first != null) {
                     assert _first.getPrevious() == null;
                     if (_first.isDeleted()) {
-                        V version = _first.getResource();
+                        final V version = _first.getResource();
                         if (version instanceof PrunableVersion) {
-                            versionToVacate = (PrunableVersion)version;
+                            versionToVacate = (PrunableVersion) version;
                         }
                         entriesToPrune.add(_first);
                         _first = null;
@@ -371,10 +362,10 @@ public class TimelyResource<T extends Object, V extends Version> {
      * @throws PersistitInterruptedException
      */
     V getVersion(final long version) throws TimeoutException, PersistitInterruptedException {
-        Entry e = getEntry(version);
+        final Entry e = getEntry(version);
         return e == null ? null : e.getResource();
     }
-    
+
     Entry getEntry(final long version) throws TimeoutException, PersistitInterruptedException {
         final TransactionIndex ti = _persistit.getTransactionIndex();
         try {

@@ -239,7 +239,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         };
         final Semaphore semaphore1 = new Semaphore(0);
         final Transaction txn = _persistit.getTransaction();
-        Thread[] threads = new Thread[10];
+        final Thread[] threads = new Thread[10];
         for (int i = 0; i < 10; i++) {
             try {
                 txn.begin();
@@ -250,6 +250,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             }
             final Semaphore semaphore2 = new Semaphore(0);
             threads[i] = new Thread(new Runnable() {
+                @Override
                 public void run() {
                     final Transaction txn = _persistit.getTransaction();
                     try {
@@ -259,7 +260,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
                         semaphore2.release();
                         semaphore1.acquire();
                         txn.commit();
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         e.printStackTrace();
                     } finally {
                         txn.end();
@@ -273,7 +274,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         tr.prune();
         assertEquals(10, tr.getVersionCount());
         semaphore1.release(10);
-        for (Thread thread : threads) {
+        for (final Thread thread : threads) {
             thread.join();
         }
         _persistit.getTransactionIndex().updateActiveTransactionCache();

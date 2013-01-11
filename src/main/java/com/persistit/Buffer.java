@@ -1423,14 +1423,6 @@ public class Buffer extends SharedResource {
         if (Debug.ENABLED) {
             assertVerify();
         }
-        
-//        if (_page == 1 && key.toString().contains("Test100")) {
-//            System.out.printf("Modifying key %s to %s\n", key, valueHelper);
-//            if (valueHelper.toString().contains("3C 00 00 00 00 00 00 00 9A 00 00 00 00 00 00 00")) {
-//                System.out.println("*");
-//            }
-//        }
-
         final boolean exactMatch = (foundAt & EXACT_MASK) > 0;
         final int p = foundAt & P_MASK;
 
