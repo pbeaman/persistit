@@ -85,10 +85,6 @@ public class Tree extends SharedResource {
     private final AtomicReference<Object> _appCache = new AtomicReference<Object>();
     private final AtomicInteger _handle = new AtomicInteger();
 
-    private final Accumulator[] _accumulators = new Accumulator[MAX_ACCUMULATOR_COUNT];
-
-    private final TreeStatistics _treeStatistics = new TreeStatistics();
-
     private final TimelyResource<Tree, TreeVersion> _timelyResource;
 
     private final VersionCreator<Tree, TreeVersion> _creator = new VersionCreator<Tree, TreeVersion>() {
@@ -106,11 +102,14 @@ public class Tree extends SharedResource {
         volatile long _generation = _persistit.getTimestampAllocator().updateTimestamp();
         final AtomicLong _changeCount = new AtomicLong();
         volatile boolean _pruned;
+        private final Accumulator[] _accumulators = new Accumulator[MAX_ACCUMULATOR_COUNT];
+        private final TreeStatistics _treeStatistics = new TreeStatistics();
 
         @Override
         public boolean prune() throws PersistitException {
             assert !_pruned;
             _volume.getStructure().deallocateTree(_rootPageAddr, _depth);
+            discardAccumulators();
             _pruned = true;
             _rootPageAddr = -1;
             return true;
@@ -124,6 +123,20 @@ public class Tree extends SharedResource {
         @Override
         public String toString() {
             return String.format("Tree(%d,%d)%s", _rootPageAddr, _depth, _pruned ? "#" : "");
+        }
+        
+        /**
+         * Forget about any instantiated accumulator and remove it from the active
+         * list in Persistit. This should only be called in the during the process
+         * of removing a tree.
+         */
+        void discardAccumulators() {
+            for (int i = 0; i < _accumulators.length; ++i) {
+                if (_accumulators[i] != null) {
+                    _persistit.removeAccumulator(_accumulators[i]);
+                    _accumulators[i] = null;
+                }
+            }
         }
     }
 
@@ -338,7 +351,7 @@ public class Tree extends SharedResource {
      *         </code>Tree</code>
      */
     public TreeStatistics getStatistics() {
-        return _treeStatistics;
+        return version()._treeStatistics;
     }
 
     /**
@@ -410,7 +423,8 @@ public class Tree extends SharedResource {
         if (index < 0 || index >= MAX_ACCUMULATOR_COUNT) {
             throw new IllegalArgumentException("Invalid accumulator index: " + index);
         }
-        Accumulator accumulator = _accumulators[index];
+        final TreeVersion version = version();
+        Accumulator accumulator = version._accumulators[index];
         if (accumulator == null) {
             final AccumulatorState saved = Accumulator.getAccumulatorState(this, index);
             long savedValue = 0;
@@ -424,7 +438,7 @@ public class Tree extends SharedResource {
                 savedValue = saved.getValue();
             }
             accumulator = Accumulator.accumulator(type, this, index, savedValue, _persistit.getTransactionIndex());
-            _accumulators[index] = accumulator;
+            version._accumulators[index] = accumulator;
             _persistit.addAccumulator(accumulator);
         } else if (accumulator.getType() != type) {
             throw new IllegalStateException("Wrong type " + accumulator + " is not a " + type + " accumulator");
@@ -455,17 +469,5 @@ public class Tree extends SharedResource {
         _handle.set(0);
     }
 
-    /**
-     * Forget about any instantiated accumulator and remove it from the active
-     * list in Persistit. This should only be called in the during the process
-     * of removing a tree.
-     */
-    void discardAccumulators() {
-        for (int i = 0; i < _accumulators.length; ++i) {
-            if (_accumulators[i] != null) {
-                _persistit.removeAccumulator(_accumulators[i]);
-                _accumulators[i] = null;
-            }
-        }
-    }
+
 }

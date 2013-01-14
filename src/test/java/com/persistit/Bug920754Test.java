@@ -66,6 +66,7 @@ public class Bug920754Test extends PersistitUnitTestCase {
         while (dir.next(true)) {
             keys++;
         }
-        assertEquals("There should be no remaining keys in the directory tree", 0, keys);
+        // _classIndex
+        assertEquals("There should be one remaining key in the directory tree", 1, keys);
     }
 }

@@ -93,7 +93,7 @@ public interface SequencerConstants {
             array(DEALLOCATE_CHAIN_A, DEALLOCATE_CHAIN_C) };
 
     /*
-     * Used in testing delete/deallocate sequence in Bug1022567Test
+     * Used in testing delete/deallocate sequence in Bug1064565Test
      */
     int ACCUMULATOR_CHECKPOINT_A = allocate("ACCUMULATOR_CHECKPOINT_A");
     int ACCUMULATOR_CHECKPOINT_B = allocate("ACCUMULATOR_CHECKPOINT_B");

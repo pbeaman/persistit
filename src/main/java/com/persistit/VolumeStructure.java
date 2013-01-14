@@ -256,7 +256,7 @@ class VolumeStructure {
     }
 
     void storeTreeStatistics(final Tree tree) throws PersistitException {
-        if (tree.getStatistics().isDirty() && !DIRECTORY_TREE_NAME.equals(tree.getName())) {
+        if (tree.getStatistics().isDirty() && tree != _directoryTree) {
             final Exchange ex = directoryExchange();
             if (!ex.getVolume().isReadOnly()) {
                 ex.getValue().put(tree.getStatistics());
@@ -296,7 +296,6 @@ class VolumeStructure {
     }
 
     synchronized void removed(final Tree tree) {
-        tree.discardAccumulators(); // TODO
         _treeNameHashMap.remove(tree.getName());
     }
 

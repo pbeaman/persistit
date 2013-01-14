@@ -251,6 +251,7 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
                 final List<Accumulator> accumulators = _persistit.takeCheckpointAccumulators(txn.getStartTimestamp());
                 _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp(), accumulators);
                 Accumulator.saveAccumulatorCheckpointValues(accumulators);
+                _persistit.flushStatistics();
                 txn.commit(CommitPolicy.HARD);
                 _currentCheckpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
                 _outstandingCheckpoints.add(_currentCheckpoint);

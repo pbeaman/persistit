@@ -58,9 +58,9 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
         assertEquals("There should be no tree", null, tree("ttlt"));
         assertTrue(vstruc().getGarbageRoot() != 0);
     }
-    
+
     @Test
     public void removeTreeIsNotVisibleUntilCommit() throws Exception {
-        
+
     }
 }

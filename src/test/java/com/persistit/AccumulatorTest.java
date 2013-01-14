@@ -369,7 +369,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
      */
     @Test
     public void testRecreateAccumulatorAfterCheckpoint() throws PersistitException {
-        final int PASS_COUNT = 2;
+        final int PASS_COUNT = 5;
         final int ROW_COUNT = 10;
         final int ACCUM_INDEX = 0;
         final String TEST_VOLUME_NAME = UnitTestProperties.VOLUME_NAME;

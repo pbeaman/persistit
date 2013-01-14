@@ -92,7 +92,7 @@ public class Bug1018526Test extends PersistitUnitTestCase {
             final TreeDescriptor td = map.remove(handle);
             assertNotNull("Permanent Tree should be un the tree map", td);
         }
-        // expect 1: the directory tree
-        assertEquals("Recovered tree map should contain only permanent trees", 1, map.size());
+        // expect 2: _directory and _classIndex
+        assertEquals("Recovered tree map should contain only permanent trees", 2, map.size());
     }
 }

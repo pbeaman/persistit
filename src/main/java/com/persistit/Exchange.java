@@ -2967,8 +2967,8 @@ public class Exchange {
         _persistit.checkClosed();
 
         _volume.getStructure().removeTree(_tree);
-        _tree.delete();
         if (!_ignoreTransactions) {
+            assert !isDirectoryExchange();
             _transaction.removeTree(this);
         }
         _key.clear();
@@ -3893,7 +3893,7 @@ public class Exchange {
         assertCorrectThread(true);
         return _transaction;
     }
-    
+
     LongRecordHelper getLongRecordHelper() {
         if (_longRecordHelper == null) {
             _longRecordHelper = new LongRecordHelper(_persistit, this);

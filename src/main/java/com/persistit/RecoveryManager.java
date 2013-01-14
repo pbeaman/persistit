@@ -226,7 +226,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     static class DefaultRecoveryListener implements TransactionPlayerListener {
         @Override
         public void store(final long address, final long timestamp, final Exchange exchange) throws PersistitException {
-            if (exchange.getTree() != exchange.getVolume().getStructure().getDirectoryTree()) {
+            if (exchange.getValue().getTypeHandle() != Value.CLASS_TREE) {
                 exchange.store();
             }
         }

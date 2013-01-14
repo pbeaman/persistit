@@ -670,7 +670,7 @@ public class Persistit {
         _defaultCommitPolicy = _configuration.getCommitPolicy();
         _enableBufferInventory.set(_configuration.isBufferInventoryEnabled());
     }
-    
+
     private void initializeClassIndex() throws PersistitException {
         _classIndex.initialize();
     }
@@ -1504,7 +1504,6 @@ public class Persistit {
                 }
             }
         }
-        flushStatistics();
         _transactionIndex.updateActiveTransactionCache();
         pruneTimelyResources();
     }
@@ -1882,9 +1881,9 @@ public class Persistit {
             txn.begin();
             try {
                 final List<Volume> volumes;
-                synchronized (this) {
-                    volumes = new ArrayList<Volume>(_volumes);
-                }
+                // synchronized (this) {
+                volumes = new ArrayList<Volume>(_volumes);
+                // }
                 for (final Volume volume : volumes) {
                     volume.getStructure().flushStatistics();
                 }

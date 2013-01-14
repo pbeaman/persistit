@@ -103,6 +103,7 @@ final class ClassIndex {
     void initialize() throws PersistitException {
         getExchange();
     }
+
     /**
      * @return Number of <code>ClassInfo</code> objects currently stored in this
      *         ClassIndex.

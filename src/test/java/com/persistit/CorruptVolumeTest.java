@@ -37,7 +37,8 @@ public class CorruptVolumeTest extends PersistitUnitTestCase {
             exchange.to(i).store();
         }
         // Corrupt the volume by zonking the the index page
-        final Buffer buffer = exchange.getBufferPool().get(exchange.getVolume(), 4, true, true);
+        final long pageAddr = exchange.fetchBufferCopy(1).getPageAddress();
+        final Buffer buffer = exchange.getBufferPool().get(exchange.getVolume(), pageAddr, true, true);
         Arrays.fill(buffer.getBytes(), 20, 200, (byte) 0);
         buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
         buffer.releaseTouched();
