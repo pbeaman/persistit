@@ -1428,7 +1428,7 @@ public class Persistit {
                 _journalManager.copyBack();
                 final int fileCount = _journalManager.getJournalFileCount();
                 final long size = _journalManager.getCurrentJournalSize();
-                if ((fileCount == 1) && (size < JournalManager.ROLLOVER_THRESHOLD)) {
+                if (i > 1 && (fileCount == 1) && (size < JournalManager.ROLLOVER_THRESHOLD)) {
                     break;
                 }
             } else {

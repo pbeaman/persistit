@@ -173,6 +173,8 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
                 txn.end();
             }
         }
+        _persistit.checkAllVolumes();
+        System.out.println();
         final Configuration config = _persistit.getConfiguration();
         _persistit.crash();
         _persistit = new Persistit();

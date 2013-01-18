@@ -117,6 +117,7 @@ public class Tree extends SharedResource {
 
         @Override
         public void vacate() {
+            clearValid();
             _volume.getStructure().removed(Tree.this);
         }
 
@@ -124,11 +125,11 @@ public class Tree extends SharedResource {
         public String toString() {
             return String.format("Tree(%d,%d)%s", _rootPageAddr, _depth, _pruned ? "#" : "");
         }
-        
+
         /**
-         * Forget about any instantiated accumulator and remove it from the active
-         * list in Persistit. This should only be called in the during the process
-         * of removing a tree.
+         * Forget about any instantiated accumulator and remove it from the
+         * active list in Persistit. This should only be called in the during
+         * the process of removing a tree.
          */
         void discardAccumulators() {
             for (int i = 0; i < _accumulators.length; ++i) {
@@ -160,16 +161,12 @@ public class Tree extends SharedResource {
         }
     }
 
-    boolean isTransactionPrivate() throws TimeoutException, PersistitInterruptedException {
-        return _timelyResource.isTransactionPrivate();
+    public boolean isDeleted() throws TimeoutException, PersistitInterruptedException {
+        return _timelyResource.isEmpty();
     }
 
-    boolean hasVersion() {
-        try {
-            return _timelyResource.getVersion() != null;
-        } catch (final Exception e) {
-            throw new RuntimeException(e); // TODO
-        }
+    boolean isTransactionPrivate() throws TimeoutException, PersistitInterruptedException {
+        return _timelyResource.isTransactionPrivate();
     }
 
     boolean hasVersion(final long versionHandle) throws TimeoutException, PersistitInterruptedException {
@@ -468,6 +465,5 @@ public class Tree extends SharedResource {
     void resetHandle() {
         _handle.set(0);
     }
-
 
 }

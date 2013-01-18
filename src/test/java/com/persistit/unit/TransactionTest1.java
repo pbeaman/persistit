@@ -88,7 +88,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         } finally {
             txn.end();
         }
-        assertTrue(!ex.getTree().isValid());
+        assertTrue(ex.getTree().isDeleted());
         try {
             ex.clear().append("test1").hasChildren();
             fail("Should have thrown an exception");

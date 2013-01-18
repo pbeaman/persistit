@@ -190,9 +190,13 @@ class VolumeStructure {
         final WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
         if (treeRef != null) {
             tree = treeRef.get();
-            if (tree != null && tree.isValid()) {
-                if (tree.hasVersion()) {
+            if (tree != null) {
+                if (tree.isValid() && !tree.isDeleted()) {
                     return tree;
+                } else {
+                    if (!createIfNecessary) {
+                        return null;
+                    }
                 }
             }
         }
@@ -250,6 +254,9 @@ class VolumeStructure {
             }
         } else {
             final Exchange ex = directoryExchange();
+            if (!tree.isTransactionPrivate()) {
+                ex.ignoreTransactions();
+            }
             ex.getValue().put(tree);
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).store();
         }

@@ -143,9 +143,31 @@ public class TimelyResource<T extends Object, V extends Version> {
      * @return <code>true</code> if and only if this <code>TimelyResource</code>
      *         has no <code>Version</code> instances.
      */
-    public boolean isEmpty() {
-        return _first == null;
+    public boolean isEmpty() throws TimeoutException, PersistitInterruptedException {
+        Entry first = _first;
+        if (first == null) {
+            return true;
+        }
+        if (first.getVersion() == PRIMORDIAL) {
+            return false;
+        }
+        first = getEntry(tss2v(_persistit.getTransaction()));
+        if (first == null) {
+            return true;
+        }
+        if (first.isDeleted()) {
+            return true;
+        }
+        return false;
     }
+
+    /**
+     * 
+     * @return Whether this resource exists only within the context of the
+     *         current transaction.
+     * @throws TimeoutException
+     * @throws PersistitInterruptedException
+     */
 
     public boolean isTransactionPrivate() throws TimeoutException, PersistitInterruptedException {
         Entry entry = _first;
@@ -158,8 +180,7 @@ public class TimelyResource<T extends Object, V extends Version> {
         if (entry == null) {
             return true;
         } else {
-            final boolean result = entry.getVersion() >= versionHandle;
-            return result;
+            return vh2ts(entry.getVersion()) == vh2ts(versionHandle);
         }
     }
 

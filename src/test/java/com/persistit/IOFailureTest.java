@@ -283,7 +283,6 @@ public class IOFailureTest extends PersistitUnitTestCase {
 
     @Test
     public void testJournalEOFonRecovery() throws Exception {
-        final Properties properties = _persistit.getProperties();
         final JournalManager jman = _persistit.getJournalManager();
         final Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
         exchange.getValue().put(RED_FOX);

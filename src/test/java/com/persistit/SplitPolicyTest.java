@@ -253,7 +253,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         //
         // forward sequential
         //
-        for (long page = 2; page < 20; page++) {
+        for (long page = ex.clear().append(0).fetchBufferCopy(0).getPageAddress(); page < 20; page++) {
             final Buffer buffer = ex.getBufferPool().get(ex.getVolume(), page, false, true);
             if (buffer.isDataPage()) {
                 final int available = buffer.getAvailableSize();

@@ -320,6 +320,8 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
     @Test
     public void testWritePagePrune() throws Exception {
+        _persistit.getJournalManager().setWritePagePruningEnabled(false);
+        final Exchange exchange = exchange(1);
         final Transaction txn = _persistit.getTransaction();
         try {
             txn.begin();
@@ -328,8 +330,8 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         } finally {
             txn.end();
         }
-        final Volume volume = _persistit.getVolume(TEST_VOLUME_NAME);
-        final Buffer buffer = volume.getPool().get(volume, 3, true, true);
+        final long pageAddr = exchange.fetchBufferCopy(0).getPageAddress();
+        final Buffer buffer = exchange.getBufferPool().get(exchange.getVolume(), pageAddr, true, true);
         assertTrue("Should have multiple MVV records", buffer.getMvvCount() > 2);
         _persistit.getJournalManager().setWritePagePruningEnabled(true);
         _persistit.getTransactionIndex().updateActiveTransactionCache();
@@ -340,12 +342,15 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     }
 
     private void storeNewVersion(final int cycle) throws Exception {
-        final Exchange exchange = _persistit.getExchange(TEST_VOLUME_NAME,
-                String.format("%s%04d", TEST_TREE_NAME, cycle), true);
+        final Exchange exchange = exchange(cycle);
         exchange.getValue().put(String.format("%s%04d", RED_FOX, cycle));
         for (int i = 1; i <= 100; i++) {
             exchange.to(i).store();
         }
+    }
+
+    private Exchange exchange(final int cycle) throws PersistitException {
+        return _persistit.getExchange(TEST_VOLUME_NAME, String.format("%s%04d", TEST_TREE_NAME, cycle), true);
     }
 
     private void removeKeys(final int cycle) throws Exception {

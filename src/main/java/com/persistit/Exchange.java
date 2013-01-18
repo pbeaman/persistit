@@ -486,6 +486,7 @@ public class Exchange {
      * Drop all cached optimization information
      */
     public void initCache() {
+        assertCorrectThread(true);
         for (int level = 0; level < MAX_TREE_DEPTH; level++) {
             if (_levelCache[level] != null)
                 _levelCache[level].invalidate();
@@ -496,7 +497,7 @@ public class Exchange {
 
     private void checkLevelCache() throws PersistitException {
 
-        if (!_tree.isValid()) {
+        if (!_tree.isValid() || _tree.isDeleted()) {
             if (_tree.getVolume().isTemporary()) {
                 _tree = _tree.getVolume().getTree(_tree.getName(), true);
                 _treeHolder = new ReentrantResourceHolder(_tree);
@@ -3726,7 +3727,7 @@ public class Exchange {
 
     boolean prune(final Key key) throws PersistitException {
         Buffer buffer = null;
-        Debug.$assert1.t(_tree.isValid());
+        Debug.$assert1.t(_tree.isValid() && !_tree.isDeleted());
         try {
             search(key, true);
             buffer = _levelCache[0]._buffer;
@@ -3746,7 +3747,7 @@ public class Exchange {
         Buffer buffer = null;
         boolean pruned = false;
 
-        Debug.$assert1.t(_tree.isValid());
+        Debug.$assert1.t(_tree.isValid() && !_tree.isDeleted());
         try {
             search(key1, true);
             buffer = _levelCache[0]._buffer;
