@@ -4160,7 +4160,7 @@ public class Exchange {
      * real-time behavior.
      * </p>
      * <p>
-     * The default timeout is
+     * The supplied value must be greater than zero. The default value is
      * {@value com.persistit.SharedResource#DEFAULT_MAX_WAIT_TIME} milliseconds.
      * </p>
      * 
@@ -4169,7 +4169,8 @@ public class Exchange {
      *            wait.
      */
     public void setTimeoutMillis(final long timeout) {
-        _timeoutMillis = Util.rangeCheck(timeout, 0, Long.MAX_VALUE);
+        // Clipping this to avoid potential overflows when computing intervals
+        _timeoutMillis = Util.rangeCheck(timeout, 1, Math.max(timeout, Long.MAX_VALUE / 2));
     }
 
     /**

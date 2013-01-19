@@ -1239,7 +1239,7 @@ public class Buffer extends SharedResource {
      * 
      * @param key
      * @param foundAt
-     * @return  foundAt value
+     * @return foundAt value
      */
     int previousKey(final Key key, final int foundAt) {
         int p = (foundAt & P_MASK) - KEYBLOCK_LENGTH;
@@ -3595,7 +3595,8 @@ public class Buffer extends SharedResource {
      * 
      * @param tree
      * @param spareKey
-     * @return <code>true</code> if this method changed the contents of the buffer
+     * @return <code>true</code> if this method changed the contents of the
+     *         buffer
      * @throws PersistitException
      */
     boolean pruneMvvValues(final Tree tree, final boolean pruneLongMVVs) throws PersistitException {
