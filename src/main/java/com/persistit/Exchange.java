@@ -1084,7 +1084,7 @@ public class Exchange {
      * @param buffer
      * @param key
      * @param lc
-     * @return
+     * @return foundAt value
      * @throws PersistitInterruptedException
      */
     private int findKey(final Buffer buffer, final Key key, final LevelCache lc) throws PersistitInterruptedException {
@@ -2603,7 +2603,7 @@ public class Exchange {
     /**
      * Invoke {@link #lock(Key, long)} with the current key and a default
      * timeout value of
-     * {@value com.persistit.SharedResource#DEFAULT_MAX_WAIT_TIME}.
+     * {@value com.persistit.SharedResource#DEFAULT_MAX_WAIT_TIME} milliseconds.
      * 
      * @throws PersistitException
      */
@@ -2652,8 +2652,8 @@ public class Exchange {
      * transaction mechanism. This method differs from the {@link #store()}
      * method only in that the {@link Tree} to which a value is written is
      * located in a reserved temporary volume and is therefore normally not
-     * written to disk. The is removed by pruning as no current transaction
-     * could create a write-write dependency with it.
+     * written to disk. The key is removed by pruning once there is are no
+     * longer any concurrent transactions that could conflict with it.
      * </p>
      * <p>
      * As part of the normal MVCC process, if this method detects a potentially
@@ -2661,10 +2661,11 @@ public class Exchange {
      * transaction waits until the other transaction either commits or aborts.
      * To prevent an unbounded wait time this method accepts a timeout value in
      * milliseconds. If the potentially conflicting transaction neither commits
-     * nor aborts during the timeout interval, this method aborts. It is also
-     * possible for this method to attempt to enter a deadlock state with
-     * another current transaction; the potential deadlock is detected and this
-     * method immediately throws a RollbackException.
+     * nor aborts during the timeout interval, this method throws a
+     * <code>RollbackException</code>. In the event this method attempts to
+     * enter a deadlock state with another current transaction; the potential
+     * deadlock is detected immediately and this method immediately throws a
+     * <code>RollbackException</code>.
      * </p>
      * 
      * @param lockKey
@@ -4135,11 +4136,39 @@ public class Exchange {
         return _appCache;
     }
 
-    long getTimeoutMillis() {
+    /**
+     * @return The standard timeout setting in milliseconds for this
+     *         <code>Exchange</code>
+     * @see Exchange#setTimeoutMillis(long)
+     */
+    public long getTimeoutMillis() {
         return _timeoutMillis;
     }
 
-    void setTimeoutMillis(final long timeout) {
+    /**
+     * <p>
+     * Set the standard timeout for this <code>Exchange</code>. The timeout
+     * value represents an approximate upper bound on the wait time for various
+     * methods that wait for actions by other threads. For example, if a thread
+     * needs to read a value from a {@link Buffer} that is currently be updated
+     * by another thread, the read operation waits up to <code>timeout</code>
+     * milliseconds for the other thread to release the <code>Buffer</code>.
+     * </p>
+     * <p>
+     * The timeout value is advisory, and some operations may stall for a longer
+     * period of time than specified. Setting a timeout does not guarantee
+     * real-time behavior.
+     * </p>
+     * <p>
+     * The default timeout is
+     * {@value com.persistit.SharedResource#DEFAULT_MAX_WAIT_TIME} milliseconds.
+     * </p>
+     * 
+     * @param timeout
+     *            Standard timeout setting, in milliseconds, for operations that
+     *            wait.
+     */
+    public void setTimeoutMillis(final long timeout) {
         _timeoutMillis = Util.rangeCheck(timeout, 0, Long.MAX_VALUE);
     }
 

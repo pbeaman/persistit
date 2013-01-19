@@ -23,6 +23,7 @@ import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
 
+import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
 
@@ -268,4 +269,45 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
         return count;
     }
 
+    @Test
+    public void timeout() throws Exception {
+        /*
+         * A cursory check of the Exchange timeout value
+         */
+        final Exchange ex = _persistit.getExchange("persistit", "gogo", true);
+        ex.to("a").store();
+        final long latchedPage = ex.fetchBufferCopy(0).getPageAddress();
+        final BufferPool pool = ex.getBufferPool();
+        final Volume volume = ex.getVolume();
+        ex.setTimeoutMillis(1000);
+        final long start = System.currentTimeMillis();
+        final Semaphore a = new Semaphore(0);
+        final Semaphore b = new Semaphore(0);
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    final Buffer buffer = pool.get(volume, latchedPage, true, true);
+                    a.release();
+                    b.acquire();
+                    buffer.release();
+                } catch (final Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+        a.acquire();
+        try {
+            ex.to("a").store();
+            fail("Expected an InUseException");
+
+        } catch (final InUseException e) {
+            // expected
+        }
+        final long end = System.currentTimeMillis();
+        b.release();
+        final long interval = end - start;
+        assertTrue("Should have waited about 1 second", interval >= 1000 && interval < 2000);
+    }
 }

@@ -794,7 +794,7 @@ public final class AlertMonitor extends NotificationBroadcasterSupport implement
      * </p>
      * 
      * @param event
-     * @return
+     * @return formatted event
      */
     private String format(final Event event) {
         return event == null ? "null" : event.toString();

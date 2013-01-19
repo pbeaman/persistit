@@ -1524,7 +1524,7 @@ public class KeyFilter {
      * @param level
      * @param forward
      * @param eq
-     * @return
+     * @return whether there may be more matching keys
      */
     private boolean next(final Key key, final int index, final int level, final boolean forward, final boolean eq) {
 

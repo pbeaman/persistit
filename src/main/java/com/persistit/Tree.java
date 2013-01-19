@@ -332,7 +332,7 @@ public class Tree extends SharedResource {
      * only once.
      * 
      * @param handle
-     * @return
+     * @return the handle
      * @throws IllegalStateException
      *             if the handle has already been set
      */

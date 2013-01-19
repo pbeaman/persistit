@@ -426,7 +426,7 @@ public abstract class Accumulator {
      * 
      * @param a
      * @param b
-     * @return
+     * @return the result of the commutative operation on a and b
      */
     abstract long applyValue(long a, long b);
 
@@ -439,7 +439,7 @@ public abstract class Accumulator {
      * 
      * @param a
      * @param b
-     * @return
+     * @return the result of the commutative operation on a and b
      */
     abstract long updateValue(long a, long b);
 
