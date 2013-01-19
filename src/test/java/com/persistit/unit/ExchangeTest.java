@@ -216,6 +216,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(false, ex.traverse(Key.GTEQ, kf, 4));
         assertEquals(false, ex.traverse(Key.LT, kf, 4));
         assertEquals(false, ex.traverse(Key.LTEQ, kf, 4));
+
     }
 
     @Test
@@ -489,7 +490,6 @@ public class ExchangeTest extends PersistitUnitTestCase {
         keyCheck(ex, deep ? "{1,2}" : "{1}");
         assertEquals("Should be true", true, ex.traverse(Key.EQ, deep, 0));
         keyCheck(ex, deep ? "{1,2}" : "{1}");
-
     }
 
     private void keyCheck(final Exchange ex, final String expected) {

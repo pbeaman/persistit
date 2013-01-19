@@ -132,7 +132,7 @@ import com.persistit.util.Util;
  * 
  * @version 1.0
  */
-public class Exchange {
+public class Exchange implements ReadOnlyExchange {
 
     public enum Sequence {
         NONE, FORWARD, REVERSE
@@ -639,6 +639,44 @@ public class Exchange {
     }
 
     /**
+     * A visitor used with the
+     * {@link Exchange#traverse(Key.Direction, boolean, int, TraverseVisitor)}
+     * The {@link #visit(ReadOnlyExchange)} method is called once for each
+     * <code>Key</code> traversed by the <code>traverse</code> method.
+     */
+    public interface TraverseVisitor {
+        /**
+         * Receive an Exchange having <code>Key</code> and <code>Value</code>
+         * values set by
+         * {@link Exchange#traverse(Key.Direction, boolean, int, TraverseVisitor)}
+         * . This method will be called once for each key encountered in the
+         * traversal. This method may return <code>false</code> to stop
+         * traversing additional keys. </p>
+         * <p>
+         * The implementation of this method:
+         * <ul>
+         * <li>Must return quickly, especially in a multi-threaded environment,
+         * to avoid blocking other threads that may attempt to update records in
+         * the same <code>Buffer</code>,
+         * <li>Must not perform update operations on any <codeExchange</code>,
+         * especially in a multi-threaded environment, to prevent deadlocks,
+         * <li>May read and modify the <code>Key</code> and <code>Value</code>
+         * fields of the supplied <code>ReadOnlyExchange</code>. Note, however,
+         * that modifying the <code>Key</code> affects the results of subsequent
+         * traversal operations.
+         * </ul>
+         * 
+         * @param ex
+         *            a {@link ReadOnlyExchange} from which the current
+         *            <code>Key</code> and <code>Value</code> may be read
+         * @return <code>true</code> to continue traversing keys, or
+         *         <code>false</code> to stop
+         * @throws PersistitException
+         */
+        public boolean visit(final ReadOnlyExchange ex) throws PersistitException;
+    }
+
+    /**
      * Delegate to {@link Key#reset} on the associated <code>Key</code> object.
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
@@ -893,6 +931,7 @@ public class Exchange {
      * 
      * @return This <code>Key</code>.
      */
+    @Override
     public Key getKey() {
         assertCorrectThread(true);
         return _key;
@@ -903,6 +942,7 @@ public class Exchange {
      * 
      * @return The <code>Value</code>.
      */
+    @Override
     public Value getValue() {
         assertCorrectThread(true);
         return _value;
@@ -918,6 +958,7 @@ public class Exchange {
      * 
      * @return The <code>Volume</code>.
      */
+    @Override
     public Volume getVolume() {
         assertCorrectThread(true);
         return _volume;
@@ -928,6 +969,7 @@ public class Exchange {
      * 
      * @return The <code>Tree</code>
      */
+    @Override
     public Tree getTree() {
         assertCorrectThread(true);
         return _tree;
@@ -938,6 +980,7 @@ public class Exchange {
      * 
      * @return The <code>Persistit</code> instance.
      */
+    @Override
     public Persistit getPersistitInstance() {
         assertCorrectThread(true);
         return _persistit;
@@ -952,6 +995,7 @@ public class Exchange {
      * 
      * @return The change count
      */
+    @Override
     public long getChangeCount() {
         assertCorrectThread(true);
         return _tree.getChangeCount();
@@ -2010,7 +2054,7 @@ public class Exchange {
      */
     public boolean traverse(final Direction direction, final boolean deep, final int minimumBytes)
             throws PersistitException {
-        return traverse(direction, deep, minimumBytes, 0, 0);
+        return traverse(direction, deep, minimumBytes, 0, 0, null);
     }
 
     /**
@@ -2027,10 +2071,9 @@ public class Exchange {
      *            visibility</i>, <code>false</code> is immediately returned.
      */
     private boolean traverse(final Direction direction, final boolean deep, final int minimumBytes,
-            final int minKeyDepth, final int matchUpToIndex) throws PersistitException {
+            final int minKeyDepth, final int matchUpToIndex, final TraverseVisitor visitor) throws PersistitException {
         assertCorrectThread(true);
         _persistit.checkClosed();
-
         final Key spareKey = _spareKey1;
         final boolean doFetch = minimumBytes > 0;
         final boolean doModify = minimumBytes >= 0;
@@ -2038,8 +2081,9 @@ public class Exchange {
         final Value outValue = doFetch ? _value : _spareValue;
         outValue.clear();
 
+        Direction dir = direction;
         Buffer buffer = null;
-        boolean edge = direction == EQ || direction == GTEQ || direction == LTEQ;
+        boolean edge = dir == EQ || dir == GTEQ || dir == LTEQ;
         boolean nudged = false;
 
         if (_key.getEncodedSize() == 0) {
@@ -2121,11 +2165,11 @@ public class Exchange {
                     matches = true;
                 } else if (edge && !deep && Buffer.decodeDepth(foundAt) == index) {
                     matches = true;
-                } else if (direction == EQ) {
+                } else if (dir == EQ) {
                     matches = false;
                 } else {
                     edge = false;
-                    foundAt = buffer.traverse(_key, direction, foundAt);
+                    foundAt = buffer.traverse(_key, dir, foundAt);
                     if (buffer.isAfterRightEdge(foundAt)) {
                         final long rightSiblingPage = buffer.getRightSibling();
 
@@ -2139,7 +2183,7 @@ public class Exchange {
                             //
                             buffer = rightSibling;
                             checkPageType(buffer, PAGE_TYPE_DATA, false);
-                            foundAt = buffer.traverse(_key, direction, buffer.toKeyBlock(0));
+                            foundAt = buffer.traverse(_key, dir, buffer.toKeyBlock(0));
                             matches = !buffer.isAfterRightEdge(foundAt);
                         } else {
                             matches = false;
@@ -2189,14 +2233,14 @@ public class Exchange {
                     matches = false;
                 } else {
                     if (deep) {
-                        matches |= direction != EQ;
+                        matches |= dir != EQ;
                         index = _key.getEncodedSize();
 
                         if (matches) {
                             matches = fetchFromBufferInternal(buffer, outValue, foundAt, minimumBytes);
-                            if (!matches && direction != EQ) {
+                            if (!matches && dir != EQ) {
                                 nudged = false;
-                                nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
+                                nudgeForMVCC = (dir == GTEQ || dir == LTEQ);
                                 buffer.release();
                                 buffer = null;
                                 continue;
@@ -2225,10 +2269,10 @@ public class Exchange {
                                     nudged = false;
                                     buffer.release();
                                     buffer = null;
-                                    if (direction == EQ) {
+                                    if (dir == EQ) {
                                         matches = false;
                                     } else {
-                                        nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
+                                        nudgeForMVCC = (dir == GTEQ || dir == LTEQ);
                                         continue;
                                     }
                                 }
@@ -2284,6 +2328,18 @@ public class Exchange {
                 // Done
                 _volume.getStatistics().bumpTraverseCounter();
                 _tree.getStatistics().bumpTraverseCounter();
+                if (matches && visitor != null && visitor.visit(this)) {
+                    nudged = false;
+                    edge = false;
+                    if (dir == GTEQ) {
+                        dir = GT;
+                    } else if (dir == LTEQ) {
+                        dir = LT;
+                    } else if (dir == EQ) {
+                        return false;
+                    }
+                    continue;
+                }
                 return matches;
             }
         } finally {
@@ -2292,6 +2348,91 @@ public class Exchange {
                 buffer = null;
             }
         }
+    }
+
+    /**
+     * <p>
+     * Performs generalized tree traversal using a {@link TraverseVisitor}. The
+     * direction value indicates whether to traverse forward or backward in
+     * collation sequence and whether the key being sought must be strictly
+     * greater than or less than the supplied key.
+     * </p>
+     * <p>
+     * Unlike {@link #traverse(Key.Direction, boolean, int)}, this method does
+     * not return each time a new key is encountered in the traversal. Instead,
+     * the {@link TraverseVisitor#visit(ReadOnlyExchange)} method is called once
+     * for each key. This method avoids performing initial verification of the
+     * key value and usually avoids locking a <code>Buffer</code> for every
+     * record returned. It may offer better performance in circumstances where a
+     * long sequence of keys is being examined. Note that
+     * <code>ReadOnlyExchange</code> is an interface implemented by this class
+     * which supplies the subset of methods that may be used safely within the
+     * visitor.
+     * </p>
+     * <p>
+     * During the call the {@link Buffer} containing the key is locked with a
+     * non-exclusive claim, and any thread attempting to update records in the
+     * same <code>Buffer</code> will block. Therefore the <code>visit</code>
+     * method must be written carefully. See
+     * {@link TraverseVisitor#visit(ReadOnlyExchange)} for guidelines.
+     * </p>
+     * <p>
+     * This method normally modifies both the <code>Key</code> and
+     * <code>Value</code> fields of this <code>Exchange</code>: the
+     * <code>Key</code> is modified to reflect the key found through traversal,
+     * and the <code>Value</code> field is modified to contain the value
+     * associated with that key. However, this behavior can be modified by the
+     * <code>minimumBytes</code> parameter. If <code>minimumBytes</code> is less
+     * than or equal to zero then only the <code>Key</code> is modified. If it
+     * is greater than zero, then the traverse method may choose to populate
+     * only the specified number of bytes of the <code>Value</code>.
+     * </p>
+     * <p>
+     * The <code>direction</code> value must be one of:
+     * <dl>
+     * <dt>Key.GT:</dt>
+     * <dd>Find the next key that is strictly greater than the supplied key. If
+     * there is none, return false.</dd>
+     * <dt>Key.GTEQ:</dt>
+     * <dd>If the supplied key exists in the database, return that key;
+     * otherwise find the next greater key and return it.</dd>
+     * <dt>Key.EQ:</dt>
+     * <dd>Return <code>true</code> iff the specified key exists in the
+     * database. Does not update the Key.</dd>
+     * <dt>Key.LT:</dt>
+     * <dd>Find the next key that is strictly less than the supplied key. If
+     * there is none, return false.</dd>
+     * <dt>Key.LTEQ:</dt>
+     * <dd>If the supplied key exists in the database, return that key;
+     * otherwise find the next smaller key and return it.</dd>
+     * </dl>
+     * </p>
+     * 
+     * @param direction
+     *            One of Key.GT, Key.GTEQ, Key.EQ, Key.LT or Key.LTEQ.
+     * 
+     * @param deep
+     *            Determines whether the result should represent the next (or
+     *            previous) physical key in the <code>Tree</code> or should be
+     *            restricted to just the logical siblings of the current key.
+     *            (See <a href="Key.html#_keyChildren">Logical Key Children and
+     *            Siblings</a>).
+     * 
+     * @param minimumBytes
+     *            The minimum number of bytes to fetch. See {@link #fetch(int)}.
+     * 
+     * @param visitor
+     *            The application-supplied <code>TraverseVisitor</code>.
+     * 
+     * @return <code>true</code> if additional keys remaining in the traversal
+     *         set, or <code>false</code> to indicate that keys are exhausted.
+     * 
+     * @throws PersistitException
+     */
+
+    public boolean traverse(final Direction direction, final boolean deep, final int minimumBytes,
+            final TraverseVisitor visitor) throws PersistitException {
+        return traverse(direction, deep, Math.max(0, minimumBytes), 0, 0, visitor);
     }
 
     /**
@@ -2370,7 +2511,7 @@ public class Exchange {
             }
             if (keyFilter.isKeyPrefixFilter()) {
                 return traverse(direction, true, minBytes, keyFilter.getMinimumDepth(),
-                        keyFilter.getKeyPrefixByteCount());
+                        keyFilter.getKeyPrefixByteCount(), null);
             }
             final boolean matched = traverse(direction, true, minBytes);
             totalVisited += _keysVisitedDuringTraverse;
@@ -2929,7 +3070,7 @@ public class Exchange {
         assertCorrectThread(true);
         _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
-        final boolean result = traverse(GT, true, 0, _key.getDepth() + 1, size);
+        final boolean result = traverse(GT, true, 0, _key.getDepth() + 1, size, null);
         _spareKey2.copyTo(_key);
         return result;
     }
@@ -3834,7 +3975,7 @@ public class Exchange {
             _value.setPointerPageType(buffer.getPageType());
             buffer.release();
             buffer = null;
-            storeInternal(_spareKey2, _value, level + 1, Exchange.StoreOptions.NONE);
+            storeInternal(_spareKey2, _value, level + 1, StoreOptions.NONE);
             return true;
         } finally {
             _treeHolder.release();
@@ -3887,6 +4028,7 @@ public class Exchange {
      * 
      * @return The <code>Transaction</code> context for this thread.
      */
+    @Override
     public Transaction getTransaction() {
         assertCorrectThread(true);
         return _transaction;
