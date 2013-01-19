@@ -116,6 +116,8 @@ It is well-known that transactions executing under SI are not necessarily serial
 
 Note that many common transaction patterns, including those defined by the TPC-C benchmark, do not experience write-skew and therefore *are* serializable under SI.
 
+In the unusual case where transactions are susceptible to write skew, the Exchange#lock method offers a way for applications to create a write-write dependency explicitly. This mechanism provides an efficient mechanism for ensuring serializable behavior.
+
 Durability Options: ``CommitPolicy``
 ------------------------------------
 

@@ -266,6 +266,7 @@ public class Exchange {
     private BufferPool _pool;
     private Volume _volume;
     private Tree _tree;
+    private long _timeoutMillis = SharedResource.DEFAULT_MAX_WAIT_TIME;
 
     private volatile long _cachedTreeGeneration = -1;
     private volatile int _cacheDepth = 0;
@@ -300,7 +301,7 @@ public class Exchange {
 
     private volatile Thread _thread;
 
-    private Exchange(final Persistit persistit) {
+    Exchange(final Persistit persistit) {
         _persistit = persistit;
         _key = new Key(_persistit);
         _spareKey1 = new Key(_persistit);
@@ -1237,7 +1238,7 @@ public class Exchange {
                 }
 
                 if (buffer == null) {
-                    buffer = _pool.get(_volume, pageAddress, writer, true);
+                    buffer = _pool.get(_volume, pageAddress, writer, true, _timeoutMillis);
                 }
                 checkPageType(buffer, currentLevel + PAGE_TYPE_DATA, true);
 
@@ -1670,8 +1671,7 @@ public class Exchange {
                     try {
                         sequence(WRITE_WRITE_STORE_A);
                         final long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
-                        // TODO - timeout?
-                                _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME);
+                                _transaction.getTransactionStatus(), _timeoutMillis);
                         if (depends != 0 && depends != TransactionStatus.ABORTED) {
                             // version is from concurrent txn that already
                             // committed
@@ -1694,7 +1694,7 @@ public class Exchange {
                         treeClaimAcquired = false;
                     }
                     final boolean doWait = (options & StoreOptions.WAIT) != 0;
-                    treeClaimAcquired = _treeHolder.claim(true, doWait ? SharedResource.DEFAULT_MAX_WAIT_TIME : 0);
+                    treeClaimAcquired = _treeHolder.claim(true, doWait ? _timeoutMillis : 0);
                     if (!treeClaimAcquired) {
                         if (!doWait) {
                             throw re;
@@ -2131,7 +2131,8 @@ public class Exchange {
 
                         Debug.$assert0.t(rightSiblingPage >= 0 && rightSiblingPage <= MAX_VALID_PAGE_ADDR);
                         if (rightSiblingPage > 0) {
-                            final Buffer rightSibling = _pool.get(_volume, rightSiblingPage, false, true);
+                            final Buffer rightSibling = _pool.get(_volume, rightSiblingPage, false, true,
+                                    _timeoutMillis);
                             buffer.releaseTouched();
                             //
                             // Reset foundAtNext to point to the first key block
@@ -2600,6 +2601,104 @@ public class Exchange {
     }
 
     /**
+     * Invoke {@link #lock(Key, long)} with the current key and a default
+     * timeout value of
+     * {@value com.persistit.SharedResource#DEFAULT_MAX_WAIT_TIME}.
+     * 
+     * @throws PersistitException
+     */
+    public void lock() throws PersistitException {
+        lock(_key, SharedResource.DEFAULT_MAX_WAIT_TIME);
+    }
+
+    /**
+     * <p>
+     * Within a transaction, enforces a constraint that no other concurrent
+     * transaction also successfully locks the same key. This method must run
+     * within the scope of an active transaction.
+     * </p>
+     * <p>
+     * This method is designed to help applications overcome problems with
+     * "write skew" which is a type of isolation anomaly permitted by Snapshot
+     * Isolation. See, for example,
+     * http://en.wikipedia.org/wiki/Snapshot_isolation for a concise explanation
+     * of Snapshot Isolation and the write skew anomaly.
+     * <p>
+     * </p>
+     * To use this facility an application specifies a key which may or may not
+     * be associated with an actual storage location, but which is designed to
+     * conflict with any other transaction that could participate in a write
+     * skew. Thus the operation serves as a way of ensuring serializable
+     * execution of transactions that could otherwise experience write skew.
+     * </p>
+     * <p>
+     * This method does not actually use any locking mechanism; rather, it
+     * creates a write-write conflict with another transaction when both
+     * transactions are concurrent and when both transactions attempt to lock
+     * the same key. The result in that case is that one of the transactions
+     * receives a {@link RollbackException}. An application using this facility
+     * simply retries the transaction, at which point it is likely to
+     * successfully execute the call to {@link #lock()}.
+     * </p>
+     * <p>
+     * This method works by writing a short value associated with the provided
+     * key into a temporary volume (accessible through the
+     * {@link Persistit#getLockVolume()} method). The value is removed through
+     * the normal pruning process soon after the all potentially conflicting
+     * transactions have either rolled back or committed.
+     * </p>
+     * <p>
+     * All of these interactions are performed through the normal MVCC
+     * transaction mechanism. This method differs from the {@link #store()}
+     * method only in that the {@link Tree} to which a value is written is
+     * located in a reserved temporary volume and is therefore normally not
+     * written to disk. The is removed by pruning as no current transaction
+     * could create a write-write dependency with it.
+     * </p>
+     * <p>
+     * As part of the normal MVCC process, if this method detects a potentially
+     * conflicting lock written by another active concurrent transaction, this
+     * transaction waits until the other transaction either commits or aborts.
+     * To prevent an unbounded wait time this method accepts a timeout value in
+     * milliseconds. If the potentially conflicting transaction neither commits
+     * nor aborts during the timeout interval, this method aborts. It is also
+     * possible for this method to attempt to enter a deadlock state with
+     * another current transaction; the potential deadlock is detected and this
+     * method immediately throws a RollbackException.
+     * </p>
+     * 
+     * @param lockKey
+     *            the source Key
+     * @param timeout
+     *            timeout interval in milliseconds
+     * @throws PersistitException
+     * @throws RollbackException
+     *             in the specific case that another concurrent transaction has
+     *             also locked the same key
+     * @throws IllegalStateException
+     *             if this Thread does not have an active transaction scope
+     * @see Transaction
+     */
+    public void lock(final Key lockKey, final long timeout) throws PersistitException {
+        assertCorrectThread(true);
+        _persistit.checkClosed();
+        if (!_transaction.isActive()) {
+            throw new IllegalStateException("No active transaction scope");
+        }
+        final Exchange lockExchange = _persistit.getExchange(_persistit.getLockVolume(), _tree.getName(), true);
+        /**
+         * Lock table trees need tree handles for pruning
+         */
+        _persistit.getJournalManager().handleForTree(lockExchange.getTree());
+        lockExchange.setTimeoutMillis(timeout);
+        lockKey.copyTo(lockExchange.getKey());
+        lockExchange.getKey().testValidForStoreAndFetch(_pool.getBufferSize());
+        lockExchange.getValue().clear().putAntiValueMVV();
+        final int options = StoreOptions.WAIT | StoreOptions.DONT_JOURNAL | StoreOptions.MVCC;
+        lockExchange.storeInternal(lockExchange.getKey(), lockExchange.getValue(), 0, options);
+    }
+
+    /**
      * Fetches the value associated with the <code>Key</code>, then inserts or
      * updates the value. Effectively this swaps the content of
      * <code>Value</code> with the database record associated with the current
@@ -2910,7 +3009,7 @@ public class Exchange {
             // claim is held for the duration to prevent a non-atomic
             // update.
             //
-            getLongRecordHelper().fetchLongRecord(value, minimumBytes);
+            getLongRecordHelper().fetchLongRecord(value, minimumBytes, _timeoutMillis);
         }
     }
 
@@ -3974,7 +4073,7 @@ public class Exchange {
                 if (buffer.isAfterRightEdge(foundAt)) {
                     final long rightSiblingPage = buffer.getRightSibling();
                     if (rightSiblingPage > 0) {
-                        final Buffer rightSibling = _pool.get(_volume, rightSiblingPage, false, true);
+                        final Buffer rightSibling = _pool.get(_volume, rightSiblingPage, false, true, _timeoutMillis);
                         buffer.releaseTouched();
                         //
                         // Reset foundAtNext to point to the first key block
@@ -4034,6 +4133,14 @@ public class Exchange {
     public Object getAppCache() {
         assertCorrectThread(true);
         return _appCache;
+    }
+
+    long getTimeoutMillis() {
+        return _timeoutMillis;
+    }
+
+    void setTimeoutMillis(final long timeout) {
+        _timeoutMillis = Util.rangeCheck(timeout, 0, Long.MAX_VALUE);
     }
 
     /**

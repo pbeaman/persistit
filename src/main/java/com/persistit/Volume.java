@@ -48,6 +48,8 @@ import com.persistit.util.Util;
  */
 public class Volume {
 
+    final static int LOCK_VOLUME_HANDLE = Integer.MAX_VALUE;
+
     private final String _name;
     private long _id;
     private final AtomicBoolean _closing = new AtomicBoolean();
@@ -334,6 +336,10 @@ public class Volume {
                     && _name.endsWith(TEMP_VOLUME_NAME_SUFFIX_FOR_FIXUP_DETECTION);
         }
         return getStorage().isTemp();
+    }
+
+    boolean isLockVolume() {
+        return getHandle() == LOCK_VOLUME_HANDLE;
     }
 
     /**

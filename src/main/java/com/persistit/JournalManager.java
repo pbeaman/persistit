@@ -587,6 +587,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     int handleForVolume(final Volume volume) throws PersistitException {
+        if (volume.getHandle() != 0) {
+            return volume.getHandle();
+        }
         if (!_allowHandlesForTempVolumesAndTrees && volume.isTemporary()) {
             throw new IllegalStateException("Creating handle for temporary volume " + volume);
         }
@@ -621,7 +624,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
             }
             handle = Integer.valueOf(++_handleCounter);
             Debug.$assert0.t(!_handleToTreeMap.containsKey(handle));
-            writeTreeHandleToJournal(td, handle.intValue());
+            if (td.getVolumeHandle() != Volume.LOCK_VOLUME_HANDLE) {
+                writeTreeHandleToJournal(td, handle.intValue());
+            }
             _treeToHandleMap.put(td, handle);
             _handleToTreeMap.put(handle, td);
         }
@@ -629,7 +634,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     }
 
     int handleForTree(final Tree tree) throws PersistitException {
-        if (!_allowHandlesForTempVolumesAndTrees && tree.getVolume().isTemporary()) {
+        if (!_allowHandlesForTempVolumesAndTrees && tree.getVolume().isTemporary() && !tree.getVolume().isLockVolume()) {
             throw new IllegalStateException("Creating handle for temporary tree " + tree);
         }
         if (tree.getHandle() != 0) {
@@ -659,7 +664,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
     Volume volumeForHandle(final int handle) throws PersistitException {
         final Volume volume = lookupVolumeHandle(handle);
         if (volume == null) {
-            return null;
+            if (handle == Volume.LOCK_VOLUME_HANDLE) {
+                return _persistit.getLockVolume();
+            } else {
+                return null;
+            }
         }
         if (!volume.isOpened()) {
             volume.open(_persistit);

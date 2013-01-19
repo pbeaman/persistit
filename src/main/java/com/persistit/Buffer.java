@@ -3814,7 +3814,7 @@ public class Buffer extends SharedResource {
         System.arraycopy(bytes, offset, value.getEncodedBytes(), 0, oldSize);
         value.setEncodedSize(oldSize);
         final LongRecordHelper helper = new LongRecordHelper(_persistit, _vol);
-        helper.fetchLongRecord(value, Integer.MAX_VALUE);
+        helper.fetchLongRecord(value, Integer.MAX_VALUE, SharedResource.DEFAULT_MAX_WAIT_TIME);
         final byte[] rawBytes = value.getEncodedBytes();
         final int oldLongSize = value.getEncodedSize();
         // TODO - perhaps remove. Done as a precaution for now.
