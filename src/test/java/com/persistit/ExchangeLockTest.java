@@ -50,7 +50,7 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
             }
             ex.append("motor");
             ex.lock();
-            final Tree tree = _persistit.getLockVolume().getTree("gogo", false);
+            final Tree tree = _persistit.getLockVolume().getTree("ExchangeLockTest", false);
             assertTrue("Expected tree to be defined", tree != null);
             final Exchange funkyExchange = new Exchange(tree);
             funkyExchange.ignoreMVCCFetch(true);
