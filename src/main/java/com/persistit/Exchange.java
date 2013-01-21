@@ -4142,6 +4142,7 @@ public class Exchange {
      * @see Exchange#setTimeoutMillis(long)
      */
     public long getTimeoutMillis() {
+        assertCorrectThread(true);
         return _timeoutMillis;
     }
 
