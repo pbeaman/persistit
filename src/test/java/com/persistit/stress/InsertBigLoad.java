@@ -21,6 +21,7 @@ import com.persistit.Transaction.CommitPolicy;
 import com.persistit.TreeBuilder;
 import com.persistit.stress.unit.BigLoad;
 import com.persistit.stress.unit.BigLoad.BigLoadTreeBuilder;
+import com.persistit.util.Util;
 
 public class InsertBigLoad extends AbstractSuite {
 
@@ -54,7 +55,10 @@ public class InsertBigLoad extends AbstractSuite {
 
         try {
             execute(persistit);
+            final long start = System.nanoTime();
             tb.merge();
+            final long elapsed = System.nanoTime() - start;
+            System.out.printf("Merge took %,dms", elapsed / Util.NS_PER_MS);
 
         } finally {
             persistit.close();
