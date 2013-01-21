@@ -53,9 +53,9 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
             ex.lock();
             final Tree tree = _persistit.getLockVolume().getTree("ExchangeLockTest", false);
             assertTrue("Expected tree to be defined", tree != null);
-            final Exchange funkyExchange = new Exchange(tree);
-            funkyExchange.ignoreMVCCFetch(true);
-            assertTrue("Expect a key in the temp volume", funkyExchange.next(true));
+            final Exchange ex2 = new Exchange(tree);
+            ex2.ignoreMVCCFetch(true);
+            assertTrue("Expect a key in the temp volume", ex2.next(true));
             txn.commit();
         } catch (final Exception e) {
             e.printStackTrace();
