@@ -2671,7 +2671,7 @@ public class Exchange {
      * @param lockKey
      *            the source Key
      * @param timeout
-     *            timeout interval in milliseconds
+     *            timeout interval in milliseconds, zero for default timeout
      * @throws PersistitException
      * @throws RollbackException
      *             in the specific case that another concurrent transaction has
@@ -2691,7 +2691,7 @@ public class Exchange {
          * Lock table trees need tree handles for pruning
          */
         _persistit.getJournalManager().handleForTree(lockExchange.getTree());
-        lockExchange.setTimeoutMillis(timeout);
+        lockExchange.setTimeoutMillis(timeout == 0 ? getTimeoutMillis() : timeout);
         lockKey.copyTo(lockExchange.getKey());
         lockExchange.getKey().testValidForStoreAndFetch(_pool.getBufferSize());
         lockExchange.getValue().clear().putAntiValueMVV();
@@ -4161,8 +4161,9 @@ public class Exchange {
      * real-time behavior.
      * </p>
      * <p>
-     * The supplied value must be greater than zero. The default value is
-     * {@value com.persistit.SharedResource#DEFAULT_MAX_WAIT_TIME} milliseconds.
+     * The supplied value must be non-negative. If it is zero, the default
+     * timeout value {@value com.persistit.SharedResource#DEFAULT_MAX_WAIT_TIME}
+     * milliseconds is set.
      * </p>
      * 
      * @param timeout
@@ -4170,8 +4171,13 @@ public class Exchange {
      *            wait.
      */
     public void setTimeoutMillis(final long timeout) {
-        // Clipping this to avoid potential overflows when computing intervals
-        _timeoutMillis = Util.rangeCheck(timeout, 1, Math.max(timeout, Long.MAX_VALUE / 2));
+        if (timeout == 0) {
+            _timeoutMillis = SharedResource.DEFAULT_MAX_WAIT_TIME;
+        } else {
+            // Clipping this to avoid potential overflows when computing
+            // intervals
+            _timeoutMillis = Util.rangeCheck(timeout, 0, Math.max(timeout, Long.MAX_VALUE / 2));
+        }
     }
 
     /**
