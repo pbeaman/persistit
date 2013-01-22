@@ -162,7 +162,7 @@ public class TreeBuilder {
     private final List<Tree> _allTrees = new ArrayList<Tree>();
     private final Map<String, Tree> _sortTreeMap = new HashMap<String, Tree>();
 
-    private int _sortVolumeIndex;
+    private int _sortFileIndex;
     private final List<Node> _sortNodes = new ArrayList<Node>();
 
     private final ThreadLocal<Map<Tree, Exchange>> _sortExchangeMapThreadLocal = new ThreadLocal<Map<Tree, Exchange>>() {
@@ -228,8 +228,9 @@ public class TreeBuilder {
             return _file;
         }
 
-        private Node(final File file) {
+        private Node(final File file, final int index) {
             _file = file;
+            _precedence = index;
         }
 
         @Override
@@ -363,7 +364,7 @@ public class TreeBuilder {
      * @return Count of sort trees that have been created while sorting keys
      */
     public final synchronized int getSortFileCount() {
-        return _sortVolumeIndex;
+        return _sortFileIndex;
     }
 
     /**
@@ -418,7 +419,7 @@ public class TreeBuilder {
      *             if an attempt to create a file in one of the supplied
      *             directories fails
      */
-    public final void setSortFileDirectories(final List<File> directories) throws IOException {
+    public final void setSortTreeDirectories(final List<File> directories) throws IOException {
         if (directories == null || directories.isEmpty()) {
             synchronized (this) {
                 _directories.clear();
@@ -450,7 +451,7 @@ public class TreeBuilder {
             synchronized (this) {
                 _directories.clear();
                 _directories.addAll(directories);
-                _sortVolumeIndex = 0;
+                _sortFileIndex = 0;
             }
         }
     }
@@ -525,16 +526,13 @@ public class TreeBuilder {
     private void insertNode(final Map<Node, Node> sorted, final Node node) throws Exception {
         final Node other = sorted.put(node, node);
         if (other != null) {
-            final Value v1;
-            final Value v2;
+            final boolean reverse;
             if (node._precedence < other._precedence) {
-                v1 = node._value;
-                v2 = other._value;
+                reverse = duplicateKeyDetected(node._tree, node._key, node._value, other._value);
             } else {
-                v1 = other._value;
-                v2 = node._value;
+                reverse = !duplicateKeyDetected(node._tree, node._key, other._value, node._value);
             }
-            if (!duplicateKeyDetected(node._tree, node._key, v1, v2)) {
+            if (reverse) {
                 sorted.put(node, other);
                 final Node p = other._duplicate;
                 other._duplicate = node;
@@ -637,7 +635,7 @@ public class TreeBuilder {
         _allTrees.clear();
         _sortNodes.clear();
         _sortVolume = null;
-        _sortVolumeIndex = 0;
+        _sortFileIndex = 0;
         _sortExchangeMapThreadLocal.get().clear();
         if (exception != null) {
             throw exception;
@@ -668,14 +666,14 @@ public class TreeBuilder {
                 }
                 _directories.add(directory);
             } else {
-                directory = _directories.get(_sortVolumeIndex % _directories.size());
+                directory = _directories.get(_sortFileIndex % _directories.size());
             }
 
             _sortVolume = Volume.createTemporaryVolume(_persistit, _pageSize, directory);
-            _sortFile = new File(directory, String.format("%s%05d", _name, _sortVolumeIndex));
-            final Node node = new Node(_sortFile);
+            _sortFile = new File(directory, String.format("%s.%06d", _name, _sortFileIndex));
+            final Node node = new Node(_sortFile, _sortFileIndex);
             _sortNodes.add(node);
-            _sortVolumeIndex++;
+            _sortFileIndex++;
         }
         return _sortVolume;
     }
@@ -743,15 +741,25 @@ public class TreeBuilder {
     }
 
     /**
+     * <p>
      * This method may be extended to provide application-specific behavior when
-     * an attempt is made to merge records with duplicate keys. The default
-     * behavior is to throw a {@link DuplicateKeyException}.
+     * an attempt is made to merge records with duplicate keys. The two
+     * <code>Value</code>s v1 and v2 are provided in the order they were
+     * inserted into the <code>TreeBuilder</code>. behavior is to write a
+     * warning to the log and retain the first value..
+     * </p>
      * 
      * @param tree
+     *            the <code>Tree</code> to which a key is being merged
      * @param key
+     *            the <code>Key</code>
      * @param v1
+     *            the <code>Value</code> previously inserted
      * @param v2
-     * @return
+     *            the conflicting <code>Value</code>
+     * @return <code>true</code> to replace the value previously stored,
+     *         <code>false</code> to leave the value first inserted and ignore
+     *         the new value.
      * @throws DuplicateKeyException
      *             if a key being inserted or merged matches a key already
      *             exists
@@ -835,7 +843,7 @@ public class TreeBuilder {
         return _defaultTreeComparator;
     }
 
-    void unitTestNextSortVolume() throws Exception {
+    void unitTestNextSortFile() throws Exception {
         finishSortVolume();
         _sortExchangeMapThreadLocal.get().clear();
         _sortVolume = null;
