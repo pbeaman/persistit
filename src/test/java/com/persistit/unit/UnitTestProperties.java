@@ -91,7 +91,6 @@ public class UnitTestProperties {
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
         p.setProperty("tmpvoldir", "${datapath}");
-        p.setProperty("jmx", "true");
         return p;
     }
 
