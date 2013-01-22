@@ -33,8 +33,8 @@ import com.persistit.unit.UnitTestProperties;
 
 public class TreeBuilderTest extends PersistitUnitTestCase {
     private final static int COUNT = 100000;
-    private AtomicInteger _duplicates = new AtomicInteger();
-    
+    private final AtomicInteger _duplicates = new AtomicInteger();
+
     private TreeBuilder getBasicTreeBuilder() {
         final TreeBuilder tb = new TreeBuilder(_persistit) {
             @Override
@@ -46,7 +46,7 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
             protected void reportMerged(final long count) {
                 System.out.println("Merged " + count);
             }
-            
+
             @Override
             protected boolean duplicateKeyDetected(final Tree tree, final Key key, final Value v1, final Value v2) {
                 System.out.println("Duplicate key " + key);
@@ -251,7 +251,7 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
                 ex.to(k);
                 ex.getValue().put(RED_FOX + "," + k);
                 tb.store(ex);
-                if (((i+ 1) % (COUNT / 10)) == 0) {
+                if (((i + 1) % (COUNT / 10)) == 0) {
                     tb.unitTestNextSortFile();
                 }
             }
@@ -259,20 +259,20 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
                 assertTrue("Expect some files in each directory", file.list().length > 0);
             }
             tb.merge();
-            
+
             for (final File file : directories) {
                 assertTrue("Expect no remaining files", file.list().length == 0);
             }
-            
+
             ex.to(Key.BEFORE);
             int count = 0;
             while (ex.next()) {
                 count++;
-                int k = ex.getKey().decodeInt();
+                final int k = ex.getKey().decodeInt();
                 assertEquals(RED_FOX + "," + k, ex.getValue().getString());
             }
             assert count + _duplicates.get() == COUNT;
-            
+
         } finally {
             for (final File file : directories) {
                 UnitTestProperties.cleanUpDirectory(file);

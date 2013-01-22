@@ -202,7 +202,7 @@ public class TreeBuilder {
         private Key _key;
         private Value _value;
         private Node _duplicate;
-        private int _precedence;
+        private final int _precedence;
 
         private final File _file;
         private StreamLoader _loader;
