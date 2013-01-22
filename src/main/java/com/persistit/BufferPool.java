@@ -697,7 +697,8 @@ public class BufferPool {
     /**
      * Find or load a page given its Volume and address. The returned page has a
      * reader or a writer lock, depending on whether the writer parameter is
-     * true on entry.
+     * true on entry. Waits up to {@value SharedResource#DEFAULT_MAX_WAIT_TIME}
+     * milliseconds to acquire the desired lock on the page
      * 
      * @param vol
      *            The Volume
@@ -710,8 +711,36 @@ public class BufferPool {
      *            <i>false</i> to allocate a new blank page.)
      * @return Buffer The Buffer describing the buffer containing the page.
      * @throws InUseException
+     *             if the specific lock could not be acquired
      */
     Buffer get(final Volume vol, final long page, final boolean writer, final boolean wantRead)
+            throws PersistitException {
+        return get(vol, page, writer, wantRead, SharedResource.DEFAULT_MAX_WAIT_TIME);
+    }
+
+    /**
+     * Find or load a page given its Volume and address. The returned page has a
+     * reader or a writer lock, depending on whether the writer parameter is
+     * true on entry.
+     * 
+     * @param vol
+     *            The Volume
+     * @param page
+     *            The address of the page
+     * @param writer
+     *            <i>true</i> if a write lock is required.
+     * @param wantRead
+     *            <i>true</i> if the caller wants the page read from disk.
+     *            <i>false</i> to allocate a new blank page.)
+     * @param timeout
+     *            maximum time to wait for the page to become available before
+     *            throwing an InUseException
+     * @return Buffer The Buffer describing the buffer containing the page.
+     * @throws InUseException
+     *             if the specific lock could not be acquired within the
+     *             specified timeout
+     */
+    Buffer get(final Volume vol, final long page, final boolean writer, final boolean wantRead, final long timeout)
             throws PersistitException {
         final int hash = hashIndex(vol, page);
         Buffer buffer = null;
@@ -776,7 +805,7 @@ public class BufferPool {
             if (mustClaim) {
                 boolean claimed = false;
                 boolean same = true;
-                final long expires = System.currentTimeMillis() + SharedResource.DEFAULT_MAX_WAIT_TIME;
+                final long expires = System.currentTimeMillis() + timeout;
                 while (same && !claimed && System.currentTimeMillis() < expires) {
                     /*
                      * We're here because we found the page we want, but another

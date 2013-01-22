@@ -287,6 +287,8 @@ public class Persistit {
 
     private final AtomicLong _uniqueCounter = new AtomicLong();
 
+    private volatile Volume _lockVolume;
+
     /**
      * Construct a hollow Persistit instance. To be useful, the instance must
      * receive a <code>Configuration</code> through one of the methods
@@ -1284,6 +1286,18 @@ public class Persistit {
      */
     public Volume getSystemVolume() throws VolumeNotFoundException {
         return getSpecialVolume(SYSTEM_VOLUME_PROPERTY_NAME, DEFAULT_SYSTEM_VOLUME_NAME);
+    }
+
+    /**
+     * @return reserved temporary volume for locks
+     * @throws PersistitException
+     */
+    public synchronized Volume getLockVolume() throws PersistitException {
+        if (_lockVolume == null) {
+            _lockVolume = createTemporaryVolume();
+            _lockVolume.setHandle(Volume.LOCK_VOLUME_HANDLE);
+        }
+        return _lockVolume;
     }
 
     /**
