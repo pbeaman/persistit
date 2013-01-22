@@ -84,7 +84,7 @@ public class MediatedFileChannelTest {
             for (int i = 0; i < 65536; i++) {
                 bb.array()[i] = (byte) (i % 32 + 64);
             }
-
+            assertEquals(65536, bb.remaining());
             final long start = System.nanoTime();
             while (errors == 0 && System.nanoTime() - start < TIME) {
                 try {
@@ -94,6 +94,7 @@ public class MediatedFileChannelTest {
                     fc.force(true);
                     count++;
                 } catch (final InterruptedIOException e) {
+                    bb.position(0);
                     // ignore -- expected
                     interrupts++;
                     // need to clear the interrupted status
