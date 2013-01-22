@@ -84,7 +84,6 @@ public class MediatedFileChannelTest {
             for (int i = 0; i < 65536; i++) {
                 bb.array()[i] = (byte) (i % 32 + 64);
             }
-            assertEquals(65536, bb.remaining());
             final long start = System.nanoTime();
             while (errors == 0 && System.nanoTime() - start < TIME) {
                 try {
