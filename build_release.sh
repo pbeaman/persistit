@@ -23,8 +23,6 @@
 #       - akiban-persistit-X.X.X.tar.gz             (binary, EPL)
 #       - akiban-persistit-X.X.X-source.zip         (source, EPL)
 #       - akiban-persistit-X.X.X-source.tar.gz      (source, EPL)
-#       - akiban-persistit-community-X.X.X.zip      (binary, EULA)
-#       - akiban-persistit-community-X.X.X.tar.gz   (binary, EULA)
 #
 
 set -e
@@ -79,7 +77,6 @@ function do_md5 {
 
 REQUIRED_PROGS="bzr mvn javac sphinx-build curl awk sed tr basename zip tar gpg"
 BRANCH_DEFAULT="lp:~akiban-technologies/akiban-persistit"
-COMM_LICENSE_URL="http://www.akiban.com/akiban-persistit-community-license-agreement-plaintext"
 
 VERSION=""
 BRANCH_URL=""
@@ -126,7 +123,6 @@ NAME="akiban-persistit"
 BRANCH_DIR="${WORKSPACE}/${VERSION}"
 SOURCE_DIR="${WORKSPACE}/${NAME}-${VERSION}-source"
 OPEN_DIR="${WORKSPACE}/${NAME}-${VERSION}"
-COMM_DIR="${WORKSPACE}/${NAME}-community-${VERSION}"
 WEBDOCS_DIR="${WORKSPACE}/${NAME}-${VERSION}-website-docs"
 
 
@@ -150,7 +146,6 @@ cp -r "${BRANCH_DIR}" "${SOURCE_DIR}"
 cp -r "${BRANCH_DIR}" "${OPEN_DIR}"
 rm -r "${OPEN_DIR}"/{doc,examples/scripts,src,pom.xml}
 mkdir "${OPEN_DIR}/doc"
-cp -r "${OPEN_DIR}" "${COMM_DIR}"
 
 
 echo "Building open edition and docs"
@@ -167,44 +162,9 @@ mv "${BRANCH_DIR}"/target/*-sources.jar "${OPEN_DIR}/${NAME}-${VERSION}-sources.
 mv "${BRANCH_DIR}"/target/*.jar "${OPEN_DIR}/${NAME}-${VERSION}.jar"
 
 
-echo "Downloading and formating community license"
-cd "${WORKSPACE}"
-curl -s "${COMM_LICENSE_URL}" |
-    # Pull out the content between the two regexes, excluding the matches themselves
-    awk '/<div class="content">/ {flag=1;next} /<\/div>/ {flag=0} flag {print}' |
-    # Replace paragraph end marks for the first 4 paragraphs with newlines
-    awk '{if(NR < 8) sub(/<\/p>/, "\n"); print }' |
-    # Delete all: <p>, </p>, </div>, and &nbsp; occurrences
-    sed -e 's/<p>//g' -e 's/<\/p>//g' -e 's/<\/div>//g' -e 's/&nbsp;//g' |
-    # Replace unicode quotes with simple ones
-    sed -e 's/[“”]/"/g' -e "s/’/'/g" |
-    # Un-link email address(es)
-    sed -e 's/<a href=".*">//g' -e 's/<\/a>//g' |
-    # Collapse repeated spaces
-    tr -s ' ' |
-    # Wrap nicely at 80 characters 
-    fold -s \
-    > "${COMM_DIR}/LICENSE.txt"
-
-
-echo "Building community edition and docs"
-cd "${BRANCH_DIR}"
-cp "${COMM_DIR}/LICENSE.txt" .
-awk 'BEGIN { FS="\n"; RS="";}\
-    {sub(/[ ]*<licenses>.*<\/licenses>/,\
-    "<licenses>\n<license>\n<name>Proprietary</name>\n<url>http://www.akiban.com/akiban-persistit-community-license-agreement</url>\n<distribution>manual</distribution>\n</license>\n</licenses>\n"); print;}'\
-    pom.xml > pom_comm.xml
-maven_build "${REVNO}" "-f pom_comm.xml"
-docs_build "../apidocs"
-cp -r target/{site/apidocs,sphinx/html} "${COMM_DIR}/doc"
-cp target/sphinx/text/ReleaseNotes "${COMM_DIR}/ReleaseNotes.txt"
-rm target/*-sources.jar
-mv target/*.jar "${COMM_DIR}/${NAME}-${VERSION}.jar"
-
-
 echo "Creating zip and tar.gz files"
 cd "${WORKSPACE}"
-for DIR in "${OPEN_DIR}" "${SOURCE_DIR}" "${COMM_DIR}"; do
+for DIR in "${OPEN_DIR}" "${SOURCE_DIR}"; do
     BASE_DIR="`basename ${DIR}`"
     zip -r "${DIR}.zip" "$BASE_DIR" >/dev/null
     tar czf "${DIR}.tar.gz" "${BASE_DIR}"
