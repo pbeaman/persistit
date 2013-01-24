@@ -805,8 +805,8 @@ public class BufferPool {
             if (mustClaim) {
                 boolean claimed = false;
                 boolean same = true;
-                final long expires = System.currentTimeMillis() + timeout;
-                while (same && !claimed && System.currentTimeMillis() < expires) {
+                final long start = System.currentTimeMillis();
+                while (same && !claimed && System.currentTimeMillis() - start < timeout) {
                     /*
                      * We're here because we found the page we want, but another
                      * thread has an incompatible claim on it. Here we wait,

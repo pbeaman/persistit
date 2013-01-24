@@ -20,6 +20,7 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.util.Util;
 
 /**
  * Base class for objects that need synchronization across threads. The methods
@@ -315,13 +316,14 @@ class SharedResource {
                 return _sync.tryAcquireShared(1) >= 0;
             }
         } else {
+            long ns = Math.min(timeout, Long.MAX_VALUE / Util.NS_PER_MS) * Util.NS_PER_MS;
             try {
                 if (writer) {
-                    if (_sync.tryAcquireNanos(1, timeout * 1000000)) {
+                    if (_sync.tryAcquireNanos(1, ns)) {
                         return true;
                     }
                 } else {
-                    if (_sync.tryAcquireSharedNanos(1, timeout * 1000000)) {
+                    if (_sync.tryAcquireSharedNanos(1, ns)) {
                         return true;
                     }
                 }

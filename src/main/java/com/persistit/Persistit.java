@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -48,6 +49,8 @@ import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
 import javax.management.NotificationEmitter;
 import javax.management.ObjectName;
+
+import org.hamcrest.core.IsInstanceOf;
 
 import com.persistit.Accumulator.AccumulatorRef;
 import com.persistit.CheckpointManager.Checkpoint;
@@ -1290,6 +1293,8 @@ public class Persistit {
      * @throws PersistitException
      */
     public synchronized Volume getLockVolume() throws PersistitException {
+        checkInitialized();
+        checkClosed();
         if (_lockVolume == null) {
             _lockVolume = createTemporaryVolume();
             _lockVolume.setHandle(Volume.LOCK_VOLUME_HANDLE);
@@ -1713,12 +1718,14 @@ public class Persistit {
         final long expires = System.currentTimeMillis() + timeout;
         boolean remaining = false;
         do {
-            final Set<SessionId> sessionIds;
+            final Map<SessionId, Transaction> copy;
             synchronized (_transactionSessionMap) {
-                sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
+                copy = new HashMap<SessionId, Transaction>(_transactionSessionMap);
             }
-            for (final SessionId sessionId : sessionIds) {
-                if (sessionId.isAlive()) {
+            for (final Entry<SessionId, Transaction> entry : copy.entrySet()) {
+                final SessionId sessionId = entry.getKey();
+                final Transaction txn = entry.getValue();
+                if (sessionId.isAlive() && txn.isActive() ) {
                     if (sessionId.interrupt()) {
                         _logBase.interruptedAtClose.log(sessionId.ownerName());
                     }
@@ -1931,6 +1938,12 @@ public class Persistit {
         _journalManager.force();
     }
 
+    void checkInitialized() throws PersistitClosedException, PersistitInterruptedException {
+        if (!isInitialized()) {
+            throw new PersistitClosedException();
+        }
+    }
+    
     void checkClosed() throws PersistitClosedException, PersistitInterruptedException {
         if (isClosed()) {
             checkFatal();
