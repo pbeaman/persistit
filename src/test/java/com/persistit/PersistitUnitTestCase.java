@@ -136,4 +136,15 @@ public abstract class PersistitUnitTestCase {
         _persistit.getCleanupManager().setPollInterval(-1);
         _persistit.getJournalManager().setWritePagePruningEnabled(false);
     }
+    
+    protected void drainJournal() throws Exception {
+        _persistit.flush();
+        /*
+         * Causes all TreeStatistics to be marked clean so that the subsequent
+         * checkpoint will not add another dirty page.
+         */
+        _persistit.flushStatistics();
+        _persistit.checkpoint();
+        _persistit.getJournalManager().copyBack();
+    }
 }

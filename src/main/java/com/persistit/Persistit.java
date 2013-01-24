@@ -1428,7 +1428,7 @@ public class Persistit {
                 _journalManager.copyBack();
                 final int fileCount = _journalManager.getJournalFileCount();
                 final long size = _journalManager.getCurrentJournalSize();
-                if (i > 1 && (fileCount == 1) && (size < JournalManager.ROLLOVER_THRESHOLD)) {
+                if (i > 2 && (fileCount == 1) && (size < JournalManager.ROLLOVER_THRESHOLD)) {
                     break;
                 }
             } else {
@@ -1637,7 +1637,6 @@ public class Persistit {
 
             if (flush) {
                 for (final Volume volume : volumes) {
-                    flushStatistics();
                     volume.getStorage().flush();
                 }
             }
@@ -1877,19 +1876,12 @@ public class Persistit {
 
     void flushStatistics() {
         try {
-            final Transaction txn = getTransaction();
-            txn.begin();
-            try {
-                final List<Volume> volumes;
-                // synchronized (this) {
-                volumes = new ArrayList<Volume>(_volumes);
-                // }
-                for (final Volume volume : volumes) {
-                    volume.getStructure().flushStatistics();
-                }
-                txn.commit();
-            } finally {
-                txn.end();
+            final List<Volume> volumes;
+            // synchronized (this) {
+            volumes = new ArrayList<Volume>(_volumes);
+            // }
+            for (final Volume volume : volumes) {
+                volume.getStructure().flushStatistics();
             }
         } catch (final Exception e) {
             _logBase.exception.log(e);
@@ -2395,8 +2387,10 @@ public class Persistit {
         _suspendUpdates.set(suspended);
     }
 
-    synchronized void addTimelyResource(final TimelyResource<?, ? extends Version> resource) {
-        _timelyResourceSet.add(new WeakReference<TimelyResource<?, ?>>(resource));
+    void addTimelyResource(final TimelyResource<?, ? extends Version> resource) {
+        synchronized (_timelyResourceSet) {
+            _timelyResourceSet.add(new WeakReference<TimelyResource<?, ?>>(resource));
+        }
     }
 
     void addAccumulator(final Accumulator accumulator) throws PersistitException {
@@ -2460,7 +2454,7 @@ public class Persistit {
 
     void pruneTimelyResources() {
         final List<TimelyResource<?, ?>> resourcesToPrune = new ArrayList<TimelyResource<?, ?>>();
-        synchronized (this) {
+        synchronized (_timelyResourceSet) {
             for (final Iterator<WeakReference<TimelyResource<?, ?>>> iter = _timelyResourceSet.iterator(); iter
                     .hasNext();) {
                 final WeakReference<TimelyResource<?, ?>> ref = iter.next();
@@ -2477,7 +2471,7 @@ public class Persistit {
                 _logBase.timelyResourcePruneException.log(e, resource);
             }
         }
-        synchronized (this) {
+        synchronized (_timelyResourceSet) {
             for (final Iterator<WeakReference<TimelyResource<?, ?>>> iter = _timelyResourceSet.iterator(); iter
                     .hasNext();) {
                 final WeakReference<TimelyResource<?, ?>> ref = iter.next();

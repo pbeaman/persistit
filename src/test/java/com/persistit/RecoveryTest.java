@@ -83,9 +83,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         store1();
         JournalManager jman = _persistit.getJournalManager();
         assertTrue(jman.getPageMapSize() > 0);
-        _persistit.flush();
-        _persistit.checkpoint();
-        jman.copyBack();
+        drainJournal();
         assertEquals(0, jman.getPageMapSize());
         _persistit.close();
         _persistit = new Persistit(_config);
@@ -198,8 +196,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         store1();
 
         jman.rollover();
-        _persistit.checkpoint();
-        jman.copyBack();
+        drainJournal();
         assertEquals(0, jman.getPageMapSize());
 
         final Transaction txn = _persistit.getTransaction();
@@ -208,8 +205,10 @@ public class RecoveryTest extends PersistitUnitTestCase {
         store1();
         txn.commit();
         txn.end();
-        // Flush an uncommitted version of this transaction - should
-        // prevent journal cleanup.
+        /*
+         * Flush an uncommitted version of this transaction - should prevent
+         * journal cleanup.
+         */
         txn.begin();
         store0();
         txn.flushTransactionBuffer(true);
@@ -217,14 +216,13 @@ public class RecoveryTest extends PersistitUnitTestCase {
         txn.end();
 
         jman.rollover();
-        _persistit.checkpoint();
-        jman.copyBack();
-        //
-        // Because JournalManager thinks there's an open transaction
-        // it should preserve the journal file containing the TX record
-        // for the transaction.
-        //
+        drainJournal();
         assertEquals(0, jman.getPageMapSize());
+        /*
+         * Because JournalManager thinks there's an open transaction it should
+         * preserve the journal file containing the TX record for the
+         * transaction.
+         */
         assertTrue(jman.getBaseAddress() < jman.getCurrentAddress());
         txn.begin();
         store1();
@@ -234,6 +232,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         jman.unitTestClearTransactionMap();
 
         jman.rollover();
+        _persistit.flushStatistics();
         _persistit.checkpoint();
         /*
          * The TI active transaction cache may be a bit out of date, which can
@@ -243,8 +242,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
          * copier does the right thing.
          */
         _persistit.getTransactionIndex().updateActiveTransactionCache();
-        jman.copyBack();
-
+        drainJournal();
         assertEquals(jman.getBaseAddress(), jman.getCurrentAddress());
         assertEquals(0, jman.getPageMapSize());
 
