@@ -136,7 +136,7 @@ public abstract class PersistitUnitTestCase {
         _persistit.getCleanupManager().setPollInterval(-1);
         _persistit.getJournalManager().setWritePagePruningEnabled(false);
     }
-    
+
     protected void drainJournal() throws Exception {
         _persistit.flush();
         /*
