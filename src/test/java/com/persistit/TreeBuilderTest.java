@@ -100,7 +100,8 @@ public class TreeBuilderTest extends PersistitUnitTestCase {
             count++;
         }
         assertEquals("Expect every key value", COUNT, count);
-
+        _persistit.flush();
+        assertEquals(0, a.getBufferPool().getDirtyPageCount());
     }
 
     @Test
