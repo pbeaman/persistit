@@ -316,7 +316,7 @@ class SharedResource {
                 return _sync.tryAcquireShared(1) >= 0;
             }
         } else {
-            long ns = Math.min(timeout, Long.MAX_VALUE / Util.NS_PER_MS) * Util.NS_PER_MS;
+            final long ns = Math.min(timeout, Long.MAX_VALUE / Util.NS_PER_MS) * Util.NS_PER_MS;
             try {
                 if (writer) {
                     if (_sync.tryAcquireNanos(1, ns)) {

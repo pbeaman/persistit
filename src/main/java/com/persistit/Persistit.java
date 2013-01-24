@@ -50,8 +50,6 @@ import javax.management.MBeanServer;
 import javax.management.NotificationEmitter;
 import javax.management.ObjectName;
 
-import org.hamcrest.core.IsInstanceOf;
-
 import com.persistit.Accumulator.AccumulatorRef;
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.Configuration.BufferPoolConfiguration;
@@ -1725,7 +1723,7 @@ public class Persistit {
             for (final Entry<SessionId, Transaction> entry : copy.entrySet()) {
                 final SessionId sessionId = entry.getKey();
                 final Transaction txn = entry.getValue();
-                if (sessionId.isAlive() && txn.isActive() ) {
+                if (sessionId.isAlive() && txn.isActive()) {
                     if (sessionId.interrupt()) {
                         _logBase.interruptedAtClose.log(sessionId.ownerName());
                     }
@@ -1943,7 +1941,7 @@ public class Persistit {
             throw new PersistitClosedException();
         }
     }
-    
+
     void checkClosed() throws PersistitClosedException, PersistitInterruptedException {
         if (isClosed()) {
             checkFatal();
