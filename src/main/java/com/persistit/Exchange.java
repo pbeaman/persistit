@@ -2783,8 +2783,10 @@ public class Exchange implements ReadOnlyExchange {
      * be associated with an actual storage location, but which is designed to
      * conflict with any other transaction that could participate in a write
      * skew. Thus the operation serves as a way of ensuring serializable
-     * execution of transactions that could otherwise experience write skew.
-     * </p>
+     * execution of transactions that could otherwise experience write skew. A
+     * key specified in this method is local to the <code>Exchange</code>'s
+     * current {@link Tree}. Two concurrent threads locking the same key in
+     * different trees do not have a write-write dependency. </p>
      * <p>
      * This method does not actually use any locking mechanism; rather, it
      * creates a write-write conflict with another transaction when both
