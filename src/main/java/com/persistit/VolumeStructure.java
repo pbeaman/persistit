@@ -358,25 +358,22 @@ class VolumeStructure {
     /**
      * Flush dirty {@link TreeStatistics} instances. Called periodically on the
      * PAGE_WRITER thread from {@link Persistit#cleanup()}.
+     * 
+     * @throws PersistitException
      */
-    void flushStatistics() {
-        try {
-            final List<Tree> trees = new ArrayList<Tree>();
-            synchronized (this) {
-                for (final WeakReference<Tree> ref : _treeNameHashMap.values()) {
-                    final Tree tree = ref.get();
-                    if (tree != null && tree != _directoryTree) {
-                        trees.add(tree);
-                    }
+    void flushStatistics() throws PersistitException {
+        final List<Tree> trees = new ArrayList<Tree>();
+        synchronized (this) {
+            for (final WeakReference<Tree> ref : _treeNameHashMap.values()) {
+                final Tree tree = ref.get();
+                if (tree != null && tree != _directoryTree) {
+                    trees.add(tree);
                 }
             }
-            for (final Tree tree : trees) {
-                storeTreeStatistics(tree);
-            }
-        } catch (final Exception e) {
-            _persistit.getAlertMonitor().post(
-                    new Event(AlertLevel.ERROR, _persistit.getLogBase().adminFlushException, e),
-                    AlertMonitor.FLUSH_STATISTICS_CATEGORY);
+        }
+
+        for (final Tree tree : trees) {
+            storeTreeStatistics(tree);
         }
     }
 

@@ -464,6 +464,10 @@ public class IOFailureTest extends PersistitUnitTestCase {
         boolean done = false;
         while (System.currentTimeMillis() < expires) {
             try {
+                /*
+                 *  Needed to avoid leaving a dirty page during checkpoint
+                 */
+                _persistit.flushStatistics();
                 _persistit.copyBackPages();
                 done = true;
                 break;

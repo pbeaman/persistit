@@ -1545,6 +1545,12 @@ public class Exchange implements ReadOnlyExchange {
                             }
                         }
 
+                        /*
+                         * If the Tree is private to an active transaction, and
+                         * if this is a virgin value, then we can store it
+                         * primordially. If the transaction rolls back then the
+                         * entire Tree will be removed.
+                         */
                         if (doMVCC & (_spareValue.isDefined() || !_tree.isTransactionPrivate())) {
                             valueToStore = spareValue;
                             final int valueSize = value.getEncodedSize();
@@ -3274,6 +3280,12 @@ public class Exchange implements ReadOnlyExchange {
             _persistit.checkSuspended();
         }
 
+        /*
+         * Don't throttle operations on the directory tree since that makes some
+         * unit tests brutally slow. This test is now necessary because a
+         * directory tree update can now occur within the scope of a
+         * transaction.
+         */
         if (!_ignoreTransactions && !_transaction.isActive() && !isDirectoryExchange()) {
             _persistit.getJournalManager().throttle();
         }
@@ -3291,7 +3303,6 @@ public class Exchange implements ReadOnlyExchange {
          * range-delete the tree since it is not visible outside this
          * transaction.
          */
-
         if (_tree.isTransactionPrivate()) {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
         }
@@ -4006,6 +4017,15 @@ public class Exchange implements ReadOnlyExchange {
         assert checkThread(set) : "Thread " + Thread.currentThread() + " must not use " + this + " owned by " + _thread;
     }
 
+    /**
+     * Ensure the this Exchange is compatible with the current Thread; if a
+     * Thread was previously assigned then this thread must be the same one.
+     * 
+     * @param set
+     *            whether to assign the current thread
+     * @return true if and only if there was no assigned Thread or the assigned
+     *         Thread is same as the current Thread.
+     */
     private boolean checkThread(final boolean set) {
         final Thread t = Thread.currentThread();
         if (_thread == t) {

@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -796,17 +797,21 @@ public class Persistit {
         }
     }
 
-    synchronized void addVolume(final Volume volume) throws VolumeAlreadyExistsException {
-        Volume otherVolume;
-        otherVolume = getVolume(volume.getName());
-        if (otherVolume != null) {
-            throw new VolumeAlreadyExistsException("Volume " + otherVolume);
+    void addVolume(final Volume volume) throws VolumeAlreadyExistsException {
+        synchronized (_volumes) {
+            Volume otherVolume;
+            otherVolume = getVolume(volume.getName());
+            if (otherVolume != null) {
+                throw new VolumeAlreadyExistsException("Volume " + otherVolume);
+            }
+            _volumes.add(volume);
         }
-        _volumes.add(volume);
     }
 
-    synchronized void removeVolume(final Volume volume) throws PersistitInterruptedException {
-        _volumes.remove(volume);
+    void removeVolume(final Volume volume) throws PersistitInterruptedException {
+        synchronized (_volumes) {
+            _volumes.remove(volume);
+        }
     }
 
     /**
@@ -988,7 +993,9 @@ public class Persistit {
      * @return the List
      */
     public List<Volume> getVolumes() {
-        return new ArrayList<Volume>(_volumes);
+        synchronized (_volumes) {
+            return new ArrayList<Volume>(_volumes);
+        }
     }
 
     /**
@@ -1002,16 +1009,19 @@ public class Persistit {
      * @return the List
      * @throws PersistitException
      */
-    public synchronized List<Tree> getSelectedTrees(final TreeSelector selector) throws PersistitException {
+    public List<Tree> getSelectedTrees(final TreeSelector selector) throws PersistitException {
         final List<Tree> list = new ArrayList<Tree>();
-        for (final Volume volume : _volumes) {
-            if (selector.isSelected(volume)) {
-                if (selector.isVolumeOnlySelection(volume.getName())) {
-                    list.add(volume.getDirectoryTree());
-                } else {
-                    for (final String treeName : volume.getTreeNames()) {
-                        if (selector.isTreeNameSelected(volume.getName(), treeName)) {
-                            list.add(volume.getTree(treeName, false));
+        synchronized (_volumes) {
+
+            for (final Volume volume : _volumes) {
+                if (selector.isSelected(volume)) {
+                    if (selector.isVolumeOnlySelection(volume.getName())) {
+                        list.add(volume.getDirectoryTree());
+                    } else {
+                        for (final String treeName : volume.getTreeNames()) {
+                            if (selector.isTreeNameSelected(volume.getName(), treeName)) {
+                                list.add(volume.getTree(treeName, false));
+                            }
                         }
                     }
                 }
@@ -1237,34 +1247,36 @@ public class Persistit {
         if (name == null) {
             throw new NullPointerException("Null volume name");
         }
-        Volume result = null;
+        synchronized (_volumes) {
+            Volume result = null;
 
-        for (int i = 0; i < _volumes.size(); i++) {
-            final Volume vol = _volumes.get(i);
-            if (name.equals(vol.getName())) {
-                if (result == null)
-                    result = vol;
-                else {
-                    return null;
+            for (int i = 0; i < _volumes.size(); i++) {
+                final Volume vol = _volumes.get(i);
+                if (name.equals(vol.getName())) {
+                    if (result == null)
+                        result = vol;
+                    else {
+                        return null;
+                    }
                 }
             }
-        }
-        if (result != null) {
+            if (result != null) {
+                return result;
+            }
+
+            final File file = new File(name).getAbsoluteFile();
+            for (int i = 0; i < _volumes.size(); i++) {
+                final Volume vol = _volumes.get(i);
+                if (file.equals(vol.getAbsoluteFile())) {
+                    if (result == null)
+                        result = vol;
+                    else {
+                        return null;
+                    }
+                }
+            }
             return result;
         }
-
-        final File file = new File(name).getAbsoluteFile();
-        for (int i = 0; i < _volumes.size(); i++) {
-            final Volume vol = _volumes.get(i);
-            if (file.equals(vol.getAbsoluteFile())) {
-                if (result == null)
-                    result = vol;
-                else {
-                    return null;
-                }
-            }
-        }
-        return result;
     }
 
     /**
@@ -1428,7 +1440,7 @@ public class Persistit {
                 _journalManager.copyBack();
                 final int fileCount = _journalManager.getJournalFileCount();
                 final long size = _journalManager.getCurrentJournalSize();
-                if (i > 2 && (fileCount == 1) && (size < JournalManager.ROLLOVER_THRESHOLD)) {
+                if ((fileCount == 1) && (size < JournalManager.ROLLOVER_THRESHOLD)) {
                     break;
                 }
             } else {
@@ -1455,16 +1467,18 @@ public class Persistit {
      */
     private Volume getSpecialVolume(final String propName, final String dflt) throws VolumeNotFoundException {
         final String volumeName = _configuration.getSysVolume();
+        synchronized (_volumes) {
 
-        Volume volume = getVolume(volumeName);
-        if (volume == null) {
-            if ((_volumes.size() == 1) && (volumeName.equals(dflt))) {
-                volume = _volumes.get(0);
-            } else {
-                throw new VolumeNotFoundException(volumeName);
+            Volume volume = getVolume(volumeName);
+            if (volume == null) {
+                if ((_volumes.size() == 1) && (volumeName.equals(dflt))) {
+                    volume = _volumes.get(0);
+                } else {
+                    throw new VolumeNotFoundException(volumeName);
+                }
             }
+            return volume;
         }
-        return volume;
     }
 
     /**
@@ -1629,12 +1643,7 @@ public class Persistit {
 
             getTransaction().close();
             cleanup();
-
-            final List<Volume> volumes;
-            synchronized (this) {
-                volumes = new ArrayList<Volume>(_volumes);
-            }
-
+            final List<Volume> volumes = getVolumes();
             if (flush) {
                 for (final Volume volume : volumes) {
                     volume.getStorage().flush();
@@ -1700,12 +1709,14 @@ public class Persistit {
         final long expires = System.currentTimeMillis() + timeout;
         boolean remaining = false;
         do {
-            final Set<SessionId> sessionIds;
+            final Map<SessionId, Transaction> copy;
             synchronized (_transactionSessionMap) {
-                sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
+                copy = new HashMap<SessionId, Transaction>(_transactionSessionMap);
             }
-            for (final SessionId sessionId : sessionIds) {
-                if (sessionId.isAlive()) {
+            for (final Entry<SessionId, Transaction> entry : copy.entrySet()) {
+                final SessionId sessionId = entry.getKey();
+                final Transaction txn = entry.getValue();
+                if (sessionId.isAlive() && txn.isActive()) {
                     if (sessionId.interrupt()) {
                         _logBase.interruptedAtClose.log(sessionId.ownerName());
                     }
@@ -1736,7 +1747,7 @@ public class Persistit {
         // the volume files - otherwise there will be left over channels
         // and FileLocks that interfere with subsequent tests.
         //
-        final List<Volume> volumes = new ArrayList<Volume>(_volumes);
+        final List<Volume> volumes = getVolumes();
         for (final Volume volume : volumes) {
             try {
                 volume.getStorage().close();
@@ -1805,8 +1816,11 @@ public class Persistit {
         synchronized (_accumulators) {
             _accumulators.clear();
         }
-        synchronized (this) {
+        synchronized (_volumes) {
             _volumes.clear();
+        }
+
+        synchronized (this) {
             _alertMonitors.clear();
             _bufferPoolTable.clear();
             _intArrayThreadLocal.set(null);
@@ -1848,7 +1862,8 @@ public class Persistit {
         if (_closed.get() || !_initialized.get()) {
             return false;
         }
-        for (final Volume volume : _volumes) {
+        final List<Volume> volumes = getVolumes();
+        for (final Volume volume : volumes) {
             volume.getStorage().flush();
             volume.getStorage().force();
         }
@@ -1874,17 +1889,10 @@ public class Persistit {
         }
     }
 
-    void flushStatistics() {
-        try {
-            final List<Volume> volumes;
-            // synchronized (this) {
-            volumes = new ArrayList<Volume>(_volumes);
-            // }
-            for (final Volume volume : volumes) {
-                volume.getStructure().flushStatistics();
-            }
-        } catch (final Exception e) {
-            _logBase.exception.log(e);
+    void flushStatistics() throws PersistitException {
+        final List<Volume> volumes = getVolumes();
+        for (final Volume volume : volumes) {
+            volume.getStructure().flushStatistics();
         }
     }
 
@@ -1920,7 +1928,7 @@ public class Persistit {
         if (_closed.get() || !_initialized.get()) {
             return;
         }
-        final ArrayList<Volume> volumes = _volumes;
+        final List<Volume> volumes = getVolumes();
 
         for (int index = 0; index < volumes.size(); index++) {
             final Volume volume = volumes.get(index);
@@ -2270,8 +2278,9 @@ public class Persistit {
      */
     public void checkAllVolumes() throws PersistitException {
         final IntegrityCheck icheck = new IntegrityCheck(this);
-        for (int index = 0; index < _volumes.size(); index++) {
-            final Volume volume = _volumes.get(index);
+        final List<Volume> volumes = getVolumes();
+        for (int index = 0; index < volumes.size(); index++) {
+            final Volume volume = volumes.get(index);
             System.out.println("Checking " + volume + " ");
             try {
                 icheck.checkVolume(volume);
