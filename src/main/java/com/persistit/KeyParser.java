@@ -218,7 +218,7 @@ public class KeyParser {
      * successful, append the segment to the key.
      * 
      * @param key
-     * @return
+     * @return <code>true</code> a valid key segment was parsed
      */
     private boolean parseKeySegment(final Key key) {
         final int index = _index;

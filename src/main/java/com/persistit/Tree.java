@@ -274,8 +274,8 @@ public class Tree extends SharedResource {
     }
 
     /**
-     * Assign are set the tree handle. The tree must may not be a member of a
-     * temporary volume.
+     * Set the tree handle. The tree must may not be a member of a temporary
+     * volume.
      * 
      * @throws PersistitException
      */
@@ -332,7 +332,7 @@ public class Tree extends SharedResource {
      * only once.
      * 
      * @param handle
-     * @return
+     * @return the handle
      * @throws IllegalStateException
      *             if the handle has already been set
      */

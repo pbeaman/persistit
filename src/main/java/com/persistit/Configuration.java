@@ -909,7 +909,7 @@ public class Configuration {
      *            Properties containing substitution values
      * @param depth
      *            Count of recursive calls - maximum depth is 20.
-     * @return
+     * @return String value resulting from substitutions
      */
     String substituteProperties(String text, final Properties properties, final int depth) {
         int p = text.indexOf("${");

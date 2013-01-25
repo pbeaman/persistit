@@ -1219,7 +1219,7 @@ public class Buffer extends SharedResource {
      * @param key
      * @param mode
      * @param foundAt
-     * @return
+     * @return foundAt value
      */
     int traverse(final Key key, final Key.Direction mode, final int foundAt) {
         final boolean exactMatch = (foundAt & EXACT_MASK) > 0;
@@ -1239,7 +1239,7 @@ public class Buffer extends SharedResource {
      * 
      * @param key
      * @param foundAt
-     * @return
+     * @return foundAt value
      */
     int previousKey(final Key key, final int foundAt) {
         int p = (foundAt & P_MASK) - KEYBLOCK_LENGTH;
@@ -1312,7 +1312,7 @@ public class Buffer extends SharedResource {
      * 
      * @param key
      * @param foundAt
-     * @return
+     * @return foundAt value
      */
     int nextKey(final Key key, final int foundAt) {
         int p = foundAt & P_MASK;
@@ -1347,7 +1347,7 @@ public class Buffer extends SharedResource {
      * 
      * @param value
      * @param foundAt
-     * @return
+     * @return foundAt value
      */
     int nextLongRecord(final Value value, final int foundAt) {
         Debug.$assert0.t(isDataPage());
@@ -1568,7 +1568,7 @@ public class Buffer extends SharedResource {
      * been inserted or removed.
      * 
      * @param p
-     * @return
+     * @return when key is adjacent
      */
     private boolean adjacentKeyCheck(int p) {
         p &= P_MASK;
@@ -3595,7 +3595,8 @@ public class Buffer extends SharedResource {
      * 
      * @param tree
      * @param spareKey
-     * @return
+     * @return <code>true</code> if this method changed the contents of the
+     *         buffer
      * @throws PersistitException
      */
     boolean pruneMvvValues(final Tree tree, final boolean pruneLongMVVs) throws PersistitException {
@@ -3814,7 +3815,7 @@ public class Buffer extends SharedResource {
         System.arraycopy(bytes, offset, value.getEncodedBytes(), 0, oldSize);
         value.setEncodedSize(oldSize);
         final LongRecordHelper helper = new LongRecordHelper(_persistit, _vol);
-        helper.fetchLongRecord(value, Integer.MAX_VALUE);
+        helper.fetchLongRecord(value, Integer.MAX_VALUE, SharedResource.DEFAULT_MAX_WAIT_TIME);
         final byte[] rawBytes = value.getEncodedBytes();
         final int oldLongSize = value.getEncodedSize();
         // TODO - perhaps remove. Done as a precaution for now.

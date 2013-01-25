@@ -1748,7 +1748,7 @@ public final class Key implements Comparable<Object> {
      * @param v
      * @param bytes
      * @param offset
-     * @return
+     * @return size of appended segment
      */
     private int appendIntInternal(final int v) {
         int size = _size;

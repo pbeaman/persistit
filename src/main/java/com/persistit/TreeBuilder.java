@@ -657,7 +657,8 @@ public class TreeBuilder {
      * @param key
      * @param v1
      * @param v2
-     * @return
+     * @return If <code>true</code>, the resulting value is v2. If
+     *         <code>false</code>, the resulting value is v1.
      * @throws DuplicateKeyException
      *             if a key being inserted or merged matches a key already
      *             exists

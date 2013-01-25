@@ -285,6 +285,8 @@ public class Persistit {
 
     private final ThreadLocal<SoftReference<Value>> _valueThreadLocal = new ThreadLocal<SoftReference<Value>>();
 
+    private volatile Volume _lockVolume;
+
     /**
      * Construct a hollow Persistit instance. To be useful, the instance must
      * receive a <code>Configuration</code> through one of the methods
@@ -1285,6 +1287,20 @@ public class Persistit {
     }
 
     /**
+     * @return reserved temporary volume for locks
+     * @throws PersistitException
+     */
+    public synchronized Volume getLockVolume() throws PersistitException {
+        checkInitialized();
+        checkClosed();
+        if (_lockVolume == null) {
+            _lockVolume = createTemporaryVolume();
+            _lockVolume.setHandle(Volume.LOCK_VOLUME_HANDLE);
+        }
+        return _lockVolume;
+    }
+
+    /**
      * @return The {@link SplitPolicy} that will by applied by default to newly
      *         created or allocated {@link Exchange}s.
      */
@@ -1707,7 +1723,7 @@ public class Persistit {
             for (final Entry<SessionId, Transaction> entry : copy.entrySet()) {
                 final SessionId sessionId = entry.getKey();
                 final Transaction txn = entry.getValue();
-                if (sessionId.isAlive() && txn.isActive() ) {
+                if (sessionId.isAlive() && txn.isActive()) {
                     if (sessionId.interrupt()) {
                         _logBase.interruptedAtClose.log(sessionId.ownerName());
                     }
@@ -1918,6 +1934,12 @@ public class Persistit {
             }
         }
         _journalManager.force();
+    }
+
+    void checkInitialized() throws PersistitClosedException, PersistitInterruptedException {
+        if (!isInitialized()) {
+            throw new PersistitClosedException();
+        }
     }
 
     void checkClosed() throws PersistitClosedException, PersistitInterruptedException {
