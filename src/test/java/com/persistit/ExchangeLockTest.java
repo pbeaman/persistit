@@ -254,6 +254,8 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
         assertTrue(count2 < count1);
         _persistit.getTransactionIndex().updateActiveTransactionCache();
         _persistit.getCleanupManager().poll();
+        _persistit.getTransactionIndex().updateActiveTransactionCache();
+        _persistit.getCleanupManager().poll();
 
         final int count3 = keyCount(lockExchange);
         assertEquals(0, count3);
