@@ -74,10 +74,6 @@ public class StreamLoader extends Task {
         return task;
     }
 
-    private class LoaderContext {
-
-    }
-
     /**
      * Package-private constructor for use in a {@link Task}.
      * 
