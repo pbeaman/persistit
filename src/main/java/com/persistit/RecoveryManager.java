@@ -224,9 +224,11 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     private final TransactionPlayer _player = new TransactionPlayer(new RecoveryTransactionPlayerSupport());
 
     static class DefaultRecoveryListener implements TransactionPlayerListener {
+
         @Override
         public void store(final long address, final long timestamp, final Exchange exchange) throws PersistitException {
-            if (exchange.getValue().getTypeHandle() != Value.CLASS_TREE) {
+            if (!isDirectoryExchange(exchange) || !exchange.getValue().isDefined()
+                    || exchange.getValue().getTypeHandle() != Value.CLASS_TREE) {
                 exchange.store();
             }
         }
@@ -234,7 +236,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         @Override
         public void removeKeyRange(final long address, final long timestamp, final Exchange exchange, final Key from,
                 final Key to) throws PersistitException {
-            if (exchange.getTree() != exchange.getVolume().getStructure().getDirectoryTree()) {
+            if (!isDirectoryExchange(exchange)) {
                 exchange.raw_removeKeyRangeInternal(from, to, false, false);
             }
         }
@@ -282,6 +284,10 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         @Override
         public boolean createTree(final long timestamp) throws PersistitException {
             return true;
+        }
+
+        private boolean isDirectoryExchange(final Exchange exchange) {
+            return exchange.getTree() == exchange.getVolume().getStructure().getDirectoryTree();
         }
 
     }
