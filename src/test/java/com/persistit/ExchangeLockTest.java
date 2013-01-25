@@ -244,21 +244,21 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
 
         final Exchange lockExchange = new Exchange(_persistit.getLockVolume().getTree("ExchangeLockTest", false));
         lockExchange.ignoreMVCCFetch(true);
-        
+
         final int count1 = keyCount(lockExchange);
         assertTrue(count1 > 0);
-        
+
         for (int i = 0; i < 10000; i++) {
             lockExchange.clear().append(i).append(RED_FOX).prune();
         }
 
         final int count2 = keyCount(lockExchange);
         assertTrue(count2 < count1);
-        
+
         _persistit.getTransactionIndex().updateActiveTransactionCache();
         _persistit.getJournalManager().pruneObsoleteTransactions();
         _persistit.getCleanupManager().poll();
-        
+
         final int count3 = keyCount(lockExchange);
         assertEquals(0, count3);
 
