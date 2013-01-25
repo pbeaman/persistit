@@ -149,6 +149,7 @@ public class TreeBuilder {
     private final static int STREAM_SIZE = 1024 * 1024;
 
     private final String _name;
+    private final long _uniqueId;
     private final Persistit _persistit;
     private final List<File> _directories = new ArrayList<File>();
     private final int _pageSize;
@@ -314,7 +315,8 @@ public class TreeBuilder {
     }
 
     public TreeBuilder(final Persistit persistit, final String name, final int pageSize, final float bufferPoolFraction) {
-        _name = name + "_" + persistit.unique();
+        _name = name;
+        _uniqueId = persistit.unique();
         _persistit = persistit;
         _pageSize = pageSize == -1 ? computePageSize(persistit) : pageSize;
         final int bufferCount = _persistit.getBufferPool(_pageSize).getBufferCount();
@@ -653,7 +655,6 @@ public class TreeBuilder {
             finishSortVolume();
         }
         if (_sortVolume == null) {
-            _sortVolume = _persistit.createTemporaryVolume(_pageSize);
             final File directory;
             if (_directories.isEmpty()) {
                 String directoryName = _persistit.getConfiguration().getTmpVolDir();
@@ -668,9 +669,8 @@ public class TreeBuilder {
             } else {
                 directory = _directories.get(_sortFileIndex % _directories.size());
             }
-
             _sortVolume = Volume.createTemporaryVolume(_persistit, _pageSize, directory);
-            _sortFile = new File(directory, String.format("%s.%06d", _name, _sortFileIndex));
+            _sortFile = new File(directory, String.format("%s_%d.%06d", _name, _uniqueId, _sortFileIndex));
             final Node node = new Node(_sortFile, _sortFileIndex);
             _sortNodes.add(node);
             _sortFileIndex++;
