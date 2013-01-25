@@ -248,6 +248,8 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
         final int count1 = keyCount(lockExchange);
         assertTrue(count1 > 0);
 
+        _persistit.getTransactionIndex().updateActiveTransactionCache();
+
         for (int i = 0; i < 10000; i++) {
             lockExchange.clear().append(i).append(RED_FOX).prune();
         }
@@ -255,8 +257,6 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
         final int count2 = keyCount(lockExchange);
         assertTrue(count2 < count1);
 
-        _persistit.getTransactionIndex().updateActiveTransactionCache();
-        _persistit.getJournalManager().pruneObsoleteTransactions();
         _persistit.getCleanupManager().poll();
 
         final int count3 = keyCount(lockExchange);
