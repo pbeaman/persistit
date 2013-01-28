@@ -227,18 +227,13 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
         @Override
         public void store(final long address, final long timestamp, final Exchange exchange) throws PersistitException {
-            if (!isDirectoryExchange(exchange) || !exchange.getValue().isDefined()
-                    || exchange.getValue().getTypeHandle() != Value.CLASS_TREE) {
-                exchange.store();
-            }
+            exchange.store();
         }
 
         @Override
         public void removeKeyRange(final long address, final long timestamp, final Exchange exchange, final Key from,
                 final Key to) throws PersistitException {
-            if (!isDirectoryExchange(exchange)) {
-                exchange.raw_removeKeyRangeInternal(from, to, false, false);
-            }
+            exchange.raw_removeKeyRangeInternal(from, to, false, false);
         }
 
         @Override
@@ -285,11 +280,6 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         public boolean createTree(final long timestamp) throws PersistitException {
             return true;
         }
-
-        private boolean isDirectoryExchange(final Exchange exchange) {
-            return exchange.getTree() == exchange.getVolume().getStructure().getDirectoryTree();
-        }
-
     }
 
     class DefaultRollbackListener implements TransactionPlayerListener {

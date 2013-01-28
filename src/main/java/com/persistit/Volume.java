@@ -48,6 +48,8 @@ import com.persistit.util.Util;
  */
 public class Volume {
 
+    final static int LOCK_VOLUME_HANDLE = Integer.MAX_VALUE;
+
     private final String _name;
     private long _id;
     private final AtomicBoolean _closing = new AtomicBoolean();
@@ -336,6 +338,10 @@ public class Volume {
         return getStorage().isTemp();
     }
 
+    boolean isLockVolume() {
+        return getHandle() == LOCK_VOLUME_HANDLE;
+    }
+
     /**
      * @return The size in bytes of one page in this <code>Volume</code>.
      */
@@ -546,7 +552,7 @@ public class Volume {
      * only once.
      * 
      * @param handle
-     * @return
+     * @return the handle
      * @throws IllegalStateException
      *             if the handle has already been set
      */

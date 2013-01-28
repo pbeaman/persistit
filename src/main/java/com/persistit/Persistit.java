@@ -288,6 +288,8 @@ public class Persistit {
 
     private final ThreadLocal<SoftReference<Value>> _valueThreadLocal = new ThreadLocal<SoftReference<Value>>();
 
+    private volatile Volume _lockVolume;
+
     /**
      * Construct a hollow Persistit instance. To be useful, the instance must
      * receive a <code>Configuration</code> through one of the methods
@@ -1011,17 +1013,15 @@ public class Persistit {
      */
     public List<Tree> getSelectedTrees(final TreeSelector selector) throws PersistitException {
         final List<Tree> list = new ArrayList<Tree>();
-        synchronized (_volumes) {
-
-            for (final Volume volume : _volumes) {
-                if (selector.isSelected(volume)) {
-                    if (selector.isVolumeOnlySelection(volume.getName())) {
-                        list.add(volume.getDirectoryTree());
-                    } else {
-                        for (final String treeName : volume.getTreeNames()) {
-                            if (selector.isTreeNameSelected(volume.getName(), treeName)) {
-                                list.add(volume.getTree(treeName, false));
-                            }
+        final List<Volume> volumes = getVolumes();
+        for (final Volume volume : volumes) {
+            if (selector.isSelected(volume)) {
+                if (selector.isVolumeOnlySelection(volume.getName())) {
+                    list.add(volume.getDirectoryTree());
+                } else {
+                    for (final String treeName : volume.getTreeNames()) {
+                        if (selector.isTreeNameSelected(volume.getName(), treeName)) {
+                            list.add(volume.getTree(treeName, false));
                         }
                     }
                 }
@@ -1247,36 +1247,34 @@ public class Persistit {
         if (name == null) {
             throw new NullPointerException("Null volume name");
         }
-        synchronized (_volumes) {
-            Volume result = null;
-
-            for (int i = 0; i < _volumes.size(); i++) {
-                final Volume vol = _volumes.get(i);
-                if (name.equals(vol.getName())) {
-                    if (result == null)
-                        result = vol;
-                    else {
-                        return null;
-                    }
+        final List<Volume> volumes = getVolumes();
+        Volume result = null;
+        for (int i = 0; i < volumes.size(); i++) {
+            final Volume vol = volumes.get(i);
+            if (name.equals(vol.getName())) {
+                if (result == null)
+                    result = vol;
+                else {
+                    return null;
                 }
             }
-            if (result != null) {
-                return result;
-            }
-
-            final File file = new File(name).getAbsoluteFile();
-            for (int i = 0; i < _volumes.size(); i++) {
-                final Volume vol = _volumes.get(i);
-                if (file.equals(vol.getAbsoluteFile())) {
-                    if (result == null)
-                        result = vol;
-                    else {
-                        return null;
-                    }
-                }
-            }
+        }
+        if (result != null) {
             return result;
         }
+
+        final File file = new File(name).getAbsoluteFile();
+        for (int i = 0; i < volumes.size(); i++) {
+            final Volume vol = volumes.get(i);
+            if (file.equals(vol.getAbsoluteFile())) {
+                if (result == null)
+                    result = vol;
+                else {
+                    return null;
+                }
+            }
+        }
+        return result;
     }
 
     /**
@@ -1300,6 +1298,20 @@ public class Persistit {
      */
     public Volume getSystemVolume() throws VolumeNotFoundException {
         return getSpecialVolume(SYSTEM_VOLUME_PROPERTY_NAME, DEFAULT_SYSTEM_VOLUME_NAME);
+    }
+
+    /**
+     * @return reserved temporary volume for locks
+     * @throws PersistitException
+     */
+    public synchronized Volume getLockVolume() throws PersistitException {
+        checkInitialized();
+        checkClosed();
+        if (_lockVolume == null) {
+            _lockVolume = createTemporaryVolume();
+            _lockVolume.setHandle(Volume.LOCK_VOLUME_HANDLE);
+        }
+        return _lockVolume;
     }
 
     /**
@@ -1468,15 +1480,14 @@ public class Persistit {
     private Volume getSpecialVolume(final String propName, final String dflt) throws VolumeNotFoundException {
         final String volumeName = _configuration.getSysVolume();
         synchronized (_volumes) {
-
-            Volume volume = getVolume(volumeName);
-            if (volume == null) {
-                if ((_volumes.size() == 1) && (volumeName.equals(dflt))) {
-                    volume = _volumes.get(0);
-                } else {
-                    throw new VolumeNotFoundException(volumeName);
-                }
+            if ((_volumes.size() == 1) && (volumeName.equals(dflt))) {
+                return _volumes.get(0);
             }
+        }
+        final Volume volume = getVolume(volumeName);
+        if (volume == null) {
+            throw new VolumeNotFoundException(volumeName);
+        } else {
             return volume;
         }
     }
@@ -1937,6 +1948,12 @@ public class Persistit {
             }
         }
         _journalManager.force();
+    }
+
+    void checkInitialized() throws PersistitClosedException, PersistitInterruptedException {
+        if (!isInitialized()) {
+            throw new PersistitClosedException();
+        }
     }
 
     void checkClosed() throws PersistitClosedException, PersistitInterruptedException {

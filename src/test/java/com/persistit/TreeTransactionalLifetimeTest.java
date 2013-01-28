@@ -66,10 +66,11 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
         assertEquals("There should be no tree", null, tree("ttlt"));
         assertTrue(vstruc().getGarbageRoot() != 0);
     }
-    
+
     @Test
     public void createdTreeIsNotVisibleUntilCommit() throws Exception {
-        Thread t = new Thread(new TExec() {
+        final Thread t = new Thread(new TExec() {
+            @Override
             void exec(final Transaction txn) throws Exception {
                 final Exchange ex1 = exchange("ttlt");
                 ex1.getValue().put(RED_FOX);
@@ -84,19 +85,19 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
         assertEquals(null, _persistit.getVolume("persistit").getTree("ttlt", false));
         semB.release();
         t.join();
-        
+
         final Exchange ex = exchange("ttlt");
         assertTrue(ex.to(Key.BEFORE).next());
         assertEquals(1, ex.getKey().decodeInt());
     }
-        
 
     @Test
     public void removeTreeIsNotVisibleUntilCommit() throws Exception {
         final Exchange ex = exchange("ttlt");
         ex.getValue().put(RED_FOX);
         ex.to(1).store();
-        Thread t = new Thread(new TExec() {
+        final Thread t = new Thread(new TExec() {
+            @Override
             void exec(final Transaction txn) throws Exception {
                 final Exchange ex1 = exchange("ttlt");
                 ex1.removeTree();
@@ -112,14 +113,15 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
         t.join();
         assertNull(ex.getVolume().getTree("ttlt", false));
     }
-    
+
     @Test
     public void removeCreateRemove() throws Exception {
-        
+
         final Exchange ex = exchange("ttlt");
         ex.getValue().put(RED_FOX);
         ex.to(1).store();
-        Thread t = new Thread(new TExec() {
+        final Thread t = new Thread(new TExec() {
+            @Override
             void exec(final Transaction txn) throws Exception {
                 final Exchange ex1 = exchange("ttlt");
                 ex1.removeTree();
@@ -155,18 +157,19 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
 
     abstract class TExec implements Runnable {
 
+        @Override
         public void run() {
+            try {
+                final Transaction txn = _persistit.getTransaction();
+                txn.begin();
                 try {
-                    final Transaction txn = _persistit.getTransaction();
-                    txn.begin();
-                    try {
-                        exec(txn);
-                    } finally {
-                        txn.end();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    exec(txn);
+                } finally {
+                    txn.end();
                 }
+            } catch (final Exception e) {
+                e.printStackTrace();
+            }
         }
 
         abstract void exec(final Transaction txn) throws Exception;

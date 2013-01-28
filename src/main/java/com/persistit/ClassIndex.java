@@ -101,6 +101,11 @@ final class ClassIndex {
     }
 
     void initialize() throws PersistitException {
+        /*
+         * Called during Persistit initialization. This has the desired
+         * side-effect of the class index tree outside of a transaction so that
+         * its existence is primordial.
+         */
         getExchange();
     }
 

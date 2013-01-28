@@ -60,7 +60,8 @@ class LongRecordHelper {
      * @param minimumBytesToFetch
      * @throws PersistitException
      */
-    void fetchLongRecord(final Value value, final int minimumBytesToFetch) throws PersistitException {
+    void fetchLongRecord(final Value value, final int minimumBytesToFetch, final long timeout)
+            throws PersistitException {
 
         Buffer buffer = null;
 
@@ -93,7 +94,7 @@ class LongRecordHelper {
                     corrupt("Invalid LONG_RECORD remaining size=" + remainingSize + " of " + rawSize + " in page "
                             + page);
                 }
-                buffer = _volume.getPool().get(_volume, page, false, true);
+                buffer = _volume.getPool().get(_volume, page, false, true, timeout);
                 if (buffer.getPageType() != PAGE_TYPE_LONG_RECORD) {
                     corrupt("LONG_RECORD chain is invalid at page " + page + " - invalid page type: " + buffer);
                 }
