@@ -37,9 +37,8 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.VolumeNotFoundException;
 
 /**
- * 
  * Read and apply transaction from the journal to the live database. To apply a
- * transaction, this class calls methods of a
+ * transaction, this class calls methods of a TransactionPlayerListener.
  */
 
 class TransactionPlayer {
@@ -298,6 +297,24 @@ class TransactionPlayer {
         return String.format("JournalAddress %,d{%,d}", address, timestamp);
     }
 
+    /**
+     * Returns an Exchange on which an operation can be applied or rolled back.
+     * For a {@link TransactionPlayerListener} that performs roll backs, it is
+     * important not to create a new tree when none exists. Therefore this
+     * method may return <code>null</code> to indicate that no tree exists and
+     * therefore the requested operation should be ignored. Whether to create a
+     * new tree is determined by the
+     * {@link TransactionPlayerListener#createTree(long)} method.
+     * 
+     * @param treeHandle
+     * @param from
+     * @param timestamp
+     * @param listener
+     * @return the <code>Exchange</code> on which a recovery operation should be
+     *         applied, or <code>null</code> if there is no backing
+     *         <code>Tree</code>.
+     * @throws PersistitException
+     */
     private Exchange getExchange(final int treeHandle, final long from, final long timestamp,
             final TransactionPlayerListener listener) throws PersistitException {
         final TreeDescriptor td = _support.getPersistit().getJournalManager().lookupTreeHandle(treeHandle);

@@ -270,10 +270,6 @@ abstract class SharedResource {
         return writer ? _sync.isAvailable(_sync.state()) : _sync.isAvailableShared(_sync.state());
     }
 
-    Persistit getPersistit() {
-        return _persistit;
-    }
-
     boolean isDirty() {
         return _sync.testBitsInState(DIRTY_MASK);
     }
