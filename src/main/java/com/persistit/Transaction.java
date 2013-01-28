@@ -1113,7 +1113,7 @@ public class Transaction {
     void store(final Exchange exchange, final Key key, final Value value) throws PersistitException {
         if (_nestedDepth > 0) {
             checkPendingRollback();
-            if (isDirectoryExchange(exchange) && exchange.getValue().isDefined()
+            if (exchange.isDirectoryExchange() && exchange.getValue().isDefined()
                     && exchange.getValue().getTypeHandle() == Value.CLASS_TREE) {
                 /*
                  * Don't store tree structure updates within transactions
@@ -1138,7 +1138,7 @@ public class Transaction {
     void remove(final Exchange exchange, final Key key1, final Key key2) throws PersistitException {
         if (_nestedDepth > 0) {
             checkPendingRollback();
-            if (isDirectoryExchange(exchange)) {
+            if (exchange.isDirectoryExchange()) {
                 /*
                  * Don't store directory tree updates because they are implied
                  * by Remove Tree records in the journal.
@@ -1147,10 +1147,6 @@ public class Transaction {
             }
             writeDeleteRecordToJournal(treeHandle(exchange.getTree()), key1, key2);
         }
-    }
-
-    private boolean isDirectoryExchange(final Exchange exchange) {
-        return exchange.getTree() == exchange.getVolume().getStructure().getDirectoryTree();
     }
 
     /**
