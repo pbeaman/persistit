@@ -1,5 +1,5 @@
 /**
- * Copyright © 2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright © 2013 Akiban Technologies, Inc.  All rights reserved.
  * 
  * This program and the accompanying materials are made available
  * under the terms of the Eclipse Public License v1.0 which
@@ -244,15 +244,19 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
 
         final Exchange lockExchange = new Exchange(_persistit.getLockVolume().getTree("ExchangeLockTest", false));
         lockExchange.ignoreMVCCFetch(true);
+
         final int count1 = keyCount(lockExchange);
         assertTrue(count1 > 0);
+
+        _persistit.getTransactionIndex().updateActiveTransactionCache();
+
         for (int i = 0; i < 10000; i++) {
             lockExchange.clear().append(i).append(RED_FOX).prune();
         }
 
         final int count2 = keyCount(lockExchange);
         assertTrue(count2 < count1);
-        _persistit.getTransactionIndex().updateActiveTransactionCache();
+
         _persistit.getCleanupManager().poll();
 
         final int count3 = keyCount(lockExchange);

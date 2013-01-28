@@ -2753,6 +2753,19 @@ public class Exchange implements ReadOnlyExchange {
     }
 
     /**
+     * Invoke {@link #lock(Key, long)} with the supplied key and a default
+     * timeout value of
+     * {@value com.persistit.SharedResource#DEFAULT_MAX_WAIT_TIME} milliseconds.
+     * 
+     * @param key
+     *            The key to lock
+     * @throws PersistitException
+     */
+    public void lock(final Key key) throws PersistitException {
+        lock(key, SharedResource.DEFAULT_MAX_WAIT_TIME);
+    }
+
+    /**
      * <p>
      * Within a transaction, enforces a constraint that no other concurrent
      * transaction also successfully locks the same key. This method must run
@@ -2770,8 +2783,10 @@ public class Exchange implements ReadOnlyExchange {
      * be associated with an actual storage location, but which is designed to
      * conflict with any other transaction that could participate in a write
      * skew. Thus the operation serves as a way of ensuring serializable
-     * execution of transactions that could otherwise experience write skew.
-     * </p>
+     * execution of transactions that could otherwise experience write skew. A
+     * key specified in this method is local to the <code>Exchange</code>'s
+     * current {@link Tree}. Two concurrent threads locking the same key in
+     * different trees do not have a write-write dependency. </p>
      * <p>
      * This method does not actually use any locking mechanism; rather, it
      * creates a write-write conflict with another transaction when both
@@ -2799,14 +2814,14 @@ public class Exchange implements ReadOnlyExchange {
      * <p>
      * As part of the normal MVCC process, if this method detects a potentially
      * conflicting lock written by another active concurrent transaction, this
-     * transaction waits until the other transaction either commits or aborts.
-     * To prevent an unbounded wait time this method accepts a timeout value in
-     * milliseconds. If the potentially conflicting transaction neither commits
-     * nor aborts during the timeout interval, this method throws a
-     * <code>RollbackException</code>. In the event this method attempts to
-     * enter a deadlock state with another current transaction; the potential
-     * deadlock is detected immediately and this method immediately throws a
-     * <code>RollbackException</code>.
+     * transaction waits until the other transaction either commits or aborts,
+     * or until the timeout interval expires. To prevent an unbounded wait time
+     * this method accepts a timeout value in milliseconds. If the potentially
+     * conflicting transaction neither commits nor aborts during the timeout
+     * interval, this method throws a <code>RollbackException</code>. In the
+     * event this method attempts to enter a deadlock state with another current
+     * transaction; the potential deadlock is detected immediately and this
+     * method immediately throws a <code>RollbackException</code>.
      * </p>
      * 
      * @param lockKey
@@ -2832,7 +2847,7 @@ public class Exchange implements ReadOnlyExchange {
          * Lock table trees need tree handles for pruning
          */
         _persistit.getJournalManager().handleForTree(lockExchange.getTree());
-        lockExchange.setTimeoutMillis(timeout == 0 ? getTimeoutMillis() : timeout);
+        lockExchange.setTimeoutMillis(timeout);
         lockKey.copyTo(lockExchange.getKey());
         lockExchange.getKey().testValidForStoreAndFetch(_pool.getBufferSize());
         lockExchange.getValue().clear().putAntiValueMVV();
@@ -4293,9 +4308,10 @@ public class Exchange implements ReadOnlyExchange {
      * Set the standard timeout for this <code>Exchange</code>. The timeout
      * value represents an approximate upper bound on the wait time for various
      * methods that wait for actions by other threads. For example, if a thread
-     * needs to read a value from a {@link Buffer} that is currently be updated
-     * by another thread, the read operation waits up to <code>timeout</code>
-     * milliseconds for the other thread to release the <code>Buffer</code>.
+     * needs to read a value from a {@link Buffer} that is currently being
+     * updated by another thread, the read operation waits up to
+     * <code>timeout</code> milliseconds for the other thread to release the
+     * <code>Buffer</code>.
      * </p>
      * <p>
      * The timeout value is advisory, and some operations may stall for a longer
@@ -4303,9 +4319,8 @@ public class Exchange implements ReadOnlyExchange {
      * real-time behavior.
      * </p>
      * <p>
-     * The supplied value must be non-negative. If it is zero, the default
-     * timeout value {@value com.persistit.SharedResource#DEFAULT_MAX_WAIT_TIME}
-     * milliseconds is set.
+     * The supplied value must be greater than or equal to zero. Zero means do
+     * not wait.
      * </p>
      * 
      * @param timeout
@@ -4313,13 +4328,7 @@ public class Exchange implements ReadOnlyExchange {
      *            wait.
      */
     public void setTimeoutMillis(final long timeout) {
-        if (timeout == 0) {
-            _timeoutMillis = SharedResource.DEFAULT_MAX_WAIT_TIME;
-        } else {
-            // Clipping this to avoid potential overflows when computing
-            // intervals
-            _timeoutMillis = Util.rangeCheck(timeout, 0, Math.max(timeout, Long.MAX_VALUE / 2));
-        }
+        _timeoutMillis = Util.rangeCheck(timeout, 0, Long.MAX_VALUE);
     }
 
     /**

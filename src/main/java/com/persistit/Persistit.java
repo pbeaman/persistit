@@ -1294,6 +1294,8 @@ public class Persistit {
      * @throws PersistitException
      */
     public synchronized Volume getLockVolume() throws PersistitException {
+        checkInitialized();
+        checkClosed();
         if (_lockVolume == null) {
             _lockVolume = createTemporaryVolume();
             _lockVolume.setHandle(Volume.LOCK_VOLUME_HANDLE);
@@ -1935,6 +1937,12 @@ public class Persistit {
             }
         }
         _journalManager.force();
+    }
+
+    void checkInitialized() throws PersistitClosedException, PersistitInterruptedException {
+        if (!isInitialized()) {
+            throw new PersistitClosedException();
+        }
     }
 
     void checkClosed() throws PersistitClosedException, PersistitInterruptedException {
