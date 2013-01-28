@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.management.InstanceNotFoundException;
@@ -284,6 +285,8 @@ public class Persistit {
     private final ThreadLocal<SoftReference<Key>> _keyThreadLocal = new ThreadLocal<SoftReference<Key>>();
 
     private final ThreadLocal<SoftReference<Value>> _valueThreadLocal = new ThreadLocal<SoftReference<Value>>();
+
+    private final AtomicLong _uniqueCounter = new AtomicLong();
 
     private volatile Volume _lockVolume;
 
@@ -2511,6 +2514,10 @@ public class Persistit {
         final Value value = new Value(this);
         _valueThreadLocal.set(new SoftReference<Value>(value));
         return value;
+    }
+
+    long unique() {
+        return _uniqueCounter.incrementAndGet();
     }
 
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",

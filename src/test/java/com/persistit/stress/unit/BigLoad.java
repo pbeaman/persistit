@@ -15,6 +15,7 @@
 
 package com.persistit.stress.unit;
 
+import java.io.File;
 import java.util.Random;
 
 import com.persistit.Exchange;
@@ -23,6 +24,7 @@ import com.persistit.Persistit;
 import com.persistit.Tree;
 import com.persistit.TreeBuilder;
 import com.persistit.Value;
+import com.persistit.Volume;
 import com.persistit.stress.AbstractStressTest;
 import com.persistit.util.ArgParser;
 import com.persistit.util.Util;
@@ -68,7 +70,7 @@ public class BigLoad extends AbstractStressTest {
             tb.store(resultExchange);
         }
         final long endLoadTime = System.nanoTime();
-        System.out.printf("Loaded %,d records into %,d buckets in %,dms\n", totalRecords, tb.getSortVolumeCount(),
+        System.out.printf("Loaded %,d records into %,d buckets in %,dms\n", totalRecords, tb.getSortFileCount(),
                 (endLoadTime - startLoadTime) / Util.NS_PER_MS);
         return endLoadTime - startLoadTime;
     }
@@ -154,6 +156,11 @@ public class BigLoad extends AbstractStressTest {
 
         public BigLoadTreeBuilder(final Persistit db) {
             super(db);
+        }
+
+        @Override
+        protected void beforeSortVolumeClosed(final Volume volume, final File file) {
+            System.out.printf("Saving sort volume %s to file %s\n", volume, file);
         }
 
         @Override
