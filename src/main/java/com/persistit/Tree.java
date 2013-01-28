@@ -85,12 +85,12 @@ public class Tree extends SharedResource {
     private final AtomicReference<Object> _appCache = new AtomicReference<Object>();
     private final AtomicInteger _handle = new AtomicInteger();
 
-    private final TimelyResource<Tree, TreeVersion> _timelyResource;
+    private final TimelyResource<TreeVersion> _timelyResource;
 
-    private final VersionCreator<Tree, TreeVersion> _creator = new VersionCreator<Tree, TreeVersion>() {
+    private final VersionCreator<TreeVersion> _creator = new VersionCreator<TreeVersion>() {
 
         @Override
-        public TreeVersion createVersion(final TimelyResource<Tree, ? extends TreeVersion> resource)
+        public TreeVersion createVersion(final TimelyResource<? extends TreeVersion> resource)
                 throws PersistitException {
             return new TreeVersion();
         }
@@ -150,7 +150,7 @@ public class Tree extends SharedResource {
         }
         _name = name;
         _volume = volume;
-        _timelyResource = new TimelyResource<Tree, TreeVersion>(persistit, this);
+        _timelyResource = new TimelyResource<TreeVersion>(persistit);
     }
 
     private TreeVersion version() {

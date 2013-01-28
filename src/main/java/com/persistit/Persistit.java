@@ -264,7 +264,7 @@ public class Persistit {
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
-    private final Set<WeakReference<TimelyResource<?, ?>>> _timelyResourceSet = new HashSet<WeakReference<TimelyResource<?, ?>>>();
+    private final Set<WeakReference<TimelyResource<?>>> _timelyResourceSet = new HashSet<WeakReference<TimelyResource<?>>>();
 
     private final WeakHashMap<SessionId, CLI> _cliSessionMap = new WeakHashMap<SessionId, CLI>();
 
@@ -2413,9 +2413,9 @@ public class Persistit {
         _suspendUpdates.set(suspended);
     }
 
-    void addTimelyResource(final TimelyResource<?, ? extends Version> resource) {
+    void addTimelyResource(final TimelyResource<? extends Version> resource) {
         synchronized (_timelyResourceSet) {
-            _timelyResourceSet.add(new WeakReference<TimelyResource<?, ?>>(resource));
+            _timelyResourceSet.add(new WeakReference<TimelyResource<? extends Version>>(resource));
         }
     }
 
@@ -2479,18 +2479,17 @@ public class Persistit {
     }
 
     void pruneTimelyResources() {
-        final List<TimelyResource<?, ?>> resourcesToPrune = new ArrayList<TimelyResource<?, ?>>();
+        final List<TimelyResource<?>> resourcesToPrune = new ArrayList<TimelyResource<?>>();
         synchronized (_timelyResourceSet) {
-            for (final Iterator<WeakReference<TimelyResource<?, ?>>> iter = _timelyResourceSet.iterator(); iter
-                    .hasNext();) {
-                final WeakReference<TimelyResource<?, ?>> ref = iter.next();
-                final TimelyResource<?, ?> resource = ref.get();
+            for (final Iterator<WeakReference<TimelyResource<?>>> iter = _timelyResourceSet.iterator(); iter.hasNext();) {
+                final WeakReference<TimelyResource<?>> ref = iter.next();
+                final TimelyResource<?> resource = ref.get();
                 if (resource != null) {
                     resourcesToPrune.add(resource);
                 }
             }
         }
-        for (final TimelyResource<?, ?> resource : resourcesToPrune) {
+        for (final TimelyResource<?> resource : resourcesToPrune) {
             try {
                 resource.prune();
             } catch (final PersistitException e) {
@@ -2498,9 +2497,8 @@ public class Persistit {
             }
         }
         synchronized (_timelyResourceSet) {
-            for (final Iterator<WeakReference<TimelyResource<?, ?>>> iter = _timelyResourceSet.iterator(); iter
-                    .hasNext();) {
-                final WeakReference<TimelyResource<?, ?>> ref = iter.next();
+            for (final Iterator<WeakReference<TimelyResource<?>>> iter = _timelyResourceSet.iterator(); iter.hasNext();) {
+                final WeakReference<TimelyResource<?>> ref = iter.next();
                 if (ref.get() == null) {
                     iter.remove();
                 }

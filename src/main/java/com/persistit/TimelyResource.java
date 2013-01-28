@@ -73,20 +73,14 @@ import com.persistit.exception.WWRetryException;
  * @param <T>
  * @param <V>
  */
-public class TimelyResource<T extends Object, V extends Version> {
+public class TimelyResource<V extends Version> {
 
     private final Persistit _persistit;
-    private final T _container;
     private volatile Entry _first;
 
-    public TimelyResource(final Persistit persistit, final T container) {
+    public TimelyResource(final Persistit persistit) {
         _persistit = persistit;
-        _container = container;
         _persistit.addTimelyResource(this);
-    }
-
-    public T getContainer() {
-        return _container;
     }
 
     private long tss2v(final Transaction txn) {
@@ -125,7 +119,7 @@ public class TimelyResource<T extends Object, V extends Version> {
         return getVersion(tss2v(txn));
     }
 
-    public V getVersion(final VersionCreator<T, V> creator) throws PersistitException, RollbackException {
+    public V getVersion(final VersionCreator<V> creator) throws PersistitException, RollbackException {
         final Entry first = _first;
         if (first != null && first.getVersion() == PRIMORDIAL) {
             return first.getResource();

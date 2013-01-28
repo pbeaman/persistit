@@ -41,12 +41,14 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
 
     private int _idCounter;
 
-    static class TestResource implements PrunableVersion {
+    static class TestVersion implements PrunableVersion {
         final int _id;
+        final TimelyResourceTest _test;
         final AtomicInteger _pruned = new AtomicInteger();
 
-        TestResource(final int id) {
+        TestVersion(final int id, TimelyResourceTest test) {
             _id = id;
+            _test = test;
         }
 
         @Override
@@ -64,6 +66,10 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         public String toString() {
             return String.format("<%,d:%,d>", _id, _pruned.get());
         }
+
+        TimelyResourceTest getContainer() {
+            return _test;
+        }
     }
 
     @Test
@@ -74,15 +80,14 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
 
     private void testAddAndPruneResources1(final boolean withTransactions) throws Exception {
         final Transaction txn = _persistit.getTransaction();
-        final TimelyResource<TimelyResourceTest, TestResource> tr = new TimelyResource<TimelyResourceTest, TestResource>(
-                _persistit, this);
+        final TimelyResource<TestVersion> tr = new TimelyResource<TestVersion>(_persistit);
         final long[] history = new long[5];
-        final TestResource[] resources = new TestResource[5];
+        final TestVersion[] resources = new TestVersion[5];
         for (int i = 0; i < 5; i++) {
             if (withTransactions) {
                 txn.begin();
             }
-            final TestResource resource = new TestResource(i);
+            final TestVersion resource = new TestVersion(i, this);
             resources[i] = resource;
             tr.delete();
             tr.addVersion(resource, txn);
@@ -95,7 +100,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         assertEquals("Incorrect version count", 9, tr.getVersionCount());
 
         for (int i = 0; i < 5; i++) {
-            final TestResource t = tr.getVersion(tss2vh(history[i], 0));
+            final TestVersion t = tr.getVersion(tss2vh(history[i], 0));
             assertTrue("Missing version", t != null);
             assertEquals("Wrong version", i, t._id);
         }
@@ -118,8 +123,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
 
     @Test
     public void concurrentAddAndPruneResources() throws Exception {
-        final TimelyResource<TimelyResourceTest, TestResource> tr = new TimelyResource<TimelyResourceTest, TestResource>(
-                _persistit, this);
+        final TimelyResource<TestVersion> tr = new TimelyResource<TestVersion>(_persistit);
         final Random random = new Random(1);
         final long expires = System.nanoTime() + 10 * NS_PER_S;
         final AtomicInteger sequence = new AtomicInteger();
@@ -154,19 +158,19 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         System.out.printf("%,d entries, %,d rollbacks\n", sequence.get(), rollbackCount.get());
     }
 
-    private void doConcurrentTransaction(final TimelyResource<TimelyResourceTest, TestResource> tr,
-            final Random random, final AtomicInteger sequence, final AtomicInteger rollbackCount) {
+    private void doConcurrentTransaction(final TimelyResource<TestVersion> tr, final Random random,
+            final AtomicInteger sequence, final AtomicInteger rollbackCount) {
         try {
             final Transaction txn = _persistit.getTransaction();
             for (int i = 0; i < 25; i++) {
                 txn.begin();
                 try {
                     final int id = sequence.incrementAndGet();
-                    tr.addVersion(new TestResource(id), txn);
+                    tr.addVersion(new TestVersion(id, this), txn);
                     final int delay = (1 << random.nextInt(3));
                     // Up to 7/1000 of a second
                     Util.sleep(delay);
-                    final TestResource mine = tr.getVersion();
+                    final TestVersion mine = tr.getVersion();
                     assertEquals("Should not have been pruned yet", 0, mine._pruned.get());
                     assertEquals("Wrong resource", id, mine._id);
                     if (random.nextInt(10) == 0) {
@@ -191,21 +195,20 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
 
     @Test
     public void deleteResource() throws Exception {
-        final TimelyResource<TimelyResourceTest, TestResource> tr = new TimelyResource<TimelyResourceTest, TestResource>(
-                _persistit, this);
+        final TimelyResource<TestVersion> tr = new TimelyResource<TestVersion>(_persistit);
         _idCounter = 0;
-        final VersionCreator<TimelyResourceTest, TestResource> creator = new VersionCreator<TimelyResourceTest, TestResource>() {
+        final VersionCreator<TestVersion> creator = new VersionCreator<TestVersion>() {
 
             @Override
-            public TestResource createVersion(final TimelyResource<TimelyResourceTest, ? extends TestResource> resource)
+            public TestVersion createVersion(final TimelyResource<? extends TestVersion> resource)
                     throws PersistitException {
-                return new TestResource(++resource.getContainer()._idCounter);
+                return new TestVersion(++_idCounter, TimelyResourceTest.this);
             }
         };
         final Transaction txn1 = _persistit.getTransaction();
         _persistit.setSessionId(new SessionId());
         final Transaction txn2 = _persistit.getTransaction();
-        TestResource v1;
+        TestVersion v1;
         txn1.begin();
         v1 = tr.getVersion(creator);
         assert v1._id == _idCounter;
@@ -226,15 +229,14 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
 
     @Test
     public void versions() throws Exception {
-        final TimelyResource<TimelyResourceTest, TestResource> tr = new TimelyResource<TimelyResourceTest, TestResource>(
-                _persistit, this);
+        final TimelyResource<TestVersion> tr = new TimelyResource<TestVersion>(_persistit);
         _idCounter = 0;
-        final VersionCreator<TimelyResourceTest, TestResource> creator = new VersionCreator<TimelyResourceTest, TestResource>() {
+        final VersionCreator<TestVersion> creator = new VersionCreator<TestVersion>() {
 
             @Override
-            public TestResource createVersion(final TimelyResource<TimelyResourceTest, ? extends TestResource> resource)
+            public TestVersion createVersion(final TimelyResource<? extends TestVersion> resource)
                     throws PersistitException {
-                return new TestResource(++resource.getContainer()._idCounter);
+                return new TestVersion(++_idCounter, TimelyResourceTest.this);
             }
         };
         final Semaphore semaphore1 = new Semaphore(0);
@@ -255,8 +257,8 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
                     final Transaction txn = _persistit.getTransaction();
                     try {
                         txn.begin();
-                        final TestResource t = tr.getVersion();
-                        assertEquals(t._id, tr.getContainer()._idCounter);
+                        final TestVersion t = tr.getVersion();
+                        assertEquals(t._id, _idCounter);
                         semaphore2.release();
                         semaphore1.acquire();
                         txn.commit();

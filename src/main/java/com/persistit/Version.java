@@ -62,8 +62,8 @@ interface Version {
      * @param <T>
      * @param <V>
      */
-    interface VersionCreator<T, V> {
-        V createVersion(final TimelyResource<T, ? extends V> resource) throws PersistitException;
+    interface VersionCreator<V> {
+        V createVersion(final TimelyResource<? extends V> resource) throws PersistitException;
     }
 
 }
