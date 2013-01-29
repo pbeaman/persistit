@@ -227,12 +227,29 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
         @Override
         public void store(final long address, final long timestamp, final Exchange exchange) throws PersistitException {
+            if (exchange.isDirectoryExchange() && exchange.getValue().isDefined()
+                    && exchange.getValue().getTypeHandle() == Value.CLASS_TREE) {
+                /*
+                 * Don't recover tree structure updates within transactions
+                 * because the allocation of root pages is not transactional.
+                 * The intent of the change is conveyed by the implicit creation
+                 * of new trees and explicit remove tree records.
+                 */
+                return;
+            }
             exchange.store();
         }
 
         @Override
         public void removeKeyRange(final long address, final long timestamp, final Exchange exchange, final Key from,
                 final Key to) throws PersistitException {
+            if (exchange.isDirectoryExchange()) {
+                /*
+                 * Don't recover directory tree removes because they are implied
+                 * by Remove Tree records in the journal.
+                 */
+                return;
+            }
             exchange.raw_removeKeyRangeInternal(from, to, false, false);
         }
 

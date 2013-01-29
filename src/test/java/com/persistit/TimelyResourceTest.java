@@ -46,7 +46,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         final TimelyResourceTest _test;
         final AtomicInteger _pruned = new AtomicInteger();
 
-        TestVersion(final int id, TimelyResourceTest test) {
+        TestVersion(final int id, final TimelyResourceTest test) {
             _id = id;
             _test = test;
         }
