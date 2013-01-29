@@ -218,7 +218,9 @@ class VolumeStructure {
         } else {
             return null;
         }
-        if (!_volume.isTemporary()) {
+        if (_volume.isTemporary()) {
+            tree.setPrimordial();
+        } else {
             tree.loadHandle();
         }
         _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
