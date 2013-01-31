@@ -412,14 +412,15 @@ public class Transaction {
     private final Persistit _persistit;
     private final SessionId _sessionId;
     private final long _id;
-    private int _nestedDepth;
-    private boolean _rollbackPending;
-    private boolean _rollbackCompleted;
-    private boolean _commitCompleted;
+    
+    private volatile int _nestedDepth;
+    private volatile boolean _rollbackPending;
+    private volatile boolean _rollbackCompleted;
+    private volatile boolean _commitCompleted;
 
-    private long _rollbackCount = 0;
-    private long _commitCount = 0;
-    private int _rollbacksSinceLastCommit = 0;
+    private volatile long _rollbackCount = 0;
+    private volatile long _commitCount = 0;
+    private volatile int _rollbacksSinceLastCommit = 0;
 
     private volatile TransactionStatus _transactionStatus;
     private volatile long _startTimestamp;
