@@ -176,20 +176,15 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
     }
 
     Checkpoint checkpoint() throws PersistitException {
-        Checkpoint checkpoint = createCheckpoint();
-        _persistit.flushBuffers(checkpoint.getTimestamp());
+        final long timestamp = createCheckpoint().getTimestamp();
+        _persistit.flushBuffers(timestamp);
 
         while (true) {
             pollFlushCheckpoint();
             synchronized (this) {
-                if (checkpoint.isCompleted()) {
-                    return checkpoint;
-                } else if (_currentCheckpoint != checkpoint) {
-                    checkpoint = _currentCheckpoint;
+                if (_currentCheckpoint.isCompleted() && _currentCheckpoint.getTimestamp() >= timestamp) {
+                    return _currentCheckpoint;
                 }
-            }
-            if (!getThread().isAlive()) {
-                throw new MissingThreadException(getThread().getName());
             }
             Util.sleep(SHORT_DELAY);
         }
