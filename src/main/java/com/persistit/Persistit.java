@@ -441,12 +441,11 @@ public class Persistit {
             startBufferPools();
             preloadBufferPools();
             finishRecovery();
-            startCheckpointManager();
             startTransactionIndexPollTask();
             flush();
             _checkpointManager.checkpoint();
             _journalManager.pruneObsoleteTransactions();
-
+            startCheckpointManager();
             startCleanupManager();
             _initialized.set(true);
         } finally {

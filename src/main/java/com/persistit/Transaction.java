@@ -412,7 +412,7 @@ public class Transaction {
     private final Persistit _persistit;
     private final SessionId _sessionId;
     private final long _id;
-    
+
     private volatile int _nestedDepth;
     private volatile boolean _rollbackPending;
     private volatile boolean _rollbackCompleted;
