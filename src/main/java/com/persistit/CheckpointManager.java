@@ -176,16 +176,16 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
     }
 
     Checkpoint checkpoint() throws PersistitException {
-        final Checkpoint checkpoint = createCheckpoint();
+        Checkpoint checkpoint = createCheckpoint();
         _persistit.flushBuffers(checkpoint.getTimestamp());
 
         while (true) {
-            kick();
+            pollFlushCheckpoint();
             synchronized (this) {
                 if (checkpoint.isCompleted()) {
                     return checkpoint;
                 } else if (_currentCheckpoint != checkpoint) {
-                    return UNAVALABLE_CHECKPOINT;
+                    checkpoint = _currentCheckpoint;
                 }
             }
             if (!getThread().isAlive()) {
@@ -284,12 +284,12 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
                     break;
                 }
             }
-        }
-        if (checkpoint != null) {
-            try {
-                _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
-            } catch (final PersistitException e) {
-                _persistit.getLogBase().exception.log(e);
+            if (checkpoint != null) {
+                try {
+                    _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
+                } catch (final PersistitException e) {
+                    _persistit.getLogBase().exception.log(e);
+                }
             }
         }
     }
