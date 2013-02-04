@@ -18,11 +18,14 @@ package com.persistit;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.util.ArgParser;
 import com.persistit.util.Util;
 
 /**
@@ -30,7 +33,12 @@ import com.persistit.util.Util;
  * volume file.
  */
 class VolumeHeader {
+
+    private final static String[] ARGS_TEMPLATE = { "path|string:|Volume file name" };
+
+    private final static SimpleDateFormat SDF = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
     /**
+     * 
      * Signature value - human and machine readable confirmation that this file
      * resulted from Persistit.
      */
@@ -355,4 +363,60 @@ class VolumeHeader {
         return CURRENT_VERSION;
     }
 
+    public static void main(final String[] args) throws Exception {
+        final ArgParser ap = new ArgParser("VolumeHeader", args, ARGS_TEMPLATE).strict();
+        if (ap.isUsageOnly()) {
+            return;
+        }
+        final File file = new File(ap.getStringValue("path"));
+        final FileInputStream stream = new FileInputStream(file);
+        final byte[] bytes = new byte[SIZE];
+        final int readSize = stream.read(bytes);
+        stream.close();
+        if (readSize < SIZE) {
+            throw new CorruptVolumeException("Volume file " + file + " too short: " + readSize);
+        }
+        /*
+         * Check out the fixed Volume file and learn the buffer size.
+         */
+        if (!verifySignature(bytes)) {
+            throw new CorruptVolumeException("Invalid signature");
+        }
+        System.out.printf("%30s: %s\n", "File", file);
+        outn("ID", getId(bytes));
+        outn("Page size", getPageSize(bytes));
+        outd("Creation time", getCreateTime(bytes));
+        outd("Last open time", getOpenTime(bytes));
+        outd("Last extension time", getLastExtensionTime(bytes));
+        outd("Last read time", getLastReadTime(bytes));
+        outd("Last write time", getLastWriteTime(bytes));
+        outn("Global timestamp", getGlobalTimestamp(bytes));
+        outn("Timestamp", getTimestamp(bytes));
+        outn("Version", getVersion(bytes));
+
+        outn("Directory root", getDirectoryRoot(bytes));
+        outn("Garbage root", getGarbageRoot(bytes));
+        outn("Initial pages", getInitialPages(bytes));
+        outn("Next available page", getNextAvailablePage(bytes));
+        outn("Extended page count", getExtendedPageCount(bytes));
+        outn("Pages per extension", getExtensionPages(bytes));
+        outn("Maximum pages", getMaximumPages(bytes));
+
+        outn("Fetch counter", getfetchCounter(bytes));
+        outn("Get counter", getGetCounter(bytes));
+        outn("Read counter", getReadCounter(bytes));
+        outn("Remove counter", getRemoveCounter(bytes));
+        outn("Store counter", getStoreCounter(bytes));
+        outn("Traverse counter", getTraverseCounter(bytes));
+        outn("Write counter", getWriteCounter(bytes));
+
+    }
+
+    private static void outd(final String legend, final long value) {
+        System.out.printf("%30s: %s\n", legend, SDF.format(new Date(value)));
+    }
+
+    private static void outn(final String legend, final long value) {
+        System.out.printf("%30s: %,12d\n", legend, value);
+    }
 }
