@@ -40,6 +40,7 @@ class VolumeHeader {
     private final static String[] ARGS_TEMPLATE = { "path|string:|Volume file name" };
 
     private final static SimpleDateFormat SDF = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+
     /**
      * 
      * Signature value - human and machine readable confirmation that this file
@@ -445,7 +446,7 @@ class VolumeHeader {
         if (ap.isUsageOnly()) {
             return;
         }
-        Task task = new VolumeInfoTask(ap.getStringValue("path"));
+        final Task task = new VolumeInfoTask(ap.getStringValue("path"));
         task.setMessageWriter(new PrintWriter(System.out));
         task.runTask();
     }
