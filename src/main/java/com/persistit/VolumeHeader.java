@@ -18,9 +18,12 @@ package com.persistit;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import com.persistit.CLI.Arg;
+import com.persistit.CLI.Cmd;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.PersistitException;
@@ -363,60 +366,88 @@ class VolumeHeader {
         return CURRENT_VERSION;
     }
 
+    @Cmd("volumeinfo")
+    static VolumeInfoTask createTask(@Arg("file|string:|Volume file") final String file) throws Exception {
+        return new VolumeInfoTask(file);
+    }
+
+    private static class VolumeInfoTask extends Task {
+        String _volumeFileName;
+
+        private VolumeInfoTask(final String fileName) {
+            _volumeFileName = fileName;
+        }
+
+        @Override
+        protected void runTask() throws Exception {
+            final File file = new File(_volumeFileName);
+            final FileInputStream stream = new FileInputStream(file);
+            final byte[] bytes = new byte[SIZE];
+            final int readSize = stream.read(bytes);
+            stream.close();
+            if (readSize < SIZE) {
+                throw new CorruptVolumeException(String.format(
+                        "File %s of size %,d is too short to be a Volume file\n", file, readSize));
+            }
+            /*
+             * Check out the fixed Volume file and learn the buffer size.
+             */
+            if (!verifySignature(bytes)) {
+                throw new CorruptVolumeException(String.format("File %s is not a Volume file: Invalid signature", file));
+            }
+            postMessage(String.format("%30s: %s", "File", file), Task.LOG_NORMAL);
+            outn("ID", getId(bytes));
+            outn("Page size", getPageSize(bytes));
+            outd("Creation time", getCreateTime(bytes));
+            outd("Last open time", getOpenTime(bytes));
+            outd("Last extension time", getLastExtensionTime(bytes));
+            outd("Last read time", getLastReadTime(bytes));
+            outd("Last write time", getLastWriteTime(bytes));
+            outn("Global timestamp", getGlobalTimestamp(bytes));
+            outn("Timestamp", getTimestamp(bytes));
+            outn("Version", getVersion(bytes));
+
+            outn("Directory root", getDirectoryRoot(bytes));
+            outn("Garbage root", getGarbageRoot(bytes));
+            outn("Initial pages", getInitialPages(bytes));
+            outn("Next available page", getNextAvailablePage(bytes));
+            outn("Extended page count", getExtendedPageCount(bytes));
+            outn("Pages per extension", getExtensionPages(bytes));
+            outn("Maximum pages", getMaximumPages(bytes));
+
+            outn("Fetch counter", getfetchCounter(bytes));
+            outn("Get counter", getGetCounter(bytes));
+            outn("Read counter", getReadCounter(bytes));
+            outn("Remove counter", getRemoveCounter(bytes));
+            outn("Store counter", getStoreCounter(bytes));
+            outn("Traverse counter", getTraverseCounter(bytes));
+            outn("Write counter", getWriteCounter(bytes));
+
+        }
+
+        private void outd(final String legend, final long value) {
+            postMessage(String.format("%30s: %s", legend, SDF.format(new Date(value))), Task.LOG_NORMAL);
+        }
+
+        private void outn(final String legend, final long value) {
+            postMessage(String.format("%30s: %,12d", legend, value), Task.LOG_NORMAL);
+        }
+
+        @Override
+        public String getStatus() {
+            return "";
+        }
+
+    }
+
     public static void main(final String[] args) throws Exception {
         final ArgParser ap = new ArgParser("VolumeHeader", args, ARGS_TEMPLATE).strict();
         if (ap.isUsageOnly()) {
             return;
         }
-        final File file = new File(ap.getStringValue("path"));
-        final FileInputStream stream = new FileInputStream(file);
-        final byte[] bytes = new byte[SIZE];
-        final int readSize = stream.read(bytes);
-        stream.close();
-        if (readSize < SIZE) {
-            throw new CorruptVolumeException("Volume file " + file + " too short: " + readSize);
-        }
-        /*
-         * Check out the fixed Volume file and learn the buffer size.
-         */
-        if (!verifySignature(bytes)) {
-            throw new CorruptVolumeException("Invalid signature");
-        }
-        System.out.printf("%30s: %s\n", "File", file);
-        outn("ID", getId(bytes));
-        outn("Page size", getPageSize(bytes));
-        outd("Creation time", getCreateTime(bytes));
-        outd("Last open time", getOpenTime(bytes));
-        outd("Last extension time", getLastExtensionTime(bytes));
-        outd("Last read time", getLastReadTime(bytes));
-        outd("Last write time", getLastWriteTime(bytes));
-        outn("Global timestamp", getGlobalTimestamp(bytes));
-        outn("Timestamp", getTimestamp(bytes));
-        outn("Version", getVersion(bytes));
-
-        outn("Directory root", getDirectoryRoot(bytes));
-        outn("Garbage root", getGarbageRoot(bytes));
-        outn("Initial pages", getInitialPages(bytes));
-        outn("Next available page", getNextAvailablePage(bytes));
-        outn("Extended page count", getExtendedPageCount(bytes));
-        outn("Pages per extension", getExtensionPages(bytes));
-        outn("Maximum pages", getMaximumPages(bytes));
-
-        outn("Fetch counter", getfetchCounter(bytes));
-        outn("Get counter", getGetCounter(bytes));
-        outn("Read counter", getReadCounter(bytes));
-        outn("Remove counter", getRemoveCounter(bytes));
-        outn("Store counter", getStoreCounter(bytes));
-        outn("Traverse counter", getTraverseCounter(bytes));
-        outn("Write counter", getWriteCounter(bytes));
-
+        Task task = new VolumeInfoTask(ap.getStringValue("path"));
+        task.setMessageWriter(new PrintWriter(System.out));
+        task.runTask();
     }
 
-    private static void outd(final String legend, final long value) {
-        System.out.printf("%30s: %s\n", legend, SDF.format(new Date(value)));
-    }
-
-    private static void outn(final String legend, final long value) {
-        System.out.printf("%30s: %,12d\n", legend, value);
-    }
 }
