@@ -314,4 +314,25 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
         final long interval = end - start;
         assertTrue("Should have waited about 1 second", interval >= 1000 && interval < 2000);
     }
+
+    @Test
+    public void bug1125603test() throws Exception {
+        final Exchange ex = _persistit.getExchange("persistit", "ExchangeLockTest", true);
+        final Transaction txn = ex.getTransaction();
+        txn.begin();
+        try {
+            ex.append("motor");
+            ex.lock();
+            txn.commit();
+        } catch (final Exception e) {
+            e.printStackTrace();
+        } finally {
+            txn.end();
+        }
+        _persistit.getJournalManager().rolloverWithNewFile();
+        _persistit.checkpoint();
+        _persistit.close();
+        _persistit = new Persistit(_config);
+        _persistit.initialize();
+    }
 }

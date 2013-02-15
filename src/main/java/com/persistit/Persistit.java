@@ -1640,12 +1640,15 @@ public class Persistit {
                 }
             }
             recordBufferPoolInventory();
-
             _cleanupManager.close(flush);
             waitForIOTaskStop(_cleanupManager);
 
             getTransaction().close();
             cleanup();
+
+            if (_lockVolume != null) {
+                _lockVolume.close();
+            }
 
             final List<Volume> volumes;
             synchronized (this) {
