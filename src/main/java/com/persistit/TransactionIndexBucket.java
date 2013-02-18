@@ -175,7 +175,7 @@ class TransactionIndexBucket {
         final TransactionStatus status = _free;
         if (status != null) {
             if (status.isLocked()) {
-                status.briefLock();
+                status.briefLock(Persistit.SHORT_DELAY);
             }
             assert !status.isLocked();
             _free = status.getNext();
@@ -572,7 +572,7 @@ class TransactionIndexBucket {
                     }
                 }
             } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
-                status.briefLock();
+                status.briefLock(TransactionIndex.SHORT_TIMEOUT);
                 _transactionIndex.incrementAccumulatorSnapshotRetryCounter();
                 throw RetryException.SINGLE;
             }
@@ -597,14 +597,7 @@ class TransactionIndexBucket {
                     accumulator.setCheckpointTemp(newValue);
                 }
             } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
-                boolean locked = false;
-                try {
-                    locked = status.wwLock(TransactionIndex.SHORT_TIMEOUT);
-                } finally {
-                    if (locked) {
-                        status.wwUnlock();
-                    }
-                }
+                status.briefLock(TransactionIndex.SHORT_TIMEOUT);
                 _transactionIndex.incrementAccumulatorCheckpointRetryCounter();
                 throw RetryException.SINGLE;
             }

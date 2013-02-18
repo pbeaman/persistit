@@ -328,15 +328,16 @@ class TransactionStatus {
 
     /**
      * Block briefly until another thread transiently holding the wwLock
-     * vacates. Times out and returns after
-     * {@value TransactionIndex#SHORT_TIMEOUT} milliseconds.
+     * vacates.
      * 
+     * @param timeout
+     *            in milliseconds
      * @throws InterruptedException
      */
-    void briefLock() throws InterruptedException {
+    void briefLock(final long timeout) throws InterruptedException {
         boolean locked = false;
         try {
-            locked = wwLock(TransactionIndex.SHORT_TIMEOUT);
+            locked = wwLock(timeout);
         } catch (final InterruptedException ie) {
             Thread.currentThread().interrupt();
         } finally {
