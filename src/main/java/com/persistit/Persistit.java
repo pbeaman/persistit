@@ -1496,6 +1496,10 @@ public class Persistit {
         return _bufferPoolTable;
     }
 
+    /**
+     * Remove any sessions that have expired and close transactions associated
+     * with them. Also flush statistics for all known volumes.
+     */
     void cleanup() {
         final Set<SessionId> sessionIds;
         synchronized (_transactionSessionMap) {
