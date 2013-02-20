@@ -17,8 +17,11 @@ package com.persistit;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.ConcurrentUtil;
+import com.persistit.unit.UnitTestProperties;
 import org.junit.Before;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * <p>
@@ -38,46 +41,90 @@ import org.junit.Test;
  * </p>
  */
 public class TransactionAbandonedTest extends PersistitUnitTestCase {
+    private static final String TREE = TransactionAbandonedTest.class.getSimpleName();
+    private static final int KEY_START = 1;
+    private static final int KEY_RANGE = 10;
     private static final long MAX_TIMEOUT_MS = 10 * 1000;
 
-    enum TxnEnd {
-        NONE, COMMIT, ROLLBACK
-    }
-
-    private static class TxnRunnable extends ConcurrentUtil.ThrowingRunnable {
+    private static class TxnAbandoner extends ConcurrentUtil.ThrowingRunnable {
         private final Persistit persistit;
-        private final TxnEnd txnEnd;
+        private final boolean doRead;
+        private final boolean doWrite;
 
-        public TxnRunnable(Persistit persistit, TxnEnd txnEnd) {
+        public TxnAbandoner(Persistit persistit, boolean doRead, boolean doWrite) {
             this.persistit = persistit;
-            this.txnEnd = txnEnd;
+            this.doRead = doRead;
+            this.doWrite = doWrite;
         }
 
         @Override
         public void run() throws PersistitException {
             Transaction txn = persistit.getTransaction();
             txn.begin();
-            if (txnEnd != TxnEnd.NONE) {
-                if (txnEnd == TxnEnd.COMMIT) {
-                    txn.commit();
-                } else {
-                    txn.rollback();
-                }
-                txn.end();
+            if (doRead) {
+                assertEquals("Traverse count", KEY_RANGE, scanAndCount(getExchange(persistit)));
+            }
+            if (doWrite) {
+                loadData(persistit, KEY_START + KEY_RANGE, KEY_RANGE);
             }
         }
     }
 
+    private static Exchange getExchange(Persistit persistit) throws PersistitException {
+        return persistit.getExchange(UnitTestProperties.VOLUME_NAME, TREE, true);
+    }
+
+    private static void loadData(Persistit persistit, int keyOffset, int count) throws PersistitException {
+        Exchange ex = getExchange(persistit);
+        for (int i = 0; i < count; ++i) {
+            ex.clear().append(keyOffset + i).store();
+        }
+    }
+
+    private static int scanAndCount(Exchange ex) throws PersistitException {
+        ex.clear().append(Key.BEFORE);
+        int saw = 0;
+        while (ex.next()) {
+            ++saw;
+        }
+        return saw;
+    }
+
     @Before
-    public void stopCleanupManager() {
-        _persistit.getCleanupManager().setPollInterval(-1);
+    public void disableAndLoad() throws PersistitException {
+        disableBackgroundCleanup();
+        loadData(_persistit, KEY_START, KEY_RANGE);
+    }
+
+    private void runAndCleanup(String name, boolean doRead, boolean doWrite) {
+        Thread t = ConcurrentUtil.createThread(name, new TxnAbandoner(_persistit, false, false));
+        ConcurrentUtil.startAndJoinAssertSuccess(MAX_TIMEOUT_MS, t);
+        // Threw exception before fix
+        _persistit.cleanup();
     }
 
     @Test
     public void noReadsOrWrites() {
-        Thread t = ConcurrentUtil.createThread("NoReadNoWrite", new TxnRunnable(_persistit, TxnEnd.NONE));
-        ConcurrentUtil.startAndJoinAssertSuccess(MAX_TIMEOUT_MS, t);
-        // Threw exception before fix
-        _persistit.cleanup();
+        runAndCleanup("NoReadNoWrite", false, false);
+    }
+
+    @Test
+    public void readOnly() throws PersistitException {
+        runAndCleanup("ReadOnly", true, false);
+        assertEquals("Traversed after abandoned", KEY_RANGE, scanAndCount(getExchange(_persistit)));
+    }
+
+    @Test
+    public void readAndWrite() throws Exception {
+        runAndCleanup("ReadAndWrite", true, true);
+        assertEquals("Traversed after abandoned", KEY_RANGE, scanAndCount(getExchange(_persistit)));
+        // Check that the abandoned was pruned
+        CleanupManager cm = _persistit.getCleanupManager();
+        for (int i = 0; i < 5 && cm.getEnqueuedCount() > 0; ++i) {
+            cm.runTask();
+        }
+        Exchange rawEx = getExchange(_persistit);
+        rawEx.ignoreMVCCFetch(true);
+        assertEquals("Raw traversed after abandoned", KEY_RANGE, scanAndCount(rawEx));
     }
 }
