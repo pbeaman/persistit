@@ -1501,25 +1501,7 @@ public class Persistit {
      * with them. Also flush statistics for all known volumes.
      */
     void cleanup() {
-        final Set<SessionId> sessionIds;
-        synchronized (_transactionSessionMap) {
-            sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
-        }
-        for (final SessionId sessionId : sessionIds) {
-            if (!sessionId.isAlive()) {
-                Transaction transaction = null;
-                synchronized (_transactionSessionMap) {
-                    transaction = _transactionSessionMap.remove(sessionId);
-                }
-                if (transaction != null) {
-                    try {
-                        transaction.close();
-                    } catch (final PersistitException e) {
-                        _logBase.exception.log(e);
-                    }
-                }
-            }
-        }
+        closeZombieTransactions();
         final List<Volume> volumes;
         synchronized (this) {
             volumes = new ArrayList<Volume>(_volumes);
