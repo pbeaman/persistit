@@ -1501,7 +1501,7 @@ public class Persistit {
      * with them. Also flush statistics for all known volumes.
      */
     void cleanup() {
-        closeZombieTransactions();
+        closeZombieTransactions(false);
         final List<Volume> volumes;
         synchronized (this) {
             volumes = new ArrayList<Volume>(_volumes);
@@ -1662,7 +1662,7 @@ public class Persistit {
             waitForIOTaskStop(task);
 
             interruptActiveThreads(SHORT_DELAY);
-            closeZombieTransactions();
+            closeZombieTransactions(true);
 
             for (final Volume volume : volumes) {
                 volume.close();
@@ -1681,17 +1681,17 @@ public class Persistit {
         releaseAllResources();
     }
 
-    private void closeZombieTransactions() {
+    private void closeZombieTransactions(boolean removeAllSessions) {
         final Set<SessionId> sessionIds;
         synchronized (_transactionSessionMap) {
             sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
         }
         for (final SessionId sessionId : sessionIds) {
-            Transaction transaction = null;
-            synchronized (_transactionSessionMap) {
-                transaction = _transactionSessionMap.remove(sessionId);
-            }
-            if (!sessionId.isAlive()) {
+            if (!sessionId.isAlive() || removeAllSessions) {
+                Transaction transaction = null;
+                synchronized (_transactionSessionMap) {
+                    transaction = _transactionSessionMap.remove(sessionId);
+                }
                 if (transaction != null) {
                     try {
                         transaction.close();
