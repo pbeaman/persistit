@@ -1097,7 +1097,7 @@ public class Buffer extends SharedResource {
                 final int size = decodeTailBlockSize(tbData);
                 final int offset = tail + _tailHeaderSize + klength;
                 final int valueSize = size - klength - _tailHeaderSize;
-                return valueSize == 1 && _bytes[offset] == MVV.TYPE_ANTIVALUE;
+                return valueSize == 5 && _bytes[offset] == MVV.TYPE_ANTIVALUE;
             }
         }
         return false;
@@ -3708,7 +3708,7 @@ public class Buffer extends SharedResource {
                     incCountIfMvv(_bytes, offset, newSize);
                 }
 
-                if (pruneAntiValue(valueByte, p, tree)) {
+                if (pruneAntiValue(valueByte, p, offset, tree)) {
                     changed = true;
                     p -= KEYBLOCK_LENGTH;
                 }
@@ -3768,7 +3768,7 @@ public class Buffer extends SharedResource {
                         value.changeLongRecordMode(false);
                     }
                 }
-                if (pruneAntiValue(valueByte, p, tree)) {
+                if (pruneAntiValue(valueByte, p, offset, tree)) {
                     changed = true;
                     p -= KEYBLOCK_LENGTH;
                 }
@@ -3781,20 +3781,20 @@ public class Buffer extends SharedResource {
         return changed;
     }
 
-    private boolean pruneAntiValue(final int valueByte, final int p, final Tree tree) {
+    private boolean pruneAntiValue(final int valueByte, final int p, final int offset, final Tree tree) {
         if (valueByte == MVV.TYPE_ANTIVALUE) {
             if (p == KEY_BLOCK_START) {
-                if (tree != null) {
+                int treeHandle = getInt(offset + 1);
+//                if (tree != null) {
                     if (!_enqueuedForAntiValuePruning) {
-                        final int treeHandle = tree.getHandle();
                         assert treeHandle != 0 : "MVV found in a temporary tree " + tree;
                         if (_persistit.getCleanupManager().offer(new CleanupAntiValue(treeHandle, getPageAddress()))) {
                             _enqueuedForAntiValuePruning = true;
                         }
                     }
-                } else {
-                    _mvvCount++;
-                }
+//                } else {
+//                    _mvvCount++;
+//                }
             } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
                 Debug.$assert1.t(false);
             } else {

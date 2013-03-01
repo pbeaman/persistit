@@ -2850,7 +2850,7 @@ public class Exchange implements ReadOnlyExchange {
         lockExchange.setTimeoutMillis(timeout);
         lockKey.copyTo(lockExchange.getKey());
         lockExchange.getKey().testValidForStoreAndFetch(_pool.getBufferSize());
-        lockExchange.getValue().clear().putAntiValueMVV();
+        lockExchange.getValue().clear().putAntiValueMVV(lockExchange.getTree().getHandle());
         final int options = StoreOptions.WAIT | StoreOptions.DONT_JOURNAL | StoreOptions.MVCC;
         lockExchange.storeInternal(lockExchange.getKey(), lockExchange.getValue(), 0, options);
     }
@@ -3418,7 +3418,7 @@ public class Exchange implements ReadOnlyExchange {
 
         checkLevelCache();
 
-        _value.clear().putAntiValueMVV();
+        _value.clear().putAntiValueMVV(_tree.getHandle());
         final int storeOptions = StoreOptions.MVCC | StoreOptions.WAIT | StoreOptions.ONLY_IF_VISIBLE
                 | StoreOptions.DONT_JOURNAL | (fetchFirst ? StoreOptions.FETCH : 0);
 
@@ -4059,7 +4059,7 @@ public class Exchange implements ReadOnlyExchange {
             if (at > 0) {
                 final int offset = (int) (at >>> 32);
                 final int size = (int) at;
-                if (size == 1 && buffer.getBytes()[offset] == MVV.TYPE_ANTIVALUE) {
+                if (size == 5 && buffer.getBytes()[offset] == MVV.TYPE_ANTIVALUE) {
                     buffer.nextKey(_spareKey3, Buffer.KEY_BLOCK_START);
                     buffer.release();
                     buffer = null;

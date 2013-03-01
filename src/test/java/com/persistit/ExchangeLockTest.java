@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.Properties;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
@@ -26,10 +27,16 @@ import org.junit.Test;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
+import com.persistit.unit.UnitTestProperties;
 
 public class ExchangeLockTest extends PersistitUnitTestCase {
     private final static long DMILLIS = SharedResource.DEFAULT_MAX_WAIT_TIME;
     private final Semaphore _coordinator = new Semaphore(0);
+
+    @Override
+    public Properties getProperties(final boolean cleanup) {
+        return UnitTestProperties.getBiggerProperties(cleanup);
+    }
 
     @Test
     public void singleThreadedLock() throws Exception {
@@ -262,6 +269,21 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
         final int count3 = keyCount(lockExchange);
         assertEquals(0, count3);
 
+    }
+
+    @Test
+    public void backgroundLockTablePruning() throws Exception {
+        final Exchange ex = _persistit.getExchange("persistit", "ExchangeLockTest", true);
+        final Transaction txn = ex.getTransaction();
+        for (int j = 0; j < 1000; j++) {
+            txn.begin();
+            for (int i = 0; i < 10000; i++) {
+                ex.clear().append(i + (j * 10000)).append(RED_FOX).lock();
+            }
+            txn.commit();
+            txn.end();
+        }
+        System.out.println("Check things out");
     }
 
     private int keyCount(final Exchange ex) throws PersistitException {
