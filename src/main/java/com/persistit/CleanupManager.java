@@ -150,8 +150,6 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     @Override
     public void poll() throws Exception {
 
-        _persistit.getTransactionIndex().updateActiveTransactionCache();
-
         final long now = System.nanoTime();
         if (now - _lastMaintenance > MINIMUM_MAINTENANCE_INTERVAL_NS) {
             _persistit.getIOMeter().poll();
