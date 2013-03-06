@@ -4054,12 +4054,10 @@ public final class Value {
         endVariableSizeItem(_size - start);
     }
 
-    void putAntiValueMVV(final int treeHandle) {
+    void putAntiValueMVV() {
         preparePut();
-        ensureFit(5);
+        ensureFit(1);
         _bytes[_size++] = (byte) CLASS_ANTIVALUE;
-        Util.putInt(_bytes,  _size, treeHandle);
-        _size += 4;
         _serializedItemCount++;
     }
 

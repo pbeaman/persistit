@@ -40,6 +40,7 @@ import static com.persistit.util.ThreadSequencer.sequence;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.persistit.CleanupManager.CleanupAction;
 import com.persistit.Key.Direction;
 import com.persistit.MVV.PrunedVersion;
 import com.persistit.ValueHelper.MVVValueWriter;
@@ -262,7 +263,7 @@ public class Exchange implements ReadOnlyExchange {
     private final Value _value;
 
     private final LevelCache[] _levelCache = new LevelCache[MAX_TREE_DEPTH];
-
+    
     private BufferPool _pool;
     private Volume _volume;
     private Tree _tree;
@@ -522,6 +523,7 @@ public class Exchange implements ReadOnlyExchange {
         int _level;
         Buffer _buffer;
         long _page;
+        long _splitPage;
         long _bufferGeneration;
         long _keyGeneration;
         int _foundAt;
@@ -1640,7 +1642,7 @@ public class Exchange implements ReadOnlyExchange {
                     if (splitRequired && !treeClaimAcquired) {
                         if (!didPrune && buffer.isDataPage()) {
                             didPrune = true;
-                            if (buffer.pruneMvvValues(_tree, false)) {
+                            if (buffer.pruneMvvValues(_tree, false, null)) {
                                 continue;
                             }
                         }
@@ -1856,7 +1858,7 @@ public class Exchange implements ReadOnlyExchange {
         Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                 && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
         final Sequence sequence = lc.sequence(foundAt);
-
+        lc._splitPage = 0;
         long timestamp = timestamp();
         buffer.writePageOnCheckpoint(timestamp);
 
@@ -1882,6 +1884,7 @@ public class Exchange implements ReadOnlyExchange {
                 // Allocate a new page
                 //
                 rightSibling = _volume.getStructure().allocPage();
+                lc._splitPage = rightSibling.getPageAddress();
 
                 timestamp = timestamp();
                 buffer.writePageOnCheckpoint(timestamp);
@@ -2850,9 +2853,16 @@ public class Exchange implements ReadOnlyExchange {
         lockExchange.setTimeoutMillis(timeout);
         lockKey.copyTo(lockExchange.getKey());
         lockExchange.getKey().testValidForStoreAndFetch(_pool.getBufferSize());
-        lockExchange.getValue().clear().putAntiValueMVV(lockExchange.getTree().getHandle());
+        lockExchange.getValue().clear().putAntiValueMVV();
         final int options = StoreOptions.WAIT | StoreOptions.DONT_JOURNAL | StoreOptions.MVCC;
         lockExchange.storeInternal(lockExchange.getKey(), lockExchange.getValue(), 0, options);
+        final long page = lockExchange._levelCache[0]._page;
+        final long splitPage = lockExchange._levelCache[0]._splitPage;
+        _transaction.addLockPage(page, lockExchange.getTree().getHandle());
+        if (splitPage != 0 && splitPage != page) {
+            _transaction.addLockPage(splitPage, lockExchange.getTree().getHandle());
+        }
+        _persistit.releaseExchange(lockExchange);
     }
 
     /**
@@ -3418,7 +3428,7 @@ public class Exchange implements ReadOnlyExchange {
 
         checkLevelCache();
 
-        _value.clear().putAntiValueMVV(_tree.getHandle());
+        _value.clear().putAntiValueMVV();
         final int storeOptions = StoreOptions.MVCC | StoreOptions.WAIT | StoreOptions.ONLY_IF_VISIBLE
                 | StoreOptions.DONT_JOURNAL | (fetchFirst ? StoreOptions.FETCH : 0);
 
@@ -3993,7 +4003,7 @@ public class Exchange implements ReadOnlyExchange {
             search(key, true);
             buffer = _levelCache[0]._buffer;
             if (buffer != null) {
-                return buffer.pruneMvvValues(_tree, true);
+                return buffer.pruneMvvValues(_tree, true, null);
             } else {
                 return false;
             }
@@ -4015,7 +4025,7 @@ public class Exchange implements ReadOnlyExchange {
 
             while (buffer != null) {
                 checkPageType(buffer, Buffer.PAGE_TYPE_DATA, false);
-                pruned |= buffer.pruneMvvValues(_tree, true);
+                pruned |= buffer.pruneMvvValues(_tree, true, null);
                 final int foundAt = buffer.findKey(key2);
                 if (!buffer.isAfterRightEdge(foundAt)) {
                     break;
@@ -4037,11 +4047,11 @@ public class Exchange implements ReadOnlyExchange {
         return pruned;
     }
 
-    boolean prune(final long page) throws PersistitException {
+    boolean prune(final long page, final List<CleanupAction> consequentActions) throws PersistitException {
         Buffer buffer = null;
         try {
             buffer = _pool.get(_volume, page, true, true);
-            return buffer.pruneMvvValues(_tree, true);
+            return buffer.pruneMvvValues(_tree, true, consequentActions);
         } finally {
             if (buffer != null) {
                 buffer.release();
@@ -4049,7 +4059,7 @@ public class Exchange implements ReadOnlyExchange {
         }
     }
 
-    boolean pruneLeftEdgeValue(final long page) throws PersistitException {
+    boolean pruneLeftEdgeValue(final long page, final List<CleanupAction> consequentActions) throws PersistitException {
         _ignoreTransactions = true;
         Buffer buffer = null;
         try {
@@ -4059,7 +4069,7 @@ public class Exchange implements ReadOnlyExchange {
             if (at > 0) {
                 final int offset = (int) (at >>> 32);
                 final int size = (int) at;
-                if (size == 5 && buffer.getBytes()[offset] == MVV.TYPE_ANTIVALUE) {
+                if (size == 1 && buffer.getBytes()[offset] == MVV.TYPE_ANTIVALUE) {
                     buffer.nextKey(_spareKey3, Buffer.KEY_BLOCK_START);
                     buffer.release();
                     buffer = null;

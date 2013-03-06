@@ -33,7 +33,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     interface CleanupAction extends Comparable<CleanupAction> {
 
-        void performAction(Persistit persistit) throws PersistitException;
+        void performAction(Persistit persistit, List<CleanupAction> consequentActions) throws PersistitException;
     }
 
     final static long DEFAULT_CLEANUP_INTERVAL_MS = 1000;
@@ -150,6 +150,8 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     @Override
     public void poll() throws Exception {
 
+        _persistit.getTransactionIndex().updateActiveTransactionCache();
+
         final long now = System.nanoTime();
         if (now - _lastMaintenance > MINIMUM_MAINTENANCE_INTERVAL_NS) {
             _persistit.getIOMeter().poll();
@@ -174,10 +176,10 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
             }
         }
         Collections.sort(workList);
-
+        
         for (final CleanupAction action : workList) {
             try {
-                action.performAction(_persistit);
+                action.performAction(_persistit, null);
                 _performed.incrementAndGet();
             } catch (final PersistitException e) {
                 lastException(e);
@@ -227,7 +229,11 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
             } else {
                 return false;
             }
+        }
 
+        @Override
+        public int hashCode() {
+            return (int) (_treeHandle ^ _page);
         }
 
         @Override
@@ -275,10 +281,11 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         }
 
         @Override
-        public void performAction(final Persistit persistit) throws PersistitException {
+        public void performAction(final Persistit persistit, final List<CleanupAction> consequentActions)
+                throws PersistitException {
             final Exchange exchange = getExchange(persistit);
             if (exchange != null) {
-                exchange.pruneLeftEdgeValue(_page);
+                exchange.pruneLeftEdgeValue(_page, consequentActions);
             }
         }
     }
@@ -290,10 +297,11 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         }
 
         @Override
-        public void performAction(final Persistit persistit) throws PersistitException {
+        public void performAction(final Persistit persistit, final List<CleanupAction> consequentActions)
+                throws PersistitException {
             final Exchange exchange = getExchange(persistit);
             if (exchange != null) {
-                exchange.prune(_page);
+                exchange.prune(_page, consequentActions);
             }
         }
     }
@@ -307,7 +315,8 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         }
 
         @Override
-        public void performAction(final Persistit persistit) throws PersistitException {
+        public void performAction(final Persistit persistit, final List<CleanupAction> consequentActions)
+                throws PersistitException {
             final Exchange exchange = getExchange(persistit);
             if (exchange != null) {
                 exchange.fixIndexHole(_page, _level);

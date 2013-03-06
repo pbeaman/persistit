@@ -20,6 +20,7 @@ import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
 
 class VolumeStructure {
+    final BitSet deallocated = new BitSet(1000); // TODO - remove
     /**
      * Designated Tree name for the special directory "tree of trees".
      */
@@ -502,7 +504,9 @@ class VolumeStructure {
                     return buffer;
                 } finally {
                     garbageBuffer = releaseBuffer(garbageBuffer);
-                    deallocateGarbageChain(chains);
+                    if (!chains.isEmpty()) {
+                        deallocateGarbageChain(chains);
+                    }
                 }
             }
         } finally {
@@ -517,12 +521,12 @@ class VolumeStructure {
         buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
         Debug.$assert0.t(buffer.getPageAddress() != 0);
         return buffer;
-
     }
 
     void deallocateGarbageChain(final long left, final long right) throws PersistitException {
         final List<Chain> list = new ArrayList<Chain>();
         list.add(new Chain(left, right));
+        deallocated.set((int)left);
         deallocateGarbageChain(list);
     }
 

@@ -1079,15 +1079,7 @@ public class Persistit {
      * @throws PersistitException
      */
     public Volume createTemporaryVolume() throws PersistitException {
-        int pageSize = _configuration.getTmpVolPageSize();
-        if (pageSize == 0) {
-            for (final int size : _bufferPoolTable.keySet()) {
-                if (size > pageSize) {
-                    pageSize = size;
-                }
-            }
-        }
-        return createTemporaryVolume(pageSize);
+        return createTemporaryVolume(temporaryVolumePageSize());
     }
 
     /**
@@ -1113,6 +1105,18 @@ public class Persistit {
         final String directoryName = getConfiguration().getTmpVolDir();
         final File directory = directoryName == null ? null : new File(directoryName);
         return Volume.createTemporaryVolume(this, pageSize, directory);
+    }
+    
+    private int temporaryVolumePageSize() {
+        int pageSize = _configuration.getTmpVolPageSize();
+        if (pageSize == 0) {
+            for (final int size : _bufferPoolTable.keySet()) {
+                if (size > pageSize) {
+                    pageSize = size;
+                }
+            }
+        }
+        return pageSize;
     }
 
     /**
@@ -1239,7 +1243,7 @@ public class Persistit {
 
         for (int i = 0; i < _volumes.size(); i++) {
             final Volume vol = _volumes.get(i);
-            if (name.equals(vol.getName())) {
+            if (name.equals(vol.getName()) || vol.isTemporary() && name.contains("tempvol")) { // TODO
                 if (result == null)
                     result = vol;
                 else {
@@ -1296,8 +1300,14 @@ public class Persistit {
         checkInitialized();
         checkClosed();
         if (_lockVolume == null) {
-            _lockVolume = createTemporaryVolume();
-            _lockVolume.setHandle(Volume.LOCK_VOLUME_HANDLE);
+            final int pageSize = temporaryVolumePageSize();
+            if (!Volume.isValidPageSize(pageSize)) {
+                throw new IllegalArgumentException("Invalid page size " + pageSize);
+            }
+            final String directoryName = getConfiguration().getTmpVolDir();
+            final File directory = directoryName == null ? null : new File(directoryName);
+            _lockVolume = Volume.createLockVolume(this, pageSize, directory);
+            _volumes.add(_lockVolume);
         }
         return _lockVolume;
     }
