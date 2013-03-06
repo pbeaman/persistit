@@ -250,7 +250,7 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                     final Management.VolumeInfo[] array = (Management.VolumeInfo[]) _volumeInfoArrayModel
                             .getInfoArray();
                     if (array != null && index < array.length) {
-                        _selectedVolumeName = array[index].getPath();
+                        _selectedVolumeName = array[index].getName();
                     } else {
                         _selectedVolumeName = null;
                     }
@@ -423,7 +423,7 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 final Management.VolumeInfo[] via = management.getVolumeInfoArray();
 
                 if (_selectedVolumeName == null && via.length > 0) {
-                    _selectedVolumeName = via[0].getPath();
+                    _selectedVolumeName = via[0].getName();
                 }
 
                 for (int index = 0; index < via.length; index++) {

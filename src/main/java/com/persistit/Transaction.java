@@ -440,7 +440,7 @@ public class Transaction {
 
     private String _threadName;
 
-    private final Set<CleanupPruneAction> _lockCleanupActions = new HashSet<CleanupPruneAction>();
+    private final Set<CleanupAction> _lockCleanupActions = new HashSet<CleanupAction>();
 
     public static enum CommitPolicy {
         /**
@@ -686,7 +686,6 @@ public class Transaction {
             _transactionStatus = null;
             _rollbackPending = false;
             _threadName = null;
-            _lockCleanupActions.clear();
         }
 
         _nestedDepth--;
@@ -1334,22 +1333,20 @@ public class Transaction {
         if (_lockCleanupActions.isEmpty()) {
             return;
         }
-        _persistit.getTransactionIndex().updateActiveTransactionCache();
 
-        final List<CleanupAction> actions = new ArrayList<CleanupAction>();
-        for (final CleanupPruneAction cleanupAction : _lockCleanupActions) {
-            try {
-                cleanupAction.performAction(_persistit, actions);
-            } catch (final PersistitException pe) {
-                _persistit.getLogBase().pruneException.log(pe, this);
-            }
-        }
+        _persistit.getTransactionIndex().updateActiveTransactionCache(_commitTimestamp);
+        List<CleanupAction> actions = new ArrayList<CleanupAction>(_lockCleanupActions);
+        _lockCleanupActions.clear();
 
-        for (final CleanupAction cleanupAction : actions) {
-            try {
-                cleanupAction.performAction(_persistit, null);
-            } catch (final PersistitException pe) {
-                _persistit.getLogBase().pruneException.log(pe, this);
+        while (!actions.isEmpty()) {
+            final List<CleanupAction> consequentActions = new ArrayList<CleanupAction>();
+            for (final CleanupAction cleanupAction : actions) {
+                try {
+                    cleanupAction.performAction(_persistit, consequentActions);
+                } catch (final PersistitException pe) {
+                    _persistit.getLogBase().pruneException.log(pe, this);
+                }
+                actions = consequentActions;
             }
         }
     }

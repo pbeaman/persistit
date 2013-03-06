@@ -251,7 +251,7 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
         final Exchange ex = _persistit.getExchange("persistit", "ExchangeLockTest", true);
         final Random random = new Random();
         final Transaction txn = ex.getTransaction();
-        for (int j = 0; j < 500; j++) {
+        for (int j = 0; j < 100; j++) {
             txn.begin();
             for (int i = 0; i < 10000; i++) {
                 final int k = random.nextInt(100000);

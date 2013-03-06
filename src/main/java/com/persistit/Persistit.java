@@ -1243,7 +1243,7 @@ public class Persistit {
 
         for (int i = 0; i < _volumes.size(); i++) {
             final Volume vol = _volumes.get(i);
-            if (name.equals(vol.getName()) || vol.isTemporary() && name.contains("tempvol")) { // TODO
+            if (name.equals(vol.getName())) {
                 if (result == null)
                     result = vol;
                 else {

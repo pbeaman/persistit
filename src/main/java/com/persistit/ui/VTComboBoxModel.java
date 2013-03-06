@@ -74,7 +74,7 @@ class VTComboBoxModel extends AbstractListModel implements ComboBoxModel {
             if (_parent == null) {
                 final VolumeInfo[] volumes = _management.getVolumeInfoArray();
                 for (int index = 0; index < volumes.length; index++) {
-                    _cachedList.add(volumes[index].getPath());
+                    _cachedList.add(volumes[index].getName());
                 }
             } else {
                 final String volumeName = (String) _parent.getSelectedItem();

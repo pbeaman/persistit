@@ -49,7 +49,7 @@ import com.persistit.util.Util;
 public class Volume {
 
     final static int LOCK_VOLUME_HANDLE = Integer.MAX_VALUE;
-    final static String LOCK_VOLUME_NAME = "_locks_";
+    final static String LOCK_VOLUME_NAME = "_lock";
 
     private final String _name;
     private long _id;
