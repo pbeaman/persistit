@@ -51,7 +51,7 @@ public class Volume {
     final static int LOCK_VOLUME_HANDLE = Integer.MAX_VALUE;
     final static String LOCK_VOLUME_NAME = "_locks_";
 
-    private String _name;
+    private final String _name;
     private long _id;
     private final AtomicBoolean _closing = new AtomicBoolean();
     private final AtomicBoolean _closed = new AtomicBoolean();

@@ -233,8 +233,6 @@ class VolumeStorageT2 extends VolumeStorage {
         } finally {
             release();
         }
-        flushMetaData();
-
     }
 
     @Override

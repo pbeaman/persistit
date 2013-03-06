@@ -176,7 +176,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
             }
         }
         Collections.sort(workList);
-        
+
         for (final CleanupAction action : workList) {
             try {
                 action.performAction(_persistit, null);

@@ -526,7 +526,7 @@ class VolumeStructure {
     void deallocateGarbageChain(final long left, final long right) throws PersistitException {
         final List<Chain> list = new ArrayList<Chain>();
         list.add(new Chain(left, right));
-        deallocated.set((int)left);
+        deallocated.set((int) left);
         deallocateGarbageChain(list);
     }
 

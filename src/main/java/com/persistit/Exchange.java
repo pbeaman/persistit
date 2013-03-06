@@ -263,7 +263,7 @@ public class Exchange implements ReadOnlyExchange {
     private final Value _value;
 
     private final LevelCache[] _levelCache = new LevelCache[MAX_TREE_DEPTH];
-    
+
     private BufferPool _pool;
     private Volume _volume;
     private Tree _tree;
@@ -523,7 +523,6 @@ public class Exchange implements ReadOnlyExchange {
         int _level;
         Buffer _buffer;
         long _page;
-        long _splitPage;
         long _bufferGeneration;
         long _keyGeneration;
         int _foundAt;
@@ -1858,7 +1857,6 @@ public class Exchange implements ReadOnlyExchange {
         Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                 && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
         final Sequence sequence = lc.sequence(foundAt);
-        lc._splitPage = 0;
         long timestamp = timestamp();
         buffer.writePageOnCheckpoint(timestamp);
 
@@ -1884,7 +1882,6 @@ public class Exchange implements ReadOnlyExchange {
                 // Allocate a new page
                 //
                 rightSibling = _volume.getStructure().allocPage();
-                lc._splitPage = rightSibling.getPageAddress();
 
                 timestamp = timestamp();
                 buffer.writePageOnCheckpoint(timestamp);
@@ -2857,14 +2854,7 @@ public class Exchange implements ReadOnlyExchange {
         final int options = StoreOptions.WAIT | StoreOptions.DONT_JOURNAL | StoreOptions.MVCC;
         lockExchange.storeInternal(lockExchange.getKey(), lockExchange.getValue(), 0, options);
         final long page = lockExchange._levelCache[0]._page;
-        final long splitPage = lockExchange._levelCache[0]._splitPage;
-        
-        VolumeStorageL2 storage = (VolumeStorageL2)lockExchange.getVolume().getStorage();
-        storage.addLockPage(page, lockExchange.getTree().getHandle());
-        if (splitPage != 0 && splitPage != page) {
-            storage.addLockPage(splitPage, lockExchange.getTree().getHandle());
-        }
-        
+        _transaction.addLockPage(page, lockExchange.getTree().getHandle());
         _persistit.releaseExchange(lockExchange);
     }
 

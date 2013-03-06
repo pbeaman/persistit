@@ -20,6 +20,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
@@ -238,52 +239,34 @@ public class ExchangeLockTest extends PersistitUnitTestCase {
         assertEquals(1, succeeded);
     }
 
+    /**
+     * This test is intended to exercise lock management for transactions
+     * executed sequentially, each of which performs lots of locks (similar to
+     * DataLoadingTest.)
+     * 
+     * @throws Exception
+     */
     @Test
     public void lockTablePruning() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "ExchangeLockTest", true);
+        final Random random = new Random();
         final Transaction txn = ex.getTransaction();
-        txn.begin();
-        for (int i = 0; i < 10000; i++) {
-            ex.clear().append(i).append(RED_FOX).lock();
-        }
-        txn.commit();
-        txn.end();
-
-        final Exchange lockExchange = new Exchange(_persistit.getLockVolume().getTree("ExchangeLockTest", false));
-        lockExchange.ignoreMVCCFetch(true);
-
-        final int count1 = keyCount(lockExchange);
-        assertTrue(count1 > 0);
-
-        _persistit.getTransactionIndex().updateActiveTransactionCache();
-
-        for (int i = 0; i < 10000; i++) {
-            lockExchange.clear().append(i).append(RED_FOX).prune();
-        }
-
-        final int count2 = keyCount(lockExchange);
-        assertTrue(count2 < count1);
-
-        _persistit.getCleanupManager().poll();
-
-        final int count3 = keyCount(lockExchange);
-        assertEquals(0, count3);
-
-    }
-
-    @Test
-    public void backgroundLockTablePruning() throws Exception {
-        final Exchange ex = _persistit.getExchange("persistit", "ExchangeLockTest", true);
-        final Transaction txn = ex.getTransaction();
-        for (int j = 0; j < 1000; j++) {
+        for (int j = 0; j < 500; j++) {
             txn.begin();
             for (int i = 0; i < 10000; i++) {
-                ex.clear().append(i + (j * 10000)).append(RED_FOX).lock();
+                final int k = random.nextInt(100000);
+                ex.clear().append(k + (j * 100000)).append(RED_FOX).lock();
             }
             txn.commit();
             txn.end();
         }
-        System.out.println("Check things out");
+        assertTrue("Too many lock volume pages uses",
+                _persistit.getLockVolume().getStorage().getNextAvailablePage() < 100);
+
+        final Exchange lockExchange = new Exchange(_persistit.getLockVolume().getTree("ExchangeLockTest", false));
+        final int count = keyCount(lockExchange);
+
+        assertEquals("Unpruned lock records", 0, count);
     }
 
     private int keyCount(final Exchange ex) throws PersistitException {
