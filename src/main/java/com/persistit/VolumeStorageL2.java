@@ -19,9 +19,15 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import com.persistit.AlertMonitor.AlertLevel;
 import com.persistit.AlertMonitor.Event;
+import com.persistit.CleanupManager.CleanupAction;
+import com.persistit.CleanupManager.CleanupPruneAction;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
@@ -54,6 +60,8 @@ class VolumeStorageL2 extends VolumeStorage {
     private volatile long _nextAvailablePage;
     private volatile boolean _opened;
     private volatile boolean _closed;
+
+    private Set<CleanupPruneAction> _lockCleanupActions = new HashSet<CleanupPruneAction>();
 
     VolumeStorageL2(final Persistit persistit, final Volume volume, final File tempDirectory) {
         super(persistit, volume);
@@ -385,4 +393,40 @@ class VolumeStorageL2 extends VolumeStorage {
     public String toString() {
         return _volume.toString();
     }
+    
+    synchronized void addLockPage(final Long page, final int treeHandle) {
+        _lockCleanupActions.add(new CleanupPruneAction(treeHandle, page));
+    }
+
+    void pruneLockPages() {
+        if (_lockCleanupActions.isEmpty()) {
+            return;
+        }
+        _persistit.getTransactionIndex().updateActiveTransactionCache();
+
+        final List<CleanupAction> actions = new ArrayList<CleanupAction>();
+        final List<CleanupAction> consequentActions = new ArrayList<CleanupAction>();
+        synchronized(this) {
+            actions.addAll(_lockCleanupActions);
+            _lockCleanupActions.clear();
+        }
+        
+        for (final CleanupAction cleanupAction : actions) {
+            try {
+                cleanupAction.performAction(_persistit, consequentActions);
+            } catch (PersistitException pe) {
+                _persistit.getLogBase().pruneException.log(pe, this);
+            }
+        }
+        
+        for (final CleanupAction cleanupAction : consequentActions) {
+            try {
+                cleanupAction.performAction(_persistit, null);
+            } catch (PersistitException pe) {
+                _persistit.getLogBase().pruneException.log(pe, this);
+            }
+        }
+    }
+
+
 }

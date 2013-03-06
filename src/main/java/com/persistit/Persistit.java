@@ -1311,6 +1311,12 @@ public class Persistit {
         }
         return _lockVolume;
     }
+    
+    synchronized Volume getLockVolumeOrNull() throws PersistitException {
+        checkInitialized();
+        checkClosed();
+        return _lockVolume;
+    }
 
     /**
      * @return The {@link SplitPolicy} that will by applied by default to newly
@@ -1507,6 +1513,10 @@ public class Persistit {
     }
 
     void cleanup() {
+        _transactionIndex.updateActiveTransactionCache();
+        if (_lockVolume != null) {
+            ((VolumeStorageL2)_lockVolume.getStorage()).pruneLockPages();
+        }
         final Set<SessionId> sessionIds;
         synchronized (_transactionSessionMap) {
             sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());

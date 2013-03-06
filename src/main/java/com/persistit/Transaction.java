@@ -441,8 +441,6 @@ public class Transaction {
 
     private String _threadName;
 
-    private Set<CleanupPruneAction> _lockCleanupActions = new HashSet<CleanupPruneAction>();
-
     public static enum CommitPolicy {
         /**
          * The {@link Transaction#commit} method returns before all updates have
@@ -683,11 +681,9 @@ public class Transaction {
                 _commitCount++;
                 _rollbacksSinceLastCommit = 0;
             }
-            pruneLockPages();
             _transactionStatus = null;
             _rollbackPending = false;
             _threadName = null;
-            _lockCleanupActions.clear();
         }
 
         _nestedDepth--;
@@ -1325,34 +1321,6 @@ public class Transaction {
         final int treeHandle = tree.getHandle();
         assert treeHandle != 0 : "Undefined tree handle in " + tree;
         return treeHandle;
-    }
-
-    void addLockPage(final Long page, final int treeHandle) {
-        _lockCleanupActions.add(new CleanupPruneAction(treeHandle, page));
-    }
-
-    void pruneLockPages() {
-        if (_lockCleanupActions.isEmpty()) {
-            return;
-        }
-        _persistit.getTransactionIndex().updateActiveTransactionCache();
-
-        final List<CleanupAction> actions = new ArrayList<CleanupAction>();
-        for (final CleanupPruneAction cleanupAction : _lockCleanupActions) {
-            try {
-                cleanupAction.performAction(_persistit, actions);
-            } catch (PersistitException pe) {
-                _persistit.getLogBase().pruneException.log(pe, this);
-            }
-        }
-        
-        for (final CleanupAction cleanupAction : actions) {
-            try {
-                cleanupAction.performAction(_persistit, null);
-            } catch (PersistitException pe) {
-                _persistit.getLogBase().pruneException.log(pe, this);
-            }
-        }
     }
 
     /**

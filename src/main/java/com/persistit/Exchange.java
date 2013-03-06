@@ -2858,10 +2858,13 @@ public class Exchange implements ReadOnlyExchange {
         lockExchange.storeInternal(lockExchange.getKey(), lockExchange.getValue(), 0, options);
         final long page = lockExchange._levelCache[0]._page;
         final long splitPage = lockExchange._levelCache[0]._splitPage;
-        _transaction.addLockPage(page, lockExchange.getTree().getHandle());
+        
+        VolumeStorageL2 storage = (VolumeStorageL2)lockExchange.getVolume().getStorage();
+        storage.addLockPage(page, lockExchange.getTree().getHandle());
         if (splitPage != 0 && splitPage != page) {
-            _transaction.addLockPage(splitPage, lockExchange.getTree().getHandle());
+            storage.addLockPage(splitPage, lockExchange.getTree().getHandle());
         }
+        
         _persistit.releaseExchange(lockExchange);
     }
 
