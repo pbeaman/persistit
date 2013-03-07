@@ -1496,26 +1496,12 @@ public class Persistit {
         return _bufferPoolTable;
     }
 
+    /**
+     * Remove any sessions that have expired and close transactions associated
+     * with them. Also flush statistics for all known volumes.
+     */
     void cleanup() {
-        final Set<SessionId> sessionIds;
-        synchronized (_transactionSessionMap) {
-            sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
-        }
-        for (final SessionId sessionId : sessionIds) {
-            if (!sessionId.isAlive()) {
-                Transaction transaction = null;
-                synchronized (_transactionSessionMap) {
-                    transaction = _transactionSessionMap.remove(sessionId);
-                }
-                if (transaction != null) {
-                    try {
-                        transaction.close();
-                    } catch (final PersistitException e) {
-                        _logBase.exception.log(e);
-                    }
-                }
-            }
-        }
+        closeZombieTransactions(false);
         final List<Volume> volumes;
         synchronized (this) {
             volumes = new ArrayList<Volume>(_volumes);
@@ -1676,7 +1662,7 @@ public class Persistit {
             waitForIOTaskStop(task);
 
             interruptActiveThreads(SHORT_DELAY);
-            closeZombieTransactions();
+            closeZombieTransactions(true);
 
             for (final Volume volume : volumes) {
                 volume.close();
@@ -1695,17 +1681,17 @@ public class Persistit {
         releaseAllResources();
     }
 
-    private void closeZombieTransactions() {
+    private void closeZombieTransactions(boolean removeAllSessions) {
         final Set<SessionId> sessionIds;
         synchronized (_transactionSessionMap) {
             sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
         }
         for (final SessionId sessionId : sessionIds) {
-            Transaction transaction = null;
-            synchronized (_transactionSessionMap) {
-                transaction = _transactionSessionMap.remove(sessionId);
-            }
-            if (!sessionId.isAlive()) {
+            if (!sessionId.isAlive() || removeAllSessions) {
+                Transaction transaction = null;
+                synchronized (_transactionSessionMap) {
+                    transaction = _transactionSessionMap.remove(sessionId);
+                }
                 if (transaction != null) {
                     try {
                         transaction.close();

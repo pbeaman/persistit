@@ -124,6 +124,12 @@ class TransactionStatus {
      */
     private volatile boolean _notified;
 
+    /**
+     * Indicates whether the owning transaction had been abandoned. This status
+     * may be in a locked state and is not available for re-use.
+     */
+    private volatile boolean _abandoned;
+
     TransactionStatus(final TransactionIndexBucket bucket) {
         _bucket = bucket;
     }
@@ -242,6 +248,13 @@ class TransactionStatus {
             _tc = timestamp;
         }
         _notified = true;
+    }
+
+    void completeAndUnlock(final long timestamp) {
+        complete(timestamp);
+        if (!isAbandoned()) {
+            wwUnlock();
+        }
     }
 
     boolean isLocked() {
@@ -374,6 +387,7 @@ class TransactionStatus {
      * Release the lock acquired by {@link #wwLock(long)}.
      */
     void wwUnlock() {
+        assert !isAbandoned() : "Attempt to unlock abandoned: " + this;
         _wwLock.unlock();
     }
 
@@ -407,6 +421,20 @@ class TransactionStatus {
         abort();
         setMvvCount(Integer.MAX_VALUE);
         _notified = true;
+    }
+
+    /**
+     * Make this status as abandoned. This will prevent its unlock and re-use.
+     */
+    void markAbandoned() {
+        _abandoned = true;
+    }
+
+    /**
+     * @return <code>true</code> if this status has been abandoned.
+     */
+    boolean isAbandoned() {
+        return _abandoned;
     }
 
     @Override
