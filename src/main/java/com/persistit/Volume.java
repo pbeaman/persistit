@@ -500,20 +500,6 @@ public class Volume {
         persistit.addVolume(this);
     }
 
-    private void openTemporaryVolume(final Persistit persistit, final int pageSize, final File tempDirectory)
-            throws PersistitException {
-        openInternal(persistit, pageSize);
-        _storage = new VolumeStorageT2(persistit, this, tempDirectory);
-        _storage.create();
-    }
-
-    private void openLockVolume(final Persistit persistit, final int pageSize, final File tempDirectory)
-            throws PersistitException {
-        openInternal(persistit, pageSize);
-        _storage = new VolumeStorageL2(persistit, this, tempDirectory);
-        _storage.create();
-    }
-
     private void openInternal(final Persistit persistit, final int pageSize) throws PersistitException {
         checkClosing();
         if (_storage != null) {
