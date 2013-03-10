@@ -20,7 +20,6 @@ import static com.persistit.unit.ConcurrentUtil.createThread;
 import static com.persistit.unit.ConcurrentUtil.join;
 import static com.persistit.unit.ConcurrentUtil.start;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -210,7 +209,7 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
     }
 
     private String computeCreateRemoveState(final String treeName, final int steps) throws PersistitException {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         for (int step = 0; step < steps; step++) {
             _persistit.getTransaction().setStep(step);
             if (sb.length() > 0) {
