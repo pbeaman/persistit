@@ -92,18 +92,20 @@ public class TimelyResource<V extends Version> {
     }
 
     public synchronized void delete() throws RollbackException, PersistitException {
-        if (_first != null) {
-            final V resource = _first.getResource();
-            final Transaction txn = _persistit.getTransaction();
-            final Entry entry = new Entry(tss2v(txn), resource);
-            if (!_first.isDeleted()) {
-                entry.setDeleted();
-                addVersion(entry, txn);
-            }
+        if (_first == null) {
+            throw new IllegalStateException("There is no resource to delete");
+        }
+        final V resource = _first.getResource();
+        final Transaction txn = _persistit.getTransaction();
+        final Entry entry = new Entry(tss2v(txn), resource);
+        if (!_first.isDeleted()) {
+            entry.setDeleted();
+            addVersion(entry, txn);
         }
     }
 
-    public void addVersion(final V resource, final Transaction txn) throws PersistitException, RollbackException {
+    public void addVersion(final V resource, final Transaction txn) throws PersistitInterruptedException,
+            RollbackException {
         if (resource == null) {
             throw new NullPointerException("Null resource");
         }
@@ -163,7 +165,7 @@ public class TimelyResource<V extends Version> {
      * @throws PersistitInterruptedException
      */
 
-    public boolean isTransactionPrivate() throws TimeoutException, PersistitInterruptedException {
+    public boolean isTransactionPrivate(final boolean byStep) throws TimeoutException, PersistitInterruptedException {
         Entry entry = _first;
         if (entry != null && entry.getVersion() == PRIMORDIAL) {
             return false;
@@ -174,14 +176,18 @@ public class TimelyResource<V extends Version> {
         if (entry == null) {
             return true;
         } else {
-            return vh2ts(entry.getVersion()) == vh2ts(versionHandle);
+            if (byStep) {
+                return entry.getVersion() == versionHandle;
+            } else {
+                return vh2ts(entry.getVersion()) == vh2ts(versionHandle);
+            }
         }
     }
 
     /**
      * @return Count of versions currently being managed.
      */
-    public int getVersionCount() {
+    int getVersionCount() {
         int count = 0;
         for (Entry e = _first; e != null; e = e._previous) {
             count++;
@@ -311,7 +317,8 @@ public class TimelyResource<V extends Version> {
      * @throws PersistitException
      * @throws RollbackException
      */
-    private void addVersion(final Entry entry, final Transaction txn) throws PersistitException, RollbackException {
+    private void addVersion(final Entry entry, final Transaction txn) throws PersistitInterruptedException,
+            RollbackException {
         final TransactionIndex ti = _persistit.getTransactionIndex();
         while (true) {
             try {

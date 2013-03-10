@@ -498,7 +498,7 @@ public class Exchange implements ReadOnlyExchange {
 
     private void checkLevelCache() throws PersistitException {
 
-        if (!_tree.isValid() || _tree.isDeleted()) {
+        if (!_tree.isLive()) {
             if (_tree.getVolume().isTemporary()) {
                 _tree = _tree.getVolume().getTree(_tree.getName(), true);
                 _treeHolder = new ReentrantResourceHolder(_tree);
@@ -1351,11 +1351,7 @@ public class Exchange implements ReadOnlyExchange {
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
-        if (!_ignoreTransactions && !_transaction.isActive() && !isDirectoryExchange()) {
-            _persistit.getJournalManager().throttle();
-        }
-        // TODO: directoryExchange, and lots of tests, don't use transactions.
-        // Skip MVCC for now.
+        throttle();
         int options = StoreOptions.WAIT;
         options |= (!_ignoreTransactions && _transaction.isActive()) ? StoreOptions.MVCC : 0;
         storeInternal(key, value, 0, options);
@@ -1552,7 +1548,7 @@ public class Exchange implements ReadOnlyExchange {
                          * primordially because if the transaction rolls back,
                          * the entire Tree will be removed.
                          */
-                        if (doMVCC & (_spareValue.isDefined() || !_tree.isTransactionPrivate())) {
+                        if (doMVCC & (_spareValue.isDefined() || !_tree.isTransactionPrivate(true))) {
                             valueToStore = spareValue;
                             final int valueSize = value.getEncodedSize();
                             int retries = VERSIONS_OUT_OF_ORDER_RETRY_COUNT;
@@ -3395,14 +3391,7 @@ public class Exchange implements ReadOnlyExchange {
             _persistit.checkSuspended();
         }
 
-        /*
-         * Don't throttle operations on the directory tree since that makes some
-         * unit tests very slow. This test is now necessary because a directory
-         * tree update can now occur within the scope of a transaction.
-         */
-        if (!_ignoreTransactions && !_transaction.isActive() && !isDirectoryExchange()) {
-            _persistit.getJournalManager().throttle();
-        }
+        throttle();
 
         if (_ignoreTransactions || !_transaction.isActive()) {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
@@ -3417,7 +3406,7 @@ public class Exchange implements ReadOnlyExchange {
          * range-delete the tree since it is not visible outside this
          * transaction.
          */
-        if (_tree.isTransactionPrivate()) {
+        if (_tree.isTransactionPrivate(true)) {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
         }
 
@@ -3993,7 +3982,7 @@ public class Exchange implements ReadOnlyExchange {
 
     boolean prune(final Key key) throws PersistitException {
         Buffer buffer = null;
-        Debug.$assert1.t(_tree.isValid() && !_tree.isDeleted());
+        Debug.$assert1.t(_tree.isLive());
         try {
             search(key, true);
             buffer = _levelCache[0]._buffer;
@@ -4013,7 +4002,7 @@ public class Exchange implements ReadOnlyExchange {
         Buffer buffer = null;
         boolean pruned = false;
 
-        Debug.$assert1.t(_tree.isValid() && !_tree.isDeleted());
+        Debug.$assert1.t(_tree.isLive());
         try {
             search(key1, true);
             buffer = _levelCache[0]._buffer;
@@ -4439,6 +4428,17 @@ public class Exchange implements ReadOnlyExchange {
             return wasLong;
         } finally {
             _ignoreMVCCFetch = savedIgnore;
+        }
+    }
+
+    private void throttle() throws PersistitInterruptedException {
+        /*
+         * Don't throttle operations on the directory tree since that makes some
+         * unit tests very slow. This test is now necessary because a directory
+         * tree update can now occur within the scope of a transaction.
+         */
+        if (!_ignoreTransactions && !_transaction.isActive() && !isDirectoryExchange()) {
+            _persistit.getJournalManager().throttle();
         }
     }
 }

@@ -17,14 +17,19 @@ package com.persistit;
 
 import static com.persistit.TransactionIndex.tss2vh;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
+import static com.persistit.unit.ConcurrentUtil.assertSuccess;
+import static com.persistit.unit.ConcurrentUtil.createThread;
+import static com.persistit.unit.ConcurrentUtil.join;
+import static com.persistit.unit.ConcurrentUtil.start;
 import static com.persistit.util.Util.NS_PER_S;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,6 +40,8 @@ import com.persistit.Version.PrunableVersion;
 import com.persistit.Version.VersionCreator;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
+import com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
+import com.persistit.unit.ConcurrentUtil.UncaughtExceptionHandler;
 import com.persistit.util.Util;
 
 public class TimelyResourceTest extends PersistitUnitTestCase {
@@ -89,7 +96,9 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             }
             final TestVersion resource = new TestVersion(i, this);
             resources[i] = resource;
-            tr.delete();
+            if (!tr.isEmpty()) {
+                tr.delete();
+            }
             tr.addVersion(resource, txn);
             if (withTransactions) {
                 txn.commit();
@@ -97,27 +106,27 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             }
             history[i] = _persistit.getTimestampAllocator().updateTimestamp();
         }
-        assertEquals("Incorrect version count", 9, tr.getVersionCount());
+        assertEquals("Incorrect version count " + withTransactions, 9, tr.getVersionCount());
 
         for (int i = 0; i < 5; i++) {
             final TestVersion t = tr.getVersion(tss2vh(history[i], 0));
-            assertTrue("Missing version", t != null);
-            assertEquals("Wrong version", i, t._id);
+            assertTrue("Missing version " + withTransactions, t != null);
+            assertEquals("Wrong version " + withTransactions, i, t._id);
         }
         _persistit.getTransactionIndex().updateActiveTransactionCache();
         tr.prune();
-        assertEquals("Should have one version left", 1, tr.getVersionCount());
-        assertEquals("Wrong version", 4, tr.getVersion(tss2vh(UNCOMMITTED, 0))._id);
+        assertEquals("Should have one version left " + withTransactions, 1, tr.getVersionCount());
+        assertEquals("Wrong version " + withTransactions, 4, tr.getVersion(tss2vh(UNCOMMITTED, 0))._id);
 
         tr.delete();
 
-        assertEquals("Should have two versions left", 2, tr.getVersionCount());
+        assertEquals("Should have two versions left " + withTransactions, 2, tr.getVersionCount());
         _persistit.getTransactionIndex().updateActiveTransactionCache();
         tr.prune();
-        assertEquals("Should have no versions left", 0, tr.getVersionCount());
+        assertEquals("Should have no versions left " + withTransactions, 0, tr.getVersionCount());
 
         for (int i = 0; i < 5; i++) {
-            assertEquals("Should have been pruned", 1, resources[i]._pruned.get());
+            assertEquals("Should have been pruned " + withTransactions, 1, resources[i]._pruned.get());
         }
     }
 
@@ -129,7 +138,8 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         final AtomicInteger sequence = new AtomicInteger();
         final AtomicInteger rollbackCount = new AtomicInteger();
         final List<Thread> threads = new ArrayList<Thread>();
-
+        final UncaughtExceptionHandler handler = new UncaughtExceptionHandler();
+        int threadCounter = 0;
         while (System.nanoTime() < expires) {
             for (final Iterator<Thread> iter = threads.iterator(); iter.hasNext();) {
                 if (!iter.next().isAlive()) {
@@ -137,29 +147,26 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
                 }
             }
             while (threads.size() < 20) {
-                final Thread t = new Thread(new Runnable() {
+                final Thread t = createThread(String.format("Thread_%06d", ++threadCounter), new ThrowingRunnable() {
                     @Override
-                    public void run() {
+                    public void run() throws Exception {
                         doConcurrentTransaction(tr, random, sequence, rollbackCount);
                     }
                 });
                 threads.add(t);
-                t.start();
+                start(handler, t);
             }
             Util.sleep(10);
             tr.prune();
         }
-
-        for (final Thread thread : threads) {
-            thread.join();
-        }
-
+        join(Long.MAX_VALUE, handler.getThrowableMap(), threads.toArray(new Thread[threads.size()]));
+        assertSuccess(handler.getThrowableMap());
         assertTrue("Every transaction rolled back", rollbackCount.get() < sequence.get());
         System.out.printf("%,d entries, %,d rollbacks\n", sequence.get(), rollbackCount.get());
     }
 
     private void doConcurrentTransaction(final TimelyResource<TestVersion> tr, final Random random,
-            final AtomicInteger sequence, final AtomicInteger rollbackCount) {
+            final AtomicInteger sequence, final AtomicInteger rollbackCount) throws PersistitException {
         try {
             final Transaction txn = _persistit.getTransaction();
             for (int i = 0; i < 25; i++) {
@@ -187,9 +194,6 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
             }
         } catch (final RollbackException e) {
             rollbackCount.incrementAndGet();
-        } catch (final Exception e) {
-            e.printStackTrace();
-            fail(e.toString());
         }
     }
 

@@ -15,17 +15,26 @@
 
 package com.persistit;
 
+import static com.persistit.unit.ConcurrentUtil.assertSuccess;
+import static com.persistit.unit.ConcurrentUtil.createThread;
+import static com.persistit.unit.ConcurrentUtil.join;
+import static com.persistit.unit.ConcurrentUtil.start;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.unit.ConcurrentUtil.ThrowingRunnable;
 
 public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
+    final static int TIMEOUT_MS = 10000;
+
     final Semaphore semA = new Semaphore(0);
     final Semaphore semB = new Semaphore(0);
     final Semaphore semT = new Semaphore(0);
@@ -61,15 +70,14 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
             txn.rollback();
             txn.end();
         }
-        // _persistit.cleanup();
-        Thread.sleep(5000);
+        _persistit.cleanup();
         assertEquals("There should be no tree", null, tree("ttlt"));
         assertTrue(vstruc().getGarbageRoot() != 0);
     }
 
     @Test
     public void createdTreeIsNotVisibleUntilCommit() throws Exception {
-        final Thread t = new Thread(new TExec() {
+        final Thread t = createThread("ttlt", new TExec() {
             @Override
             void exec(final Transaction txn) throws Exception {
                 final Exchange ex1 = exchange("ttlt");
@@ -80,12 +88,12 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
                 txn.commit();
             }
         });
-        t.start();
+        final Map<Thread, Throwable> errors = start(t);
         semA.acquire();
         assertEquals(null, _persistit.getVolume("persistit").getTree("ttlt", false));
         semB.release();
-        t.join();
-
+        join(TIMEOUT_MS, errors, t);
+        assertSuccess(errors);
         final Exchange ex = exchange("ttlt");
         assertTrue(ex.to(Key.BEFORE).next());
         assertEquals(1, ex.getKey().decodeInt());
@@ -96,7 +104,7 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
         final Exchange ex = exchange("ttlt");
         ex.getValue().put(RED_FOX);
         ex.to(1).store();
-        final Thread t = new Thread(new TExec() {
+        final Thread t = createThread("ttlt", new TExec() {
             @Override
             void exec(final Transaction txn) throws Exception {
                 final Exchange ex1 = exchange("ttlt");
@@ -106,11 +114,11 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
                 txn.commit();
             }
         });
-        t.start();
+        final Map<Thread, Throwable> errors = start(t);
         semA.acquire();
         assertEquals(ex.getTree(), ex.getVolume().getTree("ttlt", false));
         semB.release();
-        t.join();
+        join(TIMEOUT_MS, errors, t);
         assertNull(ex.getVolume().getTree("ttlt", false));
     }
 
@@ -120,7 +128,7 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
         final Exchange ex = exchange("ttlt");
         ex.getValue().put(RED_FOX);
         ex.to(1).store();
-        final Thread t = new Thread(new TExec() {
+        final Thread t = createThread("ttlt", new TExec() {
             @Override
             void exec(final Transaction txn) throws Exception {
                 final Exchange ex1 = exchange("ttlt");
@@ -142,11 +150,11 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
                 txn.rollback();
             }
         });
-        t.start();
+        final Map<Thread, Throwable> errors = start(t);
         semA.acquire();
         assertEquals(ex.getTree(), ex.getVolume().getTree("ttlt", false));
         semB.release();
-        t.join();
+        join(TIMEOUT_MS, errors, t);
         _persistit.getTransactionIndex().updateActiveTransactionCache();
         _persistit.pruneTimelyResources();
         assertTrue(ex.to(Key.BEFORE).next());
@@ -155,20 +163,82 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
         assertTrue(ex.getVolume().getStructure().getGarbageRoot() != 0);
     }
 
-    abstract class TExec implements Runnable {
+    @Test
+    public void createRemoveByStep() throws Exception {
+        createRemoveByStepHelper("ttlt1", false, true, "0,1:,2:a=step2,3,4:b=step4", "0:b=step4");
+        createRemoveByStepHelper("ttlt2", false, false, "0,1:,2:a=step2,3,4:b=step4", "0");
+        createRemoveByStepHelper("ttlt3", true, true, "0:,1:,2:a=step2,3,4:b=step4", "0:b=step4");
+        createRemoveByStepHelper("ttlt4", true, false, "0:,1:,2:a=step2,3,4:b=step4", "0:");
+    }
+
+    private void createRemoveByStepHelper(final String treeName, final boolean primordial, final boolean commit,
+            final String expected1, final String expected2) throws Exception {
+
+        final Transaction txn = _persistit.getTransaction();
+        final Volume volume = _persistit.getVolume("persistit");
+        if (primordial) {
+            volume.getTree(treeName, true);
+        }
+        txn.begin();
+        try {
+            txn.setStep(1);
+            volume.getTree(treeName, true);
+
+            txn.setStep(2);
+            final Exchange ex1 = exchange(treeName);
+            ex1.getValue().put("step2");
+            ex1.to("a").store();
+
+            txn.setStep(3);
+            ex1.removeTree();
+
+            txn.setStep(4);
+            final Exchange ex2 = exchange(treeName);
+            ex2.getValue().put("step4");
+            ex2.to("b").store();
+
+            assertEquals("Expected contents at steps", expected1, computeCreateRemoveState(treeName, 5));
+            if (commit) {
+                txn.commit();
+            } else {
+                txn.rollback();
+            }
+        } finally {
+            txn.end();
+        }
+        assertEquals("Expected contents at steps", expected2, computeCreateRemoveState(treeName, 1));
+    }
+
+    private String computeCreateRemoveState(final String treeName, final int steps) throws PersistitException {
+        StringBuilder sb = new StringBuilder();
+        for (int step = 0; step < steps; step++) {
+            _persistit.getTransaction().setStep(step);
+            if (sb.length() > 0) {
+                sb.append(",");
+            }
+            sb.append(step);
+            if (_persistit.getVolume("persistit").getTree(treeName, false) != null) {
+                sb.append(":");
+                final Exchange ex = exchange(treeName);
+                ex.append(Key.BEFORE);
+                while (ex.next()) {
+                    sb.append(ex.getKey().decodeString()).append("=").append(ex.getValue().getString());
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    abstract class TExec extends ThrowingRunnable {
 
         @Override
-        public void run() {
+        public void run() throws Exception {
+            final Transaction txn = _persistit.getTransaction();
+            txn.begin();
             try {
-                final Transaction txn = _persistit.getTransaction();
-                txn.begin();
-                try {
-                    exec(txn);
-                } finally {
-                    txn.end();
-                }
-            } catch (final Exception e) {
-                e.printStackTrace();
+                exec(txn);
+            } finally {
+                txn.end();
             }
         }
 

@@ -189,7 +189,7 @@ class VolumeStructure {
         if (treeRef != null) {
             tree = treeRef.get();
             if (tree != null) {
-                if (tree.isValid() && !tree.isDeleted()) {
+                if (tree.isLive()) {
                     return tree;
                 } else {
                     if (!createIfNecessary) {
@@ -254,7 +254,7 @@ class VolumeStructure {
             }
         } else {
             final Exchange ex = directoryExchange();
-            if (!tree.isTransactionPrivate()) {
+            if (!tree.isTransactionPrivate(false)) {
                 ex.ignoreTransactions();
             }
             ex.getValue().put(tree);
@@ -263,7 +263,7 @@ class VolumeStructure {
     }
 
     void storeTreeStatistics(final Tree tree) throws PersistitException {
-        if (!tree.isDeleted() && tree.getStatistics().isDirty() && tree != _directoryTree) {
+        if (tree.isLive() && tree.getStatistics().isDirty() && tree != _directoryTree) {
             final Exchange ex = directoryExchange();
             if (!ex.getVolume().isReadOnly()) {
                 ex.getValue().put(tree.getStatistics());
@@ -281,7 +281,7 @@ class VolumeStructure {
         }
     }
 
-    boolean removeTree(final Tree tree) throws PersistitException {
+    void removeTree(final Tree tree) throws PersistitException {
         if (tree == _directoryTree) {
             throw new IllegalArgumentException("Can't delete the Directory tree");
         }
@@ -298,8 +298,6 @@ class VolumeStructure {
         } finally {
             tree.release();
         }
-
-        return true;
     }
 
     synchronized void removed(final Tree tree) {

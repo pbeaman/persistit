@@ -46,9 +46,9 @@ import com.persistit.util.Util;
  * side-effect, the physical storage for a <code>Tree</code> is not deallocated
  * until there are no remaining active transactions that started before the
  * commit timestamp of the current transaction. Concurrent transactions that
- * attempt to create or remove the same
- * <code>Tree<code> instance are subject to a
- * a write-write dependency (see {@link Transaction}); all but one such transaction must roll back.
+ * attempt to create or remove the same <code>Tree</code> instance are subject
+ * to a a write-write dependency (see {@link Transaction}); all but one such
+ * transaction must roll back.
  * </p>
  * <p>
  * <code>Tree</code> instances are created by
@@ -141,6 +141,18 @@ public class Tree extends SharedResource {
         }
     }
 
+    /**
+     * Unchecked wrapper for PersistitException thrown while trying to acquire a
+     * TreeVersion.
+     */
+    public static class TreeVersionException extends RuntimeException {
+        private static final long serialVersionUID = -6372589972106489591L;
+
+        TreeVersionException(final Exception e) {
+            super(e);
+        }
+    }
+
     Tree(final Persistit persistit, final Volume volume, final String name) {
         super(persistit);
         final int serializedLength = name.getBytes().length;
@@ -153,11 +165,11 @@ public class Tree extends SharedResource {
         _timelyResource = new TimelyResource<TreeVersion>(persistit);
     }
 
-    private TreeVersion version() {
+    TreeVersion version() {
         try {
             return _timelyResource.getVersion(_creator);
-        } catch (final Exception e) {
-            throw new RuntimeException(e); // TODO
+        } catch (final PersistitException e) {
+            throw new TreeVersionException(e);
         }
     }
 
@@ -165,8 +177,12 @@ public class Tree extends SharedResource {
         return _timelyResource.isEmpty();
     }
 
-    boolean isTransactionPrivate() throws TimeoutException, PersistitInterruptedException {
-        return _timelyResource.isTransactionPrivate();
+    boolean isLive() throws TimeoutException, PersistitInterruptedException {
+        return isValid() && !isDeleted();
+    }
+
+    boolean isTransactionPrivate(final boolean byStep) throws TimeoutException, PersistitInterruptedException {
+        return _timelyResource.isTransactionPrivate(byStep);
     }
 
     boolean hasVersion(final long versionHandle) throws TimeoutException, PersistitInterruptedException {
