@@ -219,19 +219,23 @@ class VolumeStorageT2 extends VolumeStorage {
             throw new InUseException("Unable to acquire claim on " + this);
         }
         try {
-            final VolumeStatistics stat = _volume.getStatistics();
-            final VolumeStructure struc = _volume.getStructure();
-
-            final long now = System.currentTimeMillis();
-            stat.setCreateTime(now);
-            stat.setOpenTime(now);
-
-            _nextAvailablePage = 1;
-
-            struc.init(0, 0);
+            truncateInternal();
         } finally {
             release();
         }
+    }
+
+    protected void truncateInternal() throws PersistitException {
+        final VolumeStatistics stat = _volume.getStatistics();
+        final VolumeStructure struc = _volume.getStructure();
+
+        final long now = System.currentTimeMillis();
+        stat.setCreateTime(now);
+        stat.setOpenTime(now);
+
+        _nextAvailablePage = 1;
+
+        struc.init(0, 0);
     }
 
     @Override
