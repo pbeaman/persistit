@@ -36,42 +36,37 @@ import com.persistit.exception.WWRetryException;
 
 /**
  * <p>
- * Transactionally manage multiple versions of objects. For example, an object
- * which caches state created and either committed or rolled back by a
+ * Transactionally manage multiple versions of a resource. For example, a
+ * resource which caches state created and either committed or rolled back by a
  * transaction may be use a TimelyResource to hold its versions. Each version
- * must implement {@link Version}. The {@link Version#prune()} method is called
- * when <code>TimelyResource</code> detects that the version is obsolete.
- * </p>
- * <p>
- * <code>TimelyResource</code> is parameterized with two types T and V. T is the
- * type of a "container" class that utilizes a <code>TimelyResource</code> and V
- * is the concrete type of a {@link Version} which holds information about one
- * version. For example, a
- * <code>TimelyResource&lt;Tree, Tree.TreeVersion&gt;</code> is used to hold
- * version information for a {@link Tree}.
+ * must implement the {@link Version} interface and may optionally implement
+ * {@link PrunableVersion} in which case its {@link PrunableVersion#prune()}
+ * method is called when <code>TimelyResource</code> detects that the version is
+ * obsolete.
  * </p>
  * <p>
  * The method {@link #addVersion(Version, Transaction)} attempts to add a new
  * version on behalf of the supplied transaction.
  * </p>
  * <p>
- * The method {@link #getVersion(Transaction)} returns the snapshot version
- * associated with the transaction, in other words, an instance of a P which was
- * either committed last before this transaction started, or which was created
- * by this transaction. If there is no such version the method returns
- * <code>null</code>.
+ * The method {@link #getVersion()} returns the snapshot version associated with
+ * the transaction, in other words, an instance of a P which was either
+ * committed last before this transaction started, or which was created by this
+ * transaction. If there is no such version the method returns <code>null</code>
+ * .
  * </p>
  * <p>
- * The method {@link #getVersion(Transaction, VersionCreator)} does the same
- * thing, except that if there is no application version the
- * {@link VersionCreator#createVersion(TimelyResource)} method s called to
+ * The method {@link #getVersion(com.persistit.Version.VersionCreator)} does the
+ * same thing, except that if there is no snapshot version the
+ * {@link VersionCreator#createVersion(TimelyResource)} method is called to
  * construct a new version.
  * </p>
  * 
  * @author peter
  * 
- * @param <T>
  * @param <V>
+ *            specific type of {@link Version} this <code>TimelyResource</code>
+ *            manages
  */
 public class TimelyResource<V extends Version> {
 
@@ -95,12 +90,17 @@ public class TimelyResource<V extends Version> {
         if (_first == null) {
             throw new IllegalStateException("There is no resource to delete");
         }
-        final V resource = _first.getResource();
-        final Transaction txn = _persistit.getTransaction();
-        final Entry entry = new Entry(tss2v(txn), resource);
         if (!_first.isDeleted()) {
-            entry.setDeleted();
-            addVersion(entry, txn);
+            final Transaction txn = _persistit.getTransaction();
+            final long version = tss2v(txn);
+            if (version == _first.getVersion()) {
+                _first.setDeleted();
+            } else {
+                final V resource = _first.getResource();
+                final Entry entry = new Entry(version, resource);
+                entry.setDeleted();
+                addVersion(entry, txn);
+            }
         }
     }
 
@@ -379,7 +379,7 @@ public class TimelyResource<V extends Version> {
      * 
      * @param version
      *            versionHandle
-     * @return
+     * @return <code>Version</code> for given version handle
      * @throws TimeoutException
      * @throws PersistitInterruptedException
      */
@@ -439,7 +439,7 @@ public class TimelyResource<V extends Version> {
     private class Entry {
 
         private long _version;
-        private final V _resource;
+        private V _resource;
         private volatile boolean _deleted;
         private volatile Entry _previous;
 
@@ -450,6 +450,10 @@ public class TimelyResource<V extends Version> {
 
         private V getResource() {
             return _resource;
+        }
+
+        private void setResource(final V resource) {
+            _resource = resource;
         }
 
         private Entry getPrevious() {
