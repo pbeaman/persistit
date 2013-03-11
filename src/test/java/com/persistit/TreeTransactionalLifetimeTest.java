@@ -164,14 +164,30 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
 
     @Test
     public void createRemoveByStep() throws Exception {
-        createRemoveByStepHelper("ttlt1", false, true, "0,1:,2:a=step2,3,4:b=step4", "0:b=step4");
-        createRemoveByStepHelper("ttlt2", false, false, "0,1:,2:a=step2,3,4:b=step4", "0");
-        createRemoveByStepHelper("ttlt3", true, true, "0:,1:,2:a=step2,3,4:b=step4", "0:b=step4");
-        createRemoveByStepHelper("ttlt4", true, false, "0:,1:,2:a=step2,3,4:b=step4", "0:");
+        createRemoveByStepHelper("ttlt1", false, true, false, false, "0,1:,2:a=step2,3,4:b=step4", "0:b=step4");
+        createRemoveByStepHelper("ttlt2", false, false, false, false, "0,1:,2:a=step2,3,4:b=step4", "0");
+        createRemoveByStepHelper("ttlt3", true, true, false, false, "0:,1:,2:a=step2,3,4:b=step4", "0:b=step4");
+        createRemoveByStepHelper("ttlt4", true, false, false, false, "0:,1:,2:a=step2,3,4:b=step4", "0:");
+
+        createRemoveByStepHelper("ttlt5", false, true, false, true, "0,1:,2:a=step2,3,4:b=step4", "0:b=step4");
+        createRemoveByStepHelper("ttlt6", false, false, false, true, "0,1:,2:a=step2,3,4:b=step4", "0");
+        createRemoveByStepHelper("ttlt7", true, true, false, true, "0:,1:,2:a=step2,3,4:b=step4", "0:b=step4");
+        createRemoveByStepHelper("ttlt8", true, false, false, true, "0:,1:,2:a=step2,3,4:b=step4", "0:");
+
+        createRemoveByStepHelper("ttlt1cr", false, true, true, false, "0,1:,2:a=step2,3,4:b=step4", "0");
+        createRemoveByStepHelper("ttlt2cr", false, false, true, false, "0,1:,2:a=step2,3,4:b=step4", "0");
+        createRemoveByStepHelper("ttlt3cr", true, true, true, false, "0:,1:,2:a=step2,3,4:b=step4", "0:");
+        createRemoveByStepHelper("ttlt4cr", true, false, false, false, "0:,1:,2:a=step2,3,4:b=step4", "0:");
+
+        createRemoveByStepHelper("ttlt5cr", false, true, true, true, "0,1:,2:a=step2,3,4:b=step4", "0");
+        createRemoveByStepHelper("ttlt6cr", false, false, true, true, "0,1:,2:a=step2,3,4:b=step4", "0");
+        createRemoveByStepHelper("ttlt7cr", true, true, true, true, "0:,1:,2:a=step2,3,4:b=step4", "0:");
+        createRemoveByStepHelper("ttlt8cr", true, false, true, true, "0:,1:,2:a=step2,3,4:b=step4", "0:");
     }
 
     private void createRemoveByStepHelper(final String treeName, final boolean primordial, final boolean commit,
-            final String expected1, final String expected2) throws Exception {
+            final boolean crash, final boolean restart, final String expected1, final String expected2)
+            throws Exception {
 
         final Transaction txn = _persistit.getTransaction();
         final Volume volume = _persistit.getVolume("persistit");
@@ -197,13 +213,28 @@ public class TreeTransactionalLifetimeTest extends PersistitUnitTestCase {
             ex2.to("b").store();
 
             assertEquals("Expected contents at steps", expected1, computeCreateRemoveState(treeName, 5));
-            if (commit) {
-                txn.commit();
+
+            if (crash) {
+                _persistit.checkpoint();
+                _persistit.crash();
             } else {
-                txn.rollback();
+                if (commit) {
+                    txn.commit();
+                } else {
+                    txn.rollback();
+                }
             }
         } finally {
-            txn.end();
+            if (!crash) {
+                txn.end();
+            }
+        }
+        if (restart) {
+            _persistit.close();
+        }
+        if (crash || restart) {
+            _persistit = new Persistit(_config);
+            _persistit.initialize();
         }
         assertEquals("Expected contents at steps", expected2, computeCreateRemoveState(treeName, 1));
     }
