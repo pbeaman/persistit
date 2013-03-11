@@ -1549,7 +1549,7 @@ public class Exchange implements ReadOnlyExchange {
                          * primordially because if the transaction rolls back,
                          * the entire Tree will be removed.
                          */
-                        if (doMVCC & (_spareValue.isDefined() || !_tree.isTransactionPrivate(true))) {
+                        if (doMVCC && (_spareValue.isDefined() || !_tree.isTransactionPrivate(true))) {
                             valueToStore = spareValue;
                             final int valueSize = value.getEncodedSize();
                             int retries = VERSIONS_OUT_OF_ORDER_RETRY_COUNT;
