@@ -213,7 +213,7 @@ public class TimelyResourceTest extends PersistitUnitTestCase {
         TestVersion v1;
         txn1.begin();
         v1 = tr.getVersion(creator);
-        assert v1._id == _idCounter;
+        assertTrue("Version ID mismatch", v1._id == _idCounter);
         txn2.begin();
         txn1.incrementStep();
         tr.delete();
