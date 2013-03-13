@@ -507,7 +507,7 @@ public class Volume {
             throw new IllegalStateException("This volume has already been opened");
         }
         if (persistit.getBufferPool(pageSize) == null) {
-            throw new IllegalStateException("There is no buffer pool for pages of size " + pageSize);
+            throw new BufferSizeUnavailableException("There is no buffer pool for pages of size " + pageSize);
         }
         _structure = new VolumeStructure(persistit, this, pageSize);
         _statistics = new VolumeStatistics();
