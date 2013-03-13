@@ -46,6 +46,7 @@ import com.persistit.MVV.PrunedVersion;
 import com.persistit.ValueHelper.MVVValueWriter;
 import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.VolumeStructure.Chain;
+import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
@@ -401,8 +402,9 @@ public class Exchange implements ReadOnlyExchange {
      * 
      * @param tree
      *            The <code>Tree</code> to access.
+     * @throws BufferSizeUnavailableException
      */
-    public Exchange(final Tree tree) {
+    public Exchange(final Tree tree) throws BufferSizeUnavailableException {
         this(tree._persistit);
         init(tree);
         _volume = tree.getVolume();
@@ -423,12 +425,16 @@ public class Exchange implements ReadOnlyExchange {
         init(tree);
     }
 
-    void init(final Tree tree) {
+    void init(final Tree tree) throws BufferSizeUnavailableException {
         assertCorrectThread(true);
         final Volume volume = tree.getVolume();
         _ignoreTransactions = volume.isTemporary();
         _ignoreMVCCFetch = false;
         _pool = _persistit.getBufferPool(volume.getPageSize());
+        if (_pool == null) {
+            throw new BufferSizeUnavailableException(String.format(tree + " with page size=" + volume.getPageSize()));
+        }
+
         _transaction = _persistit.getTransaction();
         _key.clear();
         _value.clear();

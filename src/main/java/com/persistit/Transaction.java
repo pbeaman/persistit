@@ -683,7 +683,11 @@ public class Transaction {
                 _commitCount++;
                 _rollbacksSinceLastCommit = 0;
             }
-            pruneLockPages();
+            try {
+                pruneLockPages();
+            } catch (Exception e) {
+                _persistit.getLogBase().pruneException.log(e, "locks");
+            }
             _transactionStatus = null;
             _rollbackPending = false;
             _threadName = null;

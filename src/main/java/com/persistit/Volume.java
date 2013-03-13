@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.ReadOnlyVolumeException;
@@ -467,7 +468,7 @@ public class Volume {
             throw new UnderSpecifiedVolumeException(getName());
         }
         if (persistit.getBufferPool(_specification.getPageSize()) == null) {
-            throw new IllegalStateException(getName());
+            throw new BufferSizeUnavailableException(getName());
         }
         final boolean exists = VolumeHeader.verifyVolumeHeader(_specification, persistit.getCurrentTimestamp());
 
