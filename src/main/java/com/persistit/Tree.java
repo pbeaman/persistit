@@ -244,8 +244,8 @@ public class Tree extends SharedResource {
      */
     @Override
     public String toString() {
-        return "<Tree " + _name + " rootPageAddr=" + _rootPageAddr + " depth=" + _depth + " status="
-                + getStatusDisplayString() + ">";
+        return "<Tree " + _name + " in volume " + _volume.getName() + " rootPageAddr=" + _rootPageAddr + " depth="
+                + _depth + " status=" + getStatusDisplayString() + ">";
     }
 
     /**

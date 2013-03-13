@@ -789,7 +789,7 @@ public class BufferPool {
                     // page will find it.
                     //
                     buffer.setValid();
-                    if (vol.isTemporary()) {
+                    if (vol.isTemporary() || vol.isLockVolume()) {
                         buffer.setTemporary();
                     } else {
                         buffer.clearTemporary();
@@ -1468,7 +1468,7 @@ public class BufferPool {
                         }
                         Util.spinSleep();
                     }
-                    if (volume1 != null && !volume1.isTemporary()) {
+                    if (volume1 != null && !volume1.isTemporary() && !volume1.isLockVolume()) {
                         value.clear().setStreamMode(true);
                         value.put(volume1.getHandle());
                         value.put(page1);

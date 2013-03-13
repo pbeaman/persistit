@@ -26,6 +26,7 @@ import java.util.Map;
 
 import com.persistit.AlertMonitor.AlertLevel;
 import com.persistit.AlertMonitor.Event;
+import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
@@ -128,13 +129,13 @@ class VolumeStructure {
         _persistit.getJournalManager().truncate(_volume, timestamp);
     }
 
-    Exchange directoryExchange() {
+    Exchange directoryExchange() throws BufferSizeUnavailableException {
         final Exchange ex = new Exchange(_directoryTree);
         ex.ignoreTransactions();
         return ex;
     }
 
-    Exchange accumulatorExchange() {
+    Exchange accumulatorExchange() throws BufferSizeUnavailableException {
         return new Exchange(_directoryTree);
     }
 
@@ -502,7 +503,9 @@ class VolumeStructure {
                     return buffer;
                 } finally {
                     garbageBuffer = releaseBuffer(garbageBuffer);
-                    deallocateGarbageChain(chains);
+                    if (!chains.isEmpty()) {
+                        deallocateGarbageChain(chains);
+                    }
                 }
             }
         } finally {
@@ -517,7 +520,6 @@ class VolumeStructure {
         buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
         Debug.$assert0.t(buffer.getPageAddress() != 0);
         return buffer;
-
     }
 
     void deallocateGarbageChain(final long left, final long right) throws PersistitException {

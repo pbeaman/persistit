@@ -18,6 +18,7 @@ package com.persistit;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
+import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
@@ -104,7 +105,7 @@ public class TestShim {
         jman.copyBack();
     }
 
-    public static Exchange directoryExchange(final Volume volume) {
+    public static Exchange directoryExchange(final Volume volume) throws BufferSizeUnavailableException {
         return volume.getStructure().directoryExchange();
     }
 

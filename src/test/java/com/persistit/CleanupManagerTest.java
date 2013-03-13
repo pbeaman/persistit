@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.ref.WeakReference;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -48,7 +49,8 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
         }
 
         @Override
-        public void performAction(final Persistit persistit) throws PersistitException {
+        public void performAction(final Persistit persistit, final List<CleanupAction> consequentActions)
+                throws PersistitException {
             assertEquals(_last + 1, _sequence);
             _last = _sequence;
             _counter++;

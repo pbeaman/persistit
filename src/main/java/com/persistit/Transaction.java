@@ -21,8 +21,14 @@ import static com.persistit.util.SequencerConstants.COMMIT_FLUSH_C;
 import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import com.persistit.Accumulator.Delta;
+import com.persistit.CleanupManager.CleanupAction;
+import com.persistit.CleanupManager.CleanupPruneAction;
 import com.persistit.JournalRecord.D0;
 import com.persistit.JournalRecord.D1;
 import com.persistit.JournalRecord.DR;
@@ -434,6 +440,8 @@ public class Transaction {
 
     private String _threadName;
 
+    private final Set<CleanupAction> _lockCleanupActions = new HashSet<CleanupAction>();
+
     public static enum CommitPolicy {
         /**
          * The {@link Transaction#commit} method returns before all updates have
@@ -674,6 +682,11 @@ public class Transaction {
             } else {
                 _commitCount++;
                 _rollbacksSinceLastCommit = 0;
+            }
+            try {
+                pruneLockPages();
+            } catch (Exception e) {
+                _persistit.getLogBase().pruneException.log(e, "locks");
             }
             _transactionStatus = null;
             _rollbackPending = false;
@@ -1315,6 +1328,32 @@ public class Transaction {
         final int treeHandle = tree.getHandle();
         assert treeHandle != 0 : "Undefined tree handle in " + tree;
         return treeHandle;
+    }
+
+    void addLockPage(final Long page, final int treeHandle) {
+        _lockCleanupActions.add(new CleanupPruneAction(treeHandle, page));
+    }
+
+    void pruneLockPages() {
+        if (_lockCleanupActions.isEmpty()) {
+            return;
+        }
+
+        _persistit.getTransactionIndex().updateActiveTransactionCache(_commitTimestamp);
+        List<CleanupAction> actions = new ArrayList<CleanupAction>(_lockCleanupActions);
+        _lockCleanupActions.clear();
+
+        while (!actions.isEmpty()) {
+            final List<CleanupAction> consequentActions = new ArrayList<CleanupAction>();
+            for (final CleanupAction cleanupAction : actions) {
+                try {
+                    cleanupAction.performAction(_persistit, consequentActions);
+                } catch (final PersistitException pe) {
+                    _persistit.getLogBase().pruneException.log(pe, this);
+                }
+                actions = consequentActions;
+            }
+        }
     }
 
     /**

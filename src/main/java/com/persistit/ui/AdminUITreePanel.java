@@ -263,7 +263,7 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
     }
 
     private void selectVolume(final Management.VolumeInfo volumeInfo) {
-        final String newName = volumeInfo == null ? null : volumeInfo.getPath();
+        final String newName = volumeInfo == null ? null : volumeInfo.getName();
         if (!equals(newName, _selectedVolumeName)) {
             _logicalRecordArrayModel.setInfoArray(null);
             _selectedTreeName = null;

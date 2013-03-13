@@ -464,7 +464,7 @@ public interface Management extends Remote, ManagementMXBean {
      *         occurred while attempting to acquire the Class.
      * @throws RemoteException
      */
-    public Class getRemoteClass(String className) throws RemoteException;
+    public Class<?> getRemoteClass(String className) throws RemoteException;
 
     /**
      * Return the <code>VolumeInfo</code> for the volume specified by the
@@ -1450,7 +1450,7 @@ public interface Management extends Remote, ManagementMXBean {
      * returns information about all open Volumes in an array of
      * <code>VolumeInfo</code> elements.
      */
-    public static class VolumeInfo extends AcquisitionTimeBase implements Serializable {
+    public static class VolumeInfo extends AcquisitionTimeBase implements Serializable, Comparable<VolumeInfo> {
         public final static long serialVersionUID = -1231320633942497896L;
 
         int pageSize;
@@ -1785,7 +1785,12 @@ public interface Management extends Remote, ManagementMXBean {
         @Override
         public boolean equals(final Object object) {
             return object instanceof VolumeInfo && ((VolumeInfo) object).getId() == id
-                    && ((VolumeInfo) object).getPath().equals(path);
+                    && ((VolumeInfo) object).getName().equals(name);
+        }
+
+        @Override
+        public int compareTo(final VolumeInfo volumeInfo) {
+            return name.compareTo(volumeInfo.name);
         }
     }
 
