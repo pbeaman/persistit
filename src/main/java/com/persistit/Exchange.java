@@ -404,7 +404,7 @@ public class Exchange implements ReadOnlyExchange {
      *            The <code>Tree</code> to access.
      * @throws BufferSizeUnavailableException
      */
-    public Exchange(final Tree tree) throws BufferSizeUnavailableException {
+    public Exchange(final Tree tree) {
         this(tree._persistit);
         init(tree);
         _volume = tree.getVolume();
@@ -425,15 +425,12 @@ public class Exchange implements ReadOnlyExchange {
         init(tree);
     }
 
-    void init(final Tree tree) throws BufferSizeUnavailableException {
+    void init(final Tree tree) {
         assertCorrectThread(true);
         final Volume volume = tree.getVolume();
         _ignoreTransactions = volume.isTemporary();
         _ignoreMVCCFetch = false;
-        _pool = _persistit.getBufferPool(volume.getPageSize());
-        if (_pool == null) {
-            throw new BufferSizeUnavailableException(String.format(tree + " with page size=" + volume.getPageSize()));
-        }
+        _pool = volume.getStructure().getPool();
 
         _transaction = _persistit.getTransaction();
         _key.clear();
