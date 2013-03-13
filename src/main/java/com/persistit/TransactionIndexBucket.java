@@ -258,8 +258,7 @@ class TransactionIndexBucket {
         if (ts >= getFloor()) {
             for (TransactionStatus s = getCurrent(); s != null; s = s.getNext()) {
                 if (s == status) {
-                    s.complete(timestamp);
-                    status.wwUnlock();
+                    status.completeAndUnlock(timestamp);
                     if (s.getTs() == getFloor() || hasFloorMoved()) {
                         reduce();
                     }
@@ -272,8 +271,7 @@ class TransactionIndexBucket {
                 if (s == status) {
                     final TransactionStatus next = s.getNext();
                     assert s.getTc() != UNCOMMITTED;
-                    s.complete(timestamp);
-                    status.wwUnlock();
+                    status.completeAndUnlock(timestamp);
                     boolean moved = false;
                     if (s.getTc() == ABORTED) {
                         aggregate(s, false);
@@ -610,7 +608,7 @@ class TransactionIndexBucket {
          * May be held by another thread briefly while status being checked
          */
         assert !status.isHeldByCurrentThread();
-        if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+        if (_freeCount < _transactionIndex.getMaxFreeListSize() && !status.isAbandoned()) {
             status.setNext(_free);
             _free = status;
             _freeCount++;
