@@ -456,8 +456,11 @@ public class Volume {
      * 
      * @throws PersistitException
      */
-    void open(final Persistit persistit) throws PersistitException {
+    synchronized void open(final Persistit persistit) throws PersistitException {
         checkClosing();
+        if (isOpened()) {
+            return;
+        }
         if (_specification == null) {
             throw new IllegalStateException("Missing VolumeSpecification");
         }
