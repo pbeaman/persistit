@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import com.persistit.CleanupManager.CleanupAction;
 import com.persistit.CleanupManager.CleanupAntiValue;
 import com.persistit.Exchange.Sequence;
 import com.persistit.JournalRecord.IV;
@@ -522,7 +523,7 @@ public class Buffer extends SharedResource {
         final Volume volume = getVolume();
         if (volume != null) {
             if (prune) {
-                pruneMvvValues(null, false);
+                pruneMvvValues(null, false, null);
             }
             clearSlack();
             save();
@@ -3598,7 +3599,8 @@ public class Buffer extends SharedResource {
      *         buffer
      * @throws PersistitException
      */
-    boolean pruneMvvValues(final Tree tree, final boolean pruneLongMVVs) throws PersistitException {
+    boolean pruneMvvValues(final Tree tree, final boolean pruneLongMVVs, final List<CleanupAction> cleanupActions)
+            throws PersistitException {
         boolean changed = false;
         try {
             boolean hasLongMvvRecords = false;
@@ -3610,7 +3612,7 @@ public class Buffer extends SharedResource {
                 final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                 _mvvCount = 0;
                 writePageOnCheckpoint(timestamp);
-                final int flags = pruneMvvValuesHelper(tree);
+                final int flags = pruneMvvValuesHelper(tree, cleanupActions);
                 changed = (flags & PRUNE_MVV_HELPER_CHANGED) != 0;
                 hasLongMvvRecords = (flags & PRUNE_MVV_HELPER_HAS_LONG) != 0;
 
@@ -3626,7 +3628,7 @@ public class Buffer extends SharedResource {
 
                     final Buffer copy = new Buffer(this);
                     final boolean copyChanged = copy.pruneLongMvvValues(tree, prunedVersions, deferredExceptions,
-                            oldChainsToDeallocate);
+                            oldChainsToDeallocate, cleanupActions);
                     if (copyChanged) {
                         changed = true;
                         final long copyTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
@@ -3661,7 +3663,8 @@ public class Buffer extends SharedResource {
         return changed;
     }
 
-    private int pruneMvvValuesHelper(final Tree tree) throws PersistitException {
+    private int pruneMvvValuesHelper(final Tree tree, final List<CleanupAction> cleanupActions)
+            throws PersistitException {
         boolean changed = false;
         boolean hasLongMvvRecords = false;
         final List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
@@ -3707,7 +3710,7 @@ public class Buffer extends SharedResource {
                     incCountIfMvv(_bytes, offset, newSize);
                 }
 
-                if (pruneAntiValue(valueByte, p, tree)) {
+                if (pruneAntiValue(valueByte, p, tree, cleanupActions)) {
                     changed = true;
                     p -= KEYBLOCK_LENGTH;
                 }
@@ -3725,7 +3728,8 @@ public class Buffer extends SharedResource {
      * successful completion of this process.
      */
     private boolean pruneLongMvvValues(final Tree tree, final List<PrunedVersion> prunedVersions,
-            final List<PersistitException> deferredExceptions, final List<Long> toDeallocate) {
+            final List<PersistitException> deferredExceptions, final List<Long> toDeallocate,
+            final List<CleanupAction> cleanupActions) {
 
         boolean changed = false;
         for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
@@ -3767,7 +3771,7 @@ public class Buffer extends SharedResource {
                         value.changeLongRecordMode(false);
                     }
                 }
-                if (pruneAntiValue(valueByte, p, tree)) {
+                if (pruneAntiValue(valueByte, p, tree, cleanupActions)) {
                     changed = true;
                     p -= KEYBLOCK_LENGTH;
                 }
@@ -3780,13 +3784,16 @@ public class Buffer extends SharedResource {
         return changed;
     }
 
-    private boolean pruneAntiValue(final int valueByte, final int p, final Tree tree) {
+    private boolean pruneAntiValue(final int valueByte, final int p, final Tree tree,
+            final List<CleanupAction> cleanupActions) {
         if (valueByte == MVV.TYPE_ANTIVALUE) {
             if (p == KEY_BLOCK_START) {
                 if (tree != null) {
-                    if (!_enqueuedForAntiValuePruning) {
-                        final int treeHandle = tree.getHandle();
-                        assert treeHandle != 0 : "MVV found in a temporary tree " + tree;
+                    final int treeHandle = tree.getHandle();
+                    assert treeHandle != 0 : "MVV found in a temporary tree " + tree;
+                    if (cleanupActions != null) {
+                        cleanupActions.add(new CleanupAntiValue(treeHandle, getPageAddress()));
+                    } else if (!_enqueuedForAntiValuePruning) {
                         if (_persistit.getCleanupManager().offer(new CleanupAntiValue(treeHandle, getPageAddress()))) {
                             _enqueuedForAntiValuePruning = true;
                         }

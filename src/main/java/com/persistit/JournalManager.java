@@ -1589,7 +1589,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
         // map
         //
         for (final Map.Entry<Integer, TreeDescriptor> entry : _handleToTreeMap.entrySet()) {
-            writeTreeHandleToJournal(entry.getValue(), entry.getKey().intValue());
+            if (entry.getValue().getVolumeHandle() != Volume.LOCK_VOLUME_HANDLE) {
+                writeTreeHandleToJournal(entry.getValue(), entry.getKey().intValue());
+            }
         }
         //
         // Write the PM (Page Map) record

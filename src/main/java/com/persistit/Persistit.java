@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.management.InstanceNotFoundException;
@@ -288,6 +289,8 @@ public class Persistit {
 
     private final ThreadLocal<SoftReference<Value>> _valueThreadLocal = new ThreadLocal<SoftReference<Value>>();
 
+    private final AtomicLong _uniqueCounter = new AtomicLong();
+
     private volatile Volume _lockVolume;
 
     /**
@@ -442,12 +445,11 @@ public class Persistit {
             preloadBufferPools();
             initializeClassIndex();
             finishRecovery();
-            startCheckpointManager();
             startTransactionIndexPollTask();
             flush();
             _checkpointManager.checkpoint();
             _journalManager.pruneObsoleteTransactions();
-
+            startCheckpointManager();
             startCleanupManager();
             _initialized.set(true);
         } finally {
@@ -1091,15 +1093,7 @@ public class Persistit {
      * @throws PersistitException
      */
     public Volume createTemporaryVolume() throws PersistitException {
-        int pageSize = _configuration.getTmpVolPageSize();
-        if (pageSize == 0) {
-            for (final int size : _bufferPoolTable.keySet()) {
-                if (size > pageSize) {
-                    pageSize = size;
-                }
-            }
-        }
-        return createTemporaryVolume(pageSize);
+        return createTemporaryVolume(temporaryVolumePageSize());
     }
 
     /**
@@ -1125,6 +1119,18 @@ public class Persistit {
         final String directoryName = getConfiguration().getTmpVolDir();
         final File directory = directoryName == null ? null : new File(directoryName);
         return Volume.createTemporaryVolume(this, pageSize, directory);
+    }
+
+    private int temporaryVolumePageSize() {
+        int pageSize = _configuration.getTmpVolPageSize();
+        if (pageSize == 0) {
+            for (final int size : _bufferPoolTable.keySet()) {
+                if (size > pageSize) {
+                    pageSize = size;
+                }
+            }
+        }
+        return pageSize;
     }
 
     /**
@@ -1308,8 +1314,14 @@ public class Persistit {
         checkInitialized();
         checkClosed();
         if (_lockVolume == null) {
-            _lockVolume = createTemporaryVolume();
-            _lockVolume.setHandle(Volume.LOCK_VOLUME_HANDLE);
+            final int pageSize = temporaryVolumePageSize();
+            if (!Volume.isValidPageSize(pageSize)) {
+                throw new IllegalArgumentException("Invalid page size " + pageSize);
+            }
+            final String directoryName = getConfiguration().getTmpVolDir();
+            final File directory = directoryName == null ? null : new File(directoryName);
+            _lockVolume = Volume.createLockVolume(this, pageSize, directory);
+            _volumes.add(_lockVolume);
         }
         return _lockVolume;
     }
@@ -1509,26 +1521,12 @@ public class Persistit {
         return _bufferPoolTable;
     }
 
+    /**
+     * Remove any sessions that have expired and close transactions associated
+     * with them. Also flush statistics for all known volumes.
+     */
     void cleanup() {
-        final Set<SessionId> sessionIds;
-        synchronized (_transactionSessionMap) {
-            sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
-        }
-        for (final SessionId sessionId : sessionIds) {
-            if (!sessionId.isAlive()) {
-                Transaction transaction = null;
-                synchronized (_transactionSessionMap) {
-                    transaction = _transactionSessionMap.remove(sessionId);
-                }
-                if (transaction != null) {
-                    try {
-                        transaction.close();
-                    } catch (final PersistitException e) {
-                        _logBase.exception.log(e);
-                    }
-                }
-            }
-        }
+        closeZombieTransactions(false);
         _transactionIndex.updateActiveTransactionCache();
         pruneTimelyResources();
     }
@@ -1648,13 +1646,21 @@ public class Persistit {
                 }
             }
             recordBufferPoolInventory();
-
             _cleanupManager.close(flush);
             waitForIOTaskStop(_cleanupManager);
 
             getTransaction().close();
             cleanup();
-            final List<Volume> volumes = getVolumes();
+
+            if (_lockVolume != null) {
+                _lockVolume.close();
+            }
+
+            final List<Volume> volumes;
+            synchronized (this) {
+                volumes = new ArrayList<Volume>(_volumes);
+            }
+
             if (flush) {
                 for (final Volume volume : volumes) {
                     volume.getStorage().flush();
@@ -1675,7 +1681,7 @@ public class Persistit {
             waitForIOTaskStop(task);
 
             interruptActiveThreads(SHORT_DELAY);
-            closeZombieTransactions();
+            closeZombieTransactions(true);
 
             for (final Volume volume : volumes) {
                 volume.close();
@@ -1694,17 +1700,17 @@ public class Persistit {
         releaseAllResources();
     }
 
-    private void closeZombieTransactions() {
+    private void closeZombieTransactions(final boolean removeAllSessions) {
         final Set<SessionId> sessionIds;
         synchronized (_transactionSessionMap) {
             sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
         }
         for (final SessionId sessionId : sessionIds) {
-            Transaction transaction = null;
-            synchronized (_transactionSessionMap) {
-                transaction = _transactionSessionMap.remove(sessionId);
-            }
-            if (!sessionId.isAlive()) {
+            if (!sessionId.isAlive() || removeAllSessions) {
+                Transaction transaction = null;
+                synchronized (_transactionSessionMap) {
+                    transaction = _transactionSessionMap.remove(sessionId);
+                }
                 if (transaction != null) {
                     try {
                         transaction.close();
@@ -2556,6 +2562,10 @@ public class Persistit {
         final Value value = new Value(this);
         _valueThreadLocal.set(new SoftReference<Value>(value));
         return value;
+    }
+
+    long unique() {
+        return _uniqueCounter.incrementAndGet();
     }
 
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",

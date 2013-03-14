@@ -44,7 +44,6 @@ import com.persistit.exception.VolumeFullException;
 class VolumeStorageT2 extends VolumeStorage {
 
     final static String TEMP_FILE_PREFIX = "persistit_tempvol_";
-    private final static String TEMP_FILE_UNCREATED_NAME = "temp_volume_file_not_created_yet";
     private final File _tempDirectory;
     private long _maxPages;
     private volatile String _path;
@@ -117,7 +116,7 @@ class VolumeStorageT2 extends VolumeStorage {
     void create() throws PersistitException {
         final long maxSize = _persistit.getConfiguration().getTmpVolMaxSize();
         _maxPages = maxSize / _volume.getStructure().getPageSize();
-        _path = TEMP_FILE_UNCREATED_NAME;
+        _path = "";
         _channel = null;
         truncate();
         _opened = true;
@@ -220,21 +219,23 @@ class VolumeStorageT2 extends VolumeStorage {
             throw new InUseException("Unable to acquire claim on " + this);
         }
         try {
-            final VolumeStatistics stat = _volume.getStatistics();
-            final VolumeStructure struc = _volume.getStructure();
-
-            final long now = System.currentTimeMillis();
-            stat.setCreateTime(now);
-            stat.setOpenTime(now);
-
-            _nextAvailablePage = 1;
-
-            struc.init(0, 0);
+            truncateInternal();
         } finally {
             release();
         }
-        flushMetaData();
+    }
 
+    protected void truncateInternal() throws PersistitException {
+        final VolumeStatistics stat = _volume.getStatistics();
+        final VolumeStructure struc = _volume.getStructure();
+
+        final long now = System.currentTimeMillis();
+        stat.setCreateTime(now);
+        stat.setOpenTime(now);
+
+        _nextAvailablePage = 1;
+
+        struc.init(0, 0);
     }
 
     @Override

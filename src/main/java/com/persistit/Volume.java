@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.ReadOnlyVolumeException;
@@ -49,6 +50,7 @@ import com.persistit.util.Util;
 public class Volume {
 
     final static int LOCK_VOLUME_HANDLE = Integer.MAX_VALUE;
+    final static String LOCK_VOLUME_NAME = "_lock";
 
     private final String _name;
     private long _id;
@@ -86,7 +88,21 @@ public class Volume {
         final Volume volume = new Volume(
                 Thread.currentThread().getName() + TEMP_VOLUME_NAME_SUFFIX_FOR_FIXUP_DETECTION,
                 TEMP_VOLUME_ID_FOR_FIXUP_DETECTION);
-        volume.openTemporary(persistit, pageSize, tempDirectory);
+        volume.openInternal(persistit, pageSize);
+
+        volume._storage = new VolumeStorageT2(persistit, volume, tempDirectory);
+        volume._storage.create();
+
+        return volume;
+    }
+
+    static Volume createLockVolume(final Persistit persistit, final int pageSize, final File tempDirectory)
+            throws PersistitException {
+        final Volume volume = new Volume(LOCK_VOLUME_NAME, 0);
+        volume.setHandle(Volume.LOCK_VOLUME_HANDLE);
+        volume.openInternal(persistit, pageSize);
+        volume._storage = new VolumeStorageL2(persistit, volume, tempDirectory);
+        volume._storage.create();
         return volume;
     }
 
@@ -452,7 +468,7 @@ public class Volume {
             throw new UnderSpecifiedVolumeException(getName());
         }
         if (persistit.getBufferPool(_specification.getPageSize()) == null) {
-            throw new IllegalStateException(getName());
+            throw new BufferSizeUnavailableException(getName());
         }
         final boolean exists = VolumeHeader.verifyVolumeHeader(_specification, persistit.getCurrentTimestamp());
 
@@ -485,21 +501,16 @@ public class Volume {
         persistit.addVolume(this);
     }
 
-    void openTemporary(final Persistit persistit, final int pageSize, final File tempDirectory)
-            throws PersistitException {
+    private void openInternal(final Persistit persistit, final int pageSize) throws PersistitException {
         checkClosing();
         if (_storage != null) {
             throw new IllegalStateException("This volume has already been opened");
         }
         if (persistit.getBufferPool(pageSize) == null) {
-            throw new IllegalStateException("There is no buffer pool for pages of size " + pageSize);
+            throw new BufferSizeUnavailableException("There is no buffer pool for pages of size " + pageSize);
         }
-
         _structure = new VolumeStructure(persistit, this, pageSize);
-        _storage = new VolumeStorageT2(persistit, this, tempDirectory);
         _statistics = new VolumeStatistics();
-
-        _storage.create();
     }
 
     public String getName() {

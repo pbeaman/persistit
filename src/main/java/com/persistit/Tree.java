@@ -375,8 +375,8 @@ public class Tree extends SharedResource {
     @Override
     public String toString() {
         final TreeVersion version = version();
-        return "<Tree " + _name + " rootPageAddr=" + version._rootPageAddr + " depth=" + version._depth + " status="
-                + getStatusDisplayString() + ">";
+        return "<Tree " + _name + " in volume " + _volume.getName() + " rootPageAddr=" + version._rootPageAddr
+                + " depth=" + version._depth + " status=" + getStatusDisplayString() + ">";
     }
 
     /**

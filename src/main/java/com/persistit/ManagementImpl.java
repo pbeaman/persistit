@@ -22,6 +22,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -798,6 +799,7 @@ class ManagementImpl implements Management {
         for (int index = 0; index < volumes.size(); index++) {
             result[index] = new VolumeInfo(volumes.get(index));
         }
+        Arrays.sort(result);
         return result;
     }
 

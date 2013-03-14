@@ -175,7 +175,7 @@ class TransactionIndexBucket {
         final TransactionStatus status = _free;
         if (status != null) {
             if (status.isLocked()) {
-                status.briefLock();
+                status.briefLock(Persistit.SHORT_DELAY);
             }
             assert !status.isLocked();
             _free = status.getNext();
@@ -258,8 +258,7 @@ class TransactionIndexBucket {
         if (ts >= getFloor()) {
             for (TransactionStatus s = getCurrent(); s != null; s = s.getNext()) {
                 if (s == status) {
-                    s.complete(timestamp);
-                    status.wwUnlock();
+                    status.completeAndUnlock(timestamp);
                     if (s.getTs() == getFloor() || hasFloorMoved()) {
                         reduce();
                     }
@@ -272,8 +271,7 @@ class TransactionIndexBucket {
                 if (s == status) {
                     final TransactionStatus next = s.getNext();
                     assert s.getTc() != UNCOMMITTED;
-                    s.complete(timestamp);
-                    status.wwUnlock();
+                    status.completeAndUnlock(timestamp);
                     boolean moved = false;
                     if (s.getTc() == ABORTED) {
                         aggregate(s, false);
@@ -572,7 +570,7 @@ class TransactionIndexBucket {
                     }
                 }
             } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
-                status.briefLock();
+                status.briefLock(TransactionIndex.SHORT_TIMEOUT);
                 _transactionIndex.incrementAccumulatorSnapshotRetryCounter();
                 throw RetryException.SINGLE;
             }
@@ -597,14 +595,7 @@ class TransactionIndexBucket {
                     accumulator.setCheckpointTemp(newValue);
                 }
             } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
-                boolean locked = false;
-                try {
-                    locked = status.wwLock(TransactionIndex.SHORT_TIMEOUT);
-                } finally {
-                    if (locked) {
-                        status.wwUnlock();
-                    }
-                }
+                status.briefLock(TransactionIndex.SHORT_TIMEOUT);
                 _transactionIndex.incrementAccumulatorCheckpointRetryCounter();
                 throw RetryException.SINGLE;
             }
@@ -617,7 +608,7 @@ class TransactionIndexBucket {
          * May be held by another thread briefly while status being checked
          */
         assert !status.isHeldByCurrentThread();
-        if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+        if (_freeCount < _transactionIndex.getMaxFreeListSize() && !status.isAbandoned()) {
             status.setNext(_free);
             _free = status;
             _freeCount++;

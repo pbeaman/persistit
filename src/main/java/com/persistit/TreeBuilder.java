@@ -15,16 +15,22 @@
 
 package com.persistit;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -122,11 +128,12 @@ import com.persistit.util.Util;
  * of records inserted with duplicate keys</li>
  * <li>{@link #beforeMergeKey(Exchange)} - allowing filtering or custom handling
  * per record while merging</li>
- * <li>{@link #afterMergeKey(Exchange)} - behavior after merging one record</li>
- * <li>{@link #beforeSortVolumeEvicted(Volume)} - behavior before evicting a
- * sort volume when full</li>
- * <li>{@link #afterSortVolumeEvicted(Volume)} - behavior after evicting a sort
- * volume when full</li>
+ * <li>{@link #afterMergeKey(Exchange)} - customizable behavior after merging
+ * one record</li>
+ * <li>{@link #beforeSortVolumeClosed(Volume)} - customizable behavior before
+ * closing a sort volume when full</li>
+ * <li>{@link #afterSortVolumeClose(Volume)} - customizable behavior after
+ * closing a sort volume when full</li>
  * <li>{@link #getTreeComparator()} - return a custom Comparator to determine
  * sequence in which trees are populated within the {@link #merge()} method
  * </ul>
@@ -138,22 +145,26 @@ import com.persistit.util.Util;
 public class TreeBuilder {
     private final static float DEFAULT_BUFFER_POOL_FRACTION = 0.5f;
     private final static long REPORT_REPORT_MULTIPLE = 1000000;
-    private final static String DEFAULT_NAME = "TreeBuilder";
+    private final static String SDF = "yyyyMMddHHmm";
+    private final static int STREAM_SIZE = 1024 * 1024;
 
     private final String _name;
+    private final long _uniqueId;
     private final Persistit _persistit;
     private final List<File> _directories = new ArrayList<File>();
-    private final List<Volume> _sortVolumes = new ArrayList<Volume>();
     private final int _pageSize;
     private final int _pageLimit;
     private final AtomicLong _sortedKeyCount = new AtomicLong();
     private final AtomicLong _mergedKeyCount = new AtomicLong();
     private volatile long _reportKeyCountMultiple = REPORT_REPORT_MULTIPLE;
-    private Volume _currentSortVolume;
-    private int _nextDirectoryIndex;
+    private Volume _sortVolume;
+    private File _sortFile;
 
-    private final Set<Tree> _allTrees = new HashSet<Tree>();
-    private final List<Tree> _sortedTrees = new ArrayList<Tree>();
+    private final List<Tree> _allTrees = new ArrayList<Tree>();
+    private final Map<String, Tree> _sortTreeMap = new HashMap<String, Tree>();
+
+    private int _sortFileIndex;
+    private final List<Node> _sortNodes = new ArrayList<Node>();
 
     private final ThreadLocal<Map<Tree, Exchange>> _sortExchangeMapThreadLocal = new ThreadLocal<Map<Tree, Exchange>>() {
         @Override
@@ -163,16 +174,21 @@ public class TreeBuilder {
     };
 
     private final Comparator<Tree> _defaultTreeComparator = new Comparator<Tree>() {
+        /**
+         * Default implementation returns trees sorted in the order they were
+         * added to the _allTrees list - in other words, sorting should leave
+         * the list unchanged.
+         * 
+         * @param a
+         * @param b
+         * @return
+         */
         @Override
         public int compare(final Tree a, final Tree b) {
             if (a == b) {
                 return 0;
             }
-            if (a.getVolume() == b.getVolume()) {
-                return a.getName().compareTo(b.getName());
-            } else {
-                return a.getVolume().getName().compareTo(b.getVolume().getName());
-            }
+            return _allTrees.indexOf(a) - _allTrees.indexOf(b);
         }
 
         @Override
@@ -182,51 +198,54 @@ public class TreeBuilder {
     };
 
     private class Node implements Comparable<Node> {
-        final Volume _volume;
-        int _treeListIndex = -1;
-        Exchange _exchange = null;
-        Tree _currentTree = null;
-        Node _duplicate;
 
-        private Node(final Volume volume) {
-            _volume = volume;
+        private Tree _tree;
+        private Key _key;
+        private Value _value;
+        private Node _duplicate;
+        private final int _precedence;
+
+        private final File _file;
+        private StreamLoader _loader;
+        private Handler _handler;
+        private boolean _next;
+
+        private class Handler extends StreamLoader.ImportHandler {
+
+            private Handler(final Persistit persistit) {
+                super(persistit);
+            }
+
+            @Override
+            protected void handleDataRecord(final Key key, final Value value) throws PersistitException {
+                Node.this._tree = super._tree;
+                _key = key;
+                _value = value;
+                _next = true;
+            }
         }
 
-        private boolean next() throws PersistitException {
-            for (;;) {
-                if (_exchange == null) {
-                    _treeListIndex++;
-                    if (_treeListIndex >= _sortedTrees.size()) {
-                        _volume.close();
-                        return false;
-                    }
-                    final String tempTreeName = "_" + _sortedTrees.get(_treeListIndex).getHandle();
-                    final Tree sortTree = _volume.getTree(tempTreeName, false);
-                    if (sortTree == null) {
-                        continue;
-                    }
-                    _exchange = new Exchange(sortTree);
-                    _currentTree = _sortedTrees.get(_treeListIndex);
-                }
-                if (_exchange.next(true)) {
-                    return true;
-                }
-                _exchange = null;
-            }
+        private File getFile() {
+            return _file;
+        }
+
+        private Node(final File file, final int index) {
+            _file = file;
+            _precedence = index;
         }
 
         @Override
         public int compareTo(final Node node) {
-            if (_exchange == null) {
-                return node._exchange == null ? 0 : -1;
+            if (_tree == null) {
+                return node._tree == null ? 0 : 1;
             }
-            final int treeComparison = getTreeComparator().compare(_currentTree, node._currentTree);
-            if (treeComparison != 0) {
-                return treeComparison;
+            if (node._tree == null) {
+                return -1;
             }
-            final Key k1 = _exchange.getKey();
-            final Key k2 = node._exchange.getKey();
-            return k1.compareTo(k2);
+            if (_tree != node._tree) {
+                return _allTrees.indexOf(_tree) - _allTrees.indexOf(node._tree);
+            } else
+                return _key.compareTo(node._key);
         }
 
         @Override
@@ -237,25 +256,67 @@ public class TreeBuilder {
                 if (sb.length() > 0) {
                     sb.append(",");
                 }
-                if (n._exchange == null) {
-                    sb.append("<null>");
+                if (n._tree == null) {
+                    sb.append("<end>");
                 } else {
-                    sb.append("<"
-                            + (n._currentTree == null ? "?" : n._currentTree.getName() + n._exchange.getKey() + "="
-                                    + n._exchange.getValue()) + ">");
+                    sb.append("<" + (n._tree.getName() + n._key + "=" + n._value) + ">");
                 }
                 n = n._duplicate;
             }
             return sb.toString();
         }
+
+        private void createStreamLoader() throws Exception {
+            _loader = new StreamLoader(_persistit, new DataInputStream(new BufferedInputStream(new FileInputStream(
+                    _file), STREAM_SIZE)));
+            _handler = new Handler(_persistit);
+        }
+
+        private boolean next() throws Exception {
+            _next = false;
+            while (_loader.next(_handler) && !_next)
+                ;
+            if (!_next) {
+                _loader.close();
+            }
+            return _next;
+        }
+
+    }
+
+    private class SortStreamSaver extends StreamSaver {
+
+        Tree _sortTree = null;
+
+        SortStreamSaver(final Persistit persistit, final DataOutputStream stream) {
+            super(persistit, stream);
+        }
+
+        @Override
+        protected void writeData(final Exchange exchange) throws IOException {
+            if (exchange.getTree() != _sortTree) {
+                final Tree source = _sortTreeMap.get(exchange.getTree().getName());
+                if (_lastVolume != source.getVolume()) {
+                    writeVolumeInfo(source.getVolume());
+                    _lastVolume = source.getVolume();
+                }
+                if (_lastTree != source) {
+                    writeTreeInfo(source);
+                    _lastTree = source;
+                }
+            }
+            writeData(exchange.getKey(), exchange.getValue());
+            _recordCount++;
+        }
     }
 
     public TreeBuilder(final Persistit persistit) {
-        this(persistit, DEFAULT_NAME, -1, DEFAULT_BUFFER_POOL_FRACTION);
+        this(persistit, new SimpleDateFormat(SDF).format(new Date()), -1, DEFAULT_BUFFER_POOL_FRACTION);
     }
 
     public TreeBuilder(final Persistit persistit, final String name, final int pageSize, final float bufferPoolFraction) {
         _name = name;
+        _uniqueId = persistit.unique();
         _persistit = persistit;
         _pageSize = pageSize == -1 ? computePageSize(persistit) : pageSize;
         final int bufferCount = _persistit.getBufferPool(_pageSize).getBufferCount();
@@ -302,10 +363,10 @@ public class TreeBuilder {
     }
 
     /**
-     * @return Count of sort volumes that have been created while sorting keys
+     * @return Count of sort trees that have been created while sorting keys
      */
-    public final synchronized int getSortVolumeCount() {
-        return _sortVolumes.size();
+    public final synchronized int getSortFileCount() {
+        return _sortFileIndex;
     }
 
     /**
@@ -326,10 +387,8 @@ public class TreeBuilder {
      * @return List of destination
      *         <code>Tree<code> instances. This list is built as keys are stored.
      */
-    public final List<Tree> getTrees() {
-        final List<Tree> list = new ArrayList<Tree>();
-        list.addAll(_allTrees);
-        Collections.sort(list, getTreeComparator());
+    public synchronized final List<Tree> getTrees() {
+        final List<Tree> list = new ArrayList<Tree>(_allTrees);
         return list;
     }
 
@@ -394,7 +453,7 @@ public class TreeBuilder {
             synchronized (this) {
                 _directories.clear();
                 _directories.addAll(directories);
-                _nextDirectoryIndex = 0;
+                _sortFileIndex = 0;
             }
         }
     }
@@ -402,9 +461,9 @@ public class TreeBuilder {
     /**
      * 
      * @return List of directories set via the
-     *         {@link #setSortTreeDirectories(List)} method.
+     *         {@link #setSortFileDirectories(List)} method.
      */
-    public final List<File> getSortTreeDirectories() {
+    public final List<File> getSortFileDirectories() {
         return Collections.unmodifiableList(_directories);
     }
 
@@ -441,7 +500,10 @@ public class TreeBuilder {
             ex = _persistit.getExchange(newSortVolume, tempTreeName, true);
             map.put(tree, ex);
             synchronized (this) {
-                _allTrees.add(tree);
+                if (!_allTrees.contains(tree)) {
+                    _allTrees.add(tree);
+                    _sortTreeMap.put(tempTreeName, tree);
+                }
             }
         }
         key.copyTo(ex.getKey());
@@ -466,8 +528,13 @@ public class TreeBuilder {
     private void insertNode(final Map<Node, Node> sorted, final Node node) throws Exception {
         final Node other = sorted.put(node, node);
         if (other != null) {
-            if (!duplicateKeyDetected(node._currentTree, node._exchange.getKey(), other._exchange.getValue(),
-                    node._exchange.getValue())) {
+            final boolean reverse;
+            if (node._precedence < other._precedence) {
+                reverse = duplicateKeyDetected(node._tree, node._key, node._value, other._value);
+            } else {
+                reverse = !duplicateKeyDetected(node._tree, node._key, other._value, node._value);
+            }
+            if (reverse) {
                 sorted.put(node, other);
                 final Node p = other._duplicate;
                 other._duplicate = node;
@@ -485,17 +552,16 @@ public class TreeBuilder {
      * @throws Exception
      */
     public synchronized void merge() throws Exception {
+        finishSortVolume();
         if ((_mergedKeyCount.get() % _reportKeyCountMultiple) != 0) {
             reportSorted(_mergedKeyCount.get());
         }
-        _sortedTrees.clear();
-        _sortedTrees.addAll(_allTrees);
         Tree currentTree = null;
         Exchange ex = null;
-        Collections.sort(_sortedTrees, getTreeComparator());
         final SortedMap<Node, Node> sorted = new TreeMap<Node, Node>();
-        for (final Volume volume : _sortVolumes) {
-            final Node node = new Node(volume);
+
+        for (final Node node : _sortNodes) {
+            node.createStreamLoader();
             if (node.next()) {
                 insertNode(sorted, node);
             }
@@ -507,18 +573,18 @@ public class TreeBuilder {
             }
             Node node = sorted.firstKey();
             node = sorted.remove(node);
-            if (node._currentTree != currentTree) {
-                ex = new Exchange(node._currentTree);
-                currentTree = node._currentTree;
+            if (node._tree != currentTree) {
+                ex = new Exchange(node._tree);
+                currentTree = node._tree;
             }
+            node._key.copyTo(ex.getKey());
+            node._value.copyTo(ex.getValue());
 
-            node._exchange.getKey().copyTo(ex.getKey());
-            node._exchange.getValue().copyTo(ex.getValue());
             if (beforeMergeKey(ex)) {
                 ex.fetchAndStore();
                 boolean stored = true;
                 if (ex.getValue().isDefined()) {
-                    if (!duplicateKeyDetected(ex.getTree(), ex.getKey(), ex.getValue(), node._exchange.getValue())) {
+                    if (!duplicateKeyDetected(ex.getTree(), ex.getKey(), ex.getValue(), node._value)) {
                         ex.store();
                         stored = false;
                     }
@@ -547,21 +613,32 @@ public class TreeBuilder {
 
     private synchronized void reset() throws Exception {
         Exception exception = null;
-        for (final Volume volume : _sortVolumes) {
+        try {
+            if (_sortVolume != null) {
+                _sortVolume.close();
+            }
+        } catch (final PersistitException e) {
+            if (exception == null) {
+                exception = e;
+            }
+        }
+
+        for (final Node node : _sortNodes) {
             try {
-                volume.close();
-            } catch (final PersistitException e) {
+                if (node.getFile() != null) {
+                    node.getFile().delete();
+                }
+            } catch (final Exception e) {
                 if (exception == null) {
                     exception = e;
                 }
             }
         }
-        _sortVolumes.clear();
-        _currentSortVolume = null;
-        _nextDirectoryIndex = 0;
-        _sortExchangeMapThreadLocal.get().clear();
         _allTrees.clear();
-        _sortedTrees.clear();
+        _sortNodes.clear();
+        _sortVolume = null;
+        _sortFileIndex = 0;
+        _sortExchangeMapThreadLocal.get().clear();
         if (exception != null) {
             throw exception;
         }
@@ -574,91 +651,115 @@ public class TreeBuilder {
     }
 
     private synchronized Volume getSortVolume() throws Exception {
-        final boolean full = _currentSortVolume != null && _currentSortVolume.getNextAvailablePage() > _pageLimit;
-        if (full) {
-            if (beforeSortVolumeEvicted(_currentSortVolume)) {
-                _persistit.getBufferPool(_pageSize).evict(_currentSortVolume);
+        if (_sortVolume != null && _sortVolume.getNextAvailablePage() > _pageLimit) {
+            finishSortVolume();
+        }
+        if (_sortVolume == null) {
+            final File directory;
+            if (_directories.isEmpty()) {
+                String directoryName = _persistit.getConfiguration().getTmpVolDir();
+                if (directoryName == null) {
+                    directoryName = System.getProperty("java.io.tmpdir");
+                }
+                directory = new File(directoryName);
+                if (!directory.exists()) {
+                    directory.mkdirs();
+                }
+                _directories.add(directory);
+            } else {
+                directory = _directories.get(_sortFileIndex % _directories.size());
             }
-            afterSortVolumeEvicted(_currentSortVolume);
+            _sortVolume = Volume.createTemporaryVolume(_persistit, _pageSize, directory);
+            _sortFile = new File(directory, String.format("%s_%d.%06d", _name, _uniqueId, _sortFileIndex));
+            final Node node = new Node(_sortFile, _sortFileIndex);
+            _sortNodes.add(node);
+            _sortFileIndex++;
         }
-        if (full || _currentSortVolume == null) {
-            _currentSortVolume = createSortVolume();
-            _sortVolumes.add(_currentSortVolume);
-        }
-        return _currentSortVolume;
+        return _sortVolume;
     }
 
-    private Volume createSortVolume() throws Exception {
-        final File directory;
-        if (_directories.isEmpty()) {
-            final String directoryName = _persistit.getConfiguration().getTmpVolDir();
-            directory = directoryName == null ? null : new File(directoryName);
-        } else {
-            directory = _directories.get(_nextDirectoryIndex % _directories.size());
-            _nextDirectoryIndex++;
+    private void finishSortVolume() throws Exception {
+        if (_sortVolume != null) {
+            beforeSortVolumeClosed(_sortVolume, _sortFile);
+            saveSortVolume(_sortVolume, _sortFile);
+            afterSortVolumeClose(_sortVolume, _sortFile);
+            _sortVolume.close();
+            _sortVolume = null;
         }
-        return Volume.createTemporaryVolume(_persistit, _pageSize, directory);
     }
 
-    /**
-     * This method may be extended to provide an application-specific ordering
-     * on <code>Tree</code>s. This ordering determines the sequence in which
-     * destination trees are built from the sort data. By default trees are
-     * build in alphabetical order by volume and tree name. However, an
-     * application may choose a different order to ensure invariants for
-     * concurrent use.
-     * 
-     * @return a <code>java.util.Comparator</code> on <code>Tree</code>
-     */
-    protected Comparator<Tree> getTreeComparator() {
-        return _defaultTreeComparator;
+    private void saveSortVolume(final Volume volume, final File file) throws Exception {
+        final DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file),
+                STREAM_SIZE));
+        final List<Tree> sorted = new ArrayList<Tree>(_allTrees);
+        Collections.sort(sorted, getTreeComparator());
+        final StreamSaver saver = new SortStreamSaver(_persistit, dos);
+        for (final Tree tree : sorted) {
+            final String sortTreeName = "_" + tree.getHandle();
+            final Tree sortTree = volume.getTree(sortTreeName, false);
+            if (sortTree != null) {
+                final Exchange exchange = new Exchange(sortTree);
+                saver.save(exchange, null);
+            }
+        }
+        file.deleteOnExit();
+        dos.close();
     }
 
     /**
      * This method may be extended to provide application-specific behavior when
-     * a sort volume has been filled to capacity. The default implementation
-     * return <code>true</code>. If this method returns <code>true</code>,
-     * <code>TreeBuilder</code> evicts the <code>Volume</code> to avoid
-     * over-running the <code>BufferPool</code> and then starts a new sort tree
-     * if a new record is subsequently stored.
+     * a sort volume has been filled to capacity. Subsequent to this call, the
+     * sort volume is streamed to a sort file and then its pages in the
+     * <code>BufferPool</code> are invalidated to allow their immediate reuse.
      * 
      * @param volume
      *            The temporary <code>Volume</code> that has been filled
-     * @return <code>true</code> to cause the current sort volume to be evicted
-     *         from the <code>BufferPool</code>
+     * @param file
+     *            the file to which the sorted key-value pairs will be written
      * @throws Exception
      */
-    protected boolean beforeSortVolumeEvicted(final Volume volume) throws Exception {
-        return true;
+    protected void beforeSortVolumeClosed(final Volume volume, final File file) throws Exception {
+
     }
 
     /**
      * This method may be extended to provide application-specific reporting
      * functionality after a sort volume has been filled to capacity and has
      * been evicted. An application may also modify the temporary directory set
-     * via {@link #setSortTreeDirectories(List)} within this method if necessary
+     * via {@link #setSortFileDirectories(List)} within this method if necessary
      * to adjust disk space utilization, for example. The default behavior of
      * this method is to do nothing.
      * 
      * @param volume
      *            The temporary <code>Volume</code> that has been filled
+     * @param file
+     *            the file to which the sorted key-value pairs have been written
      * @throws Exception
      */
-    protected void afterSortVolumeEvicted(final Volume volume) throws Exception {
+    protected void afterSortVolumeClose(final Volume volume, final File file) throws Exception {
 
     }
 
     /**
+     * <p>
      * This method may be extended to provide application-specific behavior when
-     * an attempt is made to merge records with duplicate keys. The default
-     * behavior is to throw a {@link DuplicateKeyException}.
+     * an attempt is made to merge records with duplicate keys. The two
+     * <code>Value</code>s v1 and v2 are provided in the order they were
+     * inserted into the <code>TreeBuilder</code>. behavior is to write a
+     * warning to the log and retain the first value..
+     * </p>
      * 
      * @param tree
+     *            the <code>Tree</code> to which a key is being merged
      * @param key
+     *            the <code>Key</code>
      * @param v1
+     *            the <code>Value</code> previously inserted
      * @param v2
-     * @return If <code>true</code>, the resulting value is v2. If
-     *         <code>false</code>, the resulting value is v1.
+     *            the conflicting <code>Value</code>
+     * @return <code>true</code> to replace the value previously stored,
+     *         <code>false</code> to leave the value first inserted and ignore
+     *         the new value.
      * @throws DuplicateKeyException
      *             if a key being inserted or merged matches a key already
      *             exists
@@ -728,8 +829,23 @@ public class TreeBuilder {
 
     }
 
-    void unitTestNextSortVolume() {
+    /**
+     * This method may be extended to provide an application-specific ordering
+     * on <code>Tree</code>s. This ordering determines the sequence in which
+     * destination trees are built from the sort data. By default trees are
+     * build in alphabetical order by volume and tree name. However, an
+     * application may choose a different order to ensure invariants for
+     * concurrent use.
+     * 
+     * @return a <code>java.util.Comparator</code> on <code>Tree</code>
+     */
+    protected Comparator<Tree> getTreeComparator() {
+        return _defaultTreeComparator;
+    }
+
+    void unitTestNextSortFile() throws Exception {
+        finishSortVolume();
         _sortExchangeMapThreadLocal.get().clear();
-        _currentSortVolume = null;
+        _sortVolume = null;
     }
 }

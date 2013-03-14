@@ -1038,6 +1038,10 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final String treeName = IT.getTreeName(_readBuffer);
         final Integer volumeHandle = Integer.valueOf(IT.getVolumeHandle(_readBuffer));
         final Volume volume = _handleToVolumeMap.get(volumeHandle);
+        // Handle records written incorrectly due to bug 1125603
+        if (volumeHandle == Volume.LOCK_VOLUME_HANDLE) {
+            return;
+        }
         if (volume == null) {
             throw new CorruptJournalException("IT JournalRecord refers to unidentified volume handle " + volumeHandle
                     + " at position " + addressToString(address, timestamp));

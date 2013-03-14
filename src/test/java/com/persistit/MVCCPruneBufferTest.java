@@ -43,7 +43,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         final int available = buffer1.getAvailableSize();
         final int keys = buffer1.getKeyCount();
         buffer1.claim(true);
-        buffer1.pruneMvvValues(null, true);
+        buffer1.pruneMvvValues(null, true, null);
         assertEquals(keys, buffer1.getKeyCount());
         assertTrue(buffer1.getMvvCount() > 0);
         assertEquals(available, buffer1.getAvailableSize());
@@ -53,7 +53,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
         _persistit.getTransactionIndex().updateActiveTransactionCache();
 
-        buffer1.pruneMvvValues(null, true);
+        buffer1.pruneMvvValues(null, true, null);
         assertEquals(0, _persistit.getCleanupManager().getAcceptedCount());
         assertTrue("Pruning should have removed primordial Anti-values", keys > buffer1.getKeyCount());
         // mvvCount is 1 because there is still a leading primordial AntiValue
@@ -78,7 +78,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         final int available = buffer1.getAvailableSize();
         final int keys = buffer1.getKeyCount();
         buffer1.claim(true);
-        buffer1.pruneMvvValues(null, true);
+        buffer1.pruneMvvValues(null, true, null);
         buffer1.release();
         assertEquals(keys, buffer1.getKeyCount());
         assertTrue(buffer1.getMvvCount() > 0);
@@ -102,7 +102,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         for (long page = 1; page < pageCount; page++) {
             final Buffer buffer = ex1.getBufferPool().get(ex1.getVolume(), page, true, true);
             try {
-                buffer.pruneMvvValues(null, true);
+                buffer.pruneMvvValues(null, true, null);
             } finally {
                 buffer.release();
             }
@@ -123,7 +123,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         for (long page = 1; page < pageCount; page++) {
             final Buffer buffer = ex1.getBufferPool().get(ex1.getVolume(), page, true, true);
             try {
-                buffer.pruneMvvValues(ex1.getTree(), true);
+                buffer.pruneMvvValues(ex1.getTree(), true, null);
             } finally {
                 buffer.release();
             }

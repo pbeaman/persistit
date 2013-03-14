@@ -17,6 +17,7 @@ package com.persistit;
 
 import org.junit.Test;
 
+import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.UnderSpecifiedVolumeException;
 
 /**
@@ -39,7 +40,7 @@ public class Bug1041293Test extends PersistitUnitTestCase {
         volume.open(_persistit);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expected = BufferSizeUnavailableException.class)
     public void mismatchedVolumeSpecificationNPE() throws Exception {
         final Configuration config = _persistit.getConfiguration();
         final VolumeSpecification vspec = config.volumeSpecification("${datapath}/test,pageSize:2048,create,"
@@ -48,7 +49,7 @@ public class Bug1041293Test extends PersistitUnitTestCase {
         volume.open(_persistit);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expected = BufferSizeUnavailableException.class)
     public void mismatchedTemporaryVolumePageSize() throws Exception {
         _persistit.createTemporaryVolume(2048);
     }

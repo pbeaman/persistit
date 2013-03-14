@@ -124,6 +124,12 @@ class TransactionStatus {
      */
     private volatile boolean _notified;
 
+    /**
+     * Indicates whether the owning transaction had been abandoned. This status
+     * may be in a locked state and is not available for re-use.
+     */
+    private volatile boolean _abandoned;
+
     TransactionStatus(final TransactionIndexBucket bucket) {
         _bucket = bucket;
     }
@@ -244,6 +250,13 @@ class TransactionStatus {
         _notified = true;
     }
 
+    void completeAndUnlock(final long timestamp) {
+        complete(timestamp);
+        if (!isAbandoned()) {
+            wwUnlock();
+        }
+    }
+
     boolean isLocked() {
         return _wwLock.isLocked();
     }
@@ -328,15 +341,16 @@ class TransactionStatus {
 
     /**
      * Block briefly until another thread transiently holding the wwLock
-     * vacates. Times out and returns after
-     * {@value TransactionIndex#SHORT_TIMEOUT} milliseconds.
+     * vacates.
      * 
+     * @param timeout
+     *            in milliseconds
      * @throws InterruptedException
      */
-    void briefLock() throws InterruptedException {
+    void briefLock(final long timeout) throws InterruptedException {
         boolean locked = false;
         try {
-            locked = wwLock(TransactionIndex.SHORT_TIMEOUT);
+            locked = wwLock(timeout);
         } catch (final InterruptedException ie) {
             Thread.currentThread().interrupt();
         } finally {
@@ -373,6 +387,7 @@ class TransactionStatus {
      * Release the lock acquired by {@link #wwLock(long)}.
      */
     void wwUnlock() {
+        assert !isAbandoned() : "Attempt to unlock abandoned: " + this;
         _wwLock.unlock();
     }
 
@@ -406,6 +421,20 @@ class TransactionStatus {
         abort();
         setMvvCount(Integer.MAX_VALUE);
         _notified = true;
+    }
+
+    /**
+     * Make this status as abandoned. This will prevent its unlock and re-use.
+     */
+    void markAbandoned() {
+        _abandoned = true;
+    }
+
+    /**
+     * @return <code>true</code> if this status has been abandoned.
+     */
+    boolean isAbandoned() {
+        return _abandoned;
     }
 
     @Override

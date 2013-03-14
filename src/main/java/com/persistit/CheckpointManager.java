@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.persistit.Transaction.CommitPolicy;
-import com.persistit.exception.MissingThreadException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.mxbeans.CheckpointManagerMXBean;
@@ -176,20 +175,15 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
     }
 
     Checkpoint checkpoint() throws PersistitException {
-        final Checkpoint checkpoint = createCheckpoint();
-        _persistit.flushBuffers(checkpoint.getTimestamp());
+        final long timestamp = createCheckpoint().getTimestamp();
+        _persistit.flushBuffers(timestamp);
 
         while (true) {
-            kick();
+            pollFlushCheckpoint();
             synchronized (this) {
-                if (checkpoint.isCompleted()) {
-                    return checkpoint;
-                } else if (_currentCheckpoint != checkpoint) {
-                    return UNAVALABLE_CHECKPOINT;
+                if (_currentCheckpoint.isCompleted() && _currentCheckpoint.getTimestamp() >= timestamp) {
+                    return _currentCheckpoint;
                 }
-            }
-            if (!getThread().isAlive()) {
-                throw new MissingThreadException(getThread().getName());
             }
             Util.sleep(SHORT_DELAY);
         }
@@ -285,12 +279,12 @@ class CheckpointManager extends IOTaskRunnable implements CheckpointManagerMXBea
                     break;
                 }
             }
-        }
-        if (checkpoint != null) {
-            try {
-                _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
-            } catch (final PersistitException e) {
-                _persistit.getLogBase().exception.log(e);
+            if (checkpoint != null) {
+                try {
+                    _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
+                } catch (final PersistitException e) {
+                    _persistit.getLogBase().exception.log(e);
+                }
             }
         }
     }

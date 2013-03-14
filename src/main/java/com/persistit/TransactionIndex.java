@@ -969,6 +969,18 @@ class TransactionIndex implements TransactionIndexMXBean {
         }
     }
 
+    /**
+     * Update the floor only if it is smaller than the supplied timestamp.
+     * 
+     * @param ts
+     *            The timestamp
+     */
+    public void updateActiveTransactionCache(final long ts) {
+        if (_atCache._floor < ts) {
+            updateActiveTransactionCache();
+        }
+    }
+
     /*
      * (non-Javadoc)
      * 

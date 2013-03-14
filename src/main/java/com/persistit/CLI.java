@@ -156,7 +156,7 @@ public class CLI {
     private final static Map<String, Command> COMMANDS = new TreeMap<String, Command>();
 
     private final static Class<?>[] CLASSES = { CLI.class, BackupTask.class, IntegrityCheck.class, StreamSaver.class,
-            StreamLoader.class, StatisticsTask.class, TaskCheck.class };
+            StreamLoader.class, StatisticsTask.class, TaskCheck.class, VolumeHeader.class };
 
     static {
         for (final Class<?> clazz : CLASSES) {

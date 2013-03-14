@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
@@ -123,12 +124,12 @@ class VolumeStructure {
         _persistit.getJournalManager().truncate(_volume, timestamp);
     }
 
-    Exchange directoryExchange() {
+    Exchange directoryExchange() throws BufferSizeUnavailableException {
         final Exchange ex = new Exchange(_directoryTree);
         return ex;
     }
 
-    Exchange accumulatorExchange() {
+    Exchange accumulatorExchange() throws BufferSizeUnavailableException {
         return new Exchange(_directoryTree);
     }
 
@@ -218,9 +219,10 @@ class VolumeStructure {
         } else {
             return null;
         }
-        if (_volume.isTemporary()) {
+        if (_volume.isTemporary() || _volume.isLockVolume()) {
             tree.setPrimordial();
-        } else {
+        }
+        if (!_volume.isTemporary()) {
             tree.loadHandle();
         }
         _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
@@ -494,7 +496,9 @@ class VolumeStructure {
                     return buffer;
                 } finally {
                     garbageBuffer = releaseBuffer(garbageBuffer);
-                    deallocateGarbageChain(chains);
+                    if (!chains.isEmpty()) {
+                        deallocateGarbageChain(chains);
+                    }
                 }
             }
         } finally {
@@ -509,7 +513,6 @@ class VolumeStructure {
         buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
         Debug.$assert0.t(buffer.getPageAddress() != 0);
         return buffer;
-
     }
 
     void deallocateGarbageChain(final long left, final long right) throws PersistitException {

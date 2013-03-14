@@ -483,7 +483,7 @@ public class StreamSaver extends Task {
     }
 
     /**
-     * Saves on or more trees in the specified <code>Volume</code>.
+     * Saves one or more trees in the specified <code>Volume</code>.
      * 
      * @param volume
      *            The <code>Volume</code>
