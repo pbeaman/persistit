@@ -31,7 +31,7 @@ import com.persistit.KeyFilter;
 import com.persistit.PersistitUnitTestCase;
 import com.persistit.Transaction;
 import com.persistit.Volume;
-import com.persistit.exception.ConversionException;
+import com.persistit.exception.KeyTooLongException;
 import com.persistit.exception.PersistitException;
 
 public class ExchangeTest extends PersistitUnitTestCase {
@@ -151,8 +151,8 @@ public class ExchangeTest extends PersistitUnitTestCase {
         randomKey = createString(initialLength);
         try {
             ex.clear().append(randomKey);
-            fail("ConversionException should have been thrown");
-        } catch (final ConversionException expected) {
+            fail("KeyTooLongException should have been thrown");
+        } catch (final KeyTooLongException expected) {
         }
     }
 

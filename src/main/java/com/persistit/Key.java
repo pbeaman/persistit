@@ -3374,33 +3374,34 @@ public final class Key implements Comparable<Object> {
      * @return This <code>Key</code>, to permit method call chaining
      */
     private Key appendString(final CharSequence s, final CoderContext context) {
-        notLeftOrRightGuard();
-        testValidForAppend();
-        final int strlen = s.length();
-        if (strlen > _maxSize) {
-            throw new ConversionException("Requested size=" + strlen + " exceeds maximum size=" + _maxSize);
-        }
-        int size = _size;
-        _bytes[size++] = (byte) TYPE_STRING;
+        final int save = _size;
+        try {
+            notLeftOrRightGuard();
+            testValidForAppend();
+            final int strlen = s.length();
+            int size = _size;
+            _bytes[size++] = (byte) TYPE_STRING;
 
-        for (int i = 0; i < strlen; i++) {
-            final int c = s.charAt(i);
-            if (c <= 0x0001) {
-                _bytes[size++] = (byte) (0x01);
-                _bytes[size++] = (byte) (c + 0x0020);
-            } else if (c <= 0x007F) {
-                _bytes[size++] = (byte) c;
-            } else if (c <= 0x07FF) {
-                _bytes[size++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
-                _bytes[size++] = (byte) (0x80 | ((c >> 0) & 0x3F));
-            } else {
-                _bytes[size++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
-                _bytes[size++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-                _bytes[size++] = (byte) (0x80 | ((c >> 0) & 0x3F));
+            for (int i = 0; i < strlen; i++) {
+                final int c = s.charAt(i);
+                if (c <= 0x0001) {
+                    _bytes[size++] = (byte) (0x01);
+                    _bytes[size++] = (byte) (c + 0x0020);
+                } else if (c <= 0x007F) {
+                    _bytes[size++] = (byte) c;
+                } else if (c <= 0x07FF) {
+                    _bytes[size++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
+                    _bytes[size++] = (byte) (0x80 | ((c >> 0) & 0x3F));
+                } else {
+                    _bytes[size++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
+                    _bytes[size++] = (byte) (0x80 | ((c >> 6) & 0x3F));
+                    _bytes[size++] = (byte) (0x80 | ((c >> 0) & 0x3F));
+                }
             }
+            return endSegment(size);
+        } catch (final ArrayIndexOutOfBoundsException e) {
+            return tooLong(save);
         }
-
-        return endSegment(size);
     }
 
     /**
@@ -3409,9 +3410,14 @@ public final class Key implements Comparable<Object> {
      * @return This <code>Key</code>, to permit method call chaining
      */
     private Key appendNull() {
-        int size = _size;
-        _bytes[size++] = TYPE_NULL;
-        return endSegment(size);
+        final int save = _size;
+        try {
+            int size = _size;
+            _bytes[size++] = TYPE_NULL;
+            return endSegment(size);
+        } catch (final ArrayIndexOutOfBoundsException e) {
+            return tooLong(save);
+        }
     }
 
     private Key appendByKeyCoder(final Object object, final Class<?> cl, final KeyCoder coder,
@@ -3531,14 +3537,19 @@ public final class Key implements Comparable<Object> {
      * level. The result key value should only be used in traversal operations.
      */
     Key appendBefore() {
-        int size = _size;
-        _bytes[size++] = TYPE_BEFORE;
-        _bytes[size] = 0;
-        _size = size;
-        if (_depth != -1)
-            _depth++;
-        bumpGeneration();
-        return this;
+        final int save = _size;
+        try {
+            int size = _size;
+            _bytes[size++] = TYPE_BEFORE;
+            _bytes[size] = 0;
+            _size = size;
+            if (_depth != -1)
+                _depth++;
+            bumpGeneration();
+            return this;
+        } catch (final ArrayIndexOutOfBoundsException e) {
+            return tooLong(save);
+        }
     }
 
     /**
@@ -3547,14 +3558,19 @@ public final class Key implements Comparable<Object> {
      * operations.
      */
     Key appendAfter() {
-        int size = _size;
-        _bytes[size++] = (byte) TYPE_AFTER;
-        _bytes[size] = 0;
-        _size = size;
-        if (_depth != -1)
-            _depth++;
-        bumpGeneration();
-        return this;
+        final int save = _size;
+        try {
+            int size = _size;
+            _bytes[size++] = (byte) TYPE_AFTER;
+            _bytes[size] = 0;
+            _size = size;
+            if (_depth != -1)
+                _depth++;
+            bumpGeneration();
+            return this;
+        } catch (final ArrayIndexOutOfBoundsException e) {
+            return tooLong(save);
+        }
     }
 
     private Key appendDate(final Date v) {
@@ -3566,7 +3582,6 @@ public final class Key implements Comparable<Object> {
         } catch (final ArrayIndexOutOfBoundsException e) {
             return tooLong(save);
         }
-
     }
 
     private Key appendBigInteger(final BigInteger v) {
@@ -3694,7 +3709,7 @@ public final class Key implements Comparable<Object> {
         return this;
     }
 
-    private Key tooLong(int originalSize) throws KeyTooLongException {
+    private Key tooLong(final int originalSize) throws KeyTooLongException {
         _size = originalSize;
         throw new KeyTooLongException("Maximum size=" + _maxSize + " original size=" + originalSize);
     }

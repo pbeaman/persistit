@@ -64,7 +64,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
             Double.MIN_VALUE / 3.0, Double.MIN_VALUE / 4.0, Double.NaN, Double.NEGATIVE_INFINITY,
             Double.POSITIVE_INFINITY };
 
-    private final static Object[] TEST_OBJECTS = new Object[] { true, false, (byte) 1, (char) 2, (short) 3, 4,
+    private final static Object[] TEST_OBJECTS = new Object[] { null, true, false, (byte) 1, (char) 2, (short) 3, 4,
             (long) 5, 6.0f, 7.0d, "This is a String", new Date(), new BigInteger("1"), new BigDecimal("2.2") };
 
     @Test
@@ -1021,14 +1021,14 @@ public class KeyTest1 extends PersistitUnitTestCase {
     @Test
     public void testKeyTooLong() throws Exception {
         for (int maxSize = 1; maxSize < 99; maxSize++) {
-            mainLoop: for (Object value : TEST_OBJECTS) {
+            mainLoop: for (final Object value : TEST_OBJECTS) {
                 final Key key = new Key(_persistit, maxSize);
                 // Every appended value consumes at least 2 bytes
                 for (int i = 0; i < 50; i++) {
                     try {
                         key.append(value);
                     } catch (final KeyTooLongException e) {
-                        break mainLoop;
+                        continue mainLoop;
                     }
                 }
                 fail("Should have thrown a KeyTooLongException for maxSize=" + maxSize + " and value " + value);
