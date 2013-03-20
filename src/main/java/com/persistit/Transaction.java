@@ -685,7 +685,7 @@ public class Transaction {
             }
             try {
                 pruneLockPages();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 _persistit.getLogBase().pruneException.log(e, "locks");
             }
             _transactionStatus = null;

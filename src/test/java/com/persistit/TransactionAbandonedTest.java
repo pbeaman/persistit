@@ -15,13 +15,14 @@
 
 package com.persistit;
 
-import com.persistit.exception.PersistitException;
-import com.persistit.unit.ConcurrentUtil;
-import com.persistit.unit.UnitTestProperties;
+import static org.junit.Assert.assertEquals;
+
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import com.persistit.exception.PersistitException;
+import com.persistit.unit.ConcurrentUtil;
+import com.persistit.unit.UnitTestProperties;
 
 /**
  * <p>
@@ -51,7 +52,7 @@ public class TransactionAbandonedTest extends PersistitUnitTestCase {
         private final boolean doRead;
         private final boolean doWrite;
 
-        public TxnAbandoner(Persistit persistit, boolean doRead, boolean doWrite) {
+        public TxnAbandoner(final Persistit persistit, final boolean doRead, final boolean doWrite) {
             this.persistit = persistit;
             this.doRead = doRead;
             this.doWrite = doWrite;
@@ -59,7 +60,7 @@ public class TransactionAbandonedTest extends PersistitUnitTestCase {
 
         @Override
         public void run() throws PersistitException {
-            Transaction txn = persistit.getTransaction();
+            final Transaction txn = persistit.getTransaction();
             txn.begin();
             if (doRead) {
                 assertEquals("Traverse count", KEY_RANGE, scanAndCount(getExchange(persistit)));
@@ -70,18 +71,19 @@ public class TransactionAbandonedTest extends PersistitUnitTestCase {
         }
     }
 
-    private static Exchange getExchange(Persistit persistit) throws PersistitException {
+    private static Exchange getExchange(final Persistit persistit) throws PersistitException {
         return persistit.getExchange(UnitTestProperties.VOLUME_NAME, TREE, true);
     }
 
-    private static void loadData(Persistit persistit, int keyOffset, int count) throws PersistitException {
-        Exchange ex = getExchange(persistit);
+    private static void loadData(final Persistit persistit, final int keyOffset, final int count)
+            throws PersistitException {
+        final Exchange ex = getExchange(persistit);
         for (int i = 0; i < count; ++i) {
             ex.clear().append(keyOffset + i).store();
         }
     }
 
-    private static int scanAndCount(Exchange ex) throws PersistitException {
+    private static int scanAndCount(final Exchange ex) throws PersistitException {
         ex.clear().append(Key.BEFORE);
         int saw = 0;
         while (ex.next()) {
@@ -96,8 +98,8 @@ public class TransactionAbandonedTest extends PersistitUnitTestCase {
         loadData(_persistit, KEY_START, KEY_RANGE);
     }
 
-    private void runAndCleanup(String name, boolean doRead, boolean doWrite) {
-        Thread t = ConcurrentUtil.createThread(name, new TxnAbandoner(_persistit, false, false));
+    private void runAndCleanup(final String name, final boolean doRead, final boolean doWrite) {
+        final Thread t = ConcurrentUtil.createThread(name, new TxnAbandoner(_persistit, false, false));
         ConcurrentUtil.startAndJoinAssertSuccess(MAX_TIMEOUT_MS, t);
         // Threw exception before fix
         _persistit.cleanup();
@@ -119,11 +121,11 @@ public class TransactionAbandonedTest extends PersistitUnitTestCase {
         runAndCleanup("ReadAndWrite", true, true);
         assertEquals("Traversed after abandoned", KEY_RANGE, scanAndCount(getExchange(_persistit)));
         // Check that the abandoned was pruned
-        CleanupManager cm = _persistit.getCleanupManager();
+        final CleanupManager cm = _persistit.getCleanupManager();
         for (int i = 0; i < 5 && cm.getEnqueuedCount() > 0; ++i) {
             cm.runTask();
         }
-        Exchange rawEx = getExchange(_persistit);
+        final Exchange rawEx = getExchange(_persistit);
         rawEx.ignoreMVCCFetch(true);
         assertEquals("Raw traversed after abandoned", KEY_RANGE, scanAndCount(rawEx));
     }
