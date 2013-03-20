@@ -22,6 +22,7 @@ import static org.junit.Assert.fail;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Date;
 
 import junit.framework.Assert;
 
@@ -33,8 +34,8 @@ import com.persistit.KeyState;
 import com.persistit.PersistitUnitTestCase;
 import com.persistit.TestShim;
 import com.persistit.exception.InvalidKeyException;
+import com.persistit.exception.KeyTooLongException;
 import com.persistit.exception.MissingKeySegmentException;
-import com.persistit.util.Util;
 
 public class KeyTest1 extends PersistitUnitTestCase {
 
@@ -45,22 +46,26 @@ public class KeyTest1 extends PersistitUnitTestCase {
     private double dv1;
     private double dv2;
 
-    long[] TEST_LONGS = { 0, 1, 2, 3, 123, 126, 127, 128, 129, 130, 131, 132, 250, 251, 252, 253, 254, 255, 256, 257,
-            258, 259, 260, 4094, 4095, 4096, 4097, 4098, 16383, 16384, 16385, 0x1FFFFEL, 0x1FFFFFL, 0x200000L,
-            0x3FFFFFFFFFEL, 0x3FFFFFFFFFFL, 0x2000000000000L, 0x1FFFFFFFFFFFFL, 0x1FFFFFFFFFFFEL,
+    private final static long[] TEST_LONGS = { 0, 1, 2, 3, 123, 126, 127, 128, 129, 130, 131, 132, 250, 251, 252, 253,
+            254, 255, 256, 257, 258, 259, 260, 4094, 4095, 4096, 4097, 4098, 16383, 16384, 16385, 0x1FFFFEL, 0x1FFFFFL,
+            0x200000L, 0x3FFFFFFFFFEL, 0x3FFFFFFFFFFL, 0x2000000000000L, 0x1FFFFFFFFFFFFL, 0x1FFFFFFFFFFFEL,
             Integer.MAX_VALUE - 2, Integer.MAX_VALUE - 1, Integer.MAX_VALUE + 0, Integer.MAX_VALUE + 1,
             Integer.MAX_VALUE + 2, Integer.MAX_VALUE + 3, Long.MIN_VALUE, Long.MIN_VALUE + 1, Long.MIN_VALUE + 2,
             Long.MAX_VALUE, Long.MAX_VALUE - 1, Long.MAX_VALUE - 2, };
 
-    float[] TEST_FLOATS = { 0.0F, 1.0F, 2.0F, 12345.0F, 0.0003F, 1.2345E-10F, 1.12345E-20F, 0.0F, -1.0F, -2.0F,
-            -12345.0F, -0.0003F, -1.2345E-10F, -1.12345E-20F, Float.MAX_VALUE, Float.MIN_VALUE, Float.MAX_VALUE / 2.0F,
-            Float.MAX_VALUE / 3.0F, Float.MAX_VALUE / 4.0F, Float.MIN_VALUE / 2.0F, Float.MIN_VALUE / 3.0F,
-            Float.MIN_VALUE / 4.0F, Float.NaN, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY };
+    private final static float[] TEST_FLOATS = { 0.0F, 1.0F, 2.0F, 12345.0F, 0.0003F, 1.2345E-10F, 1.12345E-20F, 0.0F,
+            -1.0F, -2.0F, -12345.0F, -0.0003F, -1.2345E-10F, -1.12345E-20F, Float.MAX_VALUE, Float.MIN_VALUE,
+            Float.MAX_VALUE / 2.0F, Float.MAX_VALUE / 3.0F, Float.MAX_VALUE / 4.0F, Float.MIN_VALUE / 2.0F,
+            Float.MIN_VALUE / 3.0F, Float.MIN_VALUE / 4.0F, Float.NaN, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY };
 
-    double[] TEST_DOUBLES = { 0.0, 1.0, 2.0, 12345.0, 0.0003, 1.2345E-10, 1.12345E-20, 0.0, -1.0, -2.0, -12345.0,
-            -0.0003, -1.2345E-10, -1.12345E-20, Double.MAX_VALUE, Double.MIN_VALUE, Double.MAX_VALUE / 2.0,
-            Double.MAX_VALUE / 3.0, Double.MAX_VALUE / 4.0, Double.MIN_VALUE / 2.0, Double.MIN_VALUE / 3.0,
-            Double.MIN_VALUE / 4.0, Double.NaN, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY };
+    private final static double[] TEST_DOUBLES = { 0.0, 1.0, 2.0, 12345.0, 0.0003, 1.2345E-10, 1.12345E-20, 0.0, -1.0,
+            -2.0, -12345.0, -0.0003, -1.2345E-10, -1.12345E-20, Double.MAX_VALUE, Double.MIN_VALUE,
+            Double.MAX_VALUE / 2.0, Double.MAX_VALUE / 3.0, Double.MAX_VALUE / 4.0, Double.MIN_VALUE / 2.0,
+            Double.MIN_VALUE / 3.0, Double.MIN_VALUE / 4.0, Double.NaN, Double.NEGATIVE_INFINITY,
+            Double.POSITIVE_INFINITY };
+
+    private final static Object[] TEST_OBJECTS = new Object[] { true, false, (byte) 1, (char) 2, (short) 3, 4,
+            (long) 5, 6.0f, 7.0d, "This is a String", new Date(), new BigInteger("1"), new BigDecimal("2.2") };
 
     @Test
     public void test1() {
@@ -1013,6 +1018,24 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertEquals("Key value incorrect", "{1,2,3,\"abc\",\"abc\"}", key1.toString());
     }
 
+    @Test
+    public void testKeyTooLong() throws Exception {
+        for (int maxSize = 1; maxSize < 99; maxSize++) {
+            mainLoop: for (Object value : TEST_OBJECTS) {
+                final Key key = new Key(_persistit, maxSize);
+                // Every appended value consumes at least 2 bytes
+                for (int i = 0; i < 50; i++) {
+                    try {
+                        key.append(value);
+                    } catch (final KeyTooLongException e) {
+                        break mainLoop;
+                    }
+                }
+                fail("Should have thrown a KeyTooLongException for maxSize=" + maxSize + " and value " + value);
+            }
+        }
+    }
+
     private static boolean doubleEquals(final double f1, final double f2) {
         if (Double.isNaN(f1)) {
             return Double.isNaN(f2);
@@ -1021,45 +1044,6 @@ public class KeyTest1 extends PersistitUnitTestCase {
             return Double.isInfinite(f2);
         }
         return f1 == f2;
-    }
-
-    @Override
-    public void runAllTests() throws Exception {
-        test1();
-        test2();
-        test3();
-        test4();
-        test5();
-        test6();
-        test7();
-        test8();
-        test9();
-        test10();
-        test11();
-        test12();
-        test13();
-        test14();
-    }
-
-    private String floatBits(final float v) {
-        final int bits = Float.floatToIntBits(v);
-        final StringBuilder sb = new StringBuilder();
-        Util.hex(sb, bits, 8);
-        return sb.toString();
-    }
-
-    private String doubleBits(final double v) {
-        final long bits = Double.doubleToLongBits(v);
-        final StringBuilder sb = new StringBuilder();
-        Util.hex(sb, bits, 16);
-        return sb.toString();
-    }
-
-    private void debug(final boolean condition) {
-        if (!condition) {
-            return;
-        }
-        return; // <-- breakpoint here
     }
 
     private Key newKey() {

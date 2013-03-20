@@ -1691,7 +1691,7 @@ public class Persistit {
         releaseAllResources();
     }
 
-    private void closeZombieTransactions(boolean removeAllSessions) {
+    private void closeZombieTransactions(final boolean removeAllSessions) {
         final Set<SessionId> sessionIds;
         synchronized (_transactionSessionMap) {
             sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
