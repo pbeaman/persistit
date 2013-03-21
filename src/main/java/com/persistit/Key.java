@@ -1324,7 +1324,7 @@ public final class Key implements Comparable<Object> {
      * @throws IllegalArgumentException
      *             if the specified size is not valid.
      */
-    public void changeMaximumSize(final int size) {
+    public void setMaximumSize(final int size) {
         clear();
         if (size <= 0) {
             throw new IllegalArgumentException("Key length must be positive:" + size);
