@@ -1317,7 +1317,8 @@ public final class Key implements Comparable<Object> {
      * </p>
      * <p>
      * The specified size must be between 0 and
-     * {@value #MAX_KEY_LENGTH_UPPER_BOUND}.
+     * {@value #MAX_KEY_LENGTH_UPPER_BOUND}. As a side-effect, this method also
+     * calls the {@link #clear()} method.
      * </p>
      * 
      * @param size
