@@ -957,19 +957,42 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Construct a <code>Key</code> with the specified maximum length.
+     * Construct a <code>Key</code> with the specified maximum length. The
+     * specified length must be positive and less than or equal to
+     * {@value #MAX_KEY_LENGTH}.
      * 
-     * @param Persistit
+     * @param persistit
      *            the Persistit instance
      * @param maxLength
      *            The maximum length
      */
     public Key(final Persistit persistit, final int maxLength) {
+        this(persistit, maxLength, false);
+    }
+
+    /**
+     * Construct a <code>Key</code> with the specified maximum length. This
+     * constructor permits a backing byte of any size provided the
+     * <code>allowOversizeKey</code> parameter is true. A <code>Key</code> may
+     * be used in specialized instances to manipulate large encoded values;
+     * however, regardless of the size of the backing byte array, an encoded key
+     * value larger than the architectural maximum size of
+     * {@value #MAX_KEY_LENGTH} cannot be stored in a <code>Tree</code>.
+     * 
+     * @param persistit
+     *            the Persistit instance
+     * @param maxLength
+     *            The maximum length
+     * @param allowOversizeKey
+     *            if <code>true</code> this constructor allows the backing byte
+     *            array to be larger than {@value #MAX_KEY_LENGTH}.
+     */
+    public Key(final Persistit persistit, final int maxLength, final boolean allowOversizeKey) {
         _persistit = persistit;
         if (maxLength <= 0) {
             throw new IllegalArgumentException("Key length must be positive");
         }
-        if (maxLength > MAX_KEY_LENGTH) {
+        if (maxLength > MAX_KEY_LENGTH && !allowOversizeKey) {
             throw new IllegalArgumentException("Key length must be less than " + MAX_KEY_LENGTH);
         }
         _maxSize = maxLength;
