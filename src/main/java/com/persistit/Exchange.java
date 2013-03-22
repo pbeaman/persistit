@@ -2777,9 +2777,9 @@ public class Exchange implements ReadOnlyExchange {
      * <p>
      * This method is designed to help applications overcome problems with
      * "write skew" which is a type of isolation anomaly permitted by Snapshot
-     * Isolation. See, for example,
-     * http://en.wikipedia.org/wiki/Snapshot_isolation for a concise explanation
-     * of Snapshot Isolation and the write skew anomaly.
+     * Isolation. See, for example, http://wikipedia.org/wiki/Snapshot_isolation
+     * for a concise explanation of Snapshot Isolation and the write skew
+     * anomaly.
      * <p>
      * </p>
      * To use this facility an application specifies a key which may or may not

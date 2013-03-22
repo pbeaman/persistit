@@ -42,7 +42,7 @@ public class AsciiDocIndex {
     // tags in Javadoc index-NN.html files.
     //
     private final static Pattern PATTERN = Pattern
-            .compile(".*(<A HREF=\"(.*?)\"( *title=\"(.*?)\")?.*?>(.*)</A>)");
+            .compile(".*(<A HREF=\"(.*?)\"( *title=\"(.*?)\")?.*?>(.*)</A>)", Pattern.CASE_INSENSITIVE);
 
     private int _count;
 
@@ -140,6 +140,9 @@ public class AsciiDocIndex {
         href = fixDotSlash(href);
 
         int pHtml = href.lastIndexOf(".html");
+        if (pHtml == -1) {
+            return;
+        }
 
         int pPackageSummary = href.indexOf("/package-summary");
         if (pPackageSummary > 0) {

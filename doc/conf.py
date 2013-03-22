@@ -42,7 +42,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Persistit'
-copyright = u'2012, Akiban Technologies'
+copyright = u'2013, Akiban Technologies'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -50,7 +50,7 @@ copyright = u'2012, Akiban Technologies'
 #
 # version = short X.Y version.
 # release = full version, including alpha/beta/rc tags.
-version = '3.2.6'
+version = '3.2.7'
 release = version
 
 # Included while processing every rst file. Used only for working around inability
