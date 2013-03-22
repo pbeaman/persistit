@@ -451,6 +451,8 @@ public final class Key implements Comparable<Object> {
      */
     public final static int MAX_KEY_LENGTH = 2047;
 
+    public final static int MAX_KEY_LENGTH_UPPER_BOUND = 1024 * 1024 * 4;
+
     /**
      * A <code>Key</code> segment value that collates before any actual key in a
      * <code>Tree</code>. A <code>Key</code> may include an instance of this
@@ -957,9 +959,11 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Construct a <code>Key</code> with the specified maximum length.
+     * Construct a <code>Key</code> with the specified maximum length. The
+     * specified length must be positive and less than or equal to
+     * {@value #MAX_KEY_LENGTH}.
      * 
-     * @param Persistit
+     * @param persistit
      *            the Persistit instance
      * @param maxLength
      *            The maximum length
@@ -1300,6 +1304,38 @@ public final class Key implements Comparable<Object> {
         _index = 0;
         bumpGeneration();
         return this;
+    }
+
+    /**
+     * <p>
+     * Allocates a new backing byte array of the specified size. This method is
+     * for specialized use cases in which it may be convenient to serialize long
+     * values into a <code>Key</code> for purposes other than storing them in a
+     * <code>Tree</code>. However, regardless of the size of the backing byte
+     * array, an encoded key value larger than the architectural maximum size of
+     * {@value #MAX_KEY_LENGTH} cannot be stored in a <code>Tree</code>.
+     * </p>
+     * <p>
+     * The specified size must be between 0 and
+     * {@value #MAX_KEY_LENGTH_UPPER_BOUND}. As a side-effect, this method also
+     * calls the {@link #clear()} method.
+     * </p>
+     * 
+     * @param size
+     * @throws IllegalArgumentException
+     *             if the specified size is not valid.
+     */
+    public void setMaximumSize(final int size) {
+        clear();
+        if (size <= 0) {
+            throw new IllegalArgumentException("Key length must be positive:" + size);
+        }
+        if (size > MAX_KEY_LENGTH_UPPER_BOUND) {
+            throw new IllegalArgumentException("Key length must be less than " + MAX_KEY_LENGTH_UPPER_BOUND + ": "
+                    + size);
+        }
+        _bytes = new byte[size + 1];
+        _maxSize = size;
     }
 
     void clear(final boolean secure) {
