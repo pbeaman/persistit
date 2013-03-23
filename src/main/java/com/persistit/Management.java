@@ -494,7 +494,7 @@ public interface Management extends Remote, ManagementMXBean {
 
     /**
      * Return a <code>TreeInfo</code> for a specified <code>Volume</code> and
-     * </code>Tree</code>. If Persisit is not initialized, or if no no volume or
+     * <code>Tree</code>. If Persisit is not initialized, or if no no volume or
      * tree with corresponding names is found, or if there is a transient error
      * in acquiring the information, this method returns <code>null</code>.
      * 
@@ -2338,7 +2338,6 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * Return one of the following values:
-         * <p />
          * <table>
          * <tr>
          * <td>Long.MINVALUE</td>
@@ -2601,7 +2600,6 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * Return one of the following values:
-         * <p />
          * <table>
          * <tr>
          * <td>Long.MINVALUE</td>

@@ -31,7 +31,7 @@ public class SphinxDocPrep {
     private String indexPath;
 
     private void prepare(final String[] args) throws Exception {
-        ArgParser ap = new ArgParser("SphinxDocPrep", args, ARG_TEMPLATE);
+        final ArgParser ap = new ArgParser("SphinxDocPrep", args, ARG_TEMPLATE);
         final String inPath = ap.getStringValue("in");
         final String outPath = ap.getStringValue("out");
 
@@ -56,7 +56,7 @@ public class SphinxDocPrep {
     }
 
     public void processFile(final File file, final int level) throws Exception {
-        BufferedReader reader = new BufferedReader(new FileReader(file));
+        final BufferedReader reader = new BufferedReader(new FileReader(file));
         System.out.print("Processing file " + file);
         String line;
         while ((line = reader.readLine()) != null) {
@@ -109,28 +109,34 @@ public class SphinxDocPrep {
     }
 
     private void processMatch(final Matcher matcher, final StringBuffer sb) {
-        String className = matcher.group(2);
-        String methodName = matcher.group(3);
+        final String className = matcher.group(2);
+        final String methodName = matcher.group(3);
 
         String replacement;
         if (methodName == null) {
-            String url = index.getClassMap().get(className);
+            final String url = index.getClassMap().get(className);
             if (url == null || url.isEmpty()) {
                 replacement = "<<<Missing class: " + className + ">>>";
             } else {
                 replacement = "`" + className + " <" + url + ">`_";
             }
         } else {
-            String from = className + "#" + methodName.split("\\(")[0];
+            final String from = className + "#" + methodName.split("\\(")[0];
             final SortedMap<String, String> map = index.getMethodMap().tailMap(from);
             String url;
             if (map.isEmpty()) {
                 replacement = "<<<Missing method: " + methodName + ">>>";
             } else {
                 final String first = map.firstKey();
+                if (!first.startsWith(from)) {
+                    replacement = "<<<Missing method: " + methodName + ">>>";
+                }
                 url = map.get(first);
                 url = url.replace(" ", "%20");
                 String text = first.split("#")[1];
+                if (!from.contains("(")) {
+                    text = text.split("\\(")[0];
+                }
                 text = text.replace("com.persistit.encoding.", "");
                 text = text.replace("com.persistit.exception.", "");
                 text = text.replace("com.persistit.logging.", "");
@@ -148,14 +154,14 @@ public class SphinxDocPrep {
     }
 
     private void prepareBugList() throws IOException {
-        List<String[]> rows = new ArrayList<String[]>();
+        final List<String[]> rows = new ArrayList<String[]>();
         rows.add(new String[] { "Bug Reference", "Fixed in|Version", "Summary" });
         BufferedReader reader = null;
         try {
             String urls = "";
             String version = "";
             reader = new BufferedReader(new FileReader("../BugList"));
-            StringBuilder sb = new StringBuilder();
+            final StringBuilder sb = new StringBuilder();
             String line = null;
             while ((line = reader.readLine()) != null) {
                 if (line.isEmpty()) {
@@ -169,7 +175,7 @@ public class SphinxDocPrep {
                         version = "";
                         sb.setLength(0);
                     }
-                    String[] split = line.split("\\:");
+                    final String[] split = line.split("\\:");
                     for (final String bug : split[0].trim().split(",")) {
                         if (urls.length() > 0) {
                             urls += '|';
@@ -188,10 +194,10 @@ public class SphinxDocPrep {
                 rows.add(new String[] { urls, version, sb.toString() });
             }
 
-            int[] maxWidth = new int[3];
+            final int[] maxWidth = new int[3];
             for (final String[] row : rows) {
                 for (int i = 0; i < 3; i++) {
-                    for (String s : row[i].split("\\|")) {
+                    for (final String s : row[i].split("\\|")) {
                         maxWidth[i] = Math.max(s.length(), maxWidth[i]);
                     }
                 }
@@ -205,7 +211,7 @@ public class SphinxDocPrep {
             }
             bugTableLine(sb, true, maxWidth);
             for (int i = 1; i < rows.size(); i++) {
-                String[] text = rows.get(i);
+                final String[] text = rows.get(i);
                 for (int l = 0;; l++) {
                     if (bugTableText(sb, text, maxWidth, l)) {
                         break;
@@ -213,7 +219,7 @@ public class SphinxDocPrep {
                 }
                 bugTableLine(sb, false, maxWidth);
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             System.out.println(e + " while trying to read BugList");
         } finally {
             if (reader != null) {
@@ -222,7 +228,7 @@ public class SphinxDocPrep {
         }
     }
 
-    private void bugTableLine(StringBuilder sb, boolean dline, int[] width) {
+    private void bugTableLine(final StringBuilder sb, final boolean dline, final int[] width) {
         sb.setLength(0);
         sb.append('+');
         for (int j = 0; j < 3; j++) {
@@ -235,11 +241,11 @@ public class SphinxDocPrep {
         writer.flush();
     }
 
-    private boolean bugTableText(StringBuilder sb, String[] text, int[] width, int line) {
-        String[] s = new String[3];
+    private boolean bugTableText(final StringBuilder sb, final String[] text, final int[] width, final int line) {
+        final String[] s = new String[3];
         boolean done = true;
         for (int j = 0; j < 3; j++) {
-            String[] split = text[j].split("\\|");
+            final String[] split = text[j].split("\\|");
             if (split.length > line) {
                 done = false;
                 s[j] = split[line];
@@ -266,6 +272,6 @@ public class SphinxDocPrep {
     }
 
     public static void main(final String[] args) throws Exception {
-         new SphinxDocPrep().prepare(args);
+        new SphinxDocPrep().prepare(args);
     }
 }

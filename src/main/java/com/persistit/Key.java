@@ -2155,7 +2155,7 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Append the next key segment of the supplied <code>Key</code> to this
-     * <code>Key</code. The next key segment is determined by the current index
+     * <code>Key</code>. The next key segment is determined by the current index
      * of the key and can be set using the {@link #setIndex(int)} method.
      * 
      * @param key

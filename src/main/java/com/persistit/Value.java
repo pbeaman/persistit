@@ -588,8 +588,8 @@ public final class Value {
     }
 
     /**
-     * Construct a </code>Value</code> object with specified initial encoded
-     * size and default maximum size.
+     * Construct a <code>Value</code> object with specified initial encoded size
+     * and default maximum size.
      * 
      * @param initialSize
      *            Initial size of the encoded value buffer.
