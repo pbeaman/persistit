@@ -118,7 +118,7 @@ public interface ManagementMXBean {
     String transactionReport(int max) throws RemoteException;
 
     /**
-     * @return the name of the current default <code>CommitPolicy<code>
+     * @return the name of the current default <code>CommitPolicy</code>
      */
     String getDefaultCommitPolicy() throws RemoteException;
 

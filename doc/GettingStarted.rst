@@ -125,7 +125,7 @@ Although ``HelloWorld.java`` is not very useful, it demonstrates several of the 
 Initialization and Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Before accessing any data, ``HelloWorld.java`` calls the ``com.persistit.Persistit#initialize()``. This sets up the memory configuration for buffers and the path names of Persistit volume and journal files. Alternative methods accept configuration information from a ``com.persistit.Configuration`` object, a ``java.util.Properties`` object, a specified properties file, or by default from the file named ``persistit.properties`` in the current working directory.
+Before accessing any data, ``HelloWorld.java`` calls the ``com.persistit.Persistit#initialize()`` method. This sets up the memory configuration for buffers and the path names of Persistit volume and journal files. Alternative methods accept configuration information from a ``com.persistit.Configuration`` object, a ``java.util.Properties`` object, a specified properties file, or by default from the file named ``persistit.properties`` in the current working directory.
 
 In this example, ``persistit.properties`` looks like this:: 
 
@@ -246,7 +246,9 @@ See :ref:`PersistitMap`.
 KeyFilters
 ^^^^^^^^^^
 
-A ``com.persistit.KeyFilter`` can be supplied to restrict the results traversal operation in a convenient and  
+A ``com.persistit.KeyFilter`` can be supplied to restrict the results returned by the ``com.persistit.Exchange#traverse`` methods. You can specify discrete values or ranges for values of individual key segments and apply other simple predicates.
+
+See :ref:`Basic-API`.   
 
 Transactions
 ^^^^^^^^^^^^

@@ -415,9 +415,9 @@ public abstract class Task implements Runnable {
 
     /**
      * Returns a String message describing the current state of this
-     * <code>Task<code>, possibly in greater detail than {@link #getStatus}. The
-     * default implementation returns the same description as <code>getStatus</code>
-     * .
+     * <code>Task</code>, possibly in greater detail than {@link #getStatus}.
+     * The default implementation returns the same description as
+     * <code>getStatus</code>.
      * 
      * @return A detailed description of this <code>Task</code>'s current state.
      */

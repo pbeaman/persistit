@@ -30,10 +30,10 @@ public interface TransactionIndexMXBean {
     /**
      * Timestamp known to be less than or equal to the start timestamp of any
      * currently executing transaction. This value is computed by
-     * <code>updateActiveTransactionCache<code> and is therefore less the
+     * <code>updateActiveTransactionCache</code> and is therefore less the
      * timestamp of any currently executing transaction at the instant that
-     * method was called. It is guaranteed that no running transaction
-     * has a lower start timestamp.
+     * method was called. It is guaranteed that no running transaction has a
+     * lower start timestamp.
      * 
      * @return Lower bound on start timestamps of currently active transactions.
      */
@@ -41,9 +41,9 @@ public interface TransactionIndexMXBean {
 
     /**
      * Timestamp recorded at the start of the last invocation of
-     * <code>updateActiveTransactionCache<code>. Any transaction newer than 
-     * this ceiling is currently considered active even if it has
-     * already committed or aborted.
+     * <code>updateActiveTransactionCache</code>. Any transaction newer than
+     * this ceiling is currently considered active even if it has already
+     * committed or aborted.
      * 
      * @return Upper bound on timestamps for which
      *         {@link com.persistit.TransactionIndex#hasConcurrentTransaction(long, long)
@@ -53,7 +53,7 @@ public interface TransactionIndexMXBean {
 
     /**
      * Count of active transactions measured when
-     * <code>updateActiveTransactionCache<code> was last called. The count may
+     * <code>updateActiveTransactionCache</code> was last called. The count may
      * have changed to due new transactions starting or existing transactions
      * committing since that invocation, and therefore the value returned by
      * this method is an estimate.

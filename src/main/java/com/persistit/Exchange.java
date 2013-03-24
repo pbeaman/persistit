@@ -2777,9 +2777,9 @@ public class Exchange implements ReadOnlyExchange {
      * <p>
      * This method is designed to help applications overcome problems with
      * "write skew" which is a type of isolation anomaly permitted by Snapshot
-     * Isolation. See, for example,
-     * http://en.wikipedia.org/wiki/Snapshot_isolation for a concise explanation
-     * of Snapshot Isolation and the write skew anomaly.
+     * Isolation. See, for example, http://wikipedia.org/wiki/Snapshot_isolation
+     * for a concise explanation of Snapshot Isolation and the write skew
+     * anomaly.
      * <p>
      * </p>
      * To use this facility an application specifies a key which may or may not
@@ -3340,7 +3340,7 @@ public class Exchange implements ReadOnlyExchange {
 
     /**
      * Removes all records with keys falling between <code>key1</code> and
-     * </code>key2</code>, left-inclusive.
+     * <code>key2</code>, left-inclusive.
      * 
      * @param key1
      *            Start of the deletion range. No record with a key smaller than
@@ -3354,7 +3354,7 @@ public class Exchange implements ReadOnlyExchange {
      *            will be removed.
      * 
      * @return <code>true</code> if one or more records were actually removed,
-     *         else </i>false</i>.
+     *         else <i>false</i>.
      * 
      * @throws PersistitException
      *             if there are any internal errors
