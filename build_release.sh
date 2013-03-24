@@ -144,11 +144,12 @@ bzr export -q "${BRANCH_DIR}" "${BRANCH_URL}"
 echo "Making package directories"
 cp -r "${BRANCH_DIR}" "${SOURCE_DIR}"
 cp -r "${BRANCH_DIR}" "${OPEN_DIR}"
-rm -r "${OPEN_DIR}"/{doc,examples/scripts,src,pom.xml}
+rm -f "${SOURCE_DIR}/build_release.sh"
+rm -r "${OPEN_DIR}"/{doc,examples/scripts,src,pom.xml,build_release.sh}
 mkdir "${OPEN_DIR}/doc"
 
 
-echo "Building open edition and docs"
+echo "Building docs"
 cd "${BRANCH_DIR}"
 maven_build "${REVNO}"
 docs_build "../apidocs"
