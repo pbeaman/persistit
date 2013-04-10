@@ -39,11 +39,11 @@ import com.persistit.exception.PersistitInterruptedException;
  * of the database.
  * </p>
  * <p>
- * In more detail: the {@link #update} method of an Accumulator is invoked
- * within the scope of a transaction T. That update is not visible to any other
- * transaction until T commits. Moreover, any other concurrently executing
- * transaction having a start timestamp less than T's commit timestamp does not
- * see the results of the update. To accomplish this, the state of the
+ * In more detail: each type of Accumulator has an update method that may only
+ * be invoked within the scope of a transaction T. That update is not visible to
+ * any other transaction until T commits. Moreover, any other concurrently
+ * executing transaction having a start timestamp less than T's commit timestamp
+ * does not see the results of the update. To accomplish this, the state of the
  * Accumulator visible within a transaction is computed by determining which
  * updates are visible and aggregating them on demand.
  * </p>
@@ -89,22 +89,16 @@ import com.persistit.exception.PersistitInterruptedException;
  * <h3>SeqAccumulator</h3>
  * The <code>SeqAccumulator</code> is a combination of
  * <code>SumAccumulator</code> and <code>MaxAccumulator</code>. When the
- * {@link #update} method is called, the supplied long value is atomically added
- * to the Accumulator's <code>live</code> value and the result is returned. In
- * addition, a <code>Delta</code> holding the resulting sum as a proposed
- * maximum value is added to the transaction. These semantics guarantee that
- * every value returned by a SeqAccumulator (within a transaction that actually
- * commits) is unique, and that upon recovery after a normal shutdown or crash,
- * the first value returned will be larger than the maximum value assigned by
- * any transaction that committed successfully before the shutdown. Note that a
- * transaction that allocates a value and then aborts will leave a gap in the
- * numerical sequence.
- * </p>
- * <p>
- * When using a <code>SeqAccumulator</code> take care to increment the value by
- * one or a small integer value. Otherwise you may permanently exhaust the set
- * of possible ID values since the maximum possible value is Long.MAX_VALUE.
- * <code>SeqAccumulator</code> values never decrease.
+ * {@link com.persistit.Accumulator.SeqAccumulator#allocate()} method is called,
+ * the Accumulator's <code>live</code> value is atomically incremented and the
+ * resulting value is returned. In addition, a <code>Delta</code> holding the
+ * resulting sum as a proposed minimum value is added to the transaction. These
+ * semantics guarantee that every value returned by a SeqAccumulator (within a
+ * transaction that actually commits) is unique, and that upon recovery after a
+ * normal shutdown or crash, the first value returned will be larger than the
+ * maximum value assigned by any transaction that committed successfully before
+ * the shutdown. Note that a transaction that allocates a value and then aborts
+ * leaves a gap in the numerical sequence.
  * </p>
  * 
  * @author peter
@@ -272,7 +266,7 @@ public abstract class Accumulator {
          * </p>
          * 
          * @param min
-         *            The delta value
+         *            The candidate minimum value
          */
         public void minimum(final long min) {
             final Transaction txn = _tree.getPersistit().getTransaction();
@@ -322,7 +316,7 @@ public abstract class Accumulator {
          * </p>
          * 
          * @param max
-         *            The delta value
+         *            The candidate maximum value
          */
         public void maximum(final long max) {
             final Transaction txn = _tree.getPersistit().getTransaction();
@@ -334,12 +328,12 @@ public abstract class Accumulator {
 
     /**
      * An Accumulator used to generate unique ID values. The
-     * {@link #update(long, Transaction)} method applied to a
-     * <code>SeqAccumulator</code> generates a new, unique long value. The
-     * transaction records this value as a candidate for maximum value of the
-     * Accumulator. On recovery, the highest such value ever allocated by a
-     * committed transaction is recovered, and so after recovery the next
-     * allocated ID value will be larger than any previously consumed.
+     * {@link com.persistit.Accumulator.SeqAccumulator#allocate()} method
+     * generates a new, unique long value. The transaction records this value as
+     * a candidate for maximum value of the Accumulator. On recovery, the
+     * highest such value ever allocated by a committed transaction is
+     * recovered, and so after recovery the next allocated ID value will be
+     * larger than any previously consumed.
      */
     public final static class SeqAccumulator extends Accumulator {
 
@@ -657,8 +651,6 @@ public abstract class Accumulator {
      * less than the <code>transaction</code>'s current step. See <a
      * href="#_SnapshotValue">Snapshot and Live Values</a>.
      * 
-     * @param txn
-     *            The transaction reading the snapshot
      * @return the computed snapshot value
      * @throws InterruptedException
      */
