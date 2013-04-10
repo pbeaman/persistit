@@ -39,9 +39,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * A session is used to maintain state, including the {@link Transaction}
  * context and map of cached {@link Exchange} maintained by
  * {@link Persistit#getExchange(String, String, boolean)}. Therefore care must
- * be taken to limit the maximum number of <code>SessionId</code> instances created
- * during the lifetime of a <code>Persistit</code> instance and to manage
- * them appropriately.
+ * be taken to limit the maximum number of <code>SessionId</code> instances
+ * created during the lifetime of a <code>Persistit</code> instance and to
+ * manage them appropriately.
  * </p>
  * 
  * @author peter

@@ -86,7 +86,7 @@ public class Bug1064565Test extends PersistitUnitTestCase {
 
         txn.begin();
         SumAccumulator acc = exchange.getTree().getSumAccumulator(0);
-        acc.add(1);
+        acc.add(42);
         sequence(ACCUMULATOR_CHECKPOINT_B);
         txn.commit();
         txn.end();
