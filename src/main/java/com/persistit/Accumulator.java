@@ -30,12 +30,13 @@ import com.persistit.exception.PersistitInterruptedException;
  * include <code>SumAccumulator</code>, <code>MinAccumulator</code>,
  * <code>MaxAccumulator</code> and <code>SeqAccumulator</code> which compute the
  * sum, minimum and maximum values of contributions by individual transactions.
- * (See below for semantics of the <code>SeqAccummulator</code>.) Each
- * contribution is accounted for separately as a <code>Delta</code> instance
- * until the transaction is either committed or aborted and there are no other
- * concurrently executing transactions that started before the commit timestamp.
- * This mechanism is designed to provide a "snapshot" view of the Accumulator
- * that is consistent with the snapshot view of the database.
+ * (See <a href="#_SeqAccumulator">below</a> for semantics of the
+ * <code>SeqAccummulator</code>.) Each contribution is accounted for separately
+ * as a <code>Delta</code> instance until the transaction is either committed or
+ * aborted and there are no other concurrently executing transactions that
+ * started before the commit timestamp. This mechanism is designed to provide a
+ * "snapshot" view of the Accumulator that is consistent with the snapshot view
+ * of the database.
  * </p>
  * <p>
  * In more detail: the {@link #update} method of an Accumulator is invoked
@@ -55,32 +56,55 @@ import com.persistit.exception.PersistitInterruptedException;
  * containing the Tree.
  * </p>
  * <p>
+ * <h3>Types of Accumulators</h3>
  * The following defines intended use cases for the various types of
  * accumulators:
  * <dl>
- * <dt>SUM</dt>
+ * <dt>{@link com.persistit.Accumulator.Type#SUM}</dt>
  * <dd>Row count, total size, sums of various other characteristics</dd>
- * <dt>MAX</dt>
+ * <dt>{@link com.persistit.Accumulator.Type#MAX}</dt>
  * <dd>Maximum value</dd>
- * <dt>MIN</dt>
+ * <dt>{@link com.persistit.Accumulator.Type#MIN}</dt>
  * <dd>Minimum value</dd>
- * <dt>SEQ</dt>
+ * <dt>{@link com.persistit.Accumulator.Type#SEQ}</dt>
  * <dd>Sequence number generation, e.g., auto-increment or internal primary key
- * assignment
+ * assignment</dd>
  * </dl>
  * </p>
  * <p>
+ * <a name="_SnapshotValue" />
+ * <h3>Snapshot and Live Values</h3>
+ * Each Accumulator type supplies both a "snapshot" value and a "live" value.
+ * The snapshot value is computed as described above by selectively applying
+ * only those updates visible to the transaction. The live value, however, is
+ * simply the result of applying each update operation atomically to a long
+ * value maintained by the Accumulator. For example, if ten transactions
+ * increment a SUM accumulator by one, and then five commit of them and five and
+ * roll back, the live value is nonetheless increased by ten. Thus the live
+ * value is only an estimate. Its value is cheap to acquire but not
+ * transactionally accurate.
+ * </p>
+ * <p>
+ * <a name="_SeqAccumulator" />
+ * <h3>SeqAccumulator</h3>
  * The <code>SeqAccumulator</code> is a combination of
  * <code>SumAccumulator</code> and <code>MaxAccumulator</code>. When the
  * {@link #update} method is called, the supplied long value is atomically added
  * to the Accumulator's <code>live</code> value and the result is returned. In
  * addition, a <code>Delta</code> holding the resulting sum as a proposed
  * maximum value is added to the transaction. These semantics guarantee that
- * every value returned by a SeqAccumulator is unique, and that upon recovery
- * after a crash, the first value returned will be larger than the maximum value
- * assigned by any transaction that committed successfully before the crash.
- * Note that a transaction that assigns value and then aborts will leave a gap
- * in the numerical sequence.
+ * every value returned by a SeqAccumulator (within a transaction that actually
+ * commits) is unique, and that upon recovery after a normal shutdown or crash,
+ * the first value returned will be larger than the maximum value assigned by
+ * any transaction that committed successfully before the shutdown. Note that a
+ * transaction that allocates a value and then aborts will leave a gap in the
+ * numerical sequence.
+ * </p>
+ * <p>
+ * When using a <code>SeqAccumulator</code> take care to increment the value by
+ * one or a small integer value. Otherwise you may permanently exhaust the set
+ * of possible ID values since the maximum possible value is Long.MAX_VALUE.
+ * <code>SeqAccumulator</code> values never decrease.
  * </p>
  * 
  * @author peter
@@ -172,6 +196,9 @@ public abstract class Accumulator {
 
         @Override
         long updateValue(final long a, final long b) {
+            if (b > 0 && a + b < a || b < 0 && a + b > a) {
+                throw new IllegalArgumentException("Accumulator value overflow: (" + a + "+" + b + ")");
+            }
             return applyValue(a, b);
         }
 
@@ -271,11 +298,13 @@ public abstract class Accumulator {
 
         @Override
         long updateValue(final long a, final long b) {
-            if (b > 0) {
-                return a + b;
-            } else {
+            if (b <= 0) {
                 throw new IllegalArgumentException("Update value must be positive");
             }
+            if (a + b < a) {
+                throw new IllegalArgumentException("Accumulator value overflow: (" + a + "+" + b + ")");
+            }
+            return a + b;
         }
 
         @Override
@@ -528,7 +557,8 @@ public abstract class Accumulator {
 
     /**
      * Non-transactional view aggregating all updates applied to this
-     * Accumulator, whether committed or not.
+     * Accumulator, whether committed or not. See <a
+     * href="#_SnapshotValue">Snapshot and Live Values</a>.
      * 
      * @return the live value
      */
@@ -537,14 +567,16 @@ public abstract class Accumulator {
     }
 
     /**
+     * Compute the value computed by accumulating values contributed by (a) all
+     * transactions having commit timestamps less than or equal to the specified
+     * <code>transaction</code>'s start timestamp, and (b) all operations
+     * performed by the specified transaction having step numbers equal to or
+     * less than the <code>transaction</code>'s current step. See <a
+     * href="#_SnapshotValue">Snapshot and Live Values</a>.
+     * 
      * @param txn
      *            The transaction reading the snapshot
-     * @return The value computed by accumulating values contributed by (a) all
-     *         transactions having commit timestamps less than or equal to
-     *         <code>transaction</code>'s start timestamp, and (b) all
-     *         operations performed by the current transaction having step
-     *         numbers equal to or less than the <code>transaction</code>'s
-     *         current step.
+     * @return the computed snapshot value
      * @throws InterruptedException
      */
     public long getSnapshotValue(final Transaction txn) throws PersistitInterruptedException {
@@ -590,16 +622,36 @@ public abstract class Accumulator {
     }
 
     /**
+     * <p>
      * Update the Accumulator by contributing a value. The contribution is
      * immediately accumulated into the live value, and it is also posted with a
      * <code>Delta</code>instance to the supplied {@link Transaction}. This
      * method may be called only within the scope of an active
-     * <code>Transaction</code>.
+     * <code>Transaction</code>. This method returns the current live value of
+     * the <code>Accumulator</code>. As described in <a
+     * href="#_SnapshotValue">Snapshot and Live Values</a>, the live value is
+     * not transactionally accurate and should be used with care.
+     * </p>
+     * <p>
+     * However, specifically in the case of <code>SeqAccumulator</code>, the
+     * returned value is guaranteed to be unique for the lifetime of the
+     * database and is intended to be used as the unique ID. Note that the
+     * following code is <em>not</em> guaranteed to generate a unique value:
+     * <code><pre>
+     *    seqAccumulator.update(1, myTransaction);
+     *    long id = seqAccumulator.getLiveValue();
+     * </pre></code> The reason is that two concurrently executing transactions
+     * could complete their calls to update before either of them accesses the
+     * current live value. In all cases, the ID value should be acquired as
+     * follows: <code><pre>
+     *   long id = seqAccumulator.update(1, myTransaction);
+     * </p>
      * 
      * @param value
      *            The delta value
      * @param txn
      *            The transaction it applies to
+     * @return the updated live value
      */
     public long update(final long value, final Transaction txn) {
         txn.checkActive();
@@ -609,8 +661,7 @@ public abstract class Accumulator {
     /**
      * Update the Accumulator by contributing a value. The contribution is
      * immediately accumulated into the live value, and it is also posted with a
-     * 
-     * @{link {@link Delta} instance to the supplied {@link Transaction}.
+     * {@link Delta} instance to the supplied {@link Transaction}.
      * 
      * @param value
      *            The delta value
