@@ -87,9 +87,8 @@ public class Bug911849Test extends PersistitUnitTestCase {
             int retryCount = 0;
             txn.begin();
             try {
-                final SumAccumulator rowCount = exchange.getTree().getSumAccumulator(
-                        ROW_COUNT_ACCUMULATOR_INDEX);
-                rowCount.increment();
+                final SumAccumulator rowCount = exchange.getTree().getSumAccumulator(ROW_COUNT_ACCUMULATOR_INDEX);
+                rowCount.add(1);
                 txn.commit();
                 counter.incrementAndGet();
                 if ((count % 10) == 0) {

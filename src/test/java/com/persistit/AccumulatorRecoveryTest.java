@@ -66,11 +66,11 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
                 for (int i = 0; i < 10; i++) {
                     ex.getValue().put("String value #" + i + " for test1");
                     ex.clear().append("test1").append(j).append(i).store();
-                    rowCount.increment();
+                    rowCount.add(1);
                 }
                 for (int i = 3; i < 10; i += 3) {
                     ex.clear().append("test1").append(j).append(i).remove(Key.GTEQ);
-                    rowCount.increment();
+                    rowCount.add(-1);
                 }
                 txn.commit();
             } finally {
@@ -84,7 +84,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             try {
                 final boolean removed = ex.clear().append("test1").append(j).remove(Key.GTEQ);
                 if (removed) {
-                    rowCount.increment(-7);
+                    rowCount.add(-7);
                 }
                 txn.commit();
             } finally {
@@ -280,7 +280,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
                             exchange.store();
                             final SumAccumulator rowCount = exchange.getTree().getSumAccumulator(
                                     ROW_COUNT_ACCUMULATOR_INDEX);
-                            rowCount.increment();
+                            rowCount.add(1);
                             update = 1;
                         }
                     } else {
@@ -288,7 +288,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
                             exchange.remove();
                             final SumAccumulator rowCount = exchange.getTree().getSumAccumulator(
                                     ROW_COUNT_ACCUMULATOR_INDEX);
-                            rowCount.increment(-1);
+                            rowCount.add(-1);
                             update = -1;
                         }
                     }

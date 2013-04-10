@@ -405,7 +405,7 @@ class SharedResource {
     Persistit getPersistit() {
         return _persistit;
     }
-    
+
     /**
      * Sets bits in the state. This method does not change the bits used by the
      * synchronizer to maintain lock state.

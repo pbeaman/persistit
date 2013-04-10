@@ -52,11 +52,11 @@ public class Bug920754Test extends PersistitUnitTestCase {
         final Transaction txn = _persistit.getTransaction();
         final SumAccumulator[] accumulators = new SumAccumulator[10];
         for (int i = 0; i < 10; i++) {
-            accumulators[i] = exchange.getTree().getSumAccumulator( 1);
+            accumulators[i] = exchange.getTree().getSumAccumulator(1);
         }
         txn.begin();
         for (int i = 0; i < 10; i++) {
-            accumulators[i].increment();
+            accumulators[i].add(1);
         }
         txn.commit();
         txn.end();

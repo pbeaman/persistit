@@ -49,7 +49,7 @@ public class Bug974589Test extends PersistitUnitTestCase {
              */
             txn1.begin();
             SumAccumulator acc1 = ex1.getTree().getSumAccumulator(1);
-            acc1.increment();
+            acc1.add(1);
             txn1.commit();
             txn1.end();
             ex1 = null;

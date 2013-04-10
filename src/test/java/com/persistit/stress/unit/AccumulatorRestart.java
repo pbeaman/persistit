@@ -107,7 +107,7 @@ public class AccumulatorRestart extends StressBase {
                         min.minimum(bsum(minValue, r));
                         max.maximum(bsum(maxValue, r));
                         seq.allocate();
-                        sum.increment();
+                        sum.add(1);
                         seqValue++;
                         final long minWas = getLong(_ex.to("min"), Long.MAX_VALUE);
                         _ex.getValue().put(Math.min(bsum(minValue, r), minWas));

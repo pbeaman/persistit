@@ -200,10 +200,10 @@ public class Stress8txn extends StressBase {
 
             }
 
-            final SumAccumulator acc1 = _exs.getTree().getSumAccumulator( _c1);
+            final SumAccumulator acc1 = _exs.getTree().getSumAccumulator(_c1);
             final SumAccumulator acc2 = _exs.getTree().getSumAccumulator(_c2);
-            acc1.increment(delta);
-            acc2.increment(-delta);
+            acc1.add(delta);
+            acc2.add(-delta);
         }
     }
 
@@ -253,10 +253,10 @@ public class Stress8txn extends StressBase {
                 addWork(1);
 
             }
-            final SumAccumulator acc1 = _exs.getTree().getSumAccumulator( _c1);
+            final SumAccumulator acc1 = _exs.getTree().getSumAccumulator(_c1);
             final SumAccumulator acc2 = _exs.getTree().getSumAccumulator(_c2);
-            acc1.increment(delta);
-            acc2.increment(-delta);
+            acc1.add(delta);
+            acc2.add(-delta);
         }
     }
 

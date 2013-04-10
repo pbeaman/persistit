@@ -376,14 +376,13 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     public void testTransactionMapSpanningJournalWriteBuffer() throws Exception {
         _persistit.getJournalManager().setWriteBufferSize(JournalManager.MINIMUM_BUFFER_SIZE);
         final Transaction txn = _persistit.getTransaction();
-        SumAccumulator acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true)
-                .getSumAccumulator(0);
+        SumAccumulator acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true).getSumAccumulator(0);
         /*
          * Load up a sizable live transaction map
          */
         for (int i = 0; i < 25000; i++) {
             txn.begin();
-            acc.increment();
+            acc.add(1);
             txn.commit();
             txn.end();
         }
@@ -391,8 +390,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         _persistit.close();
         _persistit = new Persistit(_config);
 
-        acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true)
-                .getSumAccumulator(0);
+        acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true).getSumAccumulator(0);
         assertEquals("Accumulator value is incorrect", 25000, acc.getLiveValue());
 
     }
@@ -568,7 +566,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 ex.clear().append(total + j);
                 ex.getValue().put(j);
                 ex.store();
-                accum.increment();
+                accum.add(1);
             }
             txn.commit();
             txn.end();

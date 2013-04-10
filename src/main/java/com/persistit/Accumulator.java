@@ -214,23 +214,7 @@ public abstract class Accumulator {
 
         /**
          * <p>
-         * Increment the Accumulator by adding 1. The contribution is
-         * immediately accumulated into the live value, and it is also posted
-         * with a <code>Delta</code>instance to the supplied {@link Transaction}
-         * . This method may be called only within the scope of an active
-         * <code>Transaction</code>.
-         * </p>
-         * 
-         */
-        public void increment() {
-            final Transaction txn = _tree.getPersistit().getTransaction();
-            txn.checkActive();
-            update(1, txn.getTransactionStatus(), txn.getStep());
-        }
-
-        /**
-         * <p>
-         * Increment the Accumulator by adding a supplied value. The
+         * Add the supplied value to this <code>SumAccumulator</code>. The
          * contribution is immediately accumulated into the live value, and it
          * is also posted with a <code>Delta</code>instance to the supplied
          * {@link Transaction}. This method may be called only within the scope
@@ -240,7 +224,7 @@ public abstract class Accumulator {
          * @param value
          *            The delta value
          */
-        public void increment(final long value) {
+        public void add(final long value) {
             final Transaction txn = _tree.getPersistit().getTransaction();
             txn.checkActive();
             update(value, txn.getTransactionStatus(), txn.getStep());

@@ -112,7 +112,6 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     public void testBasicIsolation() throws Exception {
         final SessionId s1 = new SessionId();
         final SessionId s2 = new SessionId();
-        int expectedErrors = 0;
         _persistit.setSessionId(s1);
         final Transaction txn1 = _persistit.getTransaction();
         _persistit.setSessionId(s2);
@@ -125,7 +124,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         txn1.begin();
         assertEquals(0, snapshotValue(acc, s1));
         assertEquals(0, snapshotValue(acc, s2));
-        
+
         increment(acc, s1);
         assertEquals(0, snapshotValue(acc, s2));
         increment(acc, s2);
@@ -141,12 +140,14 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         txn1.commit();
         txn1.end();
     }
-    
+
     private void increment(final SumAccumulator acc, final SessionId sessionId) {
         _persistit.setSessionId(sessionId);
+        acc.add(1);
     }
-    
-    private long snapshotValue(final SumAccumulator acc, final SessionId sessionId) throws PersistitInterruptedException {
+
+    private long snapshotValue(final SumAccumulator acc, final SessionId sessionId)
+            throws PersistitInterruptedException {
         _persistit.setSessionId(sessionId);
         return acc.getSnapshotValue();
     }
@@ -161,7 +162,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             threads[i] = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    final long end = System.currentTimeMillis() + 60000;
+                    final long end = System.currentTimeMillis() + 30000;
                     int cleanRun = 0;
                     while (System.currentTimeMillis() < end) {
                         try {
@@ -175,7 +176,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                                 Thread.sleep(random.nextInt(2));
                                 final long v2 = acc.getSnapshotValue();
                                 final long floor2 = ti.getActiveTransactionFloor();
-                                acc.increment();
+                                acc.add(1);
                                 final long v3 = acc.getSnapshotValue();
                                 final long v4 = acc.getSnapshotValue();
                                 final long v5 = acc.getSnapshotValue();
@@ -336,7 +337,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                     exchange.clear().append(sequence.allocate() * 17);
                     exchange.getValue().put(RED_FOX);
                     exchange.store();
-                    rowCount.increment();
+                    rowCount.add(1);
                     txn.commit();
                 } finally {
                     txn.end();
@@ -344,7 +345,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             }
 
             assertEquals(count, rowCount.getLiveValue());
-            assertEquals(count * 17, sequence.getLiveValue());
+            assertEquals(count, sequence.getLiveValue());
 
             _persistit.checkpoint();
 
@@ -360,7 +361,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             assertEquals(treeName, as.getTreeName());
             assertEquals(Type.SEQ, as.getType());
             assertEquals(1, as.getIndex());
-            assertEquals(count * 17, as.getValue());
+            assertEquals(count, as.getValue());
         }
     }
 
@@ -399,7 +400,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             for (int row = 0; row < ROW_COUNT; ++row) {
                 txn.begin();
                 ex.clear().append(row);
-                accum.increment();
+                accum.add(1);
                 txn.commit();
                 txn.end();
             }
