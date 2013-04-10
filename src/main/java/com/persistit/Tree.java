@@ -365,12 +365,23 @@ public class Tree extends SharedResource {
     }
 
     /**
+     * <p>
      * Return an <code>Accumulator</code> for this Tree. The caller provides the
      * type (SUM, MAX, MIN or SEQ) of accumulator, and an index value between 0
      * and 63, inclusive. If the <code>Tree</code> does not yet have an
      * <code>Accumulator</code> with the specified index, this method creates
      * one of the the specified type. Otherwise the specified type must match
      * the type of the one previously.
+     * </p>
+     * <p>
+     * This method is deprecated.  One of the following methods should be used instead:
+     * <ul>
+     * <li>{@link #getSumAccumulator(int)}</li>
+     * <li>{@link #getSeqAccumulator(int)}</li>
+     * <li>{@link #getMinAccumulator(int)}</li>
+     * <li>{@link #getMaxAccumulator(int)}</li>
+     * <ul>
+     * </p>
      * 
      * @param type
      *            Type of <code>Accumulator</code>
@@ -381,6 +392,7 @@ public class Tree extends SharedResource {
      *             if the supplied type does not match that of a previously
      *             created <code>Accumulator</code>
      */
+    @Deprecated
     public synchronized Accumulator getAccumulator(final Accumulator.Type type, final int index)
             throws PersistitException {
         if (index < 0 || index >= MAX_ACCUMULATOR_COUNT) {
