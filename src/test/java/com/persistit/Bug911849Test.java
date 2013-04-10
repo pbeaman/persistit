@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
+import com.persistit.Accumulator.SumAccumulator;
 import com.persistit.exception.RollbackException;
 
 /**
@@ -82,14 +83,13 @@ public class Bug911849Test extends PersistitUnitTestCase {
         final Exchange exchange = _persistit.getExchange("persistit", "AccumulatorRecoveryTest", true);
         final Transaction txn = _persistit.getTransaction();
         int count = 0;
-        Exception exception = null;
         while (count++ < max) {
             int retryCount = 0;
             txn.begin();
             try {
-                final Accumulator rowCount = exchange.getTree().getAccumulator(Accumulator.Type.SUM,
+                final SumAccumulator rowCount = exchange.getTree().getSumAccumulator(
                         ROW_COUNT_ACCUMULATOR_INDEX);
-                rowCount.update(1, txn);
+                rowCount.increment();
                 txn.commit();
                 counter.incrementAndGet();
                 if ((count % 10) == 0) {
@@ -99,9 +99,6 @@ public class Bug911849Test extends PersistitUnitTestCase {
                 retryCount++;
                 assertTrue(retryCount < 5);
                 System.out.println("(Acceptable) rollback in " + Thread.currentThread().getName());
-            } catch (final Exception e) {
-                exception = e;
-                throw e;
             } finally {
                 txn.end();
             }

@@ -398,10 +398,14 @@ class SharedResource {
         _generation.incrementAndGet();
     }
 
-    public int getStatus() {
+    int getStatus() {
         return _sync.state();
     }
 
+    Persistit getPersistit() {
+        return _persistit;
+    }
+    
     /**
      * Sets bits in the state. This method does not change the bits used by the
      * synchronizer to maintain lock state.

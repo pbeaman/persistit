@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
+import com.persistit.Accumulator.SumAccumulator;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.UnitTestProperties;
 
@@ -47,8 +48,8 @@ public class Bug974589Test extends PersistitUnitTestCase {
              * Touch an Accumulator, then immediately checkpoint.
              */
             txn1.begin();
-            Accumulator acc1 = ex1.getTree().getAccumulator(Accumulator.Type.SUM, 1);
-            acc1.update(1, txn1);
+            SumAccumulator acc1 = ex1.getTree().getSumAccumulator(1);
+            acc1.increment();
             txn1.commit();
             txn1.end();
             ex1 = null;
@@ -63,8 +64,8 @@ public class Bug974589Test extends PersistitUnitTestCase {
             Exchange ex2 = getExchange(_persistit);
             Transaction txn2 = ex2.getTransaction();
             txn2.begin();
-            Accumulator acc2 = ex2.getTree().getAccumulator(Accumulator.Type.SUM, 1);
-            assertEquals(loop, acc2.getSnapshotValue(txn2));
+            SumAccumulator acc2 = ex2.getTree().getSumAccumulator(1);
+            assertEquals(loop, acc2.getSnapshotValue());
             txn2.commit();
             txn2.end();
             System.out.printf("Iteration %,d completed\n", loop);

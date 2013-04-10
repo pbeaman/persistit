@@ -19,7 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,8 +28,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
 
+import com.persistit.Accumulator.SeqAccumulator;
+import com.persistit.Accumulator.SumAccumulator;
 import com.persistit.Accumulator.Type;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.unit.ConcurrentUtil;
 import com.persistit.unit.UnitTestProperties;
@@ -116,34 +118,37 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         _persistit.setSessionId(s2);
         final Transaction txn2 = _persistit.getTransaction();
         final Tree tree = _persistit.getVolume("persistit").getTree("AccumulatorTest", true);
-        final Accumulator acc = tree.getAccumulator(Accumulator.Type.SUM, 0);
+        final SumAccumulator acc = tree.getSumAccumulator(0);
         assertTrue(txn1 != txn2);
         txn2.begin();
-        try {
-            acc.getSnapshotValue(txn1);
-            fail("Should have thrown an exceptio");
-        } catch (final IllegalStateException e) {
-            expectedErrors++;
-            // expected
-        }
-        assertEquals(1, expectedErrors);
+
         txn1.begin();
-        assertEquals(0, acc.getSnapshotValue(txn1));
-        assertEquals(0, acc.getSnapshotValue(txn2));
-        acc.update(1, txn1);
-        assertEquals(0, acc.getSnapshotValue(txn2));
-        acc.update(1, txn2);
-        assertEquals(1, acc.getSnapshotValue(txn1));
-        assertEquals(1, acc.getSnapshotValue(txn2));
+        assertEquals(0, snapshotValue(acc, s1));
+        assertEquals(0, snapshotValue(acc, s2));
+        
+        increment(acc, s1);
+        assertEquals(0, snapshotValue(acc, s2));
+        increment(acc, s2);
+        assertEquals(1, snapshotValue(acc, s1));
+        assertEquals(1, snapshotValue(acc, s2));
         txn1.commit();
         txn1.end();
-        assertEquals(acc.getSnapshotValue(txn2), 1);
+        assertEquals(1, snapshotValue(acc, s2));
         txn2.commit();
         txn2.end();
         txn1.begin();
-        assertEquals(2, acc.getSnapshotValue(txn1));
+        assertEquals(2, snapshotValue(acc, s1));
         txn1.commit();
         txn1.end();
+    }
+    
+    private void increment(final SumAccumulator acc, final SessionId sessionId) {
+        _persistit.setSessionId(sessionId);
+    }
+    
+    private long snapshotValue(final SumAccumulator acc, final SessionId sessionId) throws PersistitInterruptedException {
+        _persistit.setSessionId(sessionId);
+        return acc.getSnapshotValue();
     }
 
     @Test
@@ -164,16 +169,16 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                             final Transaction txn = ex.getTransaction();
                             txn.begin();
                             try {
-                                final Accumulator acc = ex.getTree().getAccumulator(Accumulator.Type.SUM, 0);
+                                final SumAccumulator acc = ex.getTree().getSumAccumulator(0);
                                 final long floor1 = ti.getActiveTransactionFloor();
-                                final long v1 = acc.getSnapshotValue(txn);
+                                final long v1 = acc.getSnapshotValue();
                                 Thread.sleep(random.nextInt(2));
-                                final long v2 = acc.getSnapshotValue(txn);
+                                final long v2 = acc.getSnapshotValue();
                                 final long floor2 = ti.getActiveTransactionFloor();
-                                acc.update(1, txn);
-                                final long v3 = acc.getSnapshotValue(txn);
-                                final long v4 = acc.getSnapshotValue(txn);
-                                final long v5 = acc.getSnapshotValue(txn);
+                                acc.increment();
+                                final long v3 = acc.getSnapshotValue();
+                                final long v4 = acc.getSnapshotValue();
+                                final long v5 = acc.getSnapshotValue();
 
                                 if (v1 != v2 || v2 + 1 != v3 || v3 != v4 || v4 != v5) {
                                     System.out.printf("Thread #%d v1=%,10d v2=%,10d v3=%,10d v4=%,10d v5=%,10d "
@@ -322,16 +327,16 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             final Transaction txn = _persistit.getTransaction();
             final String treeName = String.format("AccumulatorTest%2d", retry);
             final Exchange exchange = _persistit.getExchange("persistit", treeName, true);
-            final Accumulator rowCount = exchange.getTree().getAccumulator(Type.SUM, 0);
-            final Accumulator sequence = exchange.getTree().getAccumulator(Type.SEQ, 1);
+            final SumAccumulator rowCount = exchange.getTree().getSumAccumulator(0);
+            final SeqAccumulator sequence = exchange.getTree().getSeqAccumulator(1);
 
             for (int i = 0; i < count; i++) {
                 txn.begin();
                 try {
-                    exchange.clear().append(sequence.update(17, txn));
+                    exchange.clear().append(sequence.allocate() * 17);
                     exchange.getValue().put(RED_FOX);
                     exchange.store();
-                    rowCount.update(1, txn);
+                    rowCount.increment();
                     txn.commit();
                 } finally {
                     txn.end();
@@ -383,25 +388,25 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             assertNull("Tree should not exist, pass" + pass, vol.getTree(TEST_TREE_NAME, false));
 
             final Exchange ex = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
-            final Accumulator accum = ex.getTree().getAccumulator(ACCUM_TYPE, ACCUM_INDEX);
+            final SumAccumulator accum = ex.getTree().getSumAccumulator(ACCUM_INDEX);
             final Transaction txn = _persistit.getTransaction();
 
             txn.begin();
-            assertEquals("Initial accumulator value, pass" + pass, 0, accum.getSnapshotValue(txn));
+            assertEquals("Initial accumulator value, pass" + pass, 0, accum.getSnapshotValue());
             txn.commit();
             txn.end();
 
             for (int row = 0; row < ROW_COUNT; ++row) {
                 txn.begin();
                 ex.clear().append(row);
-                accum.update(1, txn);
+                accum.increment();
                 txn.commit();
                 txn.end();
             }
 
             txn.begin();
             txn.commit();
-            assertEquals("Accumulator after inserts, pass" + pass, ROW_COUNT, accum.getSnapshotValue(txn));
+            assertEquals("Accumulator after inserts, pass" + pass, ROW_COUNT, accum.getSnapshotValue());
             txn.end();
 
             ex.removeTree();

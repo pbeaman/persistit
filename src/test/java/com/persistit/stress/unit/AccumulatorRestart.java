@@ -17,7 +17,10 @@ package com.persistit.stress.unit;
 
 import java.util.Random;
 
-import com.persistit.Accumulator;
+import com.persistit.Accumulator.MaxAccumulator;
+import com.persistit.Accumulator.MinAccumulator;
+import com.persistit.Accumulator.SeqAccumulator;
+import com.persistit.Accumulator.SumAccumulator;
 import com.persistit.Configuration;
 import com.persistit.Exchange;
 import com.persistit.Persistit;
@@ -74,18 +77,18 @@ public class AccumulatorRestart extends StressBase {
                 final boolean a = RANDOM.nextInt(10) == 0;
                 System.out.println(_threadName + " starting cycle " + _count + " abort=" + a);
                 _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
-                final Accumulator sum = _ex.getTree().getAccumulator(Accumulator.Type.SUM, 17);
-                final Accumulator max = _ex.getTree().getAccumulator(Accumulator.Type.MAX, 22);
-                final Accumulator min = _ex.getTree().getAccumulator(Accumulator.Type.MIN, 23);
-                final Accumulator seq = _ex.getTree().getAccumulator(Accumulator.Type.SEQ, 47);
+                final SumAccumulator sum = _ex.getTree().getSumAccumulator(17);
+                final MaxAccumulator max = _ex.getTree().getMaxAccumulator(22);
+                final MinAccumulator min = _ex.getTree().getMinAccumulator(23);
+                final SeqAccumulator seq = _ex.getTree().getSeqAccumulator(47);
                 final Transaction txn = _ex.getTransaction();
                 if (_count > 1) {
                     txn.begin();
                     try {
-                        final long minv = min.getSnapshotValue(txn);
-                        final long maxv = max.getSnapshotValue(txn);
+                        final long minv = min.getSnapshotValue();
+                        final long maxv = max.getSnapshotValue();
                         final long seqv = seq.getLiveValue();
-                        final long sumv = sum.getSnapshotValue(txn);
+                        final long sumv = sum.getSnapshotValue();
                         if (minv != minValue || maxv != maxValue || seqv != seqValue || sumv != sumValue) {
                             fail(String.format("Values don't match: (min/max/seq/sum) "
                                     + "expected=(%,d/%,d/%,d/%,d) actual=(%,d/%,d/%,d/%,d)", minValue, maxValue,
@@ -101,10 +104,10 @@ public class AccumulatorRestart extends StressBase {
                     final long timeOffset = RANDOM.nextInt(1000) - 500;
                     while (!isTriggered(timeOffset)) {
                         final long r = RANDOM.nextInt(1000) - 500;
-                        min.update(bsum(minValue, r), txn);
-                        max.update(bsum(maxValue, r), txn);
-                        seq.update(1, txn);
-                        sum.update(r, txn);
+                        min.minimum(bsum(minValue, r));
+                        max.maximum(bsum(maxValue, r));
+                        seq.allocate();
+                        sum.increment();
                         seqValue++;
                         final long minWas = getLong(_ex.to("min"), Long.MAX_VALUE);
                         _ex.getValue().put(Math.min(bsum(minValue, r), minWas));

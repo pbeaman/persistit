@@ -138,7 +138,7 @@ public abstract class Accumulator {
 
     final static int MAX_SERIALIZED_SIZE = Tree.MAX_SERIALIZED_SIZE + 24;
 
-    private final Tree _tree;
+    protected final Tree _tree;
     private final int _index;
     private final TransactionIndex _transactionIndex;
 
@@ -182,7 +182,7 @@ public abstract class Accumulator {
     /**
      * An Accumulator that computes a sum
      */
-    final static class SumAccumulator extends Accumulator {
+    public final static class SumAccumulator extends Accumulator {
 
         private SumAccumulator(final Tree tree, final int index, final long baseValue,
                 final TransactionIndex transactionIndex) {
@@ -211,12 +211,47 @@ public abstract class Accumulator {
         Type getType() {
             return Type.SUM;
         }
+
+        /**
+         * <p>
+         * Increment the Accumulator by adding 1. The contribution is
+         * immediately accumulated into the live value, and it is also posted
+         * with a <code>Delta</code>instance to the supplied {@link Transaction}
+         * . This method may be called only within the scope of an active
+         * <code>Transaction</code>.
+         * </p>
+         * 
+         */
+        public void increment() {
+            final Transaction txn = _tree.getPersistit().getTransaction();
+            txn.checkActive();
+            update(1, txn.getTransactionStatus(), txn.getStep());
+        }
+
+        /**
+         * <p>
+         * Increment the Accumulator by adding a supplied value. The
+         * contribution is immediately accumulated into the live value, and it
+         * is also posted with a <code>Delta</code>instance to the supplied
+         * {@link Transaction}. This method may be called only within the scope
+         * of an active <code>Transaction</code>.
+         * </p>
+         * 
+         * @param value
+         *            The delta value
+         */
+        public void increment(final long value) {
+            final Transaction txn = _tree.getPersistit().getTransaction();
+            txn.checkActive();
+            update(value, txn.getTransactionStatus(), txn.getStep());
+        }
+
     }
 
     /**
      * An Accumulator that computes a minimum value
      */
-    final static class MinAccumulator extends Accumulator {
+    public final static class MinAccumulator extends Accumulator {
 
         private MinAccumulator(final Tree tree, final int index, final long baseValue,
                 final TransactionIndex transactionIndex) {
@@ -242,12 +277,31 @@ public abstract class Accumulator {
         Type getType() {
             return Type.MIN;
         }
+
+        /**
+         * <p>
+         * Modify the Accumulator so that its value is no less than the supplied
+         * value. The contribution is immediately accumulated into the live
+         * value, and it is also posted with a <code>Delta</code> instance to
+         * the supplied {@link Transaction}. This method may be called only
+         * within the scope of an active <code>Transaction</code>.
+         * </p>
+         * 
+         * @param min
+         *            The delta value
+         */
+        public void minimum(final long min) {
+            final Transaction txn = _tree.getPersistit().getTransaction();
+            txn.checkActive();
+            update(min, txn.getTransactionStatus(), txn.getStep());
+        }
+
     }
 
     /**
      * An Accumulator that computes a maximum value
      */
-    final static class MaxAccumulator extends Accumulator {
+    public final static class MaxAccumulator extends Accumulator {
 
         private MaxAccumulator(final Tree tree, final int index, final long baseValue,
                 final TransactionIndex transactionIndex) {
@@ -273,6 +327,25 @@ public abstract class Accumulator {
         Type getType() {
             return Type.MAX;
         }
+
+        /**
+         * <p>
+         * Modify the Accumulator so that its value is no greater than the
+         * supplied value. The contribution is immediately accumulated into the
+         * live value, and it is also posted with a <code>Delta</code> instance
+         * to the supplied {@link Transaction}. This method may be called only
+         * within the scope of an active <code>Transaction</code>.
+         * </p>
+         * 
+         * @param max
+         *            The delta value
+         */
+        public void maximum(final long max) {
+            final Transaction txn = _tree.getPersistit().getTransaction();
+            txn.checkActive();
+            update(max, txn.getTransactionStatus(), txn.getStep());
+        }
+
     }
 
     /**
@@ -284,7 +357,7 @@ public abstract class Accumulator {
      * committed transaction is recovered, and so after recovery the next
      * allocated ID value will be larger than any previously consumed.
      */
-    final static class SeqAccumulator extends Accumulator {
+    public final static class SeqAccumulator extends Accumulator {
 
         private SeqAccumulator(final Tree tree, final int index, final long baseValue,
                 final TransactionIndex transactionIndex) {
@@ -316,6 +389,32 @@ public abstract class Accumulator {
         Type getType() {
             return Type.SEQ;
         }
+
+        /**
+         * <p>
+         * Allocate a sequence number. The value returned is guaranteed to be
+         * unique for the lifetime of the database. Values are usually assigned
+         * as consecutive integers, but in some cases there may be gaps in the
+         * sequence.
+         * </p>
+         * <p>
+         * The value returned is equal to the <a href="#_SnapshotValue">live
+         * value</a> the instant it is updated. However, note that the following
+         * code is <em>not</em> guaranteed to generate a unique value:
+         * <code><pre>
+         *    seqAccumulator.update(1, myTransaction);
+         *    long id = seqAccumulator.getLiveValue();
+         * </pre></code> while the following is: <code><pre>
+         *   long id = seqAccumulator.accumulate(1, myTransaction);
+         * </p>
+         * 
+         * @return the updated live value
+         */
+        public long allocate() {
+            final Transaction txn = _tree.getPersistit().getTransaction();
+            return update(1, txn.getTransactionStatus(), txn.getStep());
+        }
+
     }
 
     final static class Delta {
@@ -579,7 +678,8 @@ public abstract class Accumulator {
      * @return the computed snapshot value
      * @throws InterruptedException
      */
-    public long getSnapshotValue(final Transaction txn) throws PersistitInterruptedException {
+    public long getSnapshotValue() throws PersistitInterruptedException {
+        final Transaction txn = _tree.getPersistit().getTransaction();
         txn.checkActive();
         return getSnapshotValue(txn.getStartTimestamp(), txn.getStep());
     }
@@ -619,43 +719,6 @@ public abstract class Accumulator {
          * on the next checkpoint.
          */
         checkpointNeeded(commitTimestamp);
-    }
-
-    /**
-     * <p>
-     * Update the Accumulator by contributing a value. The contribution is
-     * immediately accumulated into the live value, and it is also posted with a
-     * <code>Delta</code>instance to the supplied {@link Transaction}. This
-     * method may be called only within the scope of an active
-     * <code>Transaction</code>. This method returns the current live value of
-     * the <code>Accumulator</code>. As described in <a
-     * href="#_SnapshotValue">Snapshot and Live Values</a>, the live value is
-     * not transactionally accurate and should be used with care.
-     * </p>
-     * <p>
-     * However, specifically in the case of <code>SeqAccumulator</code>, the
-     * returned value is guaranteed to be unique for the lifetime of the
-     * database and is intended to be used as the unique ID. Note that the
-     * following code is <em>not</em> guaranteed to generate a unique value:
-     * <code><pre>
-     *    seqAccumulator.update(1, myTransaction);
-     *    long id = seqAccumulator.getLiveValue();
-     * </pre></code> The reason is that two concurrently executing transactions
-     * could complete their calls to update before either of them accesses the
-     * current live value. In all cases, the ID value should be acquired as
-     * follows: <code><pre>
-     *   long id = seqAccumulator.update(1, myTransaction);
-     * </p>
-     * 
-     * @param value
-     *            The delta value
-     * @param txn
-     *            The transaction it applies to
-     * @return the updated live value
-     */
-    public long update(final long value, final Transaction txn) {
-        txn.checkActive();
-        return update(value, txn.getTransactionStatus(), txn.getStep());
     }
 
     /**
