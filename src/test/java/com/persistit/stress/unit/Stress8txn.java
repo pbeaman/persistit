@@ -411,7 +411,7 @@ public class Stress8txn extends StressBase {
         }
         int totalAcc = 0;
         for (int i = 0; i < 25; i++) {
-            final Accumulator acc = _exs.getTree().getAccumulator(Accumulator.Type.SUM, i);
+            final SumAccumulator acc = _exs.getTree().getSumAccumulator(i);
             totalAcc += acc.getSnapshotValue();
         }
         if (totalAcc != 0) {
