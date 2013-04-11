@@ -398,8 +398,12 @@ class SharedResource {
         _generation.incrementAndGet();
     }
 
-    public int getStatus() {
+    int getStatus() {
         return _sync.state();
+    }
+
+    Persistit getPersistit() {
+        return _persistit;
     }
 
     /**

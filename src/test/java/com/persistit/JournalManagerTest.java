@@ -41,6 +41,7 @@ import java.util.Set;
 
 import org.junit.Test;
 
+import com.persistit.Accumulator.SumAccumulator;
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.TransactionPlayer.TransactionPlayerListener;
@@ -375,14 +376,13 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     public void testTransactionMapSpanningJournalWriteBuffer() throws Exception {
         _persistit.getJournalManager().setWriteBufferSize(JournalManager.MINIMUM_BUFFER_SIZE);
         final Transaction txn = _persistit.getTransaction();
-        Accumulator acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true)
-                .getAccumulator(Accumulator.Type.SUM, 0);
+        SumAccumulator acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true).getSumAccumulator(0);
         /*
          * Load up a sizable live transaction map
          */
         for (int i = 0; i < 25000; i++) {
             txn.begin();
-            acc.update(1, txn);
+            acc.add(1);
             txn.commit();
             txn.end();
         }
@@ -390,8 +390,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         _persistit.close();
         _persistit = new Persistit(_config);
 
-        acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true)
-                .getAccumulator(Accumulator.Type.SUM, 0);
+        acc = _persistit.getVolume("persistit").getTree("JournalManagerTest", true).getSumAccumulator(0);
         assertEquals("Accumulator value is incorrect", 25000, acc.getLiveValue());
 
     }
@@ -561,13 +560,13 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         for (long curSize = 0; curSize < JournalManager.ROLLOVER_THRESHOLD;) {
             final Exchange ex = _persistit.getExchange(UnitTestProperties.VOLUME_NAME, "JournalManagerTest", true);
             final Transaction txn = _persistit.getTransaction();
-            final Accumulator accum = ex.getTree().getAccumulator(Accumulator.Type.SUM, 0);
+            final SumAccumulator accum = ex.getTree().getSumAccumulator(0);
             txn.begin();
             for (int j = 0; j < BATCH_SIZE; ++j) {
                 ex.clear().append(total + j);
                 ex.getValue().put(j);
                 ex.store();
-                accum.update(1, txn);
+                accum.add(1);
             }
             txn.commit();
             txn.end();

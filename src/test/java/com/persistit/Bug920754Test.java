@@ -19,6 +19,8 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
+import com.persistit.Accumulator.SumAccumulator;
+
 public class Bug920754Test extends PersistitUnitTestCase {
     /*
      * https://bugs.launchpad.net/akiban-persistit/+bug/920754
@@ -48,13 +50,13 @@ public class Bug920754Test extends PersistitUnitTestCase {
     public void testAccumumulatorTreeIsDeleted() throws Exception {
         final Exchange exchange = _persistit.getExchange("persistit", "Bug920754Test", true);
         final Transaction txn = _persistit.getTransaction();
-        final Accumulator[] accumulators = new Accumulator[10];
+        final SumAccumulator[] accumulators = new SumAccumulator[10];
         for (int i = 0; i < 10; i++) {
-            accumulators[i] = exchange.getTree().getAccumulator(Accumulator.Type.SUM, 1);
+            accumulators[i] = exchange.getTree().getSumAccumulator(1);
         }
         txn.begin();
         for (int i = 0; i < 10; i++) {
-            accumulators[i].update(1, txn);
+            accumulators[i].add(1);
         }
         txn.commit();
         txn.end();

@@ -15,7 +15,7 @@
 
 package com.persistit.stress.unit;
 
-import com.persistit.Accumulator;
+import com.persistit.Accumulator.SumAccumulator;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
@@ -199,10 +199,10 @@ public class Stress8txn extends StressBase {
 
             }
 
-            final Accumulator acc1 = _exs.getTree().getAccumulator(Accumulator.Type.SUM, _c1);
-            final Accumulator acc2 = _exs.getTree().getAccumulator(Accumulator.Type.SUM, _c2);
-            acc1.update(delta, _exs.getTransaction());
-            acc2.update(-delta, _exs.getTransaction());
+            final SumAccumulator acc1 = _exs.getTree().getSumAccumulator(_c1);
+            final SumAccumulator acc2 = _exs.getTree().getSumAccumulator(_c2);
+            acc1.add(delta);
+            acc2.add(-delta);
         }
     }
 
@@ -252,10 +252,10 @@ public class Stress8txn extends StressBase {
                 addWork(1);
 
             }
-            final Accumulator acc1 = _exs.getTree().getAccumulator(Accumulator.Type.SUM, _c1);
-            final Accumulator acc2 = _exs.getTree().getAccumulator(Accumulator.Type.SUM, _c2);
-            acc1.update(delta, _exs.getTransaction());
-            acc2.update(-delta, _exs.getTransaction());
+            final SumAccumulator acc1 = _exs.getTree().getSumAccumulator(_c1);
+            final SumAccumulator acc2 = _exs.getTree().getSumAccumulator(_c2);
+            acc1.add(delta);
+            acc2.add(-delta);
         }
     }
 
@@ -410,8 +410,8 @@ public class Stress8txn extends StressBase {
         }
         int totalAcc = 0;
         for (int i = 0; i < 25; i++) {
-            final Accumulator acc = _exs.getTree().getAccumulator(Accumulator.Type.SUM, i);
-            totalAcc += acc.getSnapshotValue(_exs.getTransaction());
+            final SumAccumulator acc = _exs.getTree().getSumAccumulator(i);
+            totalAcc += acc.getSnapshotValue();
         }
         if (totalAcc != 0) {
             fail("totalAcc=" + totalAcc);

@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Test;
 
+import com.persistit.Accumulator.SumAccumulator;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.ThreadSequencer.Condition;
 
@@ -84,8 +85,8 @@ public class Bug1064565Test extends PersistitUnitTestCase {
         t.start();
 
         txn.begin();
-        Accumulator acc = exchange.getTree().getAccumulator(Accumulator.Type.SUM, 0);
-        acc.update(42, txn);
+        SumAccumulator acc = exchange.getTree().getSumAccumulator(0);
+        acc.add(42);
         sequence(ACCUMULATOR_CHECKPOINT_B);
         txn.commit();
         txn.end();
@@ -98,8 +99,8 @@ public class Bug1064565Test extends PersistitUnitTestCase {
         exchange = getExchange();
         txn = exchange.getTransaction();
         txn.begin();
-        acc = exchange.getTree().getAccumulator(Accumulator.Type.SUM, 0);
-        assertEquals("Accumulator state should have been checkpointed", 42, acc.getSnapshotValue(txn));
+        acc = exchange.getTree().getSumAccumulator(0);
+        assertEquals("Accumulator state should have been checkpointed", 42, acc.getSnapshotValue());
         txn.commit();
         txn.end();
 
@@ -118,8 +119,8 @@ public class Bug1064565Test extends PersistitUnitTestCase {
         Exchange exchange = getExchange();
         Transaction txn = exchange.getTransaction();
         txn.begin();
-        Accumulator acc = exchange.getTree().getAccumulator(Accumulator.Type.SUM, 0);
-        acc.update(42, txn);
+        SumAccumulator acc = exchange.getTree().getSumAccumulator(0);
+        acc.add(42);
         _persistit.checkpoint();
         txn.commit();
         txn.end();
@@ -131,8 +132,8 @@ public class Bug1064565Test extends PersistitUnitTestCase {
         exchange = getExchange();
         txn = exchange.getTransaction();
         txn.begin();
-        acc = exchange.getTree().getAccumulator(Accumulator.Type.SUM, 0);
-        assertEquals("Accumulator state should have been checkpointed", 42, acc.getSnapshotValue(txn));
+        acc = exchange.getTree().getSumAccumulator(0);
+        assertEquals("Accumulator state should have been checkpointed", 42, acc.getSnapshotValue());
         txn.commit();
         txn.end();
 
