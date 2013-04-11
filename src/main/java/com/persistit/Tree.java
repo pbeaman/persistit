@@ -393,8 +393,7 @@ public class Tree extends SharedResource {
      *             if the supplied type does not match that of a previously
      *             created <code>Accumulator</code>
      */
-    synchronized Accumulator getAccumulator(final Accumulator.Type type, final int index)
-            throws PersistitException {
+    synchronized Accumulator getAccumulator(final Accumulator.Type type, final int index) throws PersistitException {
         if (index < 0 || index >= MAX_ACCUMULATOR_COUNT) {
             throw new IllegalArgumentException("Invalid accumulator index: " + index);
         }

@@ -15,7 +15,6 @@
 
 package com.persistit.stress.unit;
 
-import com.persistit.Accumulator;
 import com.persistit.Accumulator.SumAccumulator;
 import com.persistit.Exchange;
 import com.persistit.Key;

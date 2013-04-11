@@ -698,34 +698,6 @@ public abstract class Accumulator {
     }
 
     /**
-     * <p>
-     * Update the Accumulator by contributing a value. The contribution is
-     * immediately accumulated into the live value, and it is also posted with a
-     * <code>Delta</code>instance to the supplied {@link Transaction}. This
-     * method may be called only within the scope of an active
-     * <code>Transaction</code>.
-     * </p>
-     * <p>
-     * This method is deprecated. One of the methods
-     * <ul>
-     * <li>{@link com.persistit.Accumulator.SumAccumulator#add(long)}</li>
-     * <li>{@link com.persistit.Accumulator.MinAccumulator#minimum(long)}</li>
-     * <li>{@link com.persistit.Accumulator.MaxAccumulator#maximum(long)}</li>
-     * <li>{@link com.persistit.Accumulator.SeqAccumulator#allocate()}</li>
-     * </ul>
-     * should be used instead.
-     * </p>
-     * 
-     * @param value
-     *            The delta value
-     */
-    @Deprecated
-    public long update(final long value) {
-        final Transaction txn = _tree.getPersistit().getTransaction();
-        return update(value, txn.getTransactionStatus(), txn.getStep());
-    }
-
-    /**
      * Update the Accumulator by contributing a value. The contribution is
      * immediately accumulated into the live value, and it is also posted with a
      * {@link Delta} instance to the supplied {@link Transaction}.
