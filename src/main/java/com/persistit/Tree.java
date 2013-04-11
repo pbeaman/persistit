@@ -374,7 +374,8 @@ public class Tree extends SharedResource {
      * the type of the one previously.
      * </p>
      * <p>
-     * This method is deprecated.  One of the following methods should be used instead:
+     * This method is deprecated. One of the following methods should be used
+     * instead:
      * <ul>
      * <li>{@link #getSumAccumulator(int)}</li>
      * <li>{@link #getSeqAccumulator(int)}</li>
