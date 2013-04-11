@@ -298,7 +298,7 @@ public class Tree extends SharedResource {
      * 
      * @param index
      *            Application-controlled value between 0 and 63, inclusive.
-     * @returns The <code>Accumulator</code>
+     * @return The <code>Accumulator</code>
      * @throws IllegalStateException
      *             if the previously created instance is not a
      *             <code>SumAccumulator</code>
@@ -317,7 +317,7 @@ public class Tree extends SharedResource {
      * 
      * @param index
      *            Application-controlled value between 0 and 63, inclusive.
-     * @returns The <code>Accumulator</code>
+     * @return The <code>Accumulator</code>
      * @throws IllegalStateException
      *             if the previously created instance is not a
      *             <code>SeqAccumulator</code>
@@ -336,7 +336,7 @@ public class Tree extends SharedResource {
      * 
      * @param index
      *            Application-controlled value between 0 and 63, inclusive.
-     * @returns The <code>Accumulator</code>
+     * @return The <code>Accumulator</code>
      * @throws IllegalStateException
      *             if the previously created instance is not a
      *             <code>MinAccumulator</code>
@@ -355,7 +355,7 @@ public class Tree extends SharedResource {
      * 
      * @param index
      *            Application-controlled value between 0 and 63, inclusive.
-     * @returns The <code>Accumulator</code>
+     * @return The <code>Accumulator</code>
      * @throws IllegalStateException
      *             if the previously created instance is not a
      *             <code>MaxAccumulator</code>
@@ -388,7 +388,7 @@ public class Tree extends SharedResource {
      *            Type of <code>Accumulator</code>
      * @param index
      *            Application-controlled value between 0 and 63, inclusive.
-     * @returns The <code>Accumulator</code>
+     * @return The <code>Accumulator</code>
      * @throws IllegalStateException
      *             if the supplied type does not match that of a previously
      *             created <code>Accumulator</code>

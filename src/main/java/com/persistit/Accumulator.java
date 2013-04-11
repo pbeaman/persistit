@@ -380,10 +380,10 @@ public abstract class Accumulator {
          * value</a> the instant it is updated. However, note that the following
          * code is <em>not</em> guaranteed to generate a unique value:
          * <code><pre>
-         *    seqAccumulator.update(1, myTransaction);
+         *    seqAccumulator.allocate();
          *    long id = seqAccumulator.getLiveValue();
-         * </pre></code> while the following is: <code><pre>
-         *   long id = seqAccumulator.accumulate(1, myTransaction);
+         * </pre></code>while the following is: <code><pre>
+         *   long id = seqAccumulator.allocate();
          * </p>
          * 
          * @return the updated live value
