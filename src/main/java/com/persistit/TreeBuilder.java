@@ -130,9 +130,9 @@ import com.persistit.util.Util;
  * per record while merging</li>
  * <li>{@link #afterMergeKey(Exchange)} - customizable behavior after merging
  * one record</li>
- * <li>{@link #beforeSortVolumeClosed(Volume)} - customizable behavior before
- * closing a sort volume when full</li>
- * <li>{@link #afterSortVolumeClose(Volume)} - customizable behavior after
+ * <li>{@link #beforeSortVolumeClosed(Volume, File)} - customizable behavior
+ * before closing a sort volume when full</li>
+ * <li>{@link #afterSortVolumeClose(Volume, File)} - customizable behavior after
  * closing a sort volume when full</li>
  * <li>{@link #getTreeComparator()} - return a custom Comparator to determine
  * sequence in which trees are populated within the {@link #merge()} method
@@ -461,7 +461,7 @@ public class TreeBuilder {
     /**
      * 
      * @return List of directories set via the
-     *         {@link #setSortFileDirectories(List)} method.
+     *         {@link #setSortTreeDirectories(List)} method.
      */
     public final List<File> getSortFileDirectories() {
         return Collections.unmodifiableList(_directories);
@@ -726,7 +726,7 @@ public class TreeBuilder {
      * This method may be extended to provide application-specific reporting
      * functionality after a sort volume has been filled to capacity and has
      * been evicted. An application may also modify the temporary directory set
-     * via {@link #setSortFileDirectories(List)} within this method if necessary
+     * via {@link #setSortTreeDirectories(List)} within this method if necessary
      * to adjust disk space utilization, for example. The default behavior of
      * this method is to do nothing.
      * 

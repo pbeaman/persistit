@@ -93,7 +93,7 @@ launches the backup task and then queries its status.
 Executing a Task from a JMX Client
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``com.persistit.mxbeans.ManagementMXBean#execute`` and ``com.persistit.mxbeans.ManagementMXBean#launch`` methods are exposed as operations on the ``com.persistit.mxbeans.ManagementMXBean``.  You can invoke tasks
+The ``com.persistit.mxbeans.ManagementMXBean#execute`` and ``com.persistit.mxbeans.ManagementMXBean#launch`` methods are exposed as operations on the ``com.persistit.mxbeans.ManagementMXBean`` object.  You can invoke tasks
 
 - via ``jconsole`` by typing the desired command line as the argument of the ``execute`` operation.
 - via a third-party JMX client such as ``jmxterm``.

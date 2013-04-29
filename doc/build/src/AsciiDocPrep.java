@@ -14,10 +14,8 @@ public class AsciiDocPrep {
     private final static Pattern PERSISTIT_PATTERN = Pattern
             .compile("(\\+)?(com\\.persistit(?:\\.[a-z]\\w?)*(?:\\.[A-Z]\\w*)+)(?:#(\\w+(?:[\\(\\)\\,a-zA-Z]*)))?(\\+)?");
 
-    private final static String[] ARG_TEMPLATE = { "in|string:|Input file",
-            "out|string:|Output file",
-            "index|string:|Pathname of index-all.html file",
-            "base|string:|Base of generated URLs", };
+    private final static String[] ARG_TEMPLATE = { "in|string:|Input file", "out|string:|Output file",
+            "index|string:|Pathname of index-all.html file", "base|string:|Base of generated URLs", };
 
     private AsciiDocIndex index;
     private boolean block;
@@ -26,12 +24,11 @@ public class AsciiDocPrep {
     private String indexPath;
 
     private void prepare(final String[] args) throws Exception {
-        ArgParser ap = new ArgParser("AsciiDocPrep", args, ARG_TEMPLATE);
+        final ArgParser ap = new ArgParser("AsciiDocPrep", args, ARG_TEMPLATE);
         final String inPath = ap.getStringValue("in");
         final String outPath = ap.getStringValue("out");
 
-        writer = outPath.isEmpty() ? new PrintWriter(System.out)
-                : new PrintWriter(new FileWriter(outPath));
+        writer = outPath.isEmpty() ? new PrintWriter(System.out) : new PrintWriter(new FileWriter(outPath));
 
         base = ap.getStringValue("base");
         if (base.isEmpty()) {
@@ -51,9 +48,8 @@ public class AsciiDocPrep {
         writer.close();
     }
 
-    public void processFile(final File file, final int level)
-            throws Exception {
-        BufferedReader reader = new BufferedReader(new FileReader(file));
+    public void processFile(final File file, final int level) throws Exception {
+        final BufferedReader reader = new BufferedReader(new FileReader(file));
         System.out.print("Processing file " + file);
         String line;
         while ((line = reader.readLine()) != null) {
@@ -89,10 +85,10 @@ public class AsciiDocPrep {
     }
 
     private void processMatch(final Matcher matcher, final StringBuffer sb) {
-        String className = matcher.group(2);
-        String methodName = matcher.group(3);
+        final String className = matcher.group(2);
+        final String methodName = matcher.group(3);
 
-        StringBuilder replacement = new StringBuilder("+link:");
+        final StringBuilder replacement = new StringBuilder("+link:");
         if (methodName == null) {
             final String url = index.getClassMap().get(className);
             if (url == null || url.isEmpty()) {
@@ -100,9 +96,9 @@ public class AsciiDocPrep {
             } else {
                 replacement.append(url);
             }
-            replacement.append('[' + className +"]+");
+            replacement.append('[' + className + "]+");
         } else {
-            String from = className + "#" + methodName.split("\\(")[0];
+            final String from = className + "#" + methodName.split("\\(")[0];
             final SortedMap<String, String> map = index.getMethodMap().tailMap(from);
             if (map.isEmpty()) {
                 replacement.append("<<<Missing method: " + methodName + ">>>");
@@ -120,7 +116,7 @@ public class AsciiDocPrep {
                 text = text.replace("java.lang.", "");
                 text = text.replace("java.util.", "");
                 replacement.append(url);
-                replacement.append('[' + text +"]+");
+                replacement.append('[' + text + "]+");
             }
         }
 

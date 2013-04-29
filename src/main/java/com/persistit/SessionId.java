@@ -19,12 +19,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
+ * <p>
  * Identity key for a session. Normally there is one session per thread, but
  * applications that need to maintain session context across multiple network
  * requests serviced on different threads can access and carefully modify their
  * session contexts using SessionID. See {@link Persistit#getSessionId()} and
  * {@link Persistit#setSessionId(SessionId)}.
- * <p />
+ * </p>
+ * <p>
  * A SessionId instance holds a reference to the <code>Thread</code> currently
  * associated with it; initially this this the thread that created the
  * SessionId. The <code>setSessionId</code> method reassigns the thread field.
@@ -32,6 +34,15 @@ import java.util.concurrent.atomic.AtomicReference;
  * alive. The {@link Persistit#cleanup()} method cleans up all transaction
  * resources for <code>SessionId</code> instances whose threads are no longer
  * alive.
+ * </p>
+ * <p>
+ * A session is used to maintain state, including the {@link Transaction}
+ * context and map of cached {@link Exchange} maintained by
+ * {@link Persistit#getExchange(String, String, boolean)}. Therefore care must
+ * be taken to limit the maximum number of <code>SessionId</code> instances
+ * created during the lifetime of a <code>Persistit</code> instance and to
+ * manage them appropriately.
+ * </p>
  * 
  * @author peter
  * 
@@ -44,7 +55,7 @@ public class SessionId {
 
     private final AtomicReference<Thread> _owner = new AtomicReference<Thread>();
 
-    SessionId() {
+    public SessionId() {
         assign();
     }
 

@@ -1,16 +1,16 @@
 ************************************
-Akiban Persistit Version 3.2.2
+Akiban Persistit Version 3.2.7
 ************************************
 
 Overview
 ========
-See http://www.akiban.com/akiban-persistit for a summary of features and benefits, licensing information and how to get support.
+See http://akiban.github.com/persistit for a summary of features and benefits, licensing information and how to get support.
 
 Documentation
 =============
-Users Guide: http://www.akiban.com/ak-docs/admin/persistit
+Users Guide: http://akiban.github.com/persistit/docs
 
-JavaDoc: http://www.akiban.com/sites/all/libraries/persistit-api/index.html
+JavaDoc: http://akiban.github.com/persistit/javadoc/index.html
 
 Building Akiban-Persistit
 =========================
@@ -29,15 +29,23 @@ The resulting Javadoc HTML files are in ``target/site/apidocs``.
 Building and Running the Examples
 ---------------------------------
 
-Small examples are located in the ``examples`` directory. Each has a short README file describing the example, and an Ant build script (http://ant.apache.org). After building the main akiban-persisit jar file using Maven, you may run::
+Small examples are located in the ``examples`` directory. Each has a short README file describing the 
+example, and an Ant build script (http://ant.apache.org). After building the main akiban-persisit jar file using Maven, you may run::
 
   ant run
 
 in each of the examples subdirectories to build and run the examples.
 
+Java 7 versus Java 6
+--------------------
+Persistit compiles and runs successfully under either Java 6 or Java 7. However, when compiled with Java 7, the resulting classes are
+incompatible with Java 6 due to a change in the ``java.nio.channels.FileChannel`` class introduced in Java 7.  
+See `FileChannel incompatibility introduced between 6 and 7 <http://mail.openjdk.java.net/pipermail/nio-dev/2012-July/001788.html>`_. Classes
+compiled under Java 6 run correctly in Java 7.
+
 Buffer Pool Configuration
 =========================
-For optimal performance, proper configuration of the Persistit buffer pool is required.  See section "Configuring the Buffer Pool" in the configuration document http://www.akiban.com/ak-docs/admin/persistit/Configuration.html
+For optimal performance, proper configuration of the Persistit buffer pool is required.  See section "Configuring the Buffer Pool" in the configuration document http://akiban.github.com/persistit/docs/Configuration.html
 
 .. note:: Especially when used with multi-gigabyte heaps, the default Hotspot JVM server heuristics are be suboptimal for Persistit applications. Persistit is usually configured to allocate a large fraction of the heap to Buffer instances that are allocated at startup and held for the duration of the Persistit instance. For efficient operation, all of the Buffer instances must fit in the tenured (old) generation of the heap to avoid very significant garbage collector overhead.  Use either -XX:NewSize or -Xmn to adjust the relative sizes of the new and old generations.
 
@@ -50,6 +58,9 @@ Version History
 +---------+--------------------+--------------------------------------------------------------------------+
 | Version | Release Date       |  Summary                                                                 |
 +=========+====================+==========================================================================+
+| 3.2.7   | March 22, 2013     | Several new API features, including TreeBuilder, Traverse Visitor,       |
+|         |                    | and Lock. Fix several non-critical bugs.                                 |
++---------+--------------------+--------------------------------------------------------------------------+
 | 3.2.2   | November 30, 2012  | Better support for Spring Framework. Fix rare but serious bugs found in  |
 |         |                    | stress tests. Fix issue related to locale and make sure Persistit builds |
 |         |                    | everywhere.                                                              |
@@ -82,6 +93,65 @@ Resolved Issues
 
 Changes and New Features
 ========================
+
+Persistit 3.2.7 - TreeBuilder
+-----------------------------------------------------
+Inserting a large set of records with non-sequential keys causes significant I/O overhead. Once the size
+of the Tree is larger than available main memory, each insertion can result in a disk write (to flush a page
+to disk so that its buffer can be reused) and a disk read (to read a different page into the buffer).
+
+The ``com.persistit.TreeBuilder`` class provides a more efficient way to load a large set of records with 
+non-sequential keys. TreeBuilder creates a set of files containing partially-sorted records. From these,
+TreeBuilder performs a merge-sort to complete the operation.
+
+TreeBuilder is effective only for inserting large sets of non-sequential records. For example, in tests we have
+loaded a billion records with keys generated as UUID instances. See the API documentation for
+``com.persistit.TreeBuilder`` for more information.
+
+Persistit 3.2.7 - Traverse Visitor
+-----------------------------------------------------
+The ``com.persistit.Exchange#traverse`` methods provide Persistit's fundamental mechanism for iterating
+over a collection of keys within a Tree.  Each call to ``traverse`` (or ``com.persistit.Exchange#next`` or
+``com.persistit.Exchange#previous``) performs a significant amount of set-up and tear-down activity.
+
+To better support code that visits a large number of records by calling one of the ``traverse`` methods in a loop, this
+release adds a more efficient mechanism based on the visitor pattern. See ``com.persistit.Exchange.TraverseVisitor``
+for details.
+
+Persistit 3.2.7 - Lock to avoid Write Skew Anomalies
+-----------------------------------------------------
+Persistit transactions implement Snapshot Isolation to prevent concurrent transactions from interfering with
+each other.  See ``com.persistit.Transaction`` for details.
+
+Snapshot Isolation is a well-known protocol for multi-version concurrency control. It is employed by many
+commercial databases because it offers lock-free serializable read transactions and frequently permits very high 
+throughput for concurrent execution of update transactions. And for many (but not all) transactions 
+it offers fully serializable execution of concurrent transactions (meaning that the effect of executing
+a set of transactions concurrently is identical to running them serially in some order). 
+
+The non-serializable exception case is called "Write Skew." See the `Wikipedia <http://wikipedia.org/wiki/Snapshot_isolation>`_  
+article for a brief description of write skew.
+
+In Persistit the issue arises when two (or more) concurrent transactions modify records with different keys
+in such a way that an integrity constraint which each transaction running alone would enforce is violated.
+For example, two concurrent transactions may write to separate data items X and Y in a way that
+violates an invariant that neither transaction alone would have permitted. Because the write operations
+are to different keys, no write conflict is detected, and both transactions are permitted to commit. The
+result is a database state that could not have occurred if the transactions had run sequentially in any order.
+
+A well-known solution is to modify the transaction logic to perform an additional write operation to a common
+key. The ``com.persistit.Exchange#lock`` method provides a convenient and efficient mechanism for doing so. The``lock``
+method does not actually lock anything, but is so-named because it serves a similar function.
+
+Persistit 3.2.7 - Miscellaneous Issues
+-----------------------------------------------------
+Changes needed to build and run Persistit on Mac OSX under Java 7 were made.
+
+A new CLI command to display the contents of a Persistit volume file was added.  The command
+
+  volumeinfo file=/path/to/volume/file
+
+displays all of the meta data contained in the volume file.  
 
 Persistit 3.2.2 - Spring Framework
 -----------------------------------------------------
@@ -238,7 +308,7 @@ Out of Memory Error, Direct Memory Buffer
 
 https://bugs.launchpad.net/akiban-persistit/+bug/985117
 
-Out of Memory Error, Direct Memory Buffer.  Can cause failed transactions under extreme load 
+Out of Memory Error, Direct Memory Buffer. Can cause failed transactions under extreme load 
 conditions as a result of threads getting backed up writing to the journal file. However, 
 this error is transient and recoverable by by retrying the failed transaction.
 
@@ -252,20 +322,4 @@ https://bugs.launchpad.net/akiban-persistit/+bug/986465
 The getChangeCount method may return inaccurate results as its not currently transactional.  
 The primary consumer is the PersistitMap. As a result of this bug Persistit may not generate 
 java.util.ConcurrentModificationException when it is supposed to.
-
-Multi-Version-Values sometimes not fully pruned
--------------------------------------------------------------
-
-https://bugs.launchpad.net/akiban-persistit/+bug/1000331
-
-Multi-version values are not always pruned properly causing volume growth.  The number of 
-MVV records and their overhead size can be obtaining by running the IntegrityCheck task. 
-
-* Workaround 1: Run the IntegrityCheck task (CLI command icheck) with the -P option which will prune the MVVs. This will remove obsolete MVV instances and in many cases free up pages in which new data can be stored.  However, it will not reduce the actual size of the volume file.
-
-* Workaround 2: To reduce the size of the volume you can use the CLI commands ``save`` and ``load`` to reload the data into a newly created volume file. See http://www.akiban.com/ak-docs/admin/persistit/Management.html#management for more information about these operations.
-
-Note: although the methods described here may be helpful in reducing MVV clutter, Persistit Version 3.2.0 significantly improves the algorithms used to prune obsolete versions and the 
-techniques described here are unlikely to be necessary.
-
 

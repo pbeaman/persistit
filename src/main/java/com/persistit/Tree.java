@@ -19,6 +19,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.persistit.Accumulator.MaxAccumulator;
+import com.persistit.Accumulator.MinAccumulator;
+import com.persistit.Accumulator.SeqAccumulator;
+import com.persistit.Accumulator.SumAccumulator;
 import com.persistit.Version.PrunableVersion;
 import com.persistit.Version.VersionCreator;
 import com.persistit.exception.CorruptVolumeException;
@@ -416,23 +420,111 @@ public class Tree extends SharedResource {
     }
 
     /**
+     * Return a <code>SumAccumulator</code> for this <code>Tree</code> and the
+     * specified index value between 0 and 63, inclusive. If the
+     * <code>Tree</code> does not yet have an <code>Accumulator</code> with the
+     * specified index, this method creates one. Otherwise the previously
+     * created <code>Accumulator</code>, which must be a
+     * <code>SumAccumulator</code>, is returned.
+     * 
+     * @param index
+     *            Application-controlled value between 0 and 63, inclusive.
+     * @return The <code>Accumulator</code>
+     * @throws IllegalStateException
+     *             if the previously created instance is not a
+     *             <code>SumAccumulator</code>
+     */
+    public SumAccumulator getSumAccumulator(final int index) throws PersistitException {
+        return (SumAccumulator) getAccumulator(Accumulator.Type.SUM, index);
+    }
+
+    /**
+     * Return a <code>SeqAccumulator</code> for this <code>Tree</code> and the
+     * specified index value between 0 and 63, inclusive. If the
+     * <code>Tree</code> does not yet have an <code>Accumulator</code> with the
+     * specified index, this method creates one. Otherwise the previously
+     * created <code>Accumulator</code>, which must be a
+     * <code>SeqAccumulator</code>, is returned.
+     * 
+     * @param index
+     *            Application-controlled value between 0 and 63, inclusive.
+     * @return The <code>Accumulator</code>
+     * @throws IllegalStateException
+     *             if the previously created instance is not a
+     *             <code>SeqAccumulator</code>
+     */
+    public SeqAccumulator getSeqAccumulator(final int index) throws PersistitException {
+        return (SeqAccumulator) getAccumulator(Accumulator.Type.SEQ, index);
+    }
+
+    /**
+     * Return a <code>MinAccumulator</code> for this <code>Tree</code> and the
+     * specified index value between 0 and 63, inclusive. If the
+     * <code>Tree</code> does not yet have an <code>Accumulator</code> with the
+     * specified index, this method creates one. Otherwise the previously
+     * created <code>Accumulator</code>, which must be a
+     * <code>MinAccumulator</code>, is returned.
+     * 
+     * @param index
+     *            Application-controlled value between 0 and 63, inclusive.
+     * @return The <code>Accumulator</code>
+     * @throws IllegalStateException
+     *             if the previously created instance is not a
+     *             <code>MinAccumulator</code>
+     */
+    public MinAccumulator getMinAccumulator(final int index) throws PersistitException {
+        return (MinAccumulator) getAccumulator(Accumulator.Type.MIN, index);
+    }
+
+    /**
+     * Return a <code>MaxAccumulator</code> for this <code>Tree</code> and the
+     * specified index value between 0 and 63, inclusive. If the
+     * <code>Tree</code> does not yet have an <code>Accumulator</code> with the
+     * specified index, this method creates one. Otherwise the previously
+     * created <code>Accumulator</code>, which must be a
+     * <code>MaxAccumulator</code>, is returned.
+     * 
+     * @param index
+     *            Application-controlled value between 0 and 63, inclusive.
+     * @return The <code>Accumulator</code>
+     * @throws IllegalStateException
+     *             if the previously created instance is not a
+     *             <code>MaxAccumulator</code>
+     */
+    public MaxAccumulator getMaxAccumulator(final int index) throws PersistitException {
+        return (MaxAccumulator) getAccumulator(Accumulator.Type.MAX, index);
+    }
+
+    /**
+     * <p>
      * Return an <code>Accumulator</code> for this Tree. The caller provides the
      * type (SUM, MAX, MIN or SEQ) of accumulator, and an index value between 0
      * and 63, inclusive. If the <code>Tree</code> does not yet have an
      * <code>Accumulator</code> with the specified index, this method creates
      * one of the the specified type. Otherwise the specified type must match
      * the type of the one previously.
+     * </p>
+     * <p>
+     * This method is deprecated. One of the following methods should be used
+     * instead:
+     * <ul>
+     * <li>{@link #getSumAccumulator(int)}</li>
+     * <li>{@link #getSeqAccumulator(int)}</li>
+     * <li>{@link #getMinAccumulator(int)}</li>
+     * <li>{@link #getMaxAccumulator(int)}</li>
+     * <ul>
+     * </p>
      * 
      * @param type
      *            Type of <code>Accumulator</code>
      * @param index
      *            Application-controlled value between 0 and 63, inclusive.
+     * @return The <code>Accumulator</code>
      * @throws IllegalStateException
      *             if the supplied type does not match that of a previously
      *             created <code>Accumulator</code>
      */
-    public synchronized Accumulator getAccumulator(final Accumulator.Type type, final int index)
-            throws PersistitException {
+    synchronized Accumulator getAccumulator(final Accumulator.Type type, final int index) throws PersistitException {
         if (index < 0 || index >= MAX_ACCUMULATOR_COUNT) {
             throw new IllegalArgumentException("Invalid accumulator index: " + index);
         }

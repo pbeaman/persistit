@@ -22,8 +22,8 @@
 <div id="content">
 <div id="preamble">
 <div class="sectionbody">
-<div class="paragraph"><p>Persistit&#8482; is a small, lightweight Java&#8482; library that provides simple, fast and reliable data persistence for Java applications. It is designed to be embedded in Java application programs and to operate free of administration by the end-user.</p></div>
-<div class="paragraph"><p>This section provides a brief overview.  See <a href="http://www.akiban.com/ak-docs/admin/persistit">http://www.akiban.com/ak-docs/admin/persistit</a> for complete documentation.</p></div>
+<div class="paragraph"><p>Akiban-Persistit&#8482; is a small, lightweight Java&#8482; library that provides simple, fast and reliable data persistence for Java applications. It is designed to be embedded in Java application programs and to operate free of administration by the end-user.</p></div>
+<div class="paragraph"><p>This section provides a brief overview.  See <a href="http://akiban.github.com/persistit">http://akiban.github.com/persistit</a> for complete documentation.</p></div>
 </div>
 </div>
 <h2 id="_api_overview">API Overview</h2>
@@ -40,10 +40,13 @@
 <div class="paragraph"><p>An Exchange is a moderately complex object that requires several thousand bytes of heap space. Memory-constrained applications should construct Exchanges in moderate numbers. An Exchange internally maintains some optimization information such that references to nearby Keys within a tree are accelerated. Performance may benefit from using a different Exchange for each area of the Tree being accessed.</p></div>
 <div class="paragraph"><p>Persistit offers Exchange pooling to avoid rapidly creating and destroying Exchange objects in multi-threaded applications.  In particular, web applications may benefit from using the Exchange pool.</p></div>
 <div class="paragraph"><p>An Exchange is always associated with a com.persistit.Key and a com.persistit.Value. Typically you work with an Exchange in one of the following patterns:
-. Modify the Key, perform a <tt>fetch</tt> operation, and extract the Value.
-. Modify the Key, modify the Value, and then perform a <tt>store</tt> operation.
-. Modify the Key, and then perform a <tt>remove</tt> operation.
-. Optionally modify the Key, perform a <tt>traverse</tt> operation, then read the resulting Key and/or Value.</p></div>
+<ul>
+<li>Modify the Key, perform a <tt>fetch</tt> operation, and extract the Value.</li>
+<li>Modify the Key, modify the Value, and then perform a <tt>store</tt> operation.</li>
+<li>Modify the Key, and then perform a <tt>remove</tt> operation.</li>
+<li>Optionally modify the Key, perform a <tt>traverse</tt> operation, then read the resulting Key and/or Value.</li>
+</ul>
+</p></div>
 <div class="paragraph"><p>These four methods, plus a few other methods listed here, are the primary low-level interface to the database. Semantics are as follows:</p></div>
 <div class="hdlist"><table>
 <tr>
@@ -53,7 +56,7 @@
 </td>
 <td class="hdlist2">
 <p style="margin-top: 0;">
-Reads the stored value associated with this Exchange&#8217;s Key and modifies the Exchange’s Value to reflect that value.
+Reads the stored value associated with this Exchange's Key and modifies the Exchange's Value to reflect that value.
 </p>
 </td>
 </tr>
@@ -108,7 +111,7 @@ Fetches and then removes the stored value. Upon completion, Value reflects the f
 </td>
 <td class="hdlist2">
 <p style="margin-top: 0;">
-Modifies the Exchange’s Key and Value to reflect a successor or predecessor key within the tree. (See API documentation for com.persistit.Key for information on the order of traversal.)
+Modifies the Exchange's Key and Value to reflect a successor or predecessor key within the tree. (See API documentation for com.persistit.Key for information on the order of traversal.)
 </p>
 </td>
 </tr>
@@ -130,7 +133,7 @@ Atomically increments or decrements a long (64-bit integer) value associated wit
 </td>
 <td class="hdlist2">
 <p style="margin-top: 0;">
-Indicates, without modifying the Exchange’s Value or Key objects, whether there is a successor or predecessor key in the Tree.
+Indicates, without modifying the Exchange's Value or Key objects, whether there is a successor or predecessor key in the Tree.
 </p>
 </td>
 </tr>
@@ -162,7 +165,7 @@ ex<span style="color: #990000">.</span><span style="font-weight: bold"><span sty
 map<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">put</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Boston"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"Hub"</span><span style="color: #990000">);</span></tt></pre></div></div>
 <div class="paragraph"><p>places a key/value pair into the myTree with the concatenated key <tt>{"USA ","MA","Boston"}</tt> and a value of <tt>"Hub"</tt>.</p></div>
 <div class="paragraph"><p>Because Persistit is designed for concurrent operation it is possible (and often intended) for the backing store of PersistitMap to be changed by other threads while a java.util.Iterator is in use. Generally the expected behavior for an Iterator on a Map collection view is to throw a ConcurrentModificationException if the underlying collection changes. This is known as fail-fast behavior. PersistitMap implements this behavior by throwing a ConcurrentModificationException in the event the Tree containing the map changes. An application can detect that the map may have changed due to a programming error in case the design contract calls for it to remain unchanged by catching this exception.</p></div>
-<div class="paragraph"><p>However, sometimes it may be desirable to use PersistitMap and its collections view interfaces to iterate across changing data. Internally, Persistit uses the traverse method to retrieve the next highest key in the key sort order in order to implement the Iterator’s hasNext and next methods. The result will depend on the content of the database at the instant these operations are performed. PersistitMap provides the method setAllowConcurrentModification to enable this behavior. By default, concurrent modifications are not allowed.
+<div class="paragraph"><p>However, sometimes it may be desirable to use PersistitMap and its collections view interfaces to iterate across changing data. Internally, Persistit uses the traverse method to retrieve the next highest key in the key sort order in order to implement the Iterator's hasNext and next methods. The result will depend on the content of the database at the instant these operations are performed. PersistitMap provides the method setAllowConcurrentModification to enable this behavior. By default, concurrent modifications are not allowed.
 === KeyFilter</p></div>
 <div class="paragraph"><p>A <tt>com.persistit.KeyFilter</tt> defines a subset of all possible key values. You can supply a KeyFilter to the traverse methods of an Exchange.  You can also specify a KeyFilter for any Iterator returned by the collection views of a PersistitMap.  In either case, the key/value pairs covered by traversing the database or iterating over the collection view are restricted to those selected by the KeyFilter.</p></div>
 <div class="paragraph"><p>Use of a KeyFilter is illustrated by the following code fragment:</p></div>
@@ -178,11 +181,11 @@ ex<span style="color: #990000">.</span><span style="font-weight: bold"><span sty
 <span style="color: #FF0000">{</span>
   System<span style="color: #990000">.</span>out<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">println</span></span><span style="color: #990000">(</span>ex<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">getKey</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">reset</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">decodeString</span></span><span style="color: #990000">());</span>
 <span style="color: #FF0000">}</span></tt></pre></div></div>
-<div class="paragraph"><p>This simple example emits the string-valued keys within myTree whose values fall alphabetically between “Bellini” and “Busoni”, inclusive.</p></div>
+<div class="paragraph"><p>This simple example emits the string-valued keys within myTree whose values fall alphabetically between "Bellini" and "Busoni", inclusive.</p></div>
 </div>
 <h2 id="_transactions">Transactions</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>Persistit supports transactions with full isolation and optimistic concurrency control. An application may begin, commit or roll back the current transaction scope explicitly, executing multiple database operations in an atomic, consistent, isolated and (optionally) durable (ACID) manner. If the application does not explicitly define the scope of a transaction, each database operation implicitly runs within the scope of a separate transaction. Each Persistit transaction may optionally be committed to either memory or disk. Transactions committed to memory are much faster, but are not immediately durable. (See Transactions.)</p></div>
+<div class="paragraph"><p>Persistit supports transactions with Snapshot Isolation and optimistic concurrency control. An application may begin, commit or roll back the current transaction scope explicitly, executing multiple database operations in an atomic, consistent, isolated and (optionally) durable (ACID) manner. Each Persistit transaction may optionally be committed to either memory or disk. Transactions committed to memory are much faster, but are not immediately durable. (See Transactions.)</p></div>
 </div>
 <h2 id="_configuration">Configuration</h2>
 <div class="sectionbody">
@@ -190,7 +193,7 @@ ex<span style="color: #990000">.</span><span style="font-weight: bold"><span sty
 </div>
 <h2 id="_logging_api">Logging API</h2>
 <div class="sectionbody">
-<div class="paragraph"><p>Persistit is writes various diagnostic and informational messages to a log. By default, the log is written as text to the file <tt>persistit.log</tt> in the current working directory. However, a container application will usually have a logging architecture already in place, and Persistit provides a simple way to redirect its log output to the container application’s log. Adapters for Log4J and the Java Logging API are included; other logging systems are easy to adapt.</p></div>
+<div class="paragraph"><p>Persistit is writes various diagnostic and informational messages to a log. By default, the log is written as text to the file <tt>persistit.log</tt> in the current working directory. However, a container application will usually have a logging architecture already in place, and Persistit provides a simple way to redirect its log output to the container application's log. Adapters for Log4J and the Java Logging API are included; other logging systems are easy to adapt.</p></div>
 </div>
 </div>
 <div id="footnotes"><hr /></div>

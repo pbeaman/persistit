@@ -30,19 +30,20 @@ import com.persistit.exception.PersistitInterruptedException;
  * include <code>SumAccumulator</code>, <code>MinAccumulator</code>,
  * <code>MaxAccumulator</code> and <code>SeqAccumulator</code> which compute the
  * sum, minimum and maximum values of contributions by individual transactions.
- * (See below for semantics of the <code>SeqAccummulator</code>.) Each
- * contribution is accounted for separately as a <code>Delta</code> instance
- * until the transaction is either committed or aborted and there are no other
- * concurrently executing transactions that started before the commit timestamp.
- * This mechanism is designed to provide a "snapshot" view of the Accumulator
- * that is consistent with the snapshot view of the database.
+ * (See <a href="#_SeqAccumulator">below</a> for semantics of the
+ * <code>SeqAccummulator</code>.) Each contribution is accounted for separately
+ * as a <code>Delta</code> instance until the transaction is either committed or
+ * aborted and there are no other concurrently executing transactions that
+ * started before the commit timestamp. This mechanism is designed to provide a
+ * "snapshot" view of the Accumulator that is consistent with the snapshot view
+ * of the database.
  * </p>
  * <p>
- * In more detail: the {@link #update} method of an Accumulator is invoked
- * within the scope of a transaction T. That update is not visible to any other
- * transaction until T commits. Moreover, any other concurrently executing
- * transaction having a start timestamp less than T's commit timestamp does not
- * see the results of the update. To accomplish this, the state of the
+ * In more detail: each type of Accumulator has an update method that may only
+ * be invoked within the scope of a transaction T. That update is not visible to
+ * any other transaction until T commits. Moreover, any other concurrently
+ * executing transaction having a start timestamp less than T's commit timestamp
+ * does not see the results of the update. To accomplish this, the state of the
  * Accumulator visible within a transaction is computed by determining which
  * updates are visible and aggregating them on demand.
  * </p>
@@ -55,32 +56,49 @@ import com.persistit.exception.PersistitInterruptedException;
  * containing the Tree.
  * </p>
  * <p>
+ * <h3>Types of Accumulators</h3>
  * The following defines intended use cases for the various types of
  * accumulators:
  * <dl>
- * <dt>SUM</dt>
+ * <dt>{@link com.persistit.Accumulator.Type#SUM}</dt>
  * <dd>Row count, total size, sums of various other characteristics</dd>
- * <dt>MAX</dt>
+ * <dt>{@link com.persistit.Accumulator.Type#MAX}</dt>
  * <dd>Maximum value</dd>
- * <dt>MIN</dt>
+ * <dt>{@link com.persistit.Accumulator.Type#MIN}</dt>
  * <dd>Minimum value</dd>
- * <dt>SEQ</dt>
+ * <dt>{@link com.persistit.Accumulator.Type#SEQ}</dt>
  * <dd>Sequence number generation, e.g., auto-increment or internal primary key
- * assignment
+ * assignment</dd>
  * </dl>
  * </p>
  * <p>
+ * <a name="_SnapshotValue" />
+ * <h3>Snapshot and Live Values</h3>
+ * Each Accumulator type supplies both a "snapshot" value and a "live" value.
+ * The snapshot value is computed as described above by selectively applying
+ * only those updates visible to the transaction. The live value, however, is
+ * simply the result of applying each update operation atomically to a long
+ * value maintained by the Accumulator. For example, if ten transactions
+ * increment a SUM accumulator by one, and then five commit of them and five and
+ * roll back, the live value is nonetheless increased by ten. Thus the live
+ * value is only an estimate. Its value is cheap to acquire but not
+ * transactionally accurate.
+ * </p>
+ * <p>
+ * <a name="_SeqAccumulator" />
+ * <h3>SeqAccumulator</h3>
  * The <code>SeqAccumulator</code> is a combination of
  * <code>SumAccumulator</code> and <code>MaxAccumulator</code>. When the
- * {@link #update} method is called, the supplied long value is atomically added
- * to the Accumulator's <code>live</code> value and the result is returned. In
- * addition, a <code>Delta</code> holding the resulting sum as a proposed
- * maximum value is added to the transaction. These semantics guarantee that
- * every value returned by a SeqAccumulator is unique, and that upon recovery
- * after a crash, the first value returned will be larger than the maximum value
- * assigned by any transaction that committed successfully before the crash.
- * Note that a transaction that assigns value and then aborts will leave a gap
- * in the numerical sequence.
+ * {@link com.persistit.Accumulator.SeqAccumulator#allocate()} method is called,
+ * the Accumulator's <code>live</code> value is atomically incremented and the
+ * resulting value is returned. In addition, a <code>Delta</code> holding the
+ * resulting sum as a proposed minimum value is added to the transaction. These
+ * semantics guarantee that every value returned by a SeqAccumulator (within a
+ * transaction that actually commits) is unique, and that upon recovery after a
+ * normal shutdown or crash, the first value returned will be larger than the
+ * maximum value assigned by any transaction that committed successfully before
+ * the shutdown. Note that a transaction that allocates a value and then aborts
+ * leaves a gap in the numerical sequence.
  * </p>
  * 
  * @author peter
@@ -114,7 +132,7 @@ public abstract class Accumulator {
 
     final static int MAX_SERIALIZED_SIZE = Tree.MAX_SERIALIZED_SIZE + 24;
 
-    private final Tree _tree;
+    protected final Tree _tree;
     private final int _index;
     private final TransactionIndex _transactionIndex;
 
@@ -158,7 +176,7 @@ public abstract class Accumulator {
     /**
      * An Accumulator that computes a sum
      */
-    final static class SumAccumulator extends Accumulator {
+    public final static class SumAccumulator extends Accumulator {
 
         private SumAccumulator(final Tree tree, final int index, final long baseValue,
                 final TransactionIndex transactionIndex) {
@@ -172,6 +190,9 @@ public abstract class Accumulator {
 
         @Override
         long updateValue(final long a, final long b) {
+            if (b > 0 && a + b < a || b < 0 && a + b > a) {
+                throw new IllegalArgumentException("Accumulator value overflow: (" + a + "+" + b + ")");
+            }
             return applyValue(a, b);
         }
 
@@ -184,12 +205,31 @@ public abstract class Accumulator {
         Type getType() {
             return Type.SUM;
         }
+
+        /**
+         * <p>
+         * Add the supplied value to this <code>SumAccumulator</code>. The
+         * contribution is immediately accumulated into the live value, and it
+         * is also posted with a <code>Delta</code>instance to the supplied
+         * {@link Transaction}. This method may be called only within the scope
+         * of an active <code>Transaction</code>.
+         * </p>
+         * 
+         * @param value
+         *            The delta value
+         */
+        public void add(final long value) {
+            final Transaction txn = _tree.getPersistit().getTransaction();
+            txn.checkActive();
+            update(value, txn.getTransactionStatus(), txn.getStep());
+        }
+
     }
 
     /**
      * An Accumulator that computes a minimum value
      */
-    final static class MinAccumulator extends Accumulator {
+    public final static class MinAccumulator extends Accumulator {
 
         private MinAccumulator(final Tree tree, final int index, final long baseValue,
                 final TransactionIndex transactionIndex) {
@@ -215,12 +255,31 @@ public abstract class Accumulator {
         Type getType() {
             return Type.MIN;
         }
+
+        /**
+         * <p>
+         * Modify the Accumulator so that its value is no less than the supplied
+         * value. The contribution is immediately accumulated into the live
+         * value, and it is also posted with a <code>Delta</code> instance to
+         * the supplied {@link Transaction}. This method may be called only
+         * within the scope of an active <code>Transaction</code>.
+         * </p>
+         * 
+         * @param min
+         *            The candidate minimum value
+         */
+        public void minimum(final long min) {
+            final Transaction txn = _tree.getPersistit().getTransaction();
+            txn.checkActive();
+            update(min, txn.getTransactionStatus(), txn.getStep());
+        }
+
     }
 
     /**
      * An Accumulator that computes a maximum value
      */
-    final static class MaxAccumulator extends Accumulator {
+    public final static class MaxAccumulator extends Accumulator {
 
         private MaxAccumulator(final Tree tree, final int index, final long baseValue,
                 final TransactionIndex transactionIndex) {
@@ -246,18 +305,37 @@ public abstract class Accumulator {
         Type getType() {
             return Type.MAX;
         }
+
+        /**
+         * <p>
+         * Modify the Accumulator so that its value is no greater than the
+         * supplied value. The contribution is immediately accumulated into the
+         * live value, and it is also posted with a <code>Delta</code> instance
+         * to the supplied {@link Transaction}. This method may be called only
+         * within the scope of an active <code>Transaction</code>.
+         * </p>
+         * 
+         * @param max
+         *            The candidate maximum value
+         */
+        public void maximum(final long max) {
+            final Transaction txn = _tree.getPersistit().getTransaction();
+            txn.checkActive();
+            update(max, txn.getTransactionStatus(), txn.getStep());
+        }
+
     }
 
     /**
      * An Accumulator used to generate unique ID values. The
-     * {@link #update(long, Transaction)} method applied to a
-     * <code>SeqAccumulator</code> generates a new, unique long value. The
-     * transaction records this value as a candidate for maximum value of the
-     * Accumulator. On recovery, the highest such value ever allocated by a
-     * committed transaction is recovered, and so after recovery the next
-     * allocated ID value will be larger than any previously consumed.
+     * {@link com.persistit.Accumulator.SeqAccumulator#allocate()} method
+     * generates a new, unique long value. The transaction records this value as
+     * a candidate for maximum value of the Accumulator. On recovery, the
+     * highest such value ever allocated by a committed transaction is
+     * recovered, and so after recovery the next allocated ID value will be
+     * larger than any previously consumed.
      */
-    final static class SeqAccumulator extends Accumulator {
+    public final static class SeqAccumulator extends Accumulator {
 
         private SeqAccumulator(final Tree tree, final int index, final long baseValue,
                 final TransactionIndex transactionIndex) {
@@ -271,11 +349,13 @@ public abstract class Accumulator {
 
         @Override
         long updateValue(final long a, final long b) {
-            if (b > 0) {
-                return a + b;
-            } else {
+            if (b <= 0) {
                 throw new IllegalArgumentException("Update value must be positive");
             }
+            if (a + b < a) {
+                throw new IllegalArgumentException("Accumulator value overflow: (" + a + "+" + b + ")");
+            }
+            return a + b;
         }
 
         @Override
@@ -287,6 +367,32 @@ public abstract class Accumulator {
         Type getType() {
             return Type.SEQ;
         }
+
+        /**
+         * <p>
+         * Allocate a sequence number. The value returned is guaranteed to be
+         * unique for the lifetime of the database. Values are usually assigned
+         * as consecutive integers, but in some cases there may be gaps in the
+         * sequence.
+         * </p>
+         * <p>
+         * The value returned is equal to the <a href="#_SnapshotValue">live
+         * value</a> the instant it is updated. However, note that the following
+         * code is <em>not</em> guaranteed to generate a unique value:
+         * <code><pre>
+         *    seqAccumulator.allocate();
+         *    long id = seqAccumulator.getLiveValue();
+         * </pre></code>while the following is: <code><pre>
+         *   long id = seqAccumulator.allocate();
+         * </p>
+         * 
+         * @return the updated live value
+         */
+        public long allocate() {
+            final Transaction txn = _tree.getPersistit().getTransaction();
+            return update(1, txn.getTransactionStatus(), txn.getStep());
+        }
+
     }
 
     final static class Delta {
@@ -528,7 +634,8 @@ public abstract class Accumulator {
 
     /**
      * Non-transactional view aggregating all updates applied to this
-     * Accumulator, whether committed or not.
+     * Accumulator, whether committed or not. See <a
+     * href="#_SnapshotValue">Snapshot and Live Values</a>.
      * 
      * @return the live value
      */
@@ -537,17 +644,18 @@ public abstract class Accumulator {
     }
 
     /**
-     * @param txn
-     *            The transaction reading the snapshot
-     * @return The value computed by accumulating values contributed by (a) all
-     *         transactions having commit timestamps less than or equal to
-     *         <code>transaction</code>'s start timestamp, and (b) all
-     *         operations performed by the current transaction having step
-     *         numbers equal to or less than the <code>transaction</code>'s
-     *         current step.
+     * Compute the value computed by accumulating values contributed by (a) all
+     * transactions having commit timestamps less than or equal to the specified
+     * <code>transaction</code>'s start timestamp, and (b) all operations
+     * performed by the specified transaction having step numbers equal to or
+     * less than the <code>transaction</code>'s current step. See <a
+     * href="#_SnapshotValue">Snapshot and Live Values</a>.
+     * 
+     * @return the computed snapshot value
      * @throws InterruptedException
      */
-    public long getSnapshotValue(final Transaction txn) throws PersistitInterruptedException {
+    public long getSnapshotValue() throws PersistitInterruptedException {
+        final Transaction txn = _tree.getPersistit().getTransaction();
         txn.checkActive();
         return getSnapshotValue(txn.getStartTimestamp(), txn.getStep());
     }
@@ -592,25 +700,7 @@ public abstract class Accumulator {
     /**
      * Update the Accumulator by contributing a value. The contribution is
      * immediately accumulated into the live value, and it is also posted with a
-     * <code>Delta</code>instance to the supplied {@link Transaction}. This
-     * method may be called only within the scope of an active
-     * <code>Transaction</code>.
-     * 
-     * @param value
-     *            The delta value
-     * @param txn
-     *            The transaction it applies to
-     */
-    public long update(final long value, final Transaction txn) {
-        txn.checkActive();
-        return update(value, txn.getTransactionStatus(), txn.getStep());
-    }
-
-    /**
-     * Update the Accumulator by contributing a value. The contribution is
-     * immediately accumulated into the live value, and it is also posted with a
-     * 
-     * @{link {@link Delta} instance to the supplied {@link Transaction}.
+     * {@link Delta} instance to the supplied {@link Transaction}.
      * 
      * @param value
      *            The delta value
