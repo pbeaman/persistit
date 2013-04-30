@@ -16,6 +16,7 @@
 
 package com.persistit;
 
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -100,7 +101,7 @@ class TransactionStatus {
      * already contains a value version from a concurrently executing
      * transaction must wait for that other transaction to commit or abort.
      */
-    private final ReentrantLock _wwLock = new ReentrantLock(true);
+    private final Semaphore _wwLock = new Semaphore(1);
     /**
      * Pointer to next member of singly-linked list.
      */
@@ -124,12 +125,6 @@ class TransactionStatus {
      * <code>TransactionStatus</code> may not be placed on the free list.
      */
     private volatile boolean _notified;
-
-    /**
-     * Indicates whether the owning transaction had been abandoned. This status
-     * may be in a locked state and is not available for re-use.
-     */
-    private volatile boolean _abandoned;
 
     TransactionStatus(final TransactionIndexBucket bucket) {
         _bucket = bucket;
@@ -253,17 +248,7 @@ class TransactionStatus {
 
     void completeAndUnlock(final long timestamp) {
         complete(timestamp);
-        if (!isAbandoned()) {
-            wwUnlock();
-        }
-    }
-
-    boolean isLocked() {
-        return _wwLock.isLocked();
-    }
-
-    boolean isHeldByCurrentThread() {
-        return _wwLock.isHeldByCurrentThread();
+        wwUnlock();
     }
 
     Delta getDelta() {
@@ -381,15 +366,14 @@ class TransactionStatus {
      * @throws InterruptedException
      */
     boolean wwLock(final long timeout) throws InterruptedException {
-        return _wwLock.tryLock(timeout, TimeUnit.MILLISECONDS);
+        return _wwLock.tryAcquire(timeout, TimeUnit.MILLISECONDS);
     }
 
     /**
      * Release the lock acquired by {@link #wwLock(long)}.
      */
     void wwUnlock() {
-        assert !isAbandoned() : "Attempt to unlock abandoned: " + this;
-        _wwLock.unlock();
+        _wwLock.release();
     }
 
     /**
@@ -422,20 +406,6 @@ class TransactionStatus {
         abort();
         setMvvCount(Integer.MAX_VALUE);
         _notified = true;
-    }
-
-    /**
-     * Make this status as abandoned. This will prevent its unlock and re-use.
-     */
-    void markAbandoned() {
-        _abandoned = true;
-    }
-
-    /**
-     * @return <code>true</code> if this status has been abandoned.
-     */
-    boolean isAbandoned() {
-        return _abandoned;
     }
 
     @Override
