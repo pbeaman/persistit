@@ -274,6 +274,7 @@
                         <!-- Other -->
                         <exclude>LICENSE.txt</exclude>
                         <exclude>README.rst</exclude>
+                        <exclude>maven-eclipse.xml</exclude>
                     </excludes>
                 </configuration>
                 <executions>
