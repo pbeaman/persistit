@@ -97,9 +97,11 @@ class TransactionStatus {
     private AtomicInteger _mvvCount = new AtomicInteger();
 
     /**
-     * Lock used to manage ww dependencies. An attempt to update an MVV that
+     * Semaphore used to manage ww dependencies. An attempt to update an MVV that
      * already contains a value version from a concurrently executing
      * transaction must wait for that other transaction to commit or abort.
+     * This is Semaphore rather than a ReentrantLock because it may be
+     * acquired in one thread but released in another.
      */
     private final Semaphore _wwLock = new Semaphore(1);
     /**
