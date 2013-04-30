@@ -20,10 +20,10 @@
 #   - Documentation (apidocs and sphinx html, for website)
 #       - akiban-persistit-X.X.X-website-docs.tar.gz
 #   - Bundles/packages
-#       - akiban-persistit-X.X.X.zip                (binary, EPL)
-#       - akiban-persistit-X.X.X.tar.gz             (binary, EPL)
-#       - akiban-persistit-X.X.X-source.zip         (source, EPL)
-#       - akiban-persistit-X.X.X-source.tar.gz      (source, EPL)
+#       - akiban-persistit-X.X.X.zip                (binary, Apache)
+#       - akiban-persistit-X.X.X.tar.gz             (binary, Apache)
+#       - akiban-persistit-X.X.X-source.zip         (source, Apache)
+#       - akiban-persistit-X.X.X-source.tar.gz      (source, Apache)
 #
 
 set -e
