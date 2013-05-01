@@ -1,16 +1,17 @@
 /**
- * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright 2011-2012 Akiban Technologies, Inc.
  * 
- * This program and the accompanying materials are made available
- * under the terms of the Eclipse Public License v1.0 which
- * accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program may also be available under different license terms.
- * For more information, see www.akiban.com or contact licensing@akiban.com.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Contributors:
- * Akiban Technologies, Inc.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.persistit;
@@ -320,6 +321,8 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
     @Test
     public void testWritePagePrune() throws Exception {
+        _persistit.getJournalManager().setWritePagePruningEnabled(false);
+        final Exchange exchange = exchange(1);
         final Transaction txn = _persistit.getTransaction();
         try {
             txn.begin();
@@ -328,8 +331,8 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         } finally {
             txn.end();
         }
-        final Volume volume = _persistit.getVolume(TEST_VOLUME_NAME);
-        final Buffer buffer = volume.getPool().get(volume, 3, true, true);
+        final long pageAddr = exchange.fetchBufferCopy(0).getPageAddress();
+        final Buffer buffer = exchange.getBufferPool().get(exchange.getVolume(), pageAddr, true, true);
         assertTrue("Should have multiple MVV records", buffer.getMvvCount() > 2);
         _persistit.getJournalManager().setWritePagePruningEnabled(true);
         _persistit.getTransactionIndex().updateActiveTransactionCache();
@@ -340,12 +343,15 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     }
 
     private void storeNewVersion(final int cycle) throws Exception {
-        final Exchange exchange = _persistit.getExchange(TEST_VOLUME_NAME,
-                String.format("%s%04d", TEST_TREE_NAME, cycle), true);
+        final Exchange exchange = exchange(cycle);
         exchange.getValue().put(String.format("%s%04d", RED_FOX, cycle));
         for (int i = 1; i <= 100; i++) {
             exchange.to(i).store();
         }
+    }
+
+    private Exchange exchange(final int cycle) throws PersistitException {
+        return _persistit.getExchange(TEST_VOLUME_NAME, String.format("%s%04d", TEST_TREE_NAME, cycle), true);
     }
 
     private void removeKeys(final int cycle) throws Exception {

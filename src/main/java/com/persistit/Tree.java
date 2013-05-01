@@ -1,16 +1,17 @@
 /**
- * Copyright © 2005-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright 2005-2012 Akiban Technologies, Inc.
  * 
- * This program and the accompanying materials are made available
- * under the terms of the Eclipse Public License v1.0 which
- * accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program may also be available under different license terms.
- * For more information, see www.akiban.com or contact licensing@akiban.com.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Contributors:
- * Akiban Technologies, Inc.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.persistit;
@@ -23,8 +24,13 @@ import com.persistit.Accumulator.MaxAccumulator;
 import com.persistit.Accumulator.MinAccumulator;
 import com.persistit.Accumulator.SeqAccumulator;
 import com.persistit.Accumulator.SumAccumulator;
+import com.persistit.Version.PrunableVersion;
+import com.persistit.Version.VersionCreator;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.exception.RollbackException;
+import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -34,6 +40,20 @@ import com.persistit.util.Util;
  * <code>Tree</code> object keeps track of the <code>Volume</code>, the index
  * root page, the index depth, various other statistics and the
  * {@link Accumulator}s for a B-Tree.
+ * </p>
+ * <p>
+ * As of Persistit 3.3, this class supports version within transactions. A new
+ * <code>Tree</code> created within the cope of a {@link Transaction} is not
+ * visible within the other transactions until it commits. Similarly, if a
+ * <code>Tree</code> is removed within the scope of a transaction, other
+ * transactions that started before the current transaction commits will
+ * continue to be able to read and write the <code>Tree</code>. As a
+ * side-effect, the physical storage for a <code>Tree</code> is not deallocated
+ * until there are no remaining active transactions that started before the
+ * commit timestamp of the current transaction. Concurrent transactions that
+ * attempt to create or remove the same <code>Tree</code> instance are subject
+ * to a a write-write dependency (see {@link Transaction}); all but one such
+ * transaction must roll back.
  * </p>
  * <p>
  * <code>Tree</code> instances are created by
@@ -67,15 +87,76 @@ public class Tree extends SharedResource {
 
     private final String _name;
     private final Volume _volume;
-    private volatile long _rootPageAddr;
-    private volatile int _depth;
-    private final AtomicLong _changeCount = new AtomicLong(0);
     private final AtomicReference<Object> _appCache = new AtomicReference<Object>();
     private final AtomicInteger _handle = new AtomicInteger();
 
-    private final Accumulator[] _accumulators = new Accumulator[MAX_ACCUMULATOR_COUNT];
+    private final TimelyResource<TreeVersion> _timelyResource;
 
-    private final TreeStatistics _treeStatistics = new TreeStatistics();
+    private final VersionCreator<TreeVersion> _creator = new VersionCreator<TreeVersion>() {
+
+        @Override
+        public TreeVersion createVersion(final TimelyResource<? extends TreeVersion> resource)
+                throws PersistitException {
+            return new TreeVersion();
+        }
+    };
+
+    class TreeVersion implements PrunableVersion {
+        volatile long _rootPageAddr;
+        volatile int _depth;
+        volatile long _generation = _persistit.getTimestampAllocator().updateTimestamp();
+        final AtomicLong _changeCount = new AtomicLong();
+        volatile boolean _pruned;
+        private final Accumulator[] _accumulators = new Accumulator[MAX_ACCUMULATOR_COUNT];
+        private final TreeStatistics _treeStatistics = new TreeStatistics();
+
+        @Override
+        public boolean prune() throws PersistitException {
+            assert !_pruned;
+            _volume.getStructure().deallocateTree(_rootPageAddr, _depth);
+            discardAccumulators();
+            _pruned = true;
+            _rootPageAddr = -1;
+            return true;
+        }
+
+        @Override
+        public void vacate() {
+            clearValid();
+            _volume.getStructure().removed(Tree.this);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("Tree(%d,%d)%s", _rootPageAddr, _depth, _pruned ? "#" : "");
+        }
+
+        /**
+         * Forget about any instantiated accumulator and remove it from the
+         * active list in Persistit. This should only be called in the during
+         * the process of removing a tree.
+         */
+        void discardAccumulators() {
+            for (int i = 0; i < _accumulators.length; ++i) {
+                if (_accumulators[i] != null) {
+                    _persistit.removeAccumulator(_accumulators[i]);
+                    _accumulators[i] = null;
+                }
+            }
+        }
+    }
+
+    /**
+     * Unchecked wrapper for PersistitException thrown while trying to acquire a
+     * TreeVersion.
+     */
+    public static class TreeVersionException extends RuntimeException {
+        private static final long serialVersionUID = -6372589972106489591L;
+
+        TreeVersionException(final Exception e) {
+            super(e);
+        }
+    }
 
     Tree(final Persistit persistit, final Volume volume, final String name) {
         super(persistit);
@@ -86,7 +167,35 @@ public class Tree extends SharedResource {
         }
         _name = name;
         _volume = volume;
-        _generation.set(1);
+        _timelyResource = new TimelyResource<TreeVersion>(persistit);
+    }
+
+    TreeVersion version() {
+        try {
+            return _timelyResource.getVersion(_creator);
+        } catch (final PersistitException e) {
+            throw new TreeVersionException(e);
+        }
+    }
+
+    public boolean isDeleted() throws TimeoutException, PersistitInterruptedException {
+        return _timelyResource.isEmpty();
+    }
+
+    boolean isLive() throws TimeoutException, PersistitInterruptedException {
+        return isValid() && !isDeleted();
+    }
+
+    boolean isTransactionPrivate(final boolean byStep) throws TimeoutException, PersistitInterruptedException {
+        return _timelyResource.isTransactionPrivate(byStep);
+    }
+
+    boolean hasVersion(final long versionHandle) throws TimeoutException, PersistitInterruptedException {
+        return _timelyResource.getVersion(versionHandle) != null;
+    }
+
+    void delete() throws RollbackException, PersistitException {
+        _timelyResource.delete();
     }
 
     /**
@@ -110,7 +219,9 @@ public class Tree extends SharedResource {
 
     @Override
     public boolean equals(final Object o) {
-        if (o instanceof Tree) {
+        if (o == this) {
+            return true;
+        } else if (o instanceof Tree) {
             final Tree tree = (Tree) o;
             return _name.equals(tree._name) && _volume.equals(tree.getVolume());
         } else {
@@ -126,20 +237,32 @@ public class Tree extends SharedResource {
      * @return The page address
      */
     public long getRootPageAddr() {
-        return _rootPageAddr;
+        final TreeVersion version = version();
+        return version._rootPageAddr;
     }
 
     /**
      * @return the number of levels of the <code>Tree</code>.
      */
     public int getDepth() {
-        return _depth;
+        return version()._depth;
+    }
+
+    @Override
+    public long getGeneration() {
+        return version()._generation;
+    }
+
+    @Override
+    void bumpGeneration() {
+        version()._generation = _persistit.getTimestampAllocator().updateTimestamp();
     }
 
     void changeRootPageAddr(final long rootPageAddr, final int deltaDepth) throws PersistitException {
         Debug.$assert0.t(isOwnedAsWriterByMe());
-        _rootPageAddr = rootPageAddr;
-        _depth += deltaDepth;
+        final TreeVersion version = version();
+        version._rootPageAddr = rootPageAddr;
+        version._depth += deltaDepth;
     }
 
     void bumpChangeCount() {
@@ -147,7 +270,7 @@ public class Tree extends SharedResource {
         // Note: the changeCount only gets written when there's a structure
         // change in the tree that causes it to be committed.
         //
-        _changeCount.incrementAndGet();
+        version()._changeCount.incrementAndGet();
     }
 
     /**
@@ -155,7 +278,7 @@ public class Tree extends SharedResource {
      *         this tree; does not including replacement of an existing value
      */
     long getChangeCount() {
-        return _changeCount.get();
+        return version()._changeCount.get();
     }
 
     /**
@@ -165,9 +288,10 @@ public class Tree extends SharedResource {
      */
     int store(final byte[] bytes, final int index) {
         final byte[] nameBytes = Util.stringToBytes(_name);
-        Util.putLong(bytes, index, _rootPageAddr);
-        Util.putLong(bytes, index + 8, getChangeCount());
-        Util.putShort(bytes, index + 16, _depth);
+        final TreeVersion version = version();
+        Util.putLong(bytes, index, version._rootPageAddr);
+        Util.putLong(bytes, index + 8, version._changeCount.get());
+        Util.putShort(bytes, index + 16, version._depth);
         Util.putShort(bytes, index + 18, nameBytes.length);
         Util.putBytes(bytes, index + 20, nameBytes);
         return 20 + nameBytes.length;
@@ -187,9 +311,10 @@ public class Tree extends SharedResource {
         if (!_name.equals(name)) {
             throw new IllegalStateException("Invalid tree name recorded: " + name + " for tree " + _name);
         }
-        _rootPageAddr = Util.getLong(bytes, index);
-        _changeCount.set(Util.getLong(bytes, index + 8));
-        _depth = Util.getShort(bytes, index + 16);
+        final TreeVersion version = version();
+        version._rootPageAddr = Util.getLong(bytes, index);
+        version._changeCount.set(Util.getLong(bytes, index + 8));
+        version._depth = Util.getShort(bytes, index + 16);
         return length;
     }
 
@@ -200,7 +325,8 @@ public class Tree extends SharedResource {
      * @throws PersistitException
      */
     void setRootPageAddress(final long rootPageAddr) throws PersistitException {
-        if (_rootPageAddr != rootPageAddr) {
+        final TreeVersion version = version();
+        if (version._rootPageAddr != rootPageAddr) {
             // Derive the index depth
             Buffer buffer = null;
             try {
@@ -210,8 +336,8 @@ public class Tree extends SharedResource {
                     throw new CorruptVolumeException(String.format("Tree root page %,d has invalid type %s",
                             rootPageAddr, buffer.getPageTypeName()));
                 }
-                _rootPageAddr = rootPageAddr;
-                _depth = type - Buffer.PAGE_TYPE_DATA + 1;
+                version._rootPageAddr = rootPageAddr;
+                version._depth = type - Buffer.PAGE_TYPE_DATA + 1;
             } finally {
                 if (buffer != null) {
                     buffer.releaseTouched();
@@ -226,10 +352,15 @@ public class Tree extends SharedResource {
      * <code>Tree</code> to fail.
      */
     void invalidate() {
+        final TreeVersion version = version();
         super.clearValid();
-        _depth = -1;
-        _rootPageAddr = -1;
-        _generation.set(-1);
+        version._depth = -1;
+        version._rootPageAddr = -1;
+        version._generation = _persistit.getTimestampAllocator().updateTimestamp();
+    }
+
+    void setPrimordial() {
+        _timelyResource.setPrimordial();
     }
 
     /**
@@ -238,7 +369,7 @@ public class Tree extends SharedResource {
      *         </code>Tree</code>
      */
     public TreeStatistics getStatistics() {
-        return _treeStatistics;
+        return version()._treeStatistics;
     }
 
     /**
@@ -248,8 +379,9 @@ public class Tree extends SharedResource {
      */
     @Override
     public String toString() {
-        return "<Tree " + _name + " in volume " + _volume.getName() + " rootPageAddr=" + _rootPageAddr + " depth="
-                + _depth + " status=" + getStatusDisplayString() + ">";
+        final TreeVersion version = version();
+        return "<Tree " + _name + " in volume " + _volume.getName() + " rootPageAddr=" + version._rootPageAddr
+                + " depth=" + version._depth + " status=" + getStatusDisplayString() + ">";
     }
 
     /**
@@ -278,8 +410,8 @@ public class Tree extends SharedResource {
     }
 
     /**
-     * Set the tree handle. The tree must may not be a member of a temporary
-     * volume.
+     * Assign and set the tree handle. The tree must may not be a member of a
+     * temporary volume.
      * 
      * @throws PersistitException
      */
@@ -397,7 +529,8 @@ public class Tree extends SharedResource {
         if (index < 0 || index >= MAX_ACCUMULATOR_COUNT) {
             throw new IllegalArgumentException("Invalid accumulator index: " + index);
         }
-        Accumulator accumulator = _accumulators[index];
+        final TreeVersion version = version();
+        Accumulator accumulator = version._accumulators[index];
         if (accumulator == null) {
             final AccumulatorState saved = Accumulator.getAccumulatorState(this, index);
             long savedValue = 0;
@@ -411,7 +544,7 @@ public class Tree extends SharedResource {
                 savedValue = saved.getValue();
             }
             accumulator = Accumulator.accumulator(type, this, index, savedValue, _persistit.getTransactionIndex());
-            _accumulators[index] = accumulator;
+            version._accumulators[index] = accumulator;
             _persistit.addAccumulator(accumulator);
         } else if (accumulator.getType() != type) {
             throw new IllegalStateException("Wrong type " + accumulator + " is not a " + type + " accumulator");
@@ -442,17 +575,4 @@ public class Tree extends SharedResource {
         _handle.set(0);
     }
 
-    /**
-     * Forget about any instantiated accumulator and remove it from the active
-     * list in Persistit. This should only be called in the during the process
-     * of removing a tree.
-     */
-    void discardAccumulators() {
-        for (int i = 0; i < _accumulators.length; ++i) {
-            if (_accumulators[i] != null) {
-                _persistit.removeAccumulator(_accumulators[i]);
-                _accumulators[i] = null;
-            }
-        }
-    }
 }

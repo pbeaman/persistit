@@ -1,16 +1,17 @@
 /**
- * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright 2011-2012 Akiban Technologies, Inc.
  * 
- * This program and the accompanying materials are made available
- * under the terms of the Eclipse Public License v1.0 which
- * accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program may also be available under different license terms.
- * For more information, see www.akiban.com or contact licensing@akiban.com.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Contributors:
- * Akiban Technologies, Inc.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.persistit;
@@ -92,7 +93,7 @@ public class Bug1018526Test extends PersistitUnitTestCase {
             final TreeDescriptor td = map.remove(handle);
             assertNotNull("Permanent Tree should be un the tree map", td);
         }
-        // expect 1: the directory tree
-        assertEquals("Recovered tree map should contain only permanent trees", 1, map.size());
+        // expect 2: _directory and _classIndex
+        assertEquals("Recovered tree map should contain only permanent trees", 2, map.size());
     }
 }

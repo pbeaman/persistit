@@ -1,16 +1,17 @@
 /**
- * Copyright © 2005-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright 2005-2012 Akiban Technologies, Inc.
  * 
- * This program and the accompanying materials are made available
- * under the terms of the Eclipse Public License v1.0 which
- * accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program may also be available under different license terms.
- * For more information, see www.akiban.com or contact licensing@akiban.com.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Contributors:
- * Akiban Technologies, Inc.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.persistit;
@@ -413,7 +414,6 @@ public class Exchange implements ReadOnlyExchange {
     }
 
     void init(final Volume volume, final String treeName, final boolean create) throws PersistitException {
-        assertCorrectThread(true);
         if (volume == null) {
             throw new NullPointerException();
         }
@@ -441,6 +441,7 @@ public class Exchange implements ReadOnlyExchange {
             _tree = tree;
             _treeHolder = new ReentrantResourceHolder(_tree);
             _cachedTreeGeneration = -1;
+            _isDirectoryExchange = tree == _volume.getDirectoryTree();
             initCache();
         }
         _splitPolicy = _persistit.getDefaultSplitPolicy();
@@ -503,7 +504,7 @@ public class Exchange implements ReadOnlyExchange {
 
     private void checkLevelCache() throws PersistitException {
 
-        if (!_tree.isValid()) {
+        if (!_tree.isLive()) {
             if (_tree.getVolume().isTemporary()) {
                 _tree = _tree.getVolume().getTree(_tree.getName(), true);
                 _treeHolder = new ReentrantResourceHolder(_tree);
@@ -1356,11 +1357,7 @@ public class Exchange implements ReadOnlyExchange {
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
-        if (!_ignoreTransactions && !_transaction.isActive()) {
-            _persistit.getJournalManager().throttle();
-        }
-        // TODO: directoryExchange, and lots of tests, don't use transactions.
-        // Skip MVCC for now.
+        throttle();
         int options = StoreOptions.WAIT;
         options |= (!_ignoreTransactions && _transaction.isActive()) ? StoreOptions.MVCC : 0;
         storeInternal(key, value, 0, options);
@@ -1551,7 +1548,13 @@ public class Exchange implements ReadOnlyExchange {
                             }
                         }
 
-                        if (doMVCC) {
+                        /*
+                         * If the Tree is private to an active transaction, and
+                         * if this is a virgin value, then we can store it
+                         * primordially because if the transaction rolls back,
+                         * the entire Tree will be removed.
+                         */
+                        if (doMVCC && (_spareValue.isDefined() || !_tree.isTransactionPrivate(true))) {
                             valueToStore = spareValue;
                             final int valueSize = value.getEncodedSize();
                             int retries = VERSIONS_OUT_OF_ORDER_RETRY_COUNT;
@@ -3188,7 +3191,6 @@ public class Exchange implements ReadOnlyExchange {
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
-        assertCorrectThread(true);
         _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
         final boolean result = traverse(GT, true, 0, _key.getDepth() + 1, size, null);
@@ -3228,30 +3230,16 @@ public class Exchange implements ReadOnlyExchange {
      */
     public void removeTree() throws PersistitException {
         assertCorrectThread(true);
+        _persistit.checkSuspended();
         _persistit.checkClosed();
 
-        final long timestamp = _persistit.getCurrentTimestamp();
-        for (int i = 0; i < 100; i++) {
-            _persistit.checkClosed();
-            _persistit.checkSuspended();
-            _persistit.getJournalManager().pruneObsoleteTransactions();
-            if (_persistit.getJournalManager().getEarliestAbortedTransactionTimestamp() > timestamp) {
-                break;
-            }
-            Util.sleep(1000);
-        }
+        _volume.getStructure().removeTree(_tree);
         if (!_ignoreTransactions) {
+            assert !isDirectoryExchange();
             _transaction.removeTree(this);
         }
-
-        clear();
-
+        _key.clear();
         _value.clear();
-        /*
-         * Remove from directory tree.
-         */
-        _volume.getStructure().removeTree(_tree);
-
         initCache();
     }
 
@@ -3410,9 +3398,8 @@ public class Exchange implements ReadOnlyExchange {
         if (!isDirectoryExchange()) {
             _persistit.checkSuspended();
         }
-        if (!_ignoreTransactions && !_transaction.isActive()) {
-            _persistit.getJournalManager().throttle();
-        }
+
+        throttle();
 
         if (_ignoreTransactions || !_transaction.isActive()) {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
@@ -3421,6 +3408,15 @@ public class Exchange implements ReadOnlyExchange {
         // Record the delete operation on the journal
 
         _transaction.remove(this, key1, key2);
+
+        /*
+         * If the Tree was created within this transaction then we can just
+         * range-delete the tree since it is not visible outside this
+         * transaction.
+         */
+        if (_tree.isTransactionPrivate(true)) {
+            return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
+        }
 
         checkLevelCache();
 
@@ -3994,7 +3990,7 @@ public class Exchange implements ReadOnlyExchange {
 
     boolean prune(final Key key) throws PersistitException {
         Buffer buffer = null;
-        Debug.$assert1.t(_tree.isValid());
+        Debug.$assert1.t(_tree.isLive());
         try {
             search(key, true);
             buffer = _levelCache[0]._buffer;
@@ -4014,7 +4010,7 @@ public class Exchange implements ReadOnlyExchange {
         Buffer buffer = null;
         boolean pruned = false;
 
-        Debug.$assert1.t(_tree.isValid());
+        Debug.$assert1.t(_tree.isLive());
         try {
             search(key1, true);
             buffer = _levelCache[0]._buffer;
@@ -4132,13 +4128,30 @@ public class Exchange implements ReadOnlyExchange {
         assert checkThread(set) : "Thread " + Thread.currentThread() + " must not use " + this + " owned by " + _thread;
     }
 
+    /**
+     * Ensure the this Exchange is compatible with the current Thread; if a
+     * Thread was previously assigned then this thread must be the same one.
+     * 
+     * @param set
+     *            whether to assign the current thread
+     * @return true if and only if there was no assigned Thread or the assigned
+     *         Thread is same as the current Thread.
+     */
     private boolean checkThread(final boolean set) {
         final Thread t = Thread.currentThread();
-        final boolean okay = _thread == null || _thread == t;
-        if (okay) {
-            _thread = set ? t : null;
+        if (_thread == t) {
+            if (!set) {
+                _thread = null;
+            }
+            return true;
         }
-        return okay;
+        if (_thread == null) {
+            if (set) {
+                _thread = t;
+            }
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -4187,7 +4200,6 @@ public class Exchange implements ReadOnlyExchange {
      *         <code>false</code>.
      */
     boolean isDirectoryExchange() {
-        assertCorrectThread(true);
         return _isDirectoryExchange;
     }
 
@@ -4424,6 +4436,17 @@ public class Exchange implements ReadOnlyExchange {
             return wasLong;
         } finally {
             _ignoreMVCCFetch = savedIgnore;
+        }
+    }
+
+    private void throttle() throws PersistitInterruptedException {
+        /*
+         * Don't throttle operations on the directory tree since that makes some
+         * unit tests very slow. This test is now necessary because a directory
+         * tree update can now occur within the scope of a transaction.
+         */
+        if (!_ignoreTransactions && !_transaction.isActive() && !isDirectoryExchange()) {
+            _persistit.getJournalManager().throttle();
         }
     }
 }

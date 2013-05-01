@@ -1,16 +1,17 @@
 /**
- * Copyright © 2005-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright 2005-2012 Akiban Technologies, Inc.
  * 
- * This program and the accompanying materials are made available
- * under the terms of the Eclipse Public License v1.0 which
- * accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program may also be available under different license terms.
- * For more information, see www.akiban.com or contact licensing@akiban.com.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Contributors:
- * Akiban Technologies, Inc.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.persistit;
@@ -29,6 +30,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -264,6 +266,8 @@ public class Persistit {
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
+    private final Set<WeakReference<TimelyResource<?>>> _timelyResourceSet = new HashSet<WeakReference<TimelyResource<?>>>();
+
     private final WeakHashMap<SessionId, CLI> _cliSessionMap = new WeakHashMap<SessionId, CLI>();
 
     private boolean _readRetryEnabled;
@@ -440,6 +444,7 @@ public class Persistit {
             startJournal();
             startBufferPools();
             preloadBufferPools();
+            initializeClassIndex();
             finishRecovery();
             startTransactionIndexPollTask();
             flush();
@@ -672,6 +677,10 @@ public class Persistit {
         _enableBufferInventory.set(_configuration.isBufferInventoryEnabled());
     }
 
+    private void initializeClassIndex() throws PersistitException {
+        _classIndex.initialize();
+    }
+
     void startCheckpointManager() {
         _checkpointManager.start();
     }
@@ -793,17 +802,21 @@ public class Persistit {
         }
     }
 
-    synchronized void addVolume(final Volume volume) throws VolumeAlreadyExistsException {
-        Volume otherVolume;
-        otherVolume = getVolume(volume.getName());
-        if (otherVolume != null) {
-            throw new VolumeAlreadyExistsException("Volume " + otherVolume);
+    void addVolume(final Volume volume) throws VolumeAlreadyExistsException {
+        synchronized (_volumes) {
+            Volume otherVolume;
+            otherVolume = getVolume(volume.getName());
+            if (otherVolume != null) {
+                throw new VolumeAlreadyExistsException("Volume " + otherVolume);
+            }
+            _volumes.add(volume);
         }
-        _volumes.add(volume);
     }
 
-    synchronized void removeVolume(final Volume volume) throws PersistitInterruptedException {
-        _volumes.remove(volume);
+    void removeVolume(final Volume volume) throws PersistitInterruptedException {
+        synchronized (_volumes) {
+            _volumes.remove(volume);
+        }
     }
 
     /**
@@ -965,7 +978,6 @@ public class Persistit {
         }
         List<Exchange> stack;
         final SessionId sessionId = getSessionId();
-
         synchronized (_exchangePoolMap) {
             stack = _exchangePoolMap.get(sessionId);
             if (stack == null) {
@@ -986,7 +998,9 @@ public class Persistit {
      * @return the List
      */
     public List<Volume> getVolumes() {
-        return new ArrayList<Volume>(_volumes);
+        synchronized (_volumes) {
+            return new ArrayList<Volume>(_volumes);
+        }
     }
 
     /**
@@ -1000,9 +1014,10 @@ public class Persistit {
      * @return the List
      * @throws PersistitException
      */
-    public synchronized List<Tree> getSelectedTrees(final TreeSelector selector) throws PersistitException {
+    public List<Tree> getSelectedTrees(final TreeSelector selector) throws PersistitException {
         final List<Tree> list = new ArrayList<Tree>();
-        for (final Volume volume : _volumes) {
+        final List<Volume> volumes = getVolumes();
+        for (final Volume volume : volumes) {
             if (selector.isSelected(volume)) {
                 if (selector.isVolumeOnlySelection(volume.getName())) {
                     list.add(volume.getDirectoryTree());
@@ -1239,10 +1254,10 @@ public class Persistit {
         if (name == null) {
             throw new NullPointerException("Null volume name");
         }
+        final List<Volume> volumes = getVolumes();
         Volume result = null;
-
-        for (int i = 0; i < _volumes.size(); i++) {
-            final Volume vol = _volumes.get(i);
+        for (int i = 0; i < volumes.size(); i++) {
+            final Volume vol = volumes.get(i);
             if (name.equals(vol.getName())) {
                 if (result == null)
                     result = vol;
@@ -1256,8 +1271,8 @@ public class Persistit {
         }
 
         final File file = new File(name).getAbsoluteFile();
-        for (int i = 0; i < _volumes.size(); i++) {
-            final Volume vol = _volumes.get(i);
+        for (int i = 0; i < volumes.size(); i++) {
+            final Volume vol = volumes.get(i);
             if (file.equals(vol.getAbsoluteFile())) {
                 if (result == null)
                     result = vol;
@@ -1477,16 +1492,17 @@ public class Persistit {
      */
     private Volume getSpecialVolume(final String propName, final String dflt) throws VolumeNotFoundException {
         final String volumeName = _configuration.getSysVolume();
-
-        Volume volume = getVolume(volumeName);
-        if (volume == null) {
+        synchronized (_volumes) {
             if ((_volumes.size() == 1) && (volumeName.equals(dflt))) {
-                volume = _volumes.get(0);
-            } else {
-                throw new VolumeNotFoundException(volumeName);
+                return _volumes.get(0);
             }
         }
-        return volume;
+        final Volume volume = getVolume(volumeName);
+        if (volume == null) {
+            throw new VolumeNotFoundException(volumeName);
+        } else {
+            return volume;
+        }
     }
 
     /**
@@ -1512,13 +1528,8 @@ public class Persistit {
      */
     void cleanup() {
         closeZombieTransactions(false);
-        final List<Volume> volumes;
-        synchronized (this) {
-            volumes = new ArrayList<Volume>(_volumes);
-        }
-        for (final Volume volume : volumes) {
-            volume.getStructure().flushStatistics();
-        }
+        _transactionIndex.updateActiveTransactionCache();
+        pruneTimelyResources();
     }
 
     /**
@@ -1653,7 +1664,6 @@ public class Persistit {
 
             if (flush) {
                 for (final Volume volume : volumes) {
-                    volume.getStructure().flushStatistics();
                     volume.getStorage().flush();
                 }
             }
@@ -1755,7 +1765,7 @@ public class Persistit {
         // the volume files - otherwise there will be left over channels
         // and FileLocks that interfere with subsequent tests.
         //
-        final List<Volume> volumes = new ArrayList<Volume>(_volumes);
+        final List<Volume> volumes = getVolumes();
         for (final Volume volume : volumes) {
             try {
                 volume.getStorage().close();
@@ -1824,8 +1834,11 @@ public class Persistit {
         synchronized (_accumulators) {
             _accumulators.clear();
         }
-        synchronized (this) {
+        synchronized (_volumes) {
             _volumes.clear();
+        }
+
+        synchronized (this) {
             _alertMonitors.clear();
             _bufferPoolTable.clear();
             _intArrayThreadLocal.set(null);
@@ -1867,8 +1880,8 @@ public class Persistit {
         if (_closed.get() || !_initialized.get()) {
             return false;
         }
-        for (final Volume volume : _volumes) {
-            volume.getStructure().flushStatistics();
+        final List<Volume> volumes = getVolumes();
+        for (final Volume volume : volumes) {
             volume.getStorage().flush();
             volume.getStorage().force();
         }
@@ -1891,6 +1904,13 @@ public class Persistit {
 
         for (final Transaction transaction : transactions) {
             transaction.flushOnCheckpoint(checkpointTimestamp);
+        }
+    }
+
+    void flushStatistics() throws PersistitException {
+        final List<Volume> volumes = getVolumes();
+        for (final Volume volume : volumes) {
+            volume.getStructure().flushStatistics();
         }
     }
 
@@ -1926,7 +1946,7 @@ public class Persistit {
         if (_closed.get() || !_initialized.get()) {
             return;
         }
-        final ArrayList<Volume> volumes = _volumes;
+        final List<Volume> volumes = getVolumes();
 
         for (int index = 0; index < volumes.size(); index++) {
             final Volume volume = volumes.get(index);
@@ -2236,10 +2256,6 @@ public class Persistit {
         return _transactionIndex;
     }
 
-    public long getCheckpointIntervalNanos() {
-        return _checkpointManager.getCheckpointIntervalNanos();
-    }
-
     /**
      * Replaces the current logger implementation.
      * 
@@ -2286,8 +2302,9 @@ public class Persistit {
      */
     public void checkAllVolumes() throws PersistitException {
         final IntegrityCheck icheck = new IntegrityCheck(this);
-        for (int index = 0; index < _volumes.size(); index++) {
-            final Volume volume = _volumes.get(index);
+        final List<Volume> volumes = getVolumes();
+        for (int index = 0; index < volumes.size(); index++) {
+            final Volume volume = volumes.get(index);
             System.out.println("Checking " + volume + " ");
             try {
                 icheck.checkVolume(volume);
@@ -2403,6 +2420,12 @@ public class Persistit {
         _suspendUpdates.set(suspended);
     }
 
+    void addTimelyResource(final TimelyResource<? extends Version> resource) {
+        synchronized (_timelyResourceSet) {
+            _timelyResourceSet.add(new WeakReference<TimelyResource<? extends Version>>(resource));
+        }
+    }
+
     void addAccumulator(final Accumulator accumulator) throws PersistitException {
         int checkpointCount = 0;
         synchronized (_accumulators) {
@@ -2460,6 +2483,34 @@ public class Persistit {
             Collections.sort(result, Accumulator.SORT_COMPARATOR);
         }
         return result;
+    }
+
+    void pruneTimelyResources() {
+        final List<TimelyResource<?>> resourcesToPrune = new ArrayList<TimelyResource<?>>();
+        synchronized (_timelyResourceSet) {
+            for (final Iterator<WeakReference<TimelyResource<?>>> iter = _timelyResourceSet.iterator(); iter.hasNext();) {
+                final WeakReference<TimelyResource<?>> ref = iter.next();
+                final TimelyResource<?> resource = ref.get();
+                if (resource != null) {
+                    resourcesToPrune.add(resource);
+                }
+            }
+        }
+        for (final TimelyResource<?> resource : resourcesToPrune) {
+            try {
+                resource.prune();
+            } catch (final PersistitException e) {
+                _logBase.timelyResourcePruneException.log(e, resource);
+            }
+        }
+        synchronized (_timelyResourceSet) {
+            for (final Iterator<WeakReference<TimelyResource<?>>> iter = _timelyResourceSet.iterator(); iter.hasNext();) {
+                final WeakReference<TimelyResource<?>> ref = iter.next();
+                if (ref.get() == null) {
+                    iter.remove();
+                }
+            }
+        }
     }
 
     synchronized CLI getSessionCLI() {

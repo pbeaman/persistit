@@ -1,16 +1,17 @@
 /**
- * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright 2011-2012 Akiban Technologies, Inc.
  * 
- * This program and the accompanying materials are made available
- * under the terms of the Eclipse Public License v1.0 which
- * accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program may also be available under different license terms.
- * For more information, see www.akiban.com or contact licensing@akiban.com.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Contributors:
- * Akiban Technologies, Inc.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.persistit;
@@ -224,14 +225,32 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     private final TransactionPlayer _player = new TransactionPlayer(new RecoveryTransactionPlayerSupport());
 
     static class DefaultRecoveryListener implements TransactionPlayerListener {
+
         @Override
         public void store(final long address, final long timestamp, final Exchange exchange) throws PersistitException {
+            if (exchange.isDirectoryExchange() && exchange.getValue().isDefined()
+                    && exchange.getValue().getTypeHandle() == Value.CLASS_TREE) {
+                /*
+                 * Don't recover tree structure updates within transactions
+                 * because the allocation of root pages is not transactional.
+                 * The intent of the change is conveyed by the implicit creation
+                 * of new trees and explicit remove tree records.
+                 */
+                return;
+            }
             exchange.store();
         }
 
         @Override
         public void removeKeyRange(final long address, final long timestamp, final Exchange exchange, final Key from,
                 final Key to) throws PersistitException {
+            if (exchange.isDirectoryExchange()) {
+                /*
+                 * Don't recover directory tree removes because they are implied
+                 * by Remove Tree records in the journal.
+                 */
+                return;
+            }
             exchange.raw_removeKeyRangeInternal(from, to, false, false);
         }
 
@@ -275,6 +294,10 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             return true;
         }
 
+        @Override
+        public boolean createTree(final long timestamp) throws PersistitException {
+            return true;
+        }
     }
 
     class DefaultRollbackListener implements TransactionPlayerListener {
@@ -333,6 +356,11 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
         @Override
         public boolean requiresLongRecordConversion() {
+            return false;
+        }
+
+        @Override
+        public boolean createTree(final long timestamp) throws PersistitException {
             return false;
         }
 

@@ -1,16 +1,17 @@
 /**
- * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright 2011-2012 Akiban Technologies, Inc.
  * 
- * This program and the accompanying materials are made available
- * under the terms of the Eclipse Public License v1.0 which
- * accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program may also be available under different license terms.
- * For more information, see www.akiban.com or contact licensing@akiban.com.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Contributors:
- * Akiban Technologies, Inc.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.persistit;
@@ -83,9 +84,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         store1();
         JournalManager jman = _persistit.getJournalManager();
         assertTrue(jman.getPageMapSize() > 0);
-        _persistit.flush();
-        _persistit.checkpoint();
-        jman.copyBack();
+        drainJournal();
         assertEquals(0, jman.getPageMapSize());
         _persistit.close();
         _persistit = new Persistit(_config);
@@ -159,6 +158,11 @@ public class RecoveryTest extends PersistitUnitTestCase {
                 return true;
             }
 
+            @Override
+            public boolean createTree(final long timestamp) throws PersistitException {
+                return true;
+            }
+
         };
         plan.applyAllRecoveredTransactions(actor, plan.getDefaultRollbackListener());
         assertEquals(15, recoveryTimestamps.size());
@@ -193,8 +197,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         store1();
 
         jman.rollover();
-        _persistit.checkpoint();
-        jman.copyBack();
+        drainJournal();
         assertEquals(0, jman.getPageMapSize());
 
         final Transaction txn = _persistit.getTransaction();
@@ -203,8 +206,10 @@ public class RecoveryTest extends PersistitUnitTestCase {
         store1();
         txn.commit();
         txn.end();
-        // Flush an uncommitted version of this transaction - should
-        // prevent journal cleanup.
+        /*
+         * Flush an uncommitted version of this transaction - should prevent
+         * journal cleanup.
+         */
         txn.begin();
         store0();
         txn.flushTransactionBuffer(true);
@@ -212,14 +217,13 @@ public class RecoveryTest extends PersistitUnitTestCase {
         txn.end();
 
         jman.rollover();
-        _persistit.checkpoint();
-        jman.copyBack();
-        //
-        // Because JournalManager thinks there's an open transaction
-        // it should preserve the journal file containing the TX record
-        // for the transaction.
-        //
+        drainJournal();
         assertEquals(0, jman.getPageMapSize());
+        /*
+         * Because JournalManager thinks there's an open transaction it should
+         * preserve the journal file containing the TX record for the
+         * transaction.
+         */
         assertTrue(jman.getBaseAddress() < jman.getCurrentAddress());
         txn.begin();
         store1();
@@ -229,6 +233,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         jman.unitTestClearTransactionMap();
 
         jman.rollover();
+        _persistit.flushStatistics();
         _persistit.checkpoint();
         /*
          * The TI active transaction cache may be a bit out of date, which can
@@ -238,8 +243,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
          * copier does the right thing.
          */
         _persistit.getTransactionIndex().updateActiveTransactionCache();
-        jman.copyBack();
-
+        drainJournal();
         assertEquals(jman.getBaseAddress(), jman.getCurrentAddress());
         assertEquals(0, jman.getPageMapSize());
 
@@ -381,9 +385,13 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertTrue(_persistit.getJournalManager().getHandleCount() > updatedHandleValue);
     }
 
+    private final static int T1 = 1000;
+    private final static int T2 = 2000;
+
     @Test
     public void testIndexHoles() throws Exception {
         _persistit.getJournalManager().setAppendOnly(true);
+
         final Transaction transaction = _persistit.getTransaction();
         final StringBuilder sb = new StringBuilder();
         while (sb.length() < 1000) {
@@ -392,7 +400,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
         final String s = sb.toString();
         for (int cycle = 0; cycle < 2; cycle++) {
-            for (int i = 1000; i < 2000; i++) {
+            for (int i = T1; i < T2; i++) {
                 final Exchange exchange = _persistit.getExchange("persistit", "RecoveryTest" + i, true);
                 transaction.begin();
                 try {
@@ -407,7 +415,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
 
             for (int j = 0; j < 20; j++) {
-                for (int i = 1000; i < 2000; i++) {
+                for (int i = T1; i < T2; i++) {
                     final Exchange exchange = _persistit.getExchange("persistit", "RecoveryTest" + i, true);
                     transaction.begin();
                     try {
@@ -419,7 +427,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
                 }
             }
 
-            for (int i = 1000; i < 2000; i += 2) {
+            for (int i = T1; i < T2; i += 2) {
                 transaction.begin();
                 try {
                     final Exchange exchange = _persistit.getExchange("persistit", "RecoveryTest" + i, true);
@@ -430,6 +438,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
                 }
             }
         }
+        _persistit.checkAllVolumes();
         _persistit.crash();
 
         _persistit = new Persistit();

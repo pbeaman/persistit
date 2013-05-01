@@ -1,5 +1,5 @@
 ************************************
-Akiban Persistit Version 3.2.7
+Akiban Persistit Version 3.3
 ************************************
 
 Overview
@@ -58,6 +58,11 @@ Version History
 +---------+--------------------+--------------------------------------------------------------------------+
 | Version | Release Date       |  Summary                                                                 |
 +=========+====================+==========================================================================+
+| 3.3.1   | May 3, 2013        | License changed from Eclipse Public License to Apache License, Version   |
+|         |                    | 2.0 for better compatibility with open source projects. Trees and        |
+|         |                    | volumes are now created and removed correctly within the scope of a      |
+|         |                    | transaction. Better support for session management of transactions.      |
++---------+--------------------+--------------------------------------------------------------------------+
 | 3.2.7   | March 22, 2013     | Several new API features, including TreeBuilder, Traverse Visitor,       |
 |         |                    | and Lock. Fix several non-critical bugs.                                 |
 +---------+--------------------+--------------------------------------------------------------------------+
@@ -284,7 +289,10 @@ Persistit 3.1.2 - Asserts Added to Check for Correct Exchange Thread Behavior
 -----------------------------------------------------------------------------
 
 A bug in the Akiban Server code caused an Exchange to be used concurrently by two Threads, 
-causing serious and seemingly unrelated failures in Persistit including instances of IllegalMonitorException and IllegalStateException. To guard against future occurrences, asserts were added to catch such concurrent use by multiple threads.  Applications should be tested with asserts enabled to verify correct thread usage.
+causing serious and seemingly unrelated failures in Persistit including instances of 
+IllegalMonitorException and IllegalStateException. To guard against future occurrences, 
+asserts were added to catch such concurrent use by multiple threads.  Applications should 
+be tested with asserts enabled to verify correct thread usage.
 
 
 

@@ -1,16 +1,17 @@
 /**
- * Copyright © 2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright 2012 Akiban Technologies, Inc.
  * 
- * This program and the accompanying materials are made available
- * under the terms of the Eclipse Public License v1.0 which
- * accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program may also be available under different license terms.
- * For more information, see www.akiban.com or contact licensing@akiban.com.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Contributors:
- * Akiban Technologies, Inc.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.persistit.util;
@@ -61,17 +62,6 @@ public interface SequencerConstants {
             array(WRITE_WRITE_STORE_A, WRITE_WRITE_STORE_C) };
 
     /*
-     * Used in testing sequencing between tree creation and removal
-     */
-    int TREE_CREATE_REMOVE_A = allocate("TREE_CREATE_REMOVE_A");
-    int TREE_CREATE_REMOVE_B = allocate("TREE_CREATE_REMOVE_B");
-    int TREE_CREATE_REMOVE_C = allocate("TREE_CREATE_REMOVE_C");
-
-    int[][] TREE_CREATE_REMOVE_SCHEDULE = new int[][] { array(TREE_CREATE_REMOVE_A, TREE_CREATE_REMOVE_B),
-            array(TREE_CREATE_REMOVE_B), array(TREE_CREATE_REMOVE_A, TREE_CREATE_REMOVE_C),
-            array(TREE_CREATE_REMOVE_A, TREE_CREATE_REMOVE_C) };
-
-    /*
      * Used in testing sequencing between pageNode reading and invalidation in
      * JournalManager
      */
@@ -104,7 +94,7 @@ public interface SequencerConstants {
             array(DEALLOCATE_CHAIN_A, DEALLOCATE_CHAIN_C) };
 
     /*
-     * Used in testing delete/deallocate sequence in Bug1022567Test
+     * Used in testing delete/deallocate sequence in Bug1064565Test
      */
     int ACCUMULATOR_CHECKPOINT_A = allocate("ACCUMULATOR_CHECKPOINT_A");
     int ACCUMULATOR_CHECKPOINT_B = allocate("ACCUMULATOR_CHECKPOINT_B");

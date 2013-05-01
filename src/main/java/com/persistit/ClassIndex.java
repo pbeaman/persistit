@@ -1,16 +1,17 @@
 /**
- * Copyright © 2005-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright 2005-2012 Akiban Technologies, Inc.
  * 
- * This program and the accompanying materials are made available
- * under the terms of the Eclipse Public License v1.0 which
- * accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program may also be available under different license terms.
- * For more information, see www.akiban.com or contact licensing@akiban.com.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Contributors:
- * Akiban Technologies, Inc.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.persistit;
@@ -94,9 +95,19 @@ final class ClassIndex {
      * 
      * @param persistit
      *            Owning Persistit instance.
+     * @throws PersistitException
      */
     ClassIndex(final Persistit persistit) {
         _persistit = persistit;
+    }
+
+    void initialize() throws PersistitException {
+        /*
+         * Called during Persistit initialization. This has the desired
+         * side-effect of the class index tree outside of a transaction so that
+         * its existence is primordial.
+         */
+        getExchange();
     }
 
     /**
@@ -178,8 +189,9 @@ final class ClassIndex {
             } catch (final PersistitException pe) {
                 throw new ConversionException(pe);
             } finally {
-                if (ex != null)
+                if (ex != null) {
                     releaseExchange(ex);
+                }
             }
         }
     }

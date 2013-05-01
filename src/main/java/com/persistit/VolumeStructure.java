@@ -1,22 +1,20 @@
 /**
- * Copyright © 2011-2012 Akiban Technologies, Inc.  All rights reserved.
+ * Copyright 2011-2012 Akiban Technologies, Inc.
  * 
- * This program and the accompanying materials are made available
- * under the terms of the Eclipse Public License v1.0 which
- * accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * 
- * This program may also be available under different license terms.
- * For more information, see www.akiban.com or contact licensing@akiban.com.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  * 
- * Contributors:
- * Akiban Technologies, Inc.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.persistit;
-
-import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_A;
-import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -24,8 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.persistit.AlertMonitor.AlertLevel;
-import com.persistit.AlertMonitor.Event;
 import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
@@ -131,7 +127,6 @@ class VolumeStructure {
 
     Exchange directoryExchange() throws BufferSizeUnavailableException {
         final Exchange ex = new Exchange(_directoryTree);
-        ex.ignoreTransactions();
         return ex;
     }
 
@@ -191,21 +186,30 @@ class VolumeStructure {
         if (DIRECTORY_TREE_NAME.equals(name)) {
             throw new IllegalArgumentException("Tree name is reserved: " + name);
         }
-        Tree tree;
+        Tree tree = null;
         final WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
         if (treeRef != null) {
             tree = treeRef.get();
-            if (tree != null && tree.isValid()) {
-                return tree;
+            if (tree != null) {
+                if (tree.isLive()) {
+                    return tree;
+                } else {
+                    if (!createIfNecessary) {
+                        return null;
+                    }
+                }
             }
+        }
+        if (tree == null) {
+            tree = new Tree(_persistit, _volume, name);
         }
         final Exchange ex = directoryExchange();
         ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(name);
         final Value value = ex.fetch().getValue();
-        tree = new Tree(_persistit, _volume, name);
         if (value.isDefined()) {
             value.get(tree);
             loadTreeStatistics(tree);
+            tree.setPrimordial();
             tree.setValid();
         } else if (createIfNecessary) {
             final long rootPageAddr = createTreeRoot(tree);
@@ -216,10 +220,14 @@ class VolumeStructure {
         } else {
             return null;
         }
+        if (_volume.isTemporary() || _volume.isLockVolume()) {
+            tree.setPrimordial();
+        }
         if (!_volume.isTemporary()) {
             tree.loadHandle();
         }
         _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
+
         return tree;
     }
 
@@ -249,13 +257,16 @@ class VolumeStructure {
             }
         } else {
             final Exchange ex = directoryExchange();
+            if (!tree.isTransactionPrivate(false)) {
+                ex.ignoreTransactions();
+            }
             ex.getValue().put(tree);
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).store();
         }
     }
 
     void storeTreeStatistics(final Tree tree) throws PersistitException {
-        if (tree.getStatistics().isDirty() && !DIRECTORY_TREE_NAME.equals(tree.getName())) {
+        if (tree.isLive() && tree.getStatistics().isDirty() && tree != _directoryTree) {
             final Exchange ex = directoryExchange();
             if (!ex.getVolume().isReadOnly()) {
                 ex.getValue().put(tree.getStatistics());
@@ -273,43 +284,30 @@ class VolumeStructure {
         }
     }
 
-    boolean removeTree(final Tree tree) throws PersistitException {
+    void removeTree(final Tree tree) throws PersistitException {
         if (tree == _directoryTree) {
             throw new IllegalArgumentException("Can't delete the Directory tree");
         }
-        _persistit.checkSuspended();
 
         if (!tree.claim(true)) {
             throw new InUseException("Unable to acquire writer claim on " + tree);
         }
-
-        final int treeDepth = tree.getDepth();
-        final long treeRootPage = tree.getRootPageAddr();
-
         try {
-            tree.discardAccumulators();
-
-            synchronized (this) {
-                _treeNameHashMap.remove(tree.getName());
-                tree.bumpGeneration();
-                tree.invalidate();
-
-                tree.changeRootPageAddr(-1, 0);
-                final Exchange ex = directoryExchange();
-                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
-                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
-                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
-            }
-            sequence(TREE_CREATE_REMOVE_A);
+            final Exchange ex = directoryExchange();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
+            tree.delete();
         } finally {
             tree.release();
         }
+    }
 
-        // The Tree is now gone. The following deallocates the
-        // pages formerly associated with it. If this fails we'll be
-        // left with allocated pages that are not available on the garbage
-        // chain for reuse.
+    synchronized void removed(final Tree tree) {
+        _treeNameHashMap.remove(tree.getName());
+    }
 
+    void deallocateTree(final long treeRootPage, final int treeDepth) throws PersistitException {
         int depth = treeDepth;
         long page = treeRootPage;
         while (page != -1) {
@@ -341,7 +339,6 @@ class VolumeStructure {
                 deallocateGarbageChain(deallocate, 0);
             }
         }
-        return true;
     }
 
     /**
@@ -362,25 +359,22 @@ class VolumeStructure {
     /**
      * Flush dirty {@link TreeStatistics} instances. Called periodically on the
      * PAGE_WRITER thread from {@link Persistit#cleanup()}.
+     * 
+     * @throws PersistitException
      */
-    void flushStatistics() {
-        try {
-            final List<Tree> trees = new ArrayList<Tree>();
-            synchronized (this) {
-                for (final WeakReference<Tree> ref : _treeNameHashMap.values()) {
-                    final Tree tree = ref.get();
-                    if (tree != null && tree != _directoryTree) {
-                        trees.add(tree);
-                    }
+    void flushStatistics() throws PersistitException {
+        final List<Tree> trees = new ArrayList<Tree>();
+        synchronized (this) {
+            for (final WeakReference<Tree> ref : _treeNameHashMap.values()) {
+                final Tree tree = ref.get();
+                if (tree != null && tree != _directoryTree) {
+                    trees.add(tree);
                 }
             }
-            for (final Tree tree : trees) {
-                storeTreeStatistics(tree);
-            }
-        } catch (final Exception e) {
-            _persistit.getAlertMonitor().post(
-                    new Event(AlertLevel.ERROR, _persistit.getLogBase().adminFlushException, e),
-                    AlertMonitor.FLUSH_STATISTICS_CATEGORY);
+        }
+
+        for (final Tree tree : trees) {
+            storeTreeStatistics(tree);
         }
     }
 

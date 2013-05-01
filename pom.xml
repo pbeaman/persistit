@@ -4,7 +4,7 @@
 
     <groupId>com.akiban</groupId>
     <artifactId>akiban-persistit</artifactId>
-    <version>3.2.9-SNAPSHOT</version>
+    <version>3.3-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <parent>
@@ -274,6 +274,7 @@
                         <!-- Other -->
                         <exclude>LICENSE.txt</exclude>
                         <exclude>README.rst</exclude>
+                        <exclude>maven-eclipse.xml</exclude>
                     </excludes>
                 </configuration>
                 <executions>
