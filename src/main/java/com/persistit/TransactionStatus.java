@@ -16,9 +16,9 @@
 
 package com.persistit;
 
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.Accumulator.Delta;
 
@@ -96,18 +96,20 @@ class TransactionStatus {
     private AtomicInteger _mvvCount = new AtomicInteger();
 
     /**
-     * Lock used to manage ww dependencies. An attempt to update an MVV that
-     * already contains a value version from a concurrently executing
-     * transaction must wait for that other transaction to commit or abort.
+     * Semaphore used to manage ww dependencies. An attempt to update an MVV
+     * that already contains a value version from a concurrently executing
+     * transaction must wait for that other transaction to commit or abort. The
+     * protocol uses a Semaphore rather than a ReentrantLock because it may be
+     * acquired in one thread but released in another.
      */
-    private final ReentrantLock _wwLock = new ReentrantLock(true);
+    private final Semaphore _wwLock = new Semaphore(1);
     /**
      * Pointer to next member of singly-linked list.
      */
     private TransactionStatus _next;
 
     /**
-     * Pointer to TransactionStatus on which we intend to claim a lock. (For
+     * Pointer to TransactionStatus on which we intend to claim a permit. (For
      * deadlock detection.)
      */
     private volatile TransactionStatus _depends;
@@ -124,12 +126,6 @@ class TransactionStatus {
      * <code>TransactionStatus</code> may not be placed on the free list.
      */
     private volatile boolean _notified;
-
-    /**
-     * Indicates whether the owning transaction had been abandoned. This status
-     * may be in a locked state and is not available for re-use.
-     */
-    private volatile boolean _abandoned;
 
     TransactionStatus(final TransactionIndexBucket bucket) {
         _bucket = bucket;
@@ -253,17 +249,7 @@ class TransactionStatus {
 
     void completeAndUnlock(final long timestamp) {
         complete(timestamp);
-        if (!isAbandoned()) {
-            wwUnlock();
-        }
-    }
-
-    boolean isLocked() {
-        return _wwLock.isLocked();
-    }
-
-    boolean isHeldByCurrentThread() {
-        return _wwLock.isHeldByCurrentThread();
+        wwUnlock();
     }
 
     Delta getDelta() {
@@ -363,16 +349,15 @@ class TransactionStatus {
 
     /**
      * <p>
-     * Acquire a lock on this TransactionStatus. This supports the
-     * {@link TransactionIndex#wwDependency(long, long, long)} method. While a
-     * transaction is running this lock is in a locked state. The lock is
-     * acquired when the transaction is registered (see
+     * Acquire a permit on this TransactionStatus. This supports the
+     * {@link TransactionIndex#wwDependency(long, long, long)} method. The
+     * permit is acquired when the transaction is registered (see
      * {@link TransactionIndex#registerTransaction(Transaction)} and released
      * once the transaction is either committed or aborted.
      * </p>
      * <p>
      * The <code>wwDependency</code> method also attempts to acquire, and then
-     * immediately release this lock. This stalls the thread calling
+     * immediately release this permit. This stalls the thread calling
      * wwDependency until the commit/abort status of the current transaction is
      * known.
      * 
@@ -381,15 +366,24 @@ class TransactionStatus {
      * @throws InterruptedException
      */
     boolean wwLock(final long timeout) throws InterruptedException {
-        return _wwLock.tryLock(timeout, TimeUnit.MILLISECONDS);
+        return _wwLock.tryAcquire(timeout, TimeUnit.MILLISECONDS);
     }
 
     /**
-     * Release the lock acquired by {@link #wwLock(long)}.
+     * Release the permit acquired by {@link #wwLock(long)}.
      */
     void wwUnlock() {
-        assert !isAbandoned() : "Attempt to unlock abandoned: " + this;
-        _wwLock.unlock();
+        _wwLock.release();
+    }
+
+    /**
+     * Indicate whether this TransactionStatus has been locked. Tested by assert
+     * statements in various places.
+     * 
+     * @return true if a thread has acquired a claim on this TransactionStatus.
+     */
+    boolean isLocked() {
+        return _wwLock.availablePermits() == 0;
     }
 
     /**
@@ -422,20 +416,6 @@ class TransactionStatus {
         abort();
         setMvvCount(Integer.MAX_VALUE);
         _notified = true;
-    }
-
-    /**
-     * Make this status as abandoned. This will prevent its unlock and re-use.
-     */
-    void markAbandoned() {
-        _abandoned = true;
-    }
-
-    /**
-     * @return <code>true</code> if this status has been abandoned.
-     */
-    boolean isAbandoned() {
-        return _abandoned;
     }
 
     @Override

@@ -517,7 +517,6 @@ public class Transaction {
         if (_nestedDepth > 0 && !_commitCompleted && !_rollbackCompleted) {
             final TransactionStatus ts = _transactionStatus;
             if (ts != null && ts.getTs() == _startTimestamp && !_commitCompleted && !_rollbackCompleted) {
-                _transactionStatus.markAbandoned();
                 rollback();
                 _persistit.getLogBase().txnAbandoned.log(this);
             }
