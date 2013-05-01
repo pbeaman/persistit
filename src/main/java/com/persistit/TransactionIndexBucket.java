@@ -175,6 +175,10 @@ class TransactionIndexBucket {
         assert _lock.isHeldByCurrentThread();
         final TransactionStatus status = _free;
         if (status != null) {
+            if (status.isLocked()) {
+                status.briefLock(Persistit.SHORT_DELAY);
+            }
+            assert !status.isLocked();
             _free = status.getNext();
             _freeCount--;
             status.setNext(null);
@@ -601,9 +605,7 @@ class TransactionIndexBucket {
 
     private void free(final TransactionStatus status) {
         assert _lock.isHeldByCurrentThread();
-        /*
-         * May be held by another thread briefly while status being checked
-         */
+
         if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
             status.setNext(_free);
             _free = status;

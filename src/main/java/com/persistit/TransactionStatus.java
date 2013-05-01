@@ -19,7 +19,6 @@ package com.persistit;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.Accumulator.Delta;
 
@@ -97,10 +96,10 @@ class TransactionStatus {
     private AtomicInteger _mvvCount = new AtomicInteger();
 
     /**
-     * Semaphore used to manage ww dependencies. An attempt to update an MVV that
-     * already contains a value version from a concurrently executing
-     * transaction must wait for that other transaction to commit or abort.
-     * This is Semaphore rather than a ReentrantLock because it may be
+     * Semaphore used to manage ww dependencies. An attempt to update an MVV
+     * that already contains a value version from a concurrently executing
+     * transaction must wait for that other transaction to commit or abort. The
+     * protocol uses a Semaphore rather than a ReentrantLock because it may be
      * acquired in one thread but released in another.
      */
     private final Semaphore _wwLock = new Semaphore(1);
@@ -110,7 +109,7 @@ class TransactionStatus {
     private TransactionStatus _next;
 
     /**
-     * Pointer to TransactionStatus on which we intend to claim a lock. (For
+     * Pointer to TransactionStatus on which we intend to claim a permit. (For
      * deadlock detection.)
      */
     private volatile TransactionStatus _depends;
@@ -350,16 +349,15 @@ class TransactionStatus {
 
     /**
      * <p>
-     * Acquire a lock on this TransactionStatus. This supports the
-     * {@link TransactionIndex#wwDependency(long, long, long)} method. While a
-     * transaction is running this lock is in a locked state. The lock is
-     * acquired when the transaction is registered (see
+     * Acquire a permit on this TransactionStatus. This supports the
+     * {@link TransactionIndex#wwDependency(long, long, long)} method. The
+     * permit is acquired when the transaction is registered (see
      * {@link TransactionIndex#registerTransaction(Transaction)} and released
      * once the transaction is either committed or aborted.
      * </p>
      * <p>
      * The <code>wwDependency</code> method also attempts to acquire, and then
-     * immediately release this lock. This stalls the thread calling
+     * immediately release this permit. This stalls the thread calling
      * wwDependency until the commit/abort status of the current transaction is
      * known.
      * 
@@ -372,10 +370,20 @@ class TransactionStatus {
     }
 
     /**
-     * Release the lock acquired by {@link #wwLock(long)}.
+     * Release the permit acquired by {@link #wwLock(long)}.
      */
     void wwUnlock() {
         _wwLock.release();
+    }
+
+    /**
+     * Indicate whether this TransactionStatus has been locked. Tested by assert
+     * statements in various places.
+     * 
+     * @return true if a thread has acquired a claim on this TransactionStatus.
+     */
+    boolean isLocked() {
+        return _wwLock.availablePermits() == 0;
     }
 
     /**
