@@ -1,45 +1,46 @@
-1055557 : 3.3
+1055557 : 3.3.0
 
 `Trees removed inside transaction can automatically come back`
 
 Resolved by support for creating and removing trees within transactions.
 
-1174352 : 3.3
+1174352 : 3.3.0
 
 `Transaction commit and abort cannot be performed from a different Thread`
 
 A ReentrantLock was replaced by a Semaphore to allow modification of locked 
 state by different threads.
 
-1167056 : 3.3
+1167056 : 3.3.0
 
 `Value returned from Accumulator#update() is non-transactional`
 
-The issue was incorrect use of a value returned from this method. The Accumulator 
+The issue was unintended use of a value returned from this method. The Accumulator 
 API was reworked to avoid confusion.
 
-
-1161062 : 3.3
+1161062 : 3.3.0
 
 `Missing public constructor for com.persistit.SessionId`
 
-1159313 : 3.3
+Added.
+
+1159313 : 3.3.0
 
 `Deadlock in Bug882219Test`
 
-It was determined that a deadlock exists in the Java 7 implementation of
+We determined that a deadlock exists in the Java 7 implementation of
 AbstractInterruptibleChannel independent of Persistit. Bug number 9002674 was 
 assigned by the Oracle Java Bug Database. In the meantime, the test has been
 disabled to avoid hung builds.
 
-1157809 : 3.3
+1157809 : 3.3.0
 
 `Appending value to a Key causes an ArrayIndexOutOfBoundsException`
 
 An attempt to append overflow the backing store of a ``com.persistit.Key`` now
 throws a ``com.persistit.exceptions.KeyTooLongException``.
 
-1133039 : 3.3
+1133039 : 3.3.0
 
 `Pruning incomplete on simple DUPLICATE_KEY error`
 
@@ -47,19 +48,18 @@ The actual cause of this bug was inadequate pruning velocity when cleaning up tr
 using the new ``com.persistit.Exchange#lock`` method. Locked elements are now
 pruned synchronously to avoid overloading the cleanup manager. 
 
-1126868 : 3.3
+1126868 : 3.3.0
 
 `Lock table not pruned`
 
 See 1133039 above.
 
-1126297 : 3.3
+1126297 : 3.3.0
 
 'Assertion failure in TransactionIndexBucket#allocateTransactionStatus'
 
-Corrected by allowing a different thread that the one that created it to
-abort or commit a transaction.
-
+Corrected by allowing a different thread than the one that created it to
+abort a transaction.
 
 
 1076517 : 3.2.2

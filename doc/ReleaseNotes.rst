@@ -1,6 +1,8 @@
 ************************************
-Akiban Persistit Version 3.3
+Akiban Persistit Version 3.3.0
 ************************************
+
+May 17, 2013
 
 Overview
 ========
@@ -13,9 +15,9 @@ See http://akiban.github.com/persistit for a summary of features and benefits, l
 
 Documentation
 =============
-Users Guide: http://akiban.github.com/persistit/docs
+Users Guide: https://github.com/akiban/persistit/docs
 
-JavaDoc: http://akiban.github.com/persistit/javadoc/index.html
+JavaDoc: https://github.com/akiban/persistit/javadoc/index.html
 
 Building Akiban-Persistit
 =========================
@@ -70,16 +72,15 @@ Version History
 +---------+--------------------+--------------------------------------------------------------------------+
 | Version | Release Date       |  Summary                                                                 |
 +=========+====================+==========================================================================+
-| 3.3     | May 17, 2013       | License changed from Eclipse Public License to Apache License, Version   |
-|         |                    | 2.0 for better compatibility with open source projects. Trees are        |
-|         |                    | now created and removed correctly within the scope of a transaction.     |
-|         |                    | Better support for session management of transactions. Accumulator       |
-|         |                    | API modified to better enforce correct use.
+| 3.3.0   | May 17, 2013       | Change license from Eclipse Public License to Apache License, Version    |
+|         |                    | 2.0. Create and remove Trees correctly within the scope of a transaction.|
+|         |                    | Correct problems with transaction session management. Modify             |
+|         |                    | Accumulator API to better suggest correct usage.                         |
 +---------+--------------------+--------------------------------------------------------------------------+
-| 3.2.7   | March 22, 2013     | Several new API features, including TreeBuilder, Traverse Visitor,       |
+| 3.2.7   | March 22, 2013     | Add several new API features, including TreeBuilder, Traverse Visitor    |
 |         |                    | and Lock. Fix several non-critical bugs.                                 |
 +---------+--------------------+--------------------------------------------------------------------------+
-| 3.2.2   | November 30, 2012  | Better support for Spring Framework. Fix rare but serious bugs found in  |
+| 3.2.2   | November 30, 2012  | Improve support for Spring Framework. Fix rare but serious bugs found in |
 |         |                    | stress tests. Fix issue related to locale and make sure Persistit builds |
 |         |                    | everywhere.                                                              |
 +---------+--------------------+--------------------------------------------------------------------------+
@@ -112,12 +113,12 @@ Resolved Issues
 Changes and New Features
 ========================
 
-Persistit 3.3 - License
+Persistit 3.3.0 - License
 -----------------------------------------------------
 Akiban Persistit is now licensed under the Apache License, Version 2.0.
 
-Persistit 3.3 - Creating and Removing Trees in Transactions
------------------------------------------------------
+Persistit 3.3.0 - Creating and Removing Trees in Transactions
+-------------------------------------------------------------
 Resolving a long-standing anomaly in the Persistit API, this release now handles
 creation and deletion of Tree instances correctly inside transactions. As a result,
 a transaction can create and populate a Tree which becomes visible within other
@@ -125,7 +126,7 @@ transactions only when the transaction commits, and which is implicitly removed
 if the transaction aborts.  Similarly, the removal of a Tree within a
 transaction becomes visible to other transactions only upon commit.
 
-Persistit 3.3 - Better Session Support
+Persistit 3.3.0 - Better Session Support
 -----------------------------------------------------
 This release corrects issues with session support. Each thread is assigned a
 ``com.persistit.SessionId`` when it uses Persistit, and that SessionId is linked
@@ -136,14 +137,14 @@ network requests, and where each request may be serviced by an arbitrary thread 
 thread pool, there is support for changing the association of a SessionId with a thread. See
 notes in ``com.persistit.Transaction`` for details.
 
-This release corrects two issues:
+This release corrects two issues related to sessions:
 
 * The constructor for SessionId is now public.
 * It is now possible for a thread other than the one that began the transaction
   to commit it. Previous versions would throw an IllegalMonitorStateException in this
   case.
 
-Persistit 3.3 - Accumulator API
+Persistit 3.3.0 - Accumulator API
 -----------------------------------------------------
 The ``com.persistit.Accumulator`` class and its inner classes ``MinAccumulator``
 ``MaxAccumulator``, ``SumAccumulator`` and ``SeqAccumulator`` provide an efficient
@@ -353,18 +354,6 @@ be tested with asserts enabled to verify correct thread usage.
 
 Known Issues
 ============
-
-Transactional Tree Management
------------------------------
-
-All operations within Trees such as store, fetch, remove and traverse are correctly supported 
-within transactions. However, the operations to create and delete Tree instances currently do 
-not respect transaction boundaries. For example, if a transaction creates a new Tree, it is 
-immediately visible within other Transactions and will continue to exist even if the original 
-transaction aborts.  (However, records inserted or modified by the original transaction will 
-not be visible until the transaction commits.) Prior to creating/removing trees, transaction 
-processing should be quiesced and allowed to complete.
-
 
 Out of Memory Error, Direct Memory Buffer
 ------------------------------------------------------
