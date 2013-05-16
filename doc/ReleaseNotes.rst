@@ -6,6 +6,11 @@ Overview
 ========
 See http://akiban.github.com/persistit for a summary of features and benefits, licensing information and how to get support.
 
+.. note:: 
+   This version of Persistit is released under the Apache License, Version 2.0. Previous 
+   releases were licensed under the Eclipse Public License.  We made this change to support 
+   better compatibility with other open source projects.
+
 Documentation
 =============
 Users Guide: http://akiban.github.com/persistit/docs
@@ -47,7 +52,14 @@ Buffer Pool Configuration
 =========================
 For optimal performance, proper configuration of the Persistit buffer pool is required.  See section "Configuring the Buffer Pool" in the configuration document http://akiban.github.com/persistit/docs/Configuration.html
 
-.. note:: Especially when used with multi-gigabyte heaps, the default Hotspot JVM server heuristics are be suboptimal for Persistit applications. Persistit is usually configured to allocate a large fraction of the heap to Buffer instances that are allocated at startup and held for the duration of the Persistit instance. For efficient operation, all of the Buffer instances must fit in the tenured (old) generation of the heap to avoid very significant garbage collector overhead.  Use either -XX:NewSize or -Xmn to adjust the relative sizes of the new and old generations.
+.. note:: 
+   Especially when used with multi-gigabyte heaps, the default Hotspot JVM server heuristics are 
+   suboptimal for Persistit applications. Persistit is usually configured to allocate a large 
+   fraction of the heap to Buffer instances that are allocated at startup and held for the 
+   duration of the Persistit instance. For efficient operation, all of the Buffer instances 
+   must fit in the tenured (old) generation of the heap to avoid very significant garbage 
+   collector overhead. Use either -XX:NewSize or -Xmn to adjust the relative sizes of 
+   the new and old generations.
 
 |
 |
@@ -58,10 +70,11 @@ Version History
 +---------+--------------------+--------------------------------------------------------------------------+
 | Version | Release Date       |  Summary                                                                 |
 +=========+====================+==========================================================================+
-| 3.3.1   | May 3, 2013        | License changed from Eclipse Public License to Apache License, Version   |
-|         |                    | 2.0 for better compatibility with open source projects. Trees and        |
-|         |                    | volumes are now created and removed correctly within the scope of a      |
-|         |                    | transaction. Better support for session management of transactions.      |
+| 3.3     | May 17, 2013       | License changed from Eclipse Public License to Apache License, Version   |
+|         |                    | 2.0 for better compatibility with open source projects. Trees are        |
+|         |                    | now created and removed correctly within the scope of a transaction.     |
+|         |                    | Better support for session management of transactions. Accumulator       |
+|         |                    | API modified to better enforce correct use.
 +---------+--------------------+--------------------------------------------------------------------------+
 | 3.2.7   | March 22, 2013     | Several new API features, including TreeBuilder, Traverse Visitor,       |
 |         |                    | and Lock. Fix several non-critical bugs.                                 |
@@ -98,6 +111,48 @@ Resolved Issues
 
 Changes and New Features
 ========================
+
+Persistit 3.3 - License
+-----------------------------------------------------
+Akiban Persistit is now licensed under the Apache License, Version 2.0.
+
+Persistit 3.3 - Creating and Removing Trees in Transactions
+-----------------------------------------------------
+Resolving a long-standing anomaly in the Persistit API, this release now handles
+creation and deletion of Tree instances correctly inside transactions. As a result,
+a transaction can create and populate a Tree which becomes visible within other
+transactions only when the transaction commits, and which is implicitly removed
+if the transaction aborts.  Similarly, the removal of a Tree within a
+transaction becomes visible to other transactions only upon commit.
+
+Persistit 3.3 - Better Session Support
+-----------------------------------------------------
+This release corrects issues with session support. Each thread is assigned a
+``com.persistit.SessionId`` when it uses Persistit, and that SessionId is linked
+to a unique ``com.persistit.Transaction`` instance.  Usually a transaction is confined to a single
+thread that retains a single SessionId for its entire life.  However, for uses cases in 
+which a server may support transactions that span multiple
+network requests, and where each request may be serviced by an arbitrary thread from a
+thread pool, there is support for changing the association of a SessionId with a thread. See
+notes in ``com.persistit.Transaction`` for details.
+
+This release corrects two issues:
+
+* The constructor for SessionId is now public.
+* It is now possible for a thread other than the one that began the transaction
+  to commit it. Previous versions would throw an IllegalMonitorStateException in this
+  case.
+
+Persistit 3.3 - Accumulator API
+-----------------------------------------------------
+The ``com.persistit.Accumulator`` class and its inner classes ``MinAccumulator``
+``MaxAccumulator``, ``SumAccumulator`` and ``SeqAccumulator`` provide an efficient
+way to updated counts, sums and unique ID counters that would otherwise cause
+significant contention among concurrent transactions.  This release
+replaces a single method named ``update`` with a use-specific modifier for each
+type of Accumulator.  For example, the ``com.persistit.Accumulator.SeqAccumulator``
+calss provides the method ``com.persistit.Accumulator.SeqAccumulator#allocate`` to
+allocate a sequence number.  See ``Accumulator`` class JavaDoc for details.
 
 Persistit 3.2.7 - TreeBuilder
 -----------------------------------------------------
