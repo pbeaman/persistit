@@ -50,7 +50,7 @@ copyright = u'2013, Akiban Technologies'
 #
 # version = short X.Y version.
 # release = full version, including alpha/beta/rc tags.
-version = '3.2.8'
+version = '3.3.0'
 release = version
 
 # Included while processing every rst file. Used only for working around inability
@@ -259,7 +259,7 @@ texinfo_documents = [
 epub_title = u'Persistit'
 epub_author = u'Akiban Technologies'
 epub_publisher = u'Akiban Technologies'
-epub_copyright = u'2012, Akiban Technologies'
+epub_copyright = u'2013, Akiban Technologies'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.

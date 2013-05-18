@@ -6,18 +6,18 @@ May 17, 2013
 
 Overview
 ========
-See http://akiban.github.com/persistit for a summary of features and benefits, licensing information and how to get support.
+See http://akiban.github.com/persistit for a summary of features and benefits and how to get support.
 
 .. note:: 
    This version of Persistit is released under the Apache License, Version 2.0. Previous 
-   releases were licensed under the Eclipse Public License.  We made this change to support 
+   releases were licensed under the Eclipse Public License.  We made this change for 
    better compatibility with other open source projects.
 
 Documentation
 =============
-Users Guide: https://github.com/akiban/persistit/docs
+Users Guide: http://akiban.github.com/persistit/docs/
 
-JavaDoc: https://github.com/akiban/persistit/javadoc/index.html
+JavaDoc: http://akiban.github.com/persistit/javadoc/index.html
 
 Building Akiban-Persistit
 =========================
@@ -104,11 +104,6 @@ Version History
 | 3.1.1   | May 31, 2012       | First open source release of Akiban Persistit                            |
 +---------+--------------------+--------------------------------------------------------------------------+
 
-
-Resolved Issues
-===============
-
-{{bug-list}}
 
 Changes and New Features
 ========================
@@ -350,10 +345,14 @@ IllegalMonitorException and IllegalStateException. To guard against future occur
 asserts were added to catch such concurrent use by multiple threads.  Applications should 
 be tested with asserts enabled to verify correct thread usage.
 
+Resolved Issues
+===============
+
+{{bug-list}}
 
 
-Known Issues
-============
+Unresolved Issues
+=================
 
 Out of Memory Error, Direct Memory Buffer
 ------------------------------------------------------
@@ -371,7 +370,7 @@ Tree#getChangeCount may return inaccurate result
 
 https://bugs.launchpad.net/akiban-persistit/+bug/986465
 
-The getChangeCount method may return inaccurate results as its not currently transactional.  
+The getChangeCount method may return inaccurate results as it is not currently transactional.  
 The primary consumer is the PersistitMap. As a result of this bug Persistit may not generate 
 java.util.ConcurrentModificationException when it is supposed to.
 

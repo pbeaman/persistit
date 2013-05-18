@@ -34,7 +34,7 @@ To build SimpleDemo:
 	
 	- or -
 	
-	javac -classpath ../../lib/persistit_jsa110.jar SimpleDemo.java
+    javac -classpath ../../target/akiban-persistit-x.y.z-SNAPSHOT-jar-with-dependencies-and-tests.jar SimpleDemo.java
 
 To run SimpleDemo:
 
@@ -42,11 +42,7 @@ To run SimpleDemo:
 	
 	- or -
 	
-	java -classpath ../../lib/persistit_jsa110.jar;. SimpleDemo
-
-To run SimpleDemo without building it first:
-
-	java -classpath ../../lib/persistit_jsa110.jar;../../lib/examples.jar SimpleDemo
+	java -classpath ../../target/akiban-persistit-x.y.z-SNAPSHOT-jar-with-dependencies-and-tests.jar;. SimpleDemo
 
 Persistit will place a volume file in paths specified by persistit.properties.
 You can change the location of these files by modifying the datapath property

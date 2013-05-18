@@ -36,7 +36,7 @@ To build SimpleBench:
 	
 	- or -
 	
-	javac -classpath ../../target/akiban-persistit-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar SimpleBench.java
+	javac -classpath ../../target/akiban-persistit-x.y.z-SNAPSHOT-jar-with-dependencies-and-tests.jar SimpleBench.java
 
 To run SimpleBench:
 
@@ -44,13 +44,13 @@ To run SimpleBench:
 	
 	- or -
 	
-	java -classpath ../../target/akiban-persistit-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar;. SimpleBench
+	java -classpath ../../target/akiban-persistit-x.y.z-SNAPSHOT-jar-with-dependencies-and-tests.jar;. SimpleBench
 
 By default, SimpleBench will create its volume, prewrite journal and log files
 in your current working directory. You can change the location of these files
 by specifying system properties, for example:
 
-	java -classpath ../../target/akiban-persistit-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar;.
+	java -classpath ../../target/akiban-persistit-x.y.z-SNAPSHOT-jar-with-dependencies-and-tests.jar;.
 		-Dcom.persistit.datapath=/myDataPath
 		-Dcom.persistit.logpath=/myLogPath
 		 SimpleBench
