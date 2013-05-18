@@ -196,7 +196,7 @@ are to different keys, no write conflict is detected, and both transactions are 
 result is a database state that could not have occurred if the transactions had run sequentially in any order.
 
 A well-known solution is to modify the transaction logic to perform an additional write operation to a common
-key. The ``com.persistit.Exchange#lock`` method provides a convenient and efficient mechanism for doing so. The``lock``
+key. The ``com.persistit.Exchange#lock`` method provides a convenient and efficient mechanism for doing so. The ``lock``
 method does not actually lock anything, but is so-named because it serves a similar function.
 
 3.2.7 - Miscellaneous Issues
@@ -212,10 +212,10 @@ displays all of the meta data contained in the volume file.
 3.2.2 - Spring Framework
 -----------------------------------------------------
 Prior to this release Persistit was needlessly difficult to configure and initialize within Spring Framework.
-This version provides new setter methods and constructors on the com.persistit.Persistit object to allow easy
+This version provides new setter methods and constructors on the ``com.persistit.Persistit`` object to allow easy
 injection of configuration properties and make it possible to inject a fully instantiated
 Persistit instance within a Spring project. In addition, new methods were added to the 
-com.persistit.Configuration class to simplify supplying buffer pool and initial volume specifications.
+``com.persistit.Configuration`` class to simplify supplying buffer pool and initial volume specifications.
 Three of the ``com.persistit.Persistit#initialize`` methods were deprecated.
 
 This release also adds a new sample application that shows how a configured Persistit instance can be created. For
@@ -239,7 +239,7 @@ used sections of the API. See the associated bug list for full descriptions of e
 3.2.0 - Default Journal File Format Changed
 -----------------------------------------------------
 
-Version 3.2.0 fixes problems related to Volumes created and opened by the com.persistit.Persistit#loadVolume 
+Version 3.2.0 fixes problems related to Volumes created and opened by the ``com.persistit.Persistit#loadVolume`` 
 method rather than being specified by the initial system configuration. In previous versions, journal files 
 contained insufficient information to properly recover such volumes, even during normal startup.
 
@@ -259,7 +259,7 @@ journal files that are backward-compatible, but incapable of supporting dynamica
 
 Version 3.2.0 significantly improves I/O performance for concurrent transactions and
 better controls the number of journal files created during by very aggressive loads. A new attribute
-in the com.persistit.mxbeans.JournalManagerMXBean class called urgentFileCountThreshold controls the
+in the ``com.persistit.mxbeans.JournalManagerMXBean`` class called ``urgentFileCountThreshold`` controls the
 maximum number of journal files Persistit will create before ramping the up the urgency of copying pages to
 allow purging old files. Several other issues related to I/O scheduling and management of 
 dirty pages were resolved.
@@ -292,8 +292,8 @@ accelerate reads. In one of our experiments Persistit preloads a buffer pool wit
 800,000 16Kbyte buffers in about a minute, which is orders of magnitude faster than the 
 same process would take with reads performed incrementally at random.
 
-Two new configuration properties com.persistit.Configuration#setBufferInventoryEnabled and 
-com.persistit.Configuration#setBufferPreloadEnabled control this behavior. These settings 
+Two new configuration properties ``com.persistit.Configuration#setBufferInventoryEnabled`` and 
+``com.persistit.Configuration#setBufferPreloadEnabled`` control this behavior. These settings 
 are turned off by default in version 3.1.7.
 
 3.1.4 - Detecting and Ignoring Missing Volumes
@@ -309,7 +309,7 @@ Recognizing that under some circumstances an administrator may indeed wish to re
 volume from an existing Database, this change provides a configurable switch to optionally 
 allow pages from missing volumes to be skipped (with logged warning messages) during recovery 
 processing.  The switch can be enabled by setting the configuration parameter 
-com.persistit.Configuration#setIgnoreMissingVolumes to true.
+``com.persistit.Configuration#setIgnoreMissingVolumes`` to true.
 
 
 3.1.4 - Reduce KeyCoder Serialized Object Size
