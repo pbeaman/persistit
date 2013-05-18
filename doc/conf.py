@@ -50,7 +50,7 @@ copyright = u'2013, Akiban Technologies'
 #
 # version = short X.Y version.
 # release = full version, including alpha/beta/rc tags.
-version = '3.3.0'
+version = '3.3.1'
 release = version
 
 # Included while processing every rst file. Used only for working around inability
