@@ -27,7 +27,7 @@ To build SpringFrameworkExample:
 	
 	- or -
 	
-	javac -classpath ../../target/akiban-persistit-3.2.2-jar-with-dependencies-and-tests.jar SpringFrameworkExample.java
+	javac -classpath ../../target/akiban-persistit-x.y.z-jar-with-dependencies-and-tests.jar SpringFrameworkExample.java
 
 To run SimpleTransaction:
 
@@ -35,7 +35,7 @@ To run SimpleTransaction:
 	
 	- or -
 	
-	java -classpath ../../target/akiban-persistit-3.2.2-jar-with-dependencies-and-tests.jar;. SpringFrameworkExample
+	java -classpath ../../target/akiban-persistit-x.y.z-jar-with-dependencies-and-tests.jar;. SpringFrameworkExample
 
 Persistit will place a volume file in paths specified by persistit.properties.
 You can change the location of these files by modifying the datapath property

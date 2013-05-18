@@ -257,7 +257,7 @@ class VolumeStructure {
             }
         } else {
             final Exchange ex = directoryExchange();
-            if (!tree.isTransactionPrivate(false)) {
+            if (!tree.isTransactionPrivate(false) || _volume.isLockVolume()) {
                 ex.ignoreTransactions();
             }
             ex.getValue().put(tree);

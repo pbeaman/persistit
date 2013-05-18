@@ -4,7 +4,7 @@
 
     <groupId>com.akiban</groupId>
     <artifactId>akiban-persistit</artifactId>
-    <version>3.3-SNAPSHOT</version>
+    <version>3.3.0</version>
     <packaging>jar</packaging>
 
     <parent>
@@ -23,8 +23,8 @@
 
     <licenses>
         <license>
-            <name>Eclipse Public License - v 1.0</name>
-            <url>http://www.eclipse.org/legal/epl-v10.html</url>
+            <name>Apache License, Version 2.0</name>
+            <url>http://http://www.apache.org/licenses/LICENSE-2.0.html</url>
             <distribution>repo</distribution>
         </license>
     </licenses>

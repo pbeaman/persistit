@@ -16,7 +16,7 @@
 
 package com.persistit;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -55,8 +55,8 @@ public class TransactionSessionSwitchTest extends PersistitUnitTestCase {
     private final static int THREADS = 17;
     private final static long TIMEOUT = 10000;
 
-    private Queue<SessionId> sessionQueue = new ArrayBlockingQueue<SessionId>(SESSIONS);
-    private Map<SessionId, AtomicInteger> sessionState = new HashMap<SessionId, AtomicInteger>();
+    private final Queue<SessionId> sessionQueue = new ArrayBlockingQueue<SessionId>(SESSIONS);
+    private final Map<SessionId, AtomicInteger> sessionState = new HashMap<SessionId, AtomicInteger>();
 
     @Test
     public void sessionManagement() throws Exception {
@@ -66,15 +66,16 @@ public class TransactionSessionSwitchTest extends PersistitUnitTestCase {
             sessionState.put(sessionId, new AtomicInteger(0));
         }
 
-        Thread[] threads = new Thread[THREADS];
+        final Thread[] threads = new Thread[THREADS];
 
         final Tree tree = _persistit.getVolume("persistit").getTree("tt", true);
         for (int i = 0; i < THREADS; i++) {
             threads[i] = new Thread(new Runnable() {
+                @Override
                 public void run() {
                     SessionId session;
                     while ((session = sessionQueue.poll()) != null) {
-                        int state = sessionState.get(session).get();
+                        final int state = sessionState.get(session).get();
                         try {
                             _persistit.setSessionId(session);
                             final Transaction txn = _persistit.getTransaction();
@@ -88,12 +89,12 @@ public class TransactionSessionSwitchTest extends PersistitUnitTestCase {
                                 }
                                 txn.end();
                             } else {
-                                Exchange ex = _persistit.getExchange(tree.getVolume(), tree.getName(), false);
+                                final Exchange ex = _persistit.getExchange(tree.getVolume(), tree.getName(), false);
                                 ex.getValue().put(Thread.currentThread().getName());
                                 ex.clear().append(session.hashCode()).append(state).store();
                                 _persistit.releaseExchange(ex);
                             }
-                        } catch (PersistitException e) {
+                        } catch (final PersistitException e) {
                             throw new RuntimeException(e);
                         } finally {
                             if (state <= STEPS) {
@@ -109,7 +110,7 @@ public class TransactionSessionSwitchTest extends PersistitUnitTestCase {
         ConcurrentUtil.startAndJoinAssertSuccess(TIMEOUT, threads);
 
         final Exchange ex = _persistit.getExchange(tree.getVolume(), tree.getName(), false);
-        for (SessionId session : sessionState.keySet()) {
+        for (final SessionId session : sessionState.keySet()) {
             int count = 0;
             ex.clear().append(session.hashCode()).append(Key.BEFORE);
             while (ex.next()) {

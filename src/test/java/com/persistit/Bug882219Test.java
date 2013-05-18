@@ -22,6 +22,7 @@ import java.io.InterruptedIOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.persistit.Transaction.CommitPolicy;
@@ -53,7 +54,17 @@ public class Bug882219Test extends PersistitUnitTestCase {
     // Flush caches:
     // sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
     //
+    /*
+     * Note: under Java 7 this test sometimes fails due to a bug in the JDK. The
+     * result is a deadlock that sometimes prevents this test from finishing.
+     * For this reason the test is currently Ignored, but we enable it for
+     * special occasions.
+     * 
+     * Reported under http://bugs.sun.com/ bug #9002674
+     */
+
     @Test
+    @Ignore
     public void testInterrupts() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "bug882219", true);
         final Thread foregroundThread = Thread.currentThread();

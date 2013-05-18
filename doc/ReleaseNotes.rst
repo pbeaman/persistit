@@ -1,10 +1,17 @@
 ************************************
-Akiban Persistit Version 3.3
+Akiban Persistit Version 3.3.0
 ************************************
+
+May 17, 2013
 
 Overview
 ========
-See http://akiban.github.com/persistit for a summary of features and benefits, licensing information and how to get support.
+See http://akiban.github.com/persistit for a summary of features and benefits and how to get support.
+
+.. note:: 
+   This version of Persistit is released under the Apache License, Version 2.0. Previous 
+   releases were licensed under the Eclipse Public License.  We made this change for 
+   better compatibility with other open source projects.
 
 Documentation
 =============
@@ -47,7 +54,14 @@ Buffer Pool Configuration
 =========================
 For optimal performance, proper configuration of the Persistit buffer pool is required.  See section "Configuring the Buffer Pool" in the configuration document http://akiban.github.com/persistit/docs/Configuration.html
 
-.. note:: Especially when used with multi-gigabyte heaps, the default Hotspot JVM server heuristics are be suboptimal for Persistit applications. Persistit is usually configured to allocate a large fraction of the heap to Buffer instances that are allocated at startup and held for the duration of the Persistit instance. For efficient operation, all of the Buffer instances must fit in the tenured (old) generation of the heap to avoid very significant garbage collector overhead.  Use either -XX:NewSize or -Xmn to adjust the relative sizes of the new and old generations.
+.. note:: 
+   Especially when used with multi-gigabyte heaps, the default Hotspot JVM server heuristics are 
+   suboptimal for Persistit applications. Persistit is usually configured to allocate a large 
+   fraction of the heap to Buffer instances that are allocated at startup and held for the 
+   duration of the Persistit instance. For efficient operation, all of the Buffer instances 
+   must fit in the tenured (old) generation of the heap to avoid very significant garbage 
+   collector overhead. Use either -XX:NewSize or -Xmn to adjust the relative sizes of 
+   the new and old generations.
 
 |
 |
@@ -58,15 +72,15 @@ Version History
 +---------+--------------------+--------------------------------------------------------------------------+
 | Version | Release Date       |  Summary                                                                 |
 +=========+====================+==========================================================================+
-| 3.3.1   | May 3, 2013        | License changed from Eclipse Public License to Apache License, Version   |
-|         |                    | 2.0 for better compatibility with open source projects. Trees and        |
-|         |                    | volumes are now created and removed correctly within the scope of a      |
-|         |                    | transaction. Better support for session management of transactions.      |
+| 3.3.0   | May 17, 2013       | Change license from Eclipse Public License to Apache License, Version    |
+|         |                    | 2.0. Create and remove Trees correctly within the scope of a transaction.|
+|         |                    | Correct problems with transaction session management. Modify             |
+|         |                    | Accumulator API to better suggest correct usage.                         |
 +---------+--------------------+--------------------------------------------------------------------------+
-| 3.2.7   | March 22, 2013     | Several new API features, including TreeBuilder, Traverse Visitor,       |
+| 3.2.7   | March 22, 2013     | Add several new API features, including TreeBuilder, Traverse Visitor    |
 |         |                    | and Lock. Fix several non-critical bugs.                                 |
 +---------+--------------------+--------------------------------------------------------------------------+
-| 3.2.2   | November 30, 2012  | Better support for Spring Framework. Fix rare but serious bugs found in  |
+| 3.2.2   | November 30, 2012  | Improve support for Spring Framework. Fix rare but serious bugs found in |
 |         |                    | stress tests. Fix issue related to locale and make sure Persistit builds |
 |         |                    | everywhere.                                                              |
 +---------+--------------------+--------------------------------------------------------------------------+
@@ -91,15 +105,52 @@ Version History
 +---------+--------------------+--------------------------------------------------------------------------+
 
 
-Resolved Issues
-===============
-
-{{bug-list}}
-
 Changes and New Features
 ========================
 
-Persistit 3.2.7 - TreeBuilder
+3.3.0 - License
+-----------------------------------------------------
+Akiban Persistit is now licensed under the Apache License, Version 2.0.
+
+3.3.0 - Creating and Removing Trees in Transactions
+-------------------------------------------------------------
+Resolving a long-standing anomaly in the Persistit API, this release now handles
+creation and deletion of Tree instances correctly inside transactions. As a result,
+a transaction can create and populate a Tree which becomes visible within other
+transactions only when the transaction commits, and which is implicitly removed
+if the transaction aborts.  Similarly, the removal of a Tree within a
+transaction becomes visible to other transactions only upon commit.
+
+3.3.0 - Better Session Support
+-----------------------------------------------------
+This release corrects issues with session support. Each thread is assigned a
+``com.persistit.SessionId`` when it uses Persistit, and that SessionId is linked
+to a unique ``com.persistit.Transaction`` instance.  Usually a transaction is confined to a single
+thread that retains a single SessionId for its entire life.  However, for use cases in 
+which a server may support transactions that span multiple
+network requests, and where each request may be serviced by an arbitrary thread from a
+thread pool, there is support for changing the association of a SessionId with a thread. See
+notes in ``com.persistit.Transaction`` for details.
+
+This release corrects two issues related to sessions:
+
+* The constructor for SessionId is now public.
+* It is now possible for a thread other than the one that began the transaction
+  to commit it. Previous versions would throw an IllegalMonitorStateException in this
+  case.
+
+3.3.0 - Accumulator API
+-----------------------------------------------------
+The ``com.persistit.Accumulator`` class and its inner classes ``MinAccumulator``
+``MaxAccumulator``, ``SumAccumulator`` and ``SeqAccumulator`` provide an efficient
+way to update counts, sums and unique ID counters that would otherwise cause
+significant contention among concurrent transactions.  This release
+replaces a single method named ``update`` with a use-specific method for each
+type of Accumulator.  For example, the ``com.persistit.Accumulator.SeqAccumulator``
+class provides the method ``com.persistit.Accumulator.SeqAccumulator#allocate`` to
+allocate a sequence number.  See ``Accumulator`` class JavaDoc for details.
+
+3.2.7 - TreeBuilder
 -----------------------------------------------------
 Inserting a large set of records with non-sequential keys causes significant I/O overhead. Once the size
 of the Tree is larger than available main memory, each insertion can result in a disk write (to flush a page
@@ -113,7 +164,7 @@ TreeBuilder is effective only for inserting large sets of non-sequential records
 loaded a billion records with keys generated as UUID instances. See the API documentation for
 ``com.persistit.TreeBuilder`` for more information.
 
-Persistit 3.2.7 - Traverse Visitor
+3.2.7 - Traverse Visitor
 -----------------------------------------------------
 The ``com.persistit.Exchange#traverse`` methods provide Persistit's fundamental mechanism for iterating
 over a collection of keys within a Tree.  Each call to ``traverse`` (or ``com.persistit.Exchange#next`` or
@@ -123,7 +174,7 @@ To better support code that visits a large number of records by calling one of t
 release adds a more efficient mechanism based on the visitor pattern. See ``com.persistit.Exchange.TraverseVisitor``
 for details.
 
-Persistit 3.2.7 - Lock to avoid Write Skew Anomalies
+3.2.7 - Lock to avoid Write Skew Anomalies
 -----------------------------------------------------
 Persistit transactions implement Snapshot Isolation to prevent concurrent transactions from interfering with
 each other.  See ``com.persistit.Transaction`` for details.
@@ -145,10 +196,10 @@ are to different keys, no write conflict is detected, and both transactions are 
 result is a database state that could not have occurred if the transactions had run sequentially in any order.
 
 A well-known solution is to modify the transaction logic to perform an additional write operation to a common
-key. The ``com.persistit.Exchange#lock`` method provides a convenient and efficient mechanism for doing so. The``lock``
+key. The ``com.persistit.Exchange#lock`` method provides a convenient and efficient mechanism for doing so. The ``lock``
 method does not actually lock anything, but is so-named because it serves a similar function.
 
-Persistit 3.2.7 - Miscellaneous Issues
+3.2.7 - Miscellaneous Issues
 -----------------------------------------------------
 Changes needed to build and run Persistit on Mac OSX under Java 7 were made.
 
@@ -158,20 +209,20 @@ A new CLI command to display the contents of a Persistit volume file was added. 
 
 displays all of the meta data contained in the volume file.  
 
-Persistit 3.2.2 - Spring Framework
+3.2.2 - Spring Framework
 -----------------------------------------------------
 Prior to this release Persistit was needlessly difficult to configure and initialize within Spring Framework.
-This version provides new setter methods and constructors on the com.persistit.Persistit object to allow easy
+This version provides new setter methods and constructors on the ``com.persistit.Persistit`` object to allow easy
 injection of configuration properties and make it possible to inject a fully instantiated
 Persistit instance within a Spring project. In addition, new methods were added to the 
-com.persistit.Configuration class to simplify supplying buffer pool and initial volume specifications.
+``com.persistit.Configuration`` class to simplify supplying buffer pool and initial volume specifications.
 Three of the ``com.persistit.Persistit#initialize`` methods were deprecated.
 
 This release also adds a new sample application that shows how a configured Persistit instance can be created. For
 Maven users, note that the pom.xml file now includes a dependency on Spring Framework in test scope only; Persistit 
 can still be deployed without any external dependencies.
 
-Persistit 3.2.2 - Bug Fixes
+3.2.2 - Bug Fixes
 -----------------------------------------------------
 Version 3.2.2 corrects two issues that were identified through stress tests. For this release
 we added hundreds of hours of stress-testing experience and will continue to invest in ongoing testing.
@@ -179,16 +230,16 @@ we added hundreds of hours of stress-testing experience and will continue to inv
 This version also fixes a unit test with string literals containing numbers formatted according to en_US
 conventions. The test has been corrected and the Persistit build has been tested in several locales.
 
-Persistit 3.2.1 - Bug Fixes
+3.2.1 - Bug Fixes
 -----------------------------------------------------
 
 Version 3.2.1 is a maintenance release that fixes a number of non-critical bugs, primarily in less frequently
 used sections of the API. See the associated bug list for full descriptions of each resolved.
 
-Persistit 3.2.0 - Default Journal File Format Changed
+3.2.0 - Default Journal File Format Changed
 -----------------------------------------------------
 
-Version 3.2.0 fixes problems related to Volumes created and opened by the com.persistit.Persistit#loadVolume 
+Version 3.2.0 fixes problems related to Volumes created and opened by the ``com.persistit.Persistit#loadVolume`` 
 method rather than being specified by the initial system configuration. In previous versions, journal files 
 contained insufficient information to properly recover such volumes, even during normal startup.
 
@@ -203,12 +254,12 @@ backward-compatibility may be important, it is possible to specify a new configu
 (see com.persistit.Configuration#setUseOldVSpec). When this property is +true+, Persistit writes 
 journal files that are backward-compatible, but incapable of supporting dynamically created volumes.
 
-Persistit 3.2.0 - Performance Improvements
+3.2.0 - Performance Improvements
 ------------------------------------------
 
 Version 3.2.0 significantly improves I/O performance for concurrent transactions and
 better controls the number of journal files created during by very aggressive loads. A new attribute
-in the com.persistit.mxbeans.JournalManagerMXBean class called urgentFileCountThreshold controls the
+in the ``com.persistit.mxbeans.JournalManagerMXBean`` class called ``urgentFileCountThreshold`` controls the
 maximum number of journal files Persistit will create before ramping the up the urgency of copying pages to
 allow purging old files. Several other issues related to I/O scheduling and management of 
 dirty pages were resolved.
@@ -218,7 +269,7 @@ which obsolete versions are removed from multi-version values (MVVs). Better sch
 significant reduction in the amount of space consumed by obsolete version and also results in better
 transaction throughput.
 
-Persistit 3.1.7 - Code Base Reformatted
+3.1.7 - Code Base Reformatted
 ---------------------------------------
 
 To simplify diffs and improve legibility, the entire code base was reformatted and "cleaned up" 
@@ -226,7 +277,7 @@ by the Eclipse code formatting tool. The maven build now automatically formats a
 source to ensure coherent diffs in the future.  The settings for formatting and code style 
 cleanup by Eclipse are found in the ``src/etc`` directory.
 
-Persistit 3.1.7 - Buffer Pool Preload
+3.1.7 - Buffer Pool Preload
 -------------------------------------
 
 On a server with a large buffer pool (many gigabytes), a Persistit instance can run for a long 
@@ -241,11 +292,11 @@ accelerate reads. In one of our experiments Persistit preloads a buffer pool wit
 800,000 16Kbyte buffers in about a minute, which is orders of magnitude faster than the 
 same process would take with reads performed incrementally at random.
 
-Two new configuration properties com.persistit.Configuration#setBufferInventoryEnabled and 
-com.persistit.Configuration#setBufferPreloadEnabled control this behavior. These settings 
+Two new configuration properties ``com.persistit.Configuration#setBufferInventoryEnabled`` and 
+``com.persistit.Configuration#setBufferPreloadEnabled`` control this behavior. These settings 
 are turned off by default in version 3.1.7.
 
-Persistit 3.1.4 - Detecting and Ignoring Missing Volumes
+3.1.4 - Detecting and Ignoring Missing Volumes
 --------------------------------------------------------
 
 Every time Persistit writes a modified page to disk, it does so first to the journal. 
@@ -258,10 +309,10 @@ Recognizing that under some circumstances an administrator may indeed wish to re
 volume from an existing Database, this change provides a configurable switch to optionally 
 allow pages from missing volumes to be skipped (with logged warning messages) during recovery 
 processing.  The switch can be enabled by setting the configuration parameter 
-com.persistit.Configuration#setIgnoreMissingVolumes to true.
+``com.persistit.Configuration#setIgnoreMissingVolumes`` to true.
 
 
-Persistit 3.1.4 - Reduce KeyCoder Serialized Object Size
+3.1.4 - Reduce KeyCoder Serialized Object Size
 --------------------------------------------------------
 
 .. note::
@@ -276,7 +327,7 @@ Key. Additionally, the KeyCoder class allows for any application level object to
 appended to a Key right next to any other type. This is tagged internally with per-class 
 handles. This change lowers the initial offset to reduce and in many cases halve the serialized size. 
 
-Persistit 3.1.4 - Maven POM Changes For Eclipse Juno 
+3.1.4 - Maven POM Changes For Eclipse Juno 
 ----------------------------------------------------
 
 The latest version of Eclipse, code named Juno, features a wide array of changes, including a 
@@ -285,7 +336,7 @@ easy as possible, we have included the required m2e configuration sections in ou
 
 Please contact Akiban if you have encounter any issues getting up and running with Persistit.   
 
-Persistit 3.1.2 - Asserts Added to Check for Correct Exchange Thread Behavior
+3.1.2 - Asserts Added to Check for Correct Exchange Thread Behavior
 -----------------------------------------------------------------------------
 
 A bug in the Akiban Server code caused an Exchange to be used concurrently by two Threads, 
@@ -294,22 +345,14 @@ IllegalMonitorException and IllegalStateException. To guard against future occur
 asserts were added to catch such concurrent use by multiple threads.  Applications should 
 be tested with asserts enabled to verify correct thread usage.
 
+Resolved Issues
+===============
+
+{{bug-list}}
 
 
-Known Issues
-============
-
-Transactional Tree Management
------------------------------
-
-All operations within Trees such as store, fetch, remove and traverse are correctly supported 
-within transactions. However, the operations to create and delete Tree instances currently do 
-not respect transaction boundaries. For example, if a transaction creates a new Tree, it is 
-immediately visible within other Transactions and will continue to exist even if the original 
-transaction aborts.  (However, records inserted or modified by the original transaction will 
-not be visible until the transaction commits.) Prior to creating/removing trees, transaction 
-processing should be quiesced and allowed to complete.
-
+Unresolved Issues
+=================
 
 Out of Memory Error, Direct Memory Buffer
 ------------------------------------------------------
@@ -327,7 +370,7 @@ Tree#getChangeCount may return inaccurate result
 
 https://bugs.launchpad.net/akiban-persistit/+bug/986465
 
-The getChangeCount method may return inaccurate results as its not currently transactional.  
+The getChangeCount method may return inaccurate results as it is not currently transactional.  
 The primary consumer is the PersistitMap. As a result of this bug Persistit may not generate 
 java.util.ConcurrentModificationException when it is supposed to.
 

@@ -27,7 +27,7 @@ To build PersistitMapDemo:
 	
 	- or -
 	
-	javac -classpath ../../core/target/akiban-persistit-xx.yy.zz-SNAPSHOT-jar-with-dependencies-and-tests.jar PersistitMapDemo.java
+	javac -classpath ../../core/target/akiban-persistit-x.y.z-SNAPSHOT-jar-with-dependencies-and-tests.jar PersistitMapDemo.java
 
 To run PersistitMapDemo:
 
@@ -35,7 +35,7 @@ To run PersistitMapDemo:
 	
 	- or -
 	
-	java -classpath ../../core/target/akiban-persistit-xx.yy.zz-SNAPSHOT-jar-with-dependencies-and-tests.jar;. PersistitMapDemo
+	java -classpath ../../core/target/akiban-persistit-x.y.z-SNAPSHOT-jar-with-dependencies-and-tests.jar;. PersistitMapDemo
 
 Persistit will place a volume file in paths specified by persistit.properties.
 You can change the location of these files by modifying the datapath property
