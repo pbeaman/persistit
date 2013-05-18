@@ -15,7 +15,7 @@ See http://akiban.github.com/persistit for a summary of features and benefits an
 
 Documentation
 =============
-Users Guide: http://akiban.github.com/persistit/docs/
+Users Guide: http://akiban.github.com/persistit/docs
 
 JavaDoc: http://akiban.github.com/persistit/javadoc/index.html
 
@@ -126,7 +126,7 @@ transaction becomes visible to other transactions only upon commit.
 This release corrects issues with session support. Each thread is assigned a
 ``com.persistit.SessionId`` when it uses Persistit, and that SessionId is linked
 to a unique ``com.persistit.Transaction`` instance.  Usually a transaction is confined to a single
-thread that retains a single SessionId for its entire life.  However, for uses cases in 
+thread that retains a single SessionId for its entire life.  However, for use cases in 
 which a server may support transactions that span multiple
 network requests, and where each request may be serviced by an arbitrary thread from a
 thread pool, there is support for changing the association of a SessionId with a thread. See
@@ -143,11 +143,11 @@ This release corrects two issues related to sessions:
 -----------------------------------------------------
 The ``com.persistit.Accumulator`` class and its inner classes ``MinAccumulator``
 ``MaxAccumulator``, ``SumAccumulator`` and ``SeqAccumulator`` provide an efficient
-way to updated counts, sums and unique ID counters that would otherwise cause
+way to update counts, sums and unique ID counters that would otherwise cause
 significant contention among concurrent transactions.  This release
-replaces a single method named ``update`` with a use-specific modifier for each
+replaces a single method named ``update`` with a use-specific method for each
 type of Accumulator.  For example, the ``com.persistit.Accumulator.SeqAccumulator``
-calss provides the method ``com.persistit.Accumulator.SeqAccumulator#allocate`` to
+class provides the method ``com.persistit.Accumulator.SeqAccumulator#allocate`` to
 allocate a sequence number.  See ``Accumulator`` class JavaDoc for details.
 
 3.2.7 - TreeBuilder
