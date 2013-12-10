@@ -1,0 +1,235 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Physical B+Tree Representation &mdash; Persistit 3.3.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.3.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Persistit 3.3.1 documentation" href="index.html" />
+    <link rel="next" title="Configuration" href="Configuration.html" />
+    <link rel="prev" title="Transactions" href="Transactions.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="Configuration.html" title="Configuration"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="Transactions.html" title="Transactions"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="physical-b-tree-representation">
+<span id="physicalstorage"></span><h1>Physical B+Tree Representation<a class="headerlink" href="#physical-b-tree-representation" title="Permalink to this headline">¶</a></h1>
+<p>This chapter describes the physical structures used to represent Akiban Persistit records on disk and in memory.</p>
+<div class="section" id="files">
+<h2>Files<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
+<p>Following is a directory listing illustrating a working Persistit database:</p>
+<div class="highlight-python"><pre>-rw-r--r--. 1 demo demo  24G Feb  8 13:18 akiban_data
+-rw-r--r--. 1 demo demo  48K Feb  8 13:19 akiban_system
+-rw-r--r--. 1 demo demo 954M Feb  8 13:18 akiban_journal.000000000225
+-rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000226
+-rw-r--r--. 1 demo demo 954M Feb  8 13:19 akiban_journal.000000000227
+-rw-r--r--. 1 demo demo 662M Feb  8 13:19 akiban_journal.000000000228</pre>
+</div>
+<p>This database contains two <em>volume</em> files, <tt class="docutils literal"><span class="pre">akiban_data</span></tt> and <tt class="docutils literal"><span class="pre">akiban_system</span></tt> and four files that constitute part of the <em>journal</em>. As explained below, Persistit records are usually stored in a combination of volume and journal files.</p>
+</div>
+<div class="section" id="the-journal">
+<span id="journal"></span><h2>The Journal<a class="headerlink" href="#the-journal" title="Permalink to this headline">¶</a></h2>
+<p>The <em>journal</em> is a set of files containing variable length records. The journal is append-only. New records are written only at the end; existing records are never overwritten. The journal consists of a numbered series of files having a configurable maximum size. When a journal file becomes full Persistit closes it and begins a new file with the next counter value. The maximum size of a journal file is determined by a configuration property called its block size.  The default block size value is 1,000,000,000 bytes which works well with today’s standard server hardware.</p>
+<p>Every record in the journal has a 64-bit integer <em>journal address</em>. The journal address denotes which file contains the record and the record’s offset within that file. Journal addresses start at zero in a new database instance and grow perpetually <a class="footnote-reference" href="#f1" id="id1">[1]</a>.</p>
+<p>Persistit writes two major types of records to journal files.</p>
+<ul class="simple">
+<li>For each committed update transaction, Persistit writes a record containing sufficient information to replay the transaction during recovery. For example, when Persistit stores a key/value pair during a transaction, it writes a record to the journal containing the key and value.</li>
+<li>Persistit also writes all updated page images to the journal. Some of these are eventually copied to volume files, as described below. This write/copy mechanism is critical to Persistit’s crash-recovery mechanism (see <a class="reference internal" href="#recovery"><em>Recovery</em></a>).</li>
+</ul>
+<p>As updates are applied, Persistit constantly appends new information- both transaction records and modified page images - to the end of the highest-numbered file. To prevent the aggregation of a large number of journal files Persistit also works to copy or remove information from older journal files so that they can be deleted. The background thread responsible for this activity is called the <tt class="docutils literal"><span class="pre">JOURNAL_COPIER</span></tt> thread. The JOURNAL_COPIER copies pages from the journal back into their home volume files, allowing old files to be deleted. Normally a Persistit system at rest gradually copies all update page images and perform checkpoints so that only one small journal file remains. Applications can accelerate that process by calling the <a class="reference external" href="apidocs/com/persistit/Persistit.html#copyBackPages()">copyBackPages</a> method.</p>
+<p>The journal is critical to ensuring Persistit can recover structurally intact B+Trees and apply all committed transactions after a system failure. For this reason, unless the JOURNAL_COPIER is entirely caught up, any attempt to save the state of a Persistit database must include both the volume and journal files.</p>
+<p>The journal also plays a critical role during concurrent backup. To back up a running Persistit database, the <a class="reference external" href="apidocs/com/persistit/BackupTask.html">com.persistit.BackupTask</a> does the following:</p>
+<ul class="simple">
+<li>Enables <tt class="docutils literal"><span class="pre">appendOnly</span></tt> mode to suspend the copying of updated page images.</li>
+<li>Copies the appropriate volume and journal files</li>
+<li>Disables <tt class="docutils literal"><span class="pre">appendOnly</span></tt> mode to allow JOURNAL_COPIER to continue.</li>
+</ul>
+<p>For more details on the journal, checkpoints and transactions, see <a class="reference internal" href="#recovery"><em>Recovery</em></a>. For more information on concurrent backup and other management tasks, see <a class="reference internal" href="Management.html#management"><em>Management</em></a>.</p>
+</div>
+<div class="section" id="pages-and-volumes">
+<h2>Pages and Volumes<a class="headerlink" href="#pages-and-volumes" title="Permalink to this headline">¶</a></h2>
+<p>Persistit ultimately stores its data in one or more Volume files. Persistit manages volume files internally in sections called pages. Every page within one volume has the same size. The page size is configurable and may be 1,024, 2,048, 4,096, 8,192, or 16,384 (recommended) bytes long. Once the page size for a volume has been established, it cannot be changed. See <a class="reference internal" href="Configuration.html#configuration"><em>Configuration</em></a> for details of how to assign the page size for a new volume.</p>
+<div class="section" id="directory-tree">
+<h3>Directory Tree<a class="headerlink" href="#directory-tree" title="Permalink to this headline">¶</a></h3>
+<p>Within a volume there can be an unlimited number of B+Trees. (B+Trees are also called simply “trees” in this document.) A tree consists of a set of pages including a <em>root page</em>, <em>index pages</em> and <em>data pages</em>. The root page can be data page if the tree is trivial and contains only small number of records. Usually the root page is an index page which contains references to other index pages which in turn may refer to data pages.</p>
+<p>Persistit manages a potentially large number of trees by maintaining a tree of trees called <tt class="docutils literal"><span class="pre">_directory</span></tt>.  The <tt class="docutils literal"><span class="pre">_directory</span></tt> tree contains the name, root page address, <a class="reference external" href="apidocs/com/persistit/Accumulator.html">com.persistit.Accumulator</a> data and <a class="reference external" href="apidocs/com/persistit/TreeStatistics.html">com.persistit.TreeStatistics</a> data for all the other trees in the volume. The tree name <tt class="docutils literal"><span class="pre">_directory</span></tt> is reserved and may not be used when creating an Exchange.</p>
+</div>
+<div class="section" id="data-pages">
+<h3>Data Pages<a class="headerlink" href="#data-pages" title="Permalink to this headline">¶</a></h3>
+<p>A data page contains a representation of one or more variable-length key/value pairs. The number of key/value pairs depends on the page size, and the sizes of the serialized keys and values. The first key in each data page is stored in its entirety, while subsequent keys are stored with <em>prefix compression</em> to reduce storage footprint and accelerate searches. Therefore the storage sizes of the second and subsequent keys in a data page depend on how many of the leading bytes of their serialized form match their predecessors. (See <a class="reference internal" href="BasicAPI.html#key"><em>Key</em></a> and <a class="reference internal" href="BasicAPI.html#value"><em>Value</em></a> for information on how Persistit encodes logical Java values into the byte arrays stored in a data page.)</p>
+</div>
+<div class="section" id="index-pages">
+<h3>Index Pages<a class="headerlink" href="#index-pages" title="Permalink to this headline">¶</a></h3>
+<p>An index page has a structure similar to a data page except that instead of holding serialized value data, it instead contains page addresses of subordinate pages within the tree.</p>
+</div>
+</div>
+<div class="section" id="recovery">
+<span id="id2"></span><h2>Recovery<a class="headerlink" href="#recovery" title="Permalink to this headline">¶</a></h2>
+<p>Akiban Persistit is designed, implemented and tested to ensure that whether the application shuts down gracefully or crashes without cleanly closing the database, the database remains structurally intact and internally consistent after restart.</p>
+<p>To do this, Persistit performs a process called <em>recovery</em> every time it starts up.  The recovery process is generally very fast after a normal shutdown. However, it can take a considerable amount of time after a crash because many committed transactions may need to be executed.</p>
+<p>Recovery performs three major activities:</p>
+<ul class="simple">
+<li>Restores all B+Trees to an internally consistent state with a known timestamp.</li>
+<li>Replays all transaction that committed after that timestamp.</li>
+<li>Prunes multi-version values belonging to certain aborted transactions (see <a class="reference internal" href="Transactions.html#pruning"><em>Pruning</em></a>).</li>
+</ul>
+<p>To accomplish this, Persistit writes all updates first to the journal. Persistit also periodically writes <em>checkpoint</em> records to the journal. During recovery, Persistit finds the last valid checkpoint written before shutdown or crash, restores B+Trees to state consistent with that checkpoint, and then replays transactions that committed after the checkpoint.</p>
+<p>Recovery depends on the availability of the volume and journal files as they existed prior to abrupt termination. If these are modified or destroyed outside of Persistit, successful recovery is unlikely.</p>
+<div class="section" id="timestamps-and-checkpoints">
+<h3>Timestamps and Checkpoints<a class="headerlink" href="#timestamps-and-checkpoints" title="Permalink to this headline">¶</a></h3>
+<p>Persistit maintains a universal counter called the <em>timestamp</em> counter. Every update operation assigns a new, larger timestamp, and every record in the journal includes the timestamp assigned to the operation writing the record. The timestamp counter is unrelated to clock time.  It is merely a counter.</p>
+<p>A <em>checkpoint</em> is simply a timestamp for which a valid recovery is possible. Periodically Persistit chooses a timestamp to be a new checkpoint. Over time it then ensures that all pages updated before the checkpoint have been written to the journal, and then writes a checkpoint marker. By default checkpoints occur once every two minutes. Normal shutdown through <a class="reference external" href="apidocs/com/persistit/Persistit.html#close()">close</a> writes a final checkpoint to the journal regardless of when the last checkpoint cycle occurred. That final checkpoint is what allows recovery after a normal shutdown to be very fast.</p>
+<p>Upon start-up Persistit starts by finding the last valid checkpoint timestamp, and then recovers only those page images from the journal that were written prior to it. The result is that all B+Trees are internally consistent and contain all the updates that were issued and committed to disk before the checkpoint timestamp and none the occurred after the checkpoint timestamp.</p>
+<p>Then Persistit locates and reapplies all transaction records in the journal for transactions that committed after the last valid checkpoint timestamp. These transactions are reapplied to the database, with the result that:</p>
+<ul class="simple">
+<li>The B+Tree index and data structures are intact. All store, fetch, remove and traverse operations will complete successfully.</li>
+<li>All committed transactions are present in the recovered database.  (See <a class="reference internal" href="Transactions.html#transactions"><em>Transactions</em></a> for durability determined by <tt class="docutils literal"><span class="pre">CommitPolicy</span></tt>.)</li>
+</ul>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Persistit provides the utility class <tt class="docutils literal"><span class="pre">com.persistit.IntegrityCheck</span></tt> to verify the integrity of individual Trees or entire Volumes.</p>
+</div>
+<p>For updates occurring outside of a transaction the resulting state is identical to some consistent, reasonably recent state prior to the termination. (“Reasonably recent” depends on the checkpoint interval, which by default is set to two minutes.)</p>
+</div>
+<div class="section" id="flush-force-checkpoint">
+<h3>Flush/Force/Checkpoint<a class="headerlink" href="#flush-force-checkpoint" title="Permalink to this headline">¶</a></h3>
+<p>An application may require certainty at various points that all pending updates have been fully written to disk. The <a class="reference external" href="apidocs/com/persistit/Persistit.html">com.persistit.Persistit</a> class provides three methods to ensure that updates have been written:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><a class="reference external" href="apidocs/com/persistit/Persistit.html#flush()">flush</a></dt>
+<dd>causes Persistit to write all pending updates to the journal. Upon successful completion of flush any pages that needed writing prior to the call to flush are
+guaranteed to have been written to the journal or their respective volume files.</dd>
+<dt><a class="reference external" href="apidocs/com/persistit/Persistit.html#force()">force</a></dt>
+<dd>forces the underlying operating system to write pending updates from the operating system’s write-behind cache to the actual disk. (This operation relies on
+the underlying <tt class="docutils literal"><span class="pre">java.io.Filechannel#force(boolean)</span></tt> method.)</dd>
+<dt><a class="reference external" href="apidocs/com/persistit/Persistit.html#checkpoint()">checkpoint</a></dt>
+<dd>causes Persistit to allocate a new checkpoint timestamp and then wait for all updates that happened before that timestamp to be committed to disk.</dd>
+</dl>
+</div></blockquote>
+<p>However, typical applications, especially those using <a class="reference internal" href="Transactions.html#transactions"><em>Transactions</em></a>, do not need to invoke these methods. Once a Transaction is durable, so are all other transactions that occurred at timestamps earlier than the transaction’s commit timestamp and no other method calls are required.</p>
+</div>
+</div>
+<div class="section" id="the-buffer-pool">
+<h2>The Buffer Pool<a class="headerlink" href="#the-buffer-pool" title="Permalink to this headline">¶</a></h2>
+<p>Persistit maintains a cache of page copies in memory called the <em>buffer pool</em>. The buffer pool is a critical resource in reducing disk I/O and providing good run-time performance. After performing a relatively expensive disk operation to read a copy of a page into the buffer pool, Persistit retains that copy to allow potentially many fetch and update operations to be performed against keys and values stored in that page.</p>
+<p>Persistit optimizes update operations by writing updated database pages lazily, generally a few seconds to minutes after the update has been performed on the in-memory copy of the page cached in the buffer pool. By writing lazily, Persistit allows many update operations to be completed on each page before incurring a relatively expensive disk I/O operation to write the updated version of the page to the Volume.</p>
+<p>In Persistit the buffer pool is a collection of buffers allocated from the heap for the duration of Persistit’s operation. The buffers are allocated by the <a class="reference external" href="apidocs/com/persistit/Persistit.html#initialize()">initialize</a> method and are released when the application invokes close. Because buffers are allocated for the life of the Persistit instance, they impose no garbage collection overhead. (However, especially when using large buffer pool allocation in a JVM with a large heap, there are some special memory configuration issues to consider.  See <a class="reference internal" href="Configuration.html#configuration"><em>Configuration</em></a> for details.)</p>
+<p>Persistit allocates buffers from the buffer pool in approximately  least-recently-used (LRU) order. Most applications exhibit behavior in which data, having been accessed once, is read or updated several more times before the application moves to a different area of the database (locality of reference). LRU is an allocation strategy the yields reasonably good overall throughput by maintaining pages that are likely to be used again in the buffer pool in preference to pages that have not been used for a relatively long time.</p>
+<p>Generally, allocating more buffers in the buffer pool increases the likelihood that a page will be found in the pool rather than having to be reloaded from disk. Since disk I/O is relatively expensive, this means that enlarging the buffer pool is a good strategy for reducing disk I/O and thereby increasing throughput. Persistit is designed to manage extremely large buffer pools very efficiently, so if memory is available, it is generally a good strategy to maximum buffer pool size.</p>
+</div>
+<div class="section" id="tools">
+<h2>Tools<a class="headerlink" href="#tools" title="Permalink to this headline">¶</a></h2>
+<p>The command-line interface (see <a class="reference internal" href="Management.html#cli"><em>The Command-Line Interface</em></a>) includes tools you can use to examine pages in volumes and records in the journal. Two of these include the <tt class="docutils literal"><span class="pre">jview</span></tt> and <tt class="docutils literal"><span class="pre">pview</span></tt> tasks. The <tt class="docutils literal"><span class="pre">jview</span></tt> command displays journal records selected within an address range, by type, by page address, and using other selection criteria in a readable form.  The <tt class="docutils literal"><span class="pre">pview</span></tt> command displays the contents of pages selected by page address or key from a volume, or by journal address from the journal.</p>
+<p class="rubric">Footnotes</p>
+<table class="docutils footnote" frame="void" id="f1" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[1]</a></td><td>Even on a system executing 1 million transactions per second the address space is large enough to last for hundreds of years.</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Physical B+Tree Representation</a><ul>
+<li><a class="reference internal" href="#files">Files</a></li>
+<li><a class="reference internal" href="#the-journal">The Journal</a></li>
+<li><a class="reference internal" href="#pages-and-volumes">Pages and Volumes</a><ul>
+<li><a class="reference internal" href="#directory-tree">Directory Tree</a></li>
+<li><a class="reference internal" href="#data-pages">Data Pages</a></li>
+<li><a class="reference internal" href="#index-pages">Index Pages</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#recovery">Recovery</a><ul>
+<li><a class="reference internal" href="#timestamps-and-checkpoints">Timestamps and Checkpoints</a></li>
+<li><a class="reference internal" href="#flush-force-checkpoint">Flush/Force/Checkpoint</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#the-buffer-pool">The Buffer Pool</a></li>
+<li><a class="reference internal" href="#tools">Tools</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="Transactions.html"
+                        title="previous chapter">Transactions</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Configuration.html"
+                        title="next chapter">Configuration</a></p>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="Configuration.html" title="Configuration"
+             >next</a></li>
+        <li class="right" >
+          <a href="Transactions.html" title="Transactions"
+             >previous</a> |</li>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Akiban Technologies.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b3.
+    </div>
+  </body>
+</html>

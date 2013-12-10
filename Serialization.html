@@ -1,0 +1,322 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Serializing Object Values &mdash; Persistit 3.3.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.3.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Persistit 3.3.1 documentation" href="index.html" />
+    <link rel="next" title="Miscellaneous Topics" href="Miscellaneous.html" />
+    <link rel="prev" title="Security Notes" href="Security.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="Miscellaneous.html" title="Miscellaneous Topics"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="Security.html" title="Security Notes"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="serializing-object-values">
+<span id="serialization"></span><h1>Serializing Object Values<a class="headerlink" href="#serializing-object-values" title="Permalink to this headline">¶</a></h1>
+<p>Akiban Persistit uses one of several mechanisms to serialize a Java Object into a <a class="reference external" href="apidocs/com/persistit/Value.html">com.persistit.Value</a>.</p>
+<ul class="simple">
+<li>For the following classes, Persistit provides built-in optimized serialization logic that cannot be overridden:<ul>
+<li><tt class="docutils literal"><span class="pre">java.lang.String</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">java.util.Date</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">java.math.BigInteger</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">java.math.BigDecimal</span></tt></li>
+<li>Wrapper classes for primitive values (<tt class="docutils literal"><span class="pre">Boolean</span></tt>, <tt class="docutils literal"><span class="pre">Byte</span></tt>, <tt class="docutils literal"><span class="pre">Short</span></tt>, etc.)</li>
+<li>All arrays (however, the mechanisms described here apply to array elements).</li>
+</ul>
+</li>
+<li>An application can register a custom <a class="reference external" href="apidocs/com/persistit/encoding/ValueCoder.html">com.persistit.encoding.ValueCoder</a> to handle serialization of a particular class</li>
+<li>Default serialization using Persistit&#8217;s built-in serialization mechanism described below, or</li>
+<li>Standard Java serialization as described in <a class="reference external" href="http://docs.oracle.com/javase/7/docs/platform/serialization/spec/serialTOC.html">Java Object Serialization Specification</a>.</li>
+</ul>
+<p>Persistit&#8217;s default serialization method serializes objects into approximately 33% fewer bytes, and depending on the structure of objects being serialized, is about 40% faster than Java serialization.</p>
+<div class="section" id="storing-objects-in-persistit">
+<h2>Storing Objects in Persistit<a class="headerlink" href="#storing-objects-in-persistit" title="Permalink to this headline">¶</a></h2>
+<p>To store an object value into a Persistit database, you put the object into the Value field of an Exchange, and then invoke the Exchange&#8217;s store method as shown in this code fragment:</p>
+<div class="highlight-java"><div class="highlight"><pre><span class="n">exchange</span><span class="o">.</span><span class="na">getValue</span><span class="o">().</span><span class="na">put</span><span class="o">(</span><span class="n">myObject</span><span class="o">);</span>
+<span class="n">exchange</span><span class="o">.</span><span class="na">store</span><span class="o">();</span>
+</pre></div>
+</div>
+<p>Of course, Persistit cannot actually store a live object on disk.  Instead it creates and stores a byte array containing state information about the object. Subsequently you fetch an object from Persistit as follows:</p>
+<div class="highlight-java"><div class="highlight"><pre><span class="n">exchange</span><span class="o">.</span><span class="na">fetch</span><span class="o">();</span>
+<span class="n">MyClass</span> <span class="n">myObject</span> <span class="o">=</span> <span class="o">(</span><span class="n">MyClass</span><span class="o">)</span><span class="n">exchange</span><span class="o">.</span><span class="na">getValue</span><span class="o">().</span><span class="na">get</span><span class="o">();</span>
+</pre></div>
+</div>
+<p>The resulting MyClass instance is a newly constructed object instance that is equivalent - subject to the accuracy of the serialization code - to the original object. This process is equivalent to the serialization and deserialization capabilities provided by java.io.ObjectOutputStream and java.io.ObjectInputStream.</p>
+<p>Persistit makes use of helper classes called “coders” to marshal data between live objects and their stored byte-array representations. Value coders, which implement <a class="reference external" href="apidocs/com/persistit/encoding/ValueCoder.html">com.persistit.encoding.ValueCoder</a>, marshal data to and from Value objects; <a class="reference external" href="apidocs/com/persistit/encoding/KeyCoder.html">com.persistit.encoding.KeyCoder</a> implementations do the same for instances of <a class="reference external" href="apidocs/com/persistit/Key.html">com.persistit.Key</a>. A <tt class="docutils literal"><span class="pre">ValueCoder</span></tt> provides capability somewhat like the custom serialization logic implemented through <tt class="docutils literal"><span class="pre">readObject</span></tt>, <tt class="docutils literal"><span class="pre">writeObject</span></tt>, <tt class="docutils literal"><span class="pre">readExternal</span></tt> and <tt class="docutils literal"><span class="pre">writeExternal</span></tt>. However, a <tt class="docutils literal"><span class="pre">ValueCoder</span></tt> can provide this logic for any class without modifying the class itself, which may be important if the class is part of a closed library.</p>
+<p>You may create and register a value coder for almost any class, including classes that are not marked Serializable. The exceptions are those listed which have built-in, non-overridable serialization logic.</p>
+</div>
+<div class="section" id="defaultvaluecoder-and-serialvaluecoder">
+<h2>DefaultValueCoder and SerialValueCoder<a class="headerlink" href="#defaultvaluecoder-and-serialvaluecoder" title="Permalink to this headline">¶</a></h2>
+<p>When required to serialize or deserialize class with no explicitly defined <tt class="docutils literal"><span class="pre">ValueCoder</span></tt>, Persistit automatically creates and registers one of the following two default <tt class="docutils literal"><span class="pre">ValueCoder</span></tt> implementations:</p>
+<p><a class="reference external" href="apidocs/com/persistit/DefaultValueCoder.html">com.persistit.DefaultValueCoder</a>::  uses introspection to determine which fields to serialize, and reflection to access and update the fields
+<a class="reference external" href="apidocs/com/persistit/encoding/SerialValueCoder.html">com.persistit.encoding.SerialValueCoder</a>:: creates instances of ObjectInputStream and ObjectOutputStream to serialize and deserialize the object.</p>
+<p>DefaultValueCoder uses a more compact storage format and is significantly faster than standard Java serialization; however, it imposes certain limitations and trade-offs described below. By default, Persistit will use a DefaultValueCoder. However, you can identify classes that should instead be serialized and deserialized by <tt class="docutils literal"><span class="pre">SerialValueCoder</span></tt> by specifying the <tt class="docutils literal"><span class="pre">serialOverride</span></tt> configuration property, which is described below.</p>
+</div>
+<div class="section" id="defaultvaluecoder">
+<h2>DefaultValueCoder<a class="headerlink" href="#defaultvaluecoder" title="Permalink to this headline">¶</a></h2>
+<p>A DefaultValueCoder uses Java reflection to access and update the fields of an arbitrary object. The set of fields is defined by the Java Object Serialization Specification. By default, these include all non-static, non-transient fields of the current class and its Serializable superclasses.  A class may override this default set by specifying an array of <tt class="docutils literal"><span class="pre">java.io.ObjectStreamField</span></tt> objects in a private final static field named <tt class="docutils literal"><span class="pre">serialPersistentFields</span></tt>, as described in the specification.</p>
+<p><tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt> invokes the special methods <tt class="docutils literal"><span class="pre">readResolve</span></tt>, <tt class="docutils literal"><span class="pre">writeReplace</span></tt>, <tt class="docutils literal"><span class="pre">readObject</span></tt> and <tt class="docutils literal"><span class="pre">writeObject</span></tt>,  (or for Externalizable classes,  <tt class="docutils literal"><span class="pre">writeExternal</span></tt> and <tt class="docutils literal"><span class="pre">readExternal</span></tt>) to provide the compatible custom serialization support. To support the <tt class="docutils literal"><span class="pre">readObject</span></tt>/<tt class="docutils literal"><span class="pre">readExternal</span></tt> and <tt class="docutils literal"><span class="pre">writeObject</span></tt>/<tt class="docutils literal"><span class="pre">writeExternal</span></tt> methods, Persistit creates extended implementations of <tt class="docutils literal"><span class="pre">java.io.ObjectOutputStream</span></tt> and <tt class="docutils literal"><span class="pre">java.io.ObjectInputStream</span></tt>. These use a custom serialization format optimized for writing to a Value&#8217;s backing byte array. For example, they do not organize data into 1,024-byte blocks, and they factor meta data about classes into a separate class information database so that this information is not repeated in multiple records containing instances of the same class.</p>
+<p>Currently, <tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt> does not support the following elements of the serialization API:</p>
+<ul class="simple">
+<li>the <tt class="docutils literal"><span class="pre">readObjectNoData</span></tt> custom serialization method</li>
+<li>the <tt class="docutils literal"><span class="pre">PutFields</span></tt>/<tt class="docutils literal"><span class="pre">GetFields</span></tt> API of <tt class="docutils literal"><span class="pre">ObjectOutputStream</span></tt> and <tt class="docutils literal"><span class="pre">ObjectInputStream</span></tt></li>
+<li>the <tt class="docutils literal"><span class="pre">readLine</span></tt> method of <tt class="docutils literal"><span class="pre">ObjectInputStream</span></tt>.</li>
+</ul>
+<div class="section" id="constructing-objects-upon-deserialization">
+<h3>Constructing Objects upon Deserialization<a class="headerlink" href="#constructing-objects-upon-deserialization" title="Permalink to this headline">¶</a></h3>
+<p>When deserializing a value, <tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt> combines information about the original object&#8217;s class and the stored field data to reconstruct an object equivalent to the original. To do so it must first construct a new instance of class and then decode and set its serialized fields.</p>
+<p>For compatibility with standard Java serialization, <tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt> constructs new object instances of Serializable classes using the same logic as <tt class="docutils literal"><span class="pre">ObjectInputStream</span></tt>, namely:</p>
+<p>If the class is Externalizable, <tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt> invokes its public no-argument constructor. (The specification for Externalizable requires the class to have such a constructor.)</p>
+<p>Otherwise, if the class is Serializable, <tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt> invokes the no-argument constructor of its nearest non-serializable superclass.</p>
+<p><tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt> must use platform-specific logic when constructing instances of Serializable classes: specifically, it invokes the same internal, non-public method as <tt class="docutils literal"><span class="pre">ObjectInputStream</span></tt>. We have verified correct behavior on a wide range of Java runtime environments, but because the implementation uses private methods within various JRE versions, it is possible (though unlikely) that a future JRE will not provide a comparable capability.</p>
+<p>To avoid using platform-specific API calls, you can specify the configuration property:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">constructorOverride</span><span class="o">=</span><span class="n">true</span>
+</pre></div>
+</div>
+<p>When this property is <tt class="docutils literal"><span class="pre">true</span></tt>, <tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt> requires each object being serialized or deserialized to have a no-argument constructor through which instances will be constructed during deserialization. Unless the class implements Externalizable, that constructor may be private, package-private, protected or public.</p>
+</div>
+<div class="section" id="extending-defaultvaluecoder">
+<h3>Extending DefaultValueCoder<a class="headerlink" href="#extending-defaultvaluecoder" title="Permalink to this headline">¶</a></h3>
+<p>You can register an extended <tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt> to provide custom behavior, including custom logic for constructing instances of a class, as shown here:</p>
+<div class="highlight-java"><div class="highlight"><pre>       <span class="n">Persistit</span><span class="o">.</span><span class="na">getInstance</span><span class="o">().</span><span class="na">getCoderManager</span><span class="o">().</span><span class="na">registerValueCoder</span><span class="o">(</span><span class="n">MyClass</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="k">new</span> <span class="n">DefaultValueCoder</span><span class="o">(</span><span class="n">MyClass</span><span class="o">.</span><span class="na">class</span><span class="o">)</span> <span class="o">{</span>
+ <span class="kd">public</span> <span class="n">Object</span> <span class="nf">get</span><span class="o">(</span><span class="n">Value</span> <span class="n">value</span><span class="o">,</span> <span class="n">Class</span> <span class="n">clazz</span><span class="o">,</span> <span class="n">CoderContext</span> <span class="n">context</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">ConversionException</span> <span class="o">{</span>
+
+   <span class="c1">// Construct the object being deserialized.</span>
+   <span class="n">Object</span> <span class="n">instance</span> <span class="o">=</span> <span class="k">new</span> <span class="n">MyClass</span><span class="o">(...</span><span class="na">custom</span> <span class="n">arguments</span><span class="o">...);</span>
+
+   <span class="c1">// See &quot;registering objects while deserializing&quot; below</span>
+   <span class="n">value</span><span class="o">.</span><span class="na">registerEncodedObject</span><span class="o">(</span><span class="n">instance</span><span class="o">);</span>
+
+   <span class="c1">// Load the non-transient, non-static fields</span>
+   <span class="n">render</span><span class="o">(</span><span class="n">value</span><span class="o">,</span> <span class="n">instance</span><span class="o">,</span> <span class="n">clazz</span><span class="o">,</span> <span class="n">context</span><span class="o">);</span>
+
+   <span class="k">return</span> <span class="n">instance</span><span class="o">;</span>
+               <span class="o">}</span>
+<span class="o">});</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="security-policy-requirements-for-defaultvaluecoder">
+<h3>Security Policy Requirements for DefaultValueCoder<a class="headerlink" href="#security-policy-requirements-for-defaultvaluecoder" title="Permalink to this headline">¶</a></h3>
+<p>DefaultValueCoder performs security-sensitive operations: (a) it reads and writes data from and to private fields using reflection, and (b) it overrides the default implementations of java.io.ObjectInputStream and java.io.ObjectOutputStream. If a SecurityManager is installed then three permissions must be granted to enable the new mechanism:</p>
+<div class="highlight-python"><pre>java.lang.RuntimePermission "accessDeclaredMembers";
+java.lang.reflect.ReflectPermission("suppressAccessChecks")
+java.io.SerializablePermission("enableSubclassImplementation")</pre>
+</div>
+<p>See <a class="reference internal" href="Security.html#security"><em>Security Notes</em></a> for an extended discussion on security policy issues for Persistit.</p>
+</div>
+</div>
+<div class="section" id="serialvaluecoder">
+<h2>SerialValueCoder<a class="headerlink" href="#serialvaluecoder" title="Permalink to this headline">¶</a></h2>
+<p><tt class="docutils literal"><span class="pre">SerialValueCoder</span></tt> uses standard Java serialization to store and retrieve object values. Typically this results in slower performance and a more verbose storage format than <tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt>, but there are a number of reasons why a particular application might require standard Java serialization, including:</p>
+<ul class="simple">
+<li>the security context into which the application will be deployed does not grant the permissions noted above that are required for <tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt>,</li>
+<li>to avoid Persistit&#8217;s use of private API calls to construct object instances during deserialization,</li>
+<li>a preference for the use of a standard format defined within the Java platform rather than Persistit&#8217;s custom format,</li>
+<li>limitations documented above on the API elements available during custom deserialization within DefaultValueCoder, for example non-support of GetField and PutField.</li>
+</ul>
+<p>Your application can specify <tt class="docutils literal"><span class="pre">SerialValueCoders</span></tt> for specific classes either by explicitly creating and registering them, or by naming them in the com.persistit.serialOverride property.</p>
+<p>To explicitly register a <tt class="docutils literal"><span class="pre">SerialValueCoder</span></tt> for the class <tt class="docutils literal"><span class="pre">MyClass</span></tt>, do this:</p>
+<div class="highlight-java"><div class="highlight"><pre><span class="o">...</span>
+<span class="n">Persistit</span><span class="o">.</span><span class="na">getInstance</span><span class="o">().</span><span class="na">getCoderManager</span><span class="o">().</span><span class="na">registerValueCoder</span><span class="o">(</span>
+<span class="n">MyClass</span><span class="o">.</span><span class="na">class</span><span class="o">,</span>
+<span class="k">new</span> <span class="nf">SerialValueCoder</span><span class="o">(</span><span class="n">MyClass</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+<div class="section" id="the-serial-override-configuration-property">
+<h3>The Serial Override Configuration Property<a class="headerlink" href="#the-serial-override-configuration-property" title="Permalink to this headline">¶</a></h3>
+<p>The <tt class="docutils literal"><span class="pre">com.persistit.serialOverride</span></tt> property specifies classes that are to be serialized by <tt class="docutils literal"><span class="pre">SerialValueCoder</span></tt> rather than <tt class="docutils literal"><span class="pre">DefaultValueCoder</span></tt>. This property affects how Persistit assigns a value coder when none has previously been registered. It does not override or affect explicitly registered coders.</p>
+<p>Names are separated by commas and may contain wild cards.</p>
+<p>The following are valid patterns:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">java.io.File</span></tt></dt>
+<dd>Just the File class.</dd>
+<dt><tt class="docutils literal"><span class="pre">java.io.*</span></tt></dt>
+<dd>All classes in the java.io package.</dd>
+<dt><tt class="docutils literal"><span class="pre">java.awt.**</span></tt></dt>
+<dd>All classes in the java.awt package and its sub-packages</dd>
+<dt><tt class="docutils literal"><span class="pre">java.util.*Map</span></tt></dt>
+<dd>All of the Map classes in the java.util.</dd>
+<dt><tt class="docutils literal"><span class="pre">**</span></tt></dt>
+<dd>All classes in all packages</dd>
+</dl>
+</div></blockquote>
+<p>More precisely, <tt class="docutils literal"><span class="pre">serialOverride</span></tt> specifies a comma-delimited list of zero or more patterns, each of which is either a fully-qualified class name or pattern that has within it exactly one wild card. The wild card “*” replaces any sequence of characters other than a period (“.”), while “**” replaces any sequence of characters including periods.  For example:</p>
+<div class="highlight-python"><pre>serialOverride=org.apache.**,com.mypkg.serialstuff.*,com.mypkg.MyClass</pre>
+</div>
+<p>Like all configuration properties, you may specify this in the persistit.properties file or as a system property through a Java command-line argument in the form:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="o">-</span><span class="n">Dcom</span><span class="o">.</span><span class="n">persistit</span><span class="o">.</span><span class="n">serialOverride</span><span class="o">=...</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="registering-objects-in-a-custom-valuecoder">
+<h2>Registering Objects in a Custom <tt class="docutils literal"><span class="pre">ValueCoder</span></tt><a class="headerlink" href="#registering-objects-in-a-custom-valuecoder" title="Permalink to this headline">¶</a></h2>
+<p>In a custom <tt class="docutils literal"><span class="pre">ValueCoder</span></tt> implementation, the <tt class="docutils literal"><span class="pre">get</span></tt> method is responsible for constructing and populating an instance of an object. The following pattern should be used when implementing the get method:</p>
+<div class="highlight-java"><pre>public void get(Value value, Class clazz, CoderContext context) throws ConversionException {
+      // Construct the object being deserialized.
+      //
+      Object instance = ...constructor for the object...
+
+      // Associate a handle with the newly
+      // created instance.
+      //
+      value.registerEncodedObject(instance);
+
+      // Populate the object's internal state
+      //
+      ... load the fields – for example, by calling render...
+
+      return instance;
+}</pre>
+</div>
+<p>The purpose of the <tt class="docutils literal"><span class="pre">registerEncodedObject</span></tt> method is to record the association between the newly created object and an internal integer-valued handle that may be used subsequently in the serialization stream to refer to that object. This mechanism supports objects that may have fields that refer either indirectly or indirectly back to the same object – i.e., that participate in a cyclical reference graph.</p>
+<p>As a concrete example, consider a Person class with a spouse field such that for married couple p and q,  p.spouse is q and q.spouse is p. When Persistit serializes p it also serializes q, but when it serializes q&#8217;s spouse field, it records a reference handle associated with the already-serialized instance of p rather than writing a new copy of p in the serialization stream. Upon deserializing q, Persistit looks up the object for the recorded handle to correctly associate the already-deserialized p instance with q.</p>
+<p>Whenever you implement a custom <tt class="docutils literal"><span class="pre">get()</span></tt> method in any <tt class="docutils literal"><span class="pre">ValueCoder</span></tt>, you must notify the underlying Value object about the newly created object by calling registerEncodedObject before deserializing its fields so that any back-references made within serialized fields of that object can find the object correctly.</p>
+</div>
+<div class="section" id="value-tostring-and-decodedisplayable">
+<h2><tt class="docutils literal"><span class="pre">Value.toString()</span></tt> and <tt class="docutils literal"><span class="pre">decodeDisplayable</span></tt><a class="headerlink" href="#value-tostring-and-decodedisplayable" title="Permalink to this headline">¶</a></h2>
+<p>In many cases it is not very useful simply to display the result of evaluating <tt class="docutils literal"><span class="pre">toString()</span></tt> on an object. The default toString method inherited from Object conveys just a class name and a memory handle. In addition, for remote operations of AdminUI, it may not even be feasible to construct a deserialized object for each record. Therefore, <a class="reference external" href="apidocs/com/persistit/Value.html">com.persistit.Value</a> provides a specialized <tt class="docutils literal"><span class="pre">toString()</span></tt> method to render an arbitrary object value into a legible string. The AdminUI utility uses this facility to summarize the data contained in a Tree.</p>
+<p>Persistit creates a String value loading the object&#8217;s class, using the following algorithm:</p>
+<ul class="simple">
+<li>If the state represented by this Value is undefined, then return &#8220;undefined&#8221;.</li>
+<li>If the state is null or a boolean, return &#8220;null&#8221; &#8220;false&#8221;, or &#8220;true&#8221;.</li>
+<li>If the value represents a primitive type, return the string representation of the value, prefixed by &#8220;(byte)&#8221;, &#8220;(short)&#8221;, &#8220;(char)&#8221;, &#8220;(long)&#8221;, or &#8220;(float)&#8221; for the corresponding types. Values of type int and double are presented without prefix to reduce clutter.</li>
+<li>If the value represents a String, return a modified form of the string enclosed in double quotes. For each character of the string, if it is a double quote replace it by &#8220;&#8221;&#8221;, otherwise if it is outside of the printable ASCII character set replace the character in the modified string by &#8220;b&#8221;, &#8220;t&#8221;, &#8220;n&#8221;, &#8220;r&#8221; or &#8220;uNNNN&#8221; such that the modified string would be a valid Java string constant.</li>
+<li>If the value represents a wrapper for a primitive value (i.e., a java.lang.Boolean, java.lang.Byte, etc.) return the string representation of the value prefixed by &#8220;(Boolean)&#8221;, &#8220;(Byte)&#8221;, &#8220;(Short)&#8221;, &#8220;(Character)&#8221;, &#8220;(Integer)&#8221;, &#8220;(Long)&#8221;, &#8220;(Float)&#8221; or &#8220;(Double)&#8221;.  The package name java.lang is removed to reduce clutter.</li>
+<li>If the value represents a java.util.Date, return a formatted representation of the date using the format specified by Key.SDF. This is a readable format that displays the date with full precision, including milliseconds.</li>
+<li>If the value represents an array, return a list of comma-separated element values surrounded by square brackets.</li>
+<li>If the value represents one of the standard Collection implementations in the java.util package, then return a comma-separated list of values surrounded by square brackets.</li>
+<li>If the value represents one of the standard Map implementations in the java.util package, then return a comma-separated list of key/value pairs surrounded by square brackets. Each key/value pair is represented by a string in the form key-&gt;value.</li>
+<li>If the value represents an object of a class for which there is a registered <a class="reference external" href="apidocs/com/persistit/encoding/ValueDisplayer.html">com.persistit.encoding.ValueDisplayer</a>, invoke the displayer&#8217;s display method to format a displayable representation of the object.</li>
+<li>If the value represents an object that has been stored using the version default serialization mechanism described above, return the class name of the object followed by a comma-separated tuple, enclosed within curly brace characters, representing the value of each field of the object.</li>
+<li>If the value represents an object encoded through standard Java serialization, return the string &#8220;(Serialized-object)&#8221; followed by a sequence of hex digits representing the serialized bytes. Note that this process does not attempt to deserialize the object.</li>
+<li>If the value represents an object that has already been represented within the formatted result - for example, if a Collection contains two references to the same object - then instead of creating an additional string representing the second or subsequent instance, emit a back reference pointer in the form &#64;NNN where NNN is the character offset within the displayable string where the first instance was found. (This does not apply to strings and the primitive wrapper classes.)</li>
+</ul>
+<p>For example, consider a Person having for date of birth, first name, last name, salary and friends, an array of other Person objects. The result returned by toString() on a Value representing Mary Smith who has a friend John Smith, might appear as follows:</p>
+<div class="highlight-python"><pre>(Person){(Date)19490826000000.000-0400,"Mary","Jones",(long)75000,[
+       (Person){(Date)19550522000000.000-0400,"John","Smith",(long)68000,[@0]}]}</pre>
+</div>
+<p>In this example, John Smith&#8217;s friends array contains a back reference to Mary Jones in the form &#8220;&#64;0&#8221; because Mary&#8217;s displayable reference starts at the beginning of the string.</p>
+</div>
+<div class="section" id="persistitreference">
+<h2>PersistitReference<a class="headerlink" href="#persistitreference" title="Permalink to this headline">¶</a></h2>
+<p>In general, serializing an object that contains references to other objects requires all the referenced objects also to be serialized. For an object connected to a large reference graph, it may be impractical or even semantically incorrect to serialize the entire graph.</p>
+<p>One way to control the serialization graph for such an object is to write a custom ValueCoder; the custom ValueCoder can store key values for looking up the referenced object, rather than the object itself.  The ValueCoderDemo.java program demonstrates how this can be done.</p>
+<p>The <a class="reference external" href="apidocs/com/persistit/ref/PersistitReference.html">com.persistit.ref.PersistitReference</a> interface, and its abstract subclasses, provide an alternative mechanism for breaking up an object reference graph.  It requires no custom ValueCoder, but does impact the design of application classes.  In addition, you will need to write a concrete implementation of either <a class="reference external" href="apidocs/com/persistit/ref/AbstractReference.html">com.persistit.ref.AbstractReference</a> or <a class="reference external" href="apidocs/com/persistit/ref/AbstractWeakReference.html">com.persistit.ref.AbstractWeakReference</a> based on the actual storage structure of your object graph.</p>
+</div>
+<div class="section" id="objectcache">
+<h2>ObjectCache<a class="headerlink" href="#objectcache" title="Permalink to this headline">¶</a></h2>
+<p>A <a class="reference external" href="apidocs/com/persistit/Value.html">com.persistit.Value</a> object holds the serialized, encoded state of a primitive value of an object.  Each time you invoke the get method on a Value, Persistit generates a new copy of the object deserialized from this Value.  Persistit does not implicitly cache deserialized objects. However, the <a class="reference external" href="apidocs/com/persistit/encoding/ObjectCache.html">com.persistit.encoding.ObjectCache</a> class provides a simple mechanism for applications that need to maintain an in-memory cache of of objects from Persistit. <tt class="docutils literal"><span class="pre">ObjectCache</span></tt> works somewhat like a specialized version of java.util.WeakHashMap.</p>
+<p><tt class="docutils literal"><span class="pre">ObjectCache</span></tt> has <tt class="docutils literal"><span class="pre">put</span></tt>, <tt class="docutils literal"><span class="pre">get</span></tt> and <tt class="docutils literal"><span class="pre">remove</span></tt> methods much like a normal Map implementation.  However, when storing an object value with the supplied <a class="reference external" href="apidocs/com/persistit/Key.html">com.persistit.Key</a>, <tt class="docutils literal"><span class="pre">ObjectCache</span></tt> constructs a new, immutable <a class="reference external" href="apidocs/com/persistit/KeyState.html">com.persistit.KeyState</a> object to hold as an internal key. This is necessary because <tt class="docutils literal"><span class="pre">Key</span></tt> objects change value as they are used.</p>
+<p>Each <tt class="docutils literal"><span class="pre">ObjectCache</span></tt> entry holds its object value as a <tt class="docutils literal"><span class="pre">SoftReference</span></tt>, making it available for garbage collection when space is needed.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Serializing Object Values</a><ul>
+<li><a class="reference internal" href="#storing-objects-in-persistit">Storing Objects in Persistit</a></li>
+<li><a class="reference internal" href="#defaultvaluecoder-and-serialvaluecoder">DefaultValueCoder and SerialValueCoder</a></li>
+<li><a class="reference internal" href="#defaultvaluecoder">DefaultValueCoder</a><ul>
+<li><a class="reference internal" href="#constructing-objects-upon-deserialization">Constructing Objects upon Deserialization</a></li>
+<li><a class="reference internal" href="#extending-defaultvaluecoder">Extending DefaultValueCoder</a></li>
+<li><a class="reference internal" href="#security-policy-requirements-for-defaultvaluecoder">Security Policy Requirements for DefaultValueCoder</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#serialvaluecoder">SerialValueCoder</a><ul>
+<li><a class="reference internal" href="#the-serial-override-configuration-property">The Serial Override Configuration Property</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#registering-objects-in-a-custom-valuecoder">Registering Objects in a Custom <tt class="docutils literal"><span class="pre">ValueCoder</span></tt></a></li>
+<li><a class="reference internal" href="#value-tostring-and-decodedisplayable"><tt class="docutils literal"><span class="pre">Value.toString()</span></tt> and <tt class="docutils literal"><span class="pre">decodeDisplayable</span></tt></a></li>
+<li><a class="reference internal" href="#persistitreference">PersistitReference</a></li>
+<li><a class="reference internal" href="#objectcache">ObjectCache</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="Security.html"
+                        title="previous chapter">Security Notes</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Miscellaneous.html"
+                        title="next chapter">Miscellaneous Topics</a></p>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="Miscellaneous.html" title="Miscellaneous Topics"
+             >next</a></li>
+        <li class="right" >
+          <a href="Security.html" title="Security Notes"
+             >previous</a> |</li>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Akiban Technologies.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b3.
+    </div>
+  </body>
+</html>

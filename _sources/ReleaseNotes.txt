@@ -1,0 +1,660 @@
+************************************
+Akiban Persistit Version 3.3.0
+************************************
+
+May 17, 2013
+
+Overview
+=========
+See http://akiban.github.com/persistit for a summary of features and benefits and how to get support.
+
+.. note:: 
+   This version of Persistit is released under the Apache License, Version 2.0. Previous 
+   releases were licensed under the Eclipse Public License.  We made this change for 
+   better compatibility with other open source projects.
+
+Documentation
+==============
+Users Guide: http://akiban.github.com/persistit/docs
+
+JavaDoc: http://akiban.github.com/persistit/javadoc/index.html
+
+Building Akiban-Persistit
+==========================
+Use Maven (maven.apache.org) to build Persistit.
+
+To build::
+
+  mvn install
+
+The resulting jar files are in the ``target`` directory. To build the Javadoc::
+
+  mvn javadoc:javadoc
+
+The resulting Javadoc HTML files are in ``target/site/apidocs``.
+
+Building and Running the Examples
+---------------------------------
+
+Small examples are located in the ``examples`` directory. Each has a short README file describing the 
+example, and an Ant build script (http://ant.apache.org). After building the main akiban-persisit jar file using Maven, you may run::
+
+  ant run
+
+in each of the examples subdirectories to build and run the examples.
+
+Java 7 versus Java 6
+--------------------
+Persistit compiles and runs successfully under either Java 6 or Java 7. However, when compiled with Java 7, the resulting classes are
+incompatible with Java 6 due to a change in the ``java.nio.channels.FileChannel`` class introduced in Java 7.  
+See `FileChannel incompatibility introduced between 6 and 7 <http://mail.openjdk.java.net/pipermail/nio-dev/2012-July/001788.html>`_. Classes
+compiled under Java 6 run correctly in Java 7.
+
+Buffer Pool Configuration
+==========================
+For optimal performance, proper configuration of the Persistit buffer pool is required.  See section "Configuring the Buffer Pool" in the configuration document http://akiban.github.com/persistit/docs/Configuration.html
+
+.. note:: 
+   Especially when used with multi-gigabyte heaps, the default Hotspot JVM server heuristics are 
+   suboptimal for Persistit applications. Persistit is usually configured to allocate a large 
+   fraction of the heap to Buffer instances that are allocated at startup and held for the 
+   duration of the Persistit instance. For efficient operation, all of the Buffer instances 
+   must fit in the tenured (old) generation of the heap to avoid very significant garbage 
+   collector overhead. Use either -XX:NewSize or -Xmn to adjust the relative sizes of 
+   the new and old generations.
+
+|
+|
+
+Version History
+================
+
++---------+--------------------+--------------------------------------------------------------------------+
+| Version | Release Date       |  Summary                                                                 |
++=========+====================+==========================================================================+
+| 3.3.0   | May 17, 2013       | Change license from Eclipse Public License to Apache License, Version    |
+|         |                    | 2.0. Create and remove Trees correctly within the scope of a transaction.|
+|         |                    | Correct problems with transaction session management. Modify             |
+|         |                    | Accumulator API to better suggest correct usage.                         |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.2.7   | March 22, 2013     | Add several new API features, including TreeBuilder, Traverse Visitor    |
+|         |                    | and Lock. Fix several non-critical bugs.                                 |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.2.2   | November 30, 2012  | Improve support for Spring Framework. Fix rare but serious bugs found in |
+|         |                    | stress tests. Fix issue related to locale and make sure Persistit builds |
+|         |                    | everywhere.                                                              |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.2.1   | November 13, 2012  | Fix several low-priority bugs.                                           |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.2.0   | October 15, 2012   | Fix several critical and other bugs, one of which requires a modified    |
+|         |                    | journal file format. This version also significantly improves            |
+|         |                    | performance for I/O-intensive concurrent transaction loads.              |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.7   | September 11, 2012 | Fix several bugs, add buffer pool preload ("warm-up"),                   |
+|         |                    | reformat code base                                                       |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.6   | August 24, 2012    | Fix bug 1036422                                                          |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.5   | August 6, 2012     | Fix bug 1032701, modify pom.xml for Eclipse Juno                         |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.4   | August 3, 2012     | License changed to Eclipse Public License, various other enhancements    |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.2   | July 13, 2012      | Fix several bugs                                                         |
++---------+--------------------+--------------------------------------------------------------------------+
+| 3.1.1   | May 31, 2012       | First open source release of Akiban Persistit                            |
++---------+--------------------+--------------------------------------------------------------------------+
+
+
+Changes and New Features
+=========================
+
+3.3.0 - License
+-----------------------------------------------------
+Akiban Persistit is now licensed under the Apache License, Version 2.0.
+
+3.3.0 - Creating and Removing Trees in Transactions
+-------------------------------------------------------------
+Resolving a long-standing anomaly in the Persistit API, this release now handles
+creation and deletion of Tree instances correctly inside transactions. As a result,
+a transaction can create and populate a Tree which becomes visible within other
+transactions only when the transaction commits, and which is implicitly removed
+if the transaction aborts.  Similarly, the removal of a Tree within a
+transaction becomes visible to other transactions only upon commit.
+
+3.3.0 - Better Session Support
+-----------------------------------------------------
+This release corrects issues with session support. Each thread is assigned a
+`com.persistit.SessionId <apidocs/com/persistit/SessionId.html>`_ when it uses Persistit, and that SessionId is linked
+to a unique `com.persistit.Transaction <apidocs/com/persistit/Transaction.html>`_ instance.  Usually a transaction is confined to a single
+thread that retains a single SessionId for its entire life.  However, for use cases in 
+which a server may support transactions that span multiple
+network requests, and where each request may be serviced by an arbitrary thread from a
+thread pool, there is support for changing the association of a SessionId with a thread. See
+notes in `com.persistit.Transaction <apidocs/com/persistit/Transaction.html>`_ for details.
+
+This release corrects two issues related to sessions:
+
+* The constructor for SessionId is now public.
+* It is now possible for a thread other than the one that began the transaction
+  to commit it. Previous versions would throw an IllegalMonitorStateException in this
+  case.
+
+3.3.0 - Accumulator API
+-----------------------------------------------------
+The `com.persistit.Accumulator <apidocs/com/persistit/Accumulator.html>`_ class and its inner classes ``MinAccumulator``
+``MaxAccumulator``, ``SumAccumulator`` and ``SeqAccumulator`` provide an efficient
+way to update counts, sums and unique ID counters that would otherwise cause
+significant contention among concurrent transactions.  This release
+replaces a single method named ``update`` with a use-specific method for each
+type of Accumulator.  For example, the `com.persistit.Accumulator.SeqAccumulator <apidocs/com/persistit/Accumulator.SeqAccumulator.html>`_
+class provides the method `allocate <apidocs/com/persistit/Accumulator.SeqAccumulator.html#allocate()>`_ to
+allocate a sequence number.  See ``Accumulator`` class JavaDoc for details.
+
+3.2.7 - TreeBuilder
+-----------------------------------------------------
+Inserting a large set of records with non-sequential keys causes significant I/O overhead. Once the size
+of the Tree is larger than available main memory, each insertion can result in a disk write (to flush a page
+to disk so that its buffer can be reused) and a disk read (to read a different page into the buffer).
+
+The `com.persistit.TreeBuilder <apidocs/com/persistit/TreeBuilder.html>`_ class provides a more efficient way to load a large set of records with 
+non-sequential keys. TreeBuilder creates a set of files containing partially-sorted records. From these,
+TreeBuilder performs a merge-sort to complete the operation.
+
+TreeBuilder is effective only for inserting large sets of non-sequential records. For example, in tests we have
+loaded a billion records with keys generated as UUID instances. See the API documentation for
+`com.persistit.TreeBuilder <apidocs/com/persistit/TreeBuilder.html>`_ for more information.
+
+3.2.7 - Traverse Visitor
+-----------------------------------------------------
+The `traverse <apidocs/com/persistit/Exchange.html#traverse(com.persistit.Key.Direction,%20boolean)>`_ methods provide Persistit's fundamental mechanism for iterating
+over a collection of keys within a Tree.  Each call to ``traverse`` (or `next <apidocs/com/persistit/Exchange.html#next()>`_ or
+`previous <apidocs/com/persistit/Exchange.html#previous()>`_) performs a significant amount of set-up and tear-down activity.
+
+To better support code that visits a large number of records by calling one of the ``traverse`` methods in a loop, this
+release adds a more efficient mechanism based on the visitor pattern. See `com.persistit.Exchange.TraverseVisitor <apidocs/com/persistit/Exchange.TraverseVisitor.html>`_
+for details.
+
+3.2.7 - Lock to avoid Write Skew Anomalies
+-----------------------------------------------------
+Persistit transactions implement Snapshot Isolation to prevent concurrent transactions from interfering with
+each other.  See `com.persistit.Transaction <apidocs/com/persistit/Transaction.html>`_ for details.
+
+Snapshot Isolation is a well-known protocol for multi-version concurrency control. It is employed by many
+commercial databases because it offers lock-free serializable read transactions and frequently permits very high 
+throughput for concurrent execution of update transactions. And for many (but not all) transactions 
+it offers fully serializable execution of concurrent transactions (meaning that the effect of executing
+a set of transactions concurrently is identical to running them serially in some order). 
+
+The non-serializable exception case is called "Write Skew." See the `Wikipedia <http://wikipedia.org/wiki/Snapshot_isolation>`_  
+article for a brief description of write skew.
+
+In Persistit the issue arises when two (or more) concurrent transactions modify records with different keys
+in such a way that an integrity constraint which each transaction running alone would enforce is violated.
+For example, two concurrent transactions may write to separate data items X and Y in a way that
+violates an invariant that neither transaction alone would have permitted. Because the write operations
+are to different keys, no write conflict is detected, and both transactions are permitted to commit. The
+result is a database state that could not have occurred if the transactions had run sequentially in any order.
+
+A well-known solution is to modify the transaction logic to perform an additional write operation to a common
+key. The `lock <apidocs/com/persistit/Exchange.html#lock()>`_ method provides a convenient and efficient mechanism for doing so. The ``lock``
+method does not actually lock anything, but is so-named because it serves a similar function.
+
+3.2.7 - Miscellaneous Issues
+-----------------------------------------------------
+Changes needed to build and run Persistit on Mac OSX under Java 7 were made.
+
+A new CLI command to display the contents of a Persistit volume file was added.  The command
+
+  volumeinfo file=/path/to/volume/file
+
+displays all of the meta data contained in the volume file.  
+
+3.2.2 - Spring Framework
+-----------------------------------------------------
+Prior to this release Persistit was needlessly difficult to configure and initialize within Spring Framework.
+This version provides new setter methods and constructors on the `com.persistit.Persistit <apidocs/com/persistit/Persistit.html>`_ object to allow easy
+injection of configuration properties and make it possible to inject a fully instantiated
+Persistit instance within a Spring project. In addition, new methods were added to the 
+`com.persistit.Configuration <apidocs/com/persistit/Configuration.html>`_ class to simplify supplying buffer pool and initial volume specifications.
+Three of the `initialize <apidocs/com/persistit/Persistit.html#initialize()>`_ methods were deprecated.
+
+This release also adds a new sample application that shows how a configured Persistit instance can be created. For
+Maven users, note that the pom.xml file now includes a dependency on Spring Framework in test scope only; Persistit 
+can still be deployed without any external dependencies.
+
+3.2.2 - Bug Fixes
+-----------------------------------------------------
+Version 3.2.2 corrects two issues that were identified through stress tests. For this release
+we added hundreds of hours of stress-testing experience and will continue to invest in ongoing testing.
+
+This version also fixes a unit test with string literals containing numbers formatted according to en_US
+conventions. The test has been corrected and the Persistit build has been tested in several locales.
+
+3.2.1 - Bug Fixes
+-----------------------------------------------------
+
+Version 3.2.1 is a maintenance release that fixes a number of non-critical bugs, primarily in less frequently
+used sections of the API. See the associated bug list for full descriptions of each resolved.
+
+3.2.0 - Default Journal File Format Changed
+-----------------------------------------------------
+
+Version 3.2.0 fixes problems related to Volumes created and opened by the `loadVolume <apidocs/com/persistit/Persistit.html#loadVolume(com.persistit.VolumeSpecification)>`_ 
+method rather than being specified by the initial system configuration. In previous versions, journal files 
+contained insufficient information to properly recover such volumes, even during normal startup.
+
+To solve this problem the format of the IV (identify volume) journal record changed to include 
+the `com.persistit.VolumeSpecification <apidocs/com/persistit/VolumeSpecification.html>`_ rather than the volume name alone. By default, journal 
+files written by earlier versions of Persistit continue to be supported, but once Persistit 3.2.0 has 
+added one or more new journal files to a database, earlier versions of Persistit are unable to 
+open the database.
+
+In most cases it is never necessary to revert to an earlier version, but to support sites where 
+backward-compatibility may be important, it is possible to specify a new configuration parameter 
+(see `setVolumeList <apidocs/com/persistit/Configuration.html#setVolumeList(java.util.List)>`_. When this property is +true+, Persistit writes 
+journal files that are backward-compatible, but incapable of supporting dynamically created volumes.
+
+3.2.0 - Performance Improvements
+------------------------------------------
+
+Version 3.2.0 significantly improves I/O performance for concurrent transactions and
+better controls the number of journal files created during by very aggressive loads. A new attribute
+in the `com.persistit.mxbeans.JournalManagerMXBean <apidocs/com/persistit/mxbeans/JournalManagerMXBean.html>`_ class called ``urgentFileCountThreshold`` controls the
+maximum number of journal files Persistit will create before ramping the up the urgency of copying pages to
+allow purging old files. Several other issues related to I/O scheduling and management of 
+dirty pages were resolved.
+
+Version 3.2.0 significantly improves scheduling of version pruning operations.  Pruning is the process by
+which obsolete versions are removed from multi-version values (MVVs). Better scheduling results in a
+significant reduction in the amount of space consumed by obsolete version and also results in better
+transaction throughput.
+
+3.1.7 - Code Base Reformatted
+---------------------------------------
+
+To simplify diffs and improve legibility, the entire code base was reformatted and "cleaned up" 
+by the Eclipse code formatting tool. The maven build now automatically formats all
+source to ensure coherent diffs in the future.  The settings for formatting and code style 
+cleanup by Eclipse are found in the ``src/etc`` directory.
+
+3.1.7 - Buffer Pool Preload
+-------------------------------------
+
+On a server with a large buffer pool (many gigabytes), a Persistit instance can run for a long 
+time before the buffer pool becomes populated with a suitable working set of database pages. 
+Until then performance is degraded due to a potentially large number of random reads. 
+For a production server the result may be poor performance for minutes to hours after restart.
+
+The preload facility periodically records an inventory of the pages currently in the buffer 
+pool(s) and optionally reloads the same set of pages when Persistit is restarted. During the 
+preload process Persistit attempts to read pages in approximate file-address order to 
+accelerate reads. In one of our experiments Persistit preloads a buffer pool with over 
+800,000 16Kbyte buffers in about a minute, which is orders of magnitude faster than the 
+same process would take with reads performed incrementally at random.
+
+Two new configuration properties `setBufferInventoryEnabled <apidocs/com/persistit/Configuration.html#setBufferInventoryEnabled(boolean)>`_ and 
+`setBufferPreloadEnabled <apidocs/com/persistit/Configuration.html#setBufferPreloadEnabled(boolean)>`_ control this behavior. These settings 
+are turned off by default in version 3.1.7.
+
+3.1.4 - Detecting and Ignoring Missing Volumes
+--------------------------------------------------------
+
+Every time Persistit writes a modified page to disk, it does so first to the journal. 
+During recovery processing, the page images from the journal are analyzed and reinserted 
+into volumes in such a way that all B+Trees are restored to a consistent state. The issue 
+addressed in this change is how Persistit behaves during recovery if it discovers that a 
+volume referred to by a page in the journal no longer exists.
+
+Recognizing that under some circumstances an administrator may indeed wish to remove a 
+volume from an existing Database, this change provides a configurable switch to optionally 
+allow pages from missing volumes to be skipped (with logged warning messages) during recovery 
+processing.  The switch can be enabled by setting the configuration parameter 
+`setIgnoreMissingVolumes <apidocs/com/persistit/Configuration.html#setIgnoreMissingVolumes(boolean)>`_ to true.
+
+
+3.1.4 - Reduce KeyCoder Serialized Object Size
+--------------------------------------------------------
+
+.. note::
+   Any Database containing objects serialized by a custom KeyCoder from a previous version 
+   of Persistit is incompatible with this change
+
+Minimize the per-instance overhead for application objects written into Persistit Keys by 
+reducing the size of the internal identifier.
+
+Persistit has rich support for serializing standard Java primitive and object types into a 
+Key. Additionally, the KeyCoder class allows for any application level object to also be 
+appended to a Key right next to any other type. This is tagged internally with per-class 
+handles. This change lowers the initial offset to reduce and in many cases halve the serialized size. 
+
+3.1.4 - Maven POM Changes For Eclipse Juno 
+----------------------------------------------------
+
+The latest version of Eclipse, code named Juno, features a wide array of changes, including a 
+new release of the m2eclipse plugin. In an effort to make getting started with Persistit as 
+easy as possible, we have included the required m2e configuration sections in our pom.
+
+Please contact Akiban if you have encounter any issues getting up and running with Persistit.   
+
+3.1.2 - Asserts Added to Check for Correct Exchange Thread Behavior
+-----------------------------------------------------------------------------
+
+A bug in the Akiban Server code caused an Exchange to be used concurrently by two Threads, 
+causing serious and seemingly unrelated failures in Persistit including instances of 
+IllegalMonitorException and IllegalStateException. To guard against future occurrences, 
+asserts were added to catch such concurrent use by multiple threads.  Applications should 
+be tested with asserts enabled to verify correct thread usage.
+
+Resolved Issues
+================
+
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| Bug Reference                      | Fixed in | Summary                                                                                                               |
+|                                    | Version  |                                                                                                                       |
++====================================+==========+=======================================================================================================================+
+| https://launchpad.net/bugs/1055557 | 3.3.0    | `Trees removed inside transaction can automatically come back`                                                        |
+|                                    |          |                                                                                                                       |
+|                                    |          | Resolved by support for creating and removing trees within transactions.                                              |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1174352 | 3.3.0    | `Transaction commit and abort cannot be performed from a different Thread`                                            |
+|                                    |          |                                                                                                                       |
+|                                    |          | A ReentrantLock was replaced by a Semaphore to allow modification of locked                                           |
+|                                    |          | state by different threads.                                                                                           |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1167056 | 3.3.0    | `Value returned from Accumulator#update() is non-transactional`                                                       |
+|                                    |          |                                                                                                                       |
+|                                    |          | The issue was unintended use of a value returned from this method. The Accumulator                                    |
+|                                    |          | API was reworked to avoid confusion.                                                                                  |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1161062 | 3.3.0    | `Missing public constructor for com.persistit.SessionId`                                                              |
+|                                    |          |                                                                                                                       |
+|                                    |          | Added.                                                                                                                |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1159313 | 3.3.0    | `Deadlock in Bug882219Test`                                                                                           |
+|                                    |          |                                                                                                                       |
+|                                    |          | We determined that a deadlock exists in the Java 7 implementation of                                                  |
+|                                    |          | AbstractInterruptibleChannel independent of Persistit. Bug number 9002674 was                                         |
+|                                    |          | assigned by the Oracle Java Bug Database. In the meantime, the test has been                                          |
+|                                    |          | disabled to avoid hung builds.                                                                                        |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1157809 | 3.3.0    | `Appending value to a Key causes an ArrayIndexOutOfBoundsException`                                                   |
+|                                    |          |                                                                                                                       |
+|                                    |          | An attempt to append overflow the backing store of a ``com.persistit.Key`` now                                        |
+|                                    |          | throws a ``com.persistit.exceptions.KeyTooLongException``.                                                            |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1133039 | 3.3.0    | `Pruning incomplete on simple DUPLICATE_KEY error`                                                                    |
+|                                    |          |                                                                                                                       |
+|                                    |          | The actual cause of this bug was inadequate pruning velocity when cleaning up transactions                            |
+|                                    |          | using the new ``com.persistit.Exchange#lock`` method. Locked elements are now                                         |
+|                                    |          | pruned synchronously to avoid overloading the cleanup manager.                                                        |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1126868 | 3.3.0    | `Lock table not pruned`                                                                                               |
+|                                    |          |                                                                                                                       |
+|                                    |          | See 1133039 above.                                                                                                    |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1126297 | 3.3.0    | 'Assertion failure in TransactionIndexBucket#allocateTransactionStatus'                                               |
+|                                    |          |                                                                                                                       |
+|                                    |          | Corrected by allowing a different thread than the one that created it to                                              |
+|                                    |          | abort a transaction.                                                                                                  |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1076517 | 3.2.2    | `InUseExceptions in stress tests`                                                                                     |
+|                                    |          |                                                                                                                       |
+|                                    |          | Stress tests occasionally experienced InUseExceptions, usually signifying                                             |
+|                                    |          | a deadlock. Two mechanisms were discovered and fixed. Note that an InUseException                                     |
+|                                    |          | occurs when an attempt to lock a resource such as a Tree or a Buffer is                                               |
+|                                    |          | unsatisfied for 60 seconds (the current default timeout).  This exception can                                         |
+|                                    |          | occur for reasons other than deadlock such as an extraordinarily slow I/O                                             |
+|                                    |          | operation or as a result of a debug breakpoint in sensitive code.                                                     |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1079288 | 3.2.2    | `Persistit build success is sensitive to locale`                                                                      |
+|                                    |          |                                                                                                                       |
+|                                    |          | One Persistit unit test depended on locale-specific text formatting, and therefore                                    |
+|                                    |          | failed when built in a locale which does not conform to en_US formatting rules.                                       |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1079406 | 3.2.2    | `Design flaw makes Persistit needlessly difficult to use in Spring Framework`                                         |
+|                                    |          |                                                                                                                       |
+|                                    |          | Persistit initialization API was modified to make it easy to create and use                                           |
+|                                    |          | a Persistit instance within Spring Framework.                                                                         |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1081659 | 3.2.2    | `isNull(true) leaves Value in unsafe state for stream mode get`                                                       |
+|                                    |          |                                                                                                                       |
+|                                    |          | The implementation of isNull(boolean) added in Version 3.2.1 contained a bug that                                     |
+|                                    |          | made stream-mode get operations fail.                                                                                 |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1074372 | 3.2.2    | `Stress tests induce RebalanceException`                                                                              |
+|                                    |          |                                                                                                                       |
+|                                    |          | Code was added to handle a rare situation                                                                             |
+|                                    |          | in which removing a key at the boundary between two pages requires one of the pages to split. Formerly this condition |
+|                                    |          | was not handled properly and instead caused the application thread to receive a RebalanceException.                   |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1076403 | 3.2.1    | `NPE while starting AdminUI`                                                                                          |
+|                                    |          |                                                                                                                       |
+|                                    |          | Localized property files are used for text labels in the AdminUI. Only an                                             |
+|                                    |          | English file was provided by default so starting the UI in another language                                           |
+|                                    |          | would case a NullPointerException. Move the current English property file                                             |
+|                                    |          | to the default name so it is always selected.                                                                         |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1073357 | 3.2.1    | `Value.getType() is not reliable for CLASS_REREF`                                                                     |
+|                                    |          |                                                                                                                       |
+|                                    |          | A special internal tag, CLASS_REFREF, is used when appending the same object                                          |
+|                                    |          | multiple times to a Value in stream mode. This is so cycles can be handled                                            |
+|                                    |          | correctly in a generic object graph. The getType() method, which returns the                                          |
+|                                    |          | Class of the encoded object without fully decoding it, did not always return                                          |
+|                                    |          | the most specific specific Class for this internal tag.                                                               |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1046049 | 3.2.1    | `Filtered traverse in LTEQ direction appears not to work`                                                             |
+|                                    |          |                                                                                                                       |
+|                                    |          | A bug in the com.persistit.KeyFilter caused reverse-direction traversal using                                         |
+|                                    |          | a KeyFilter with a range term to return incorrect results.                                                            |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1042960 | 3.2.1    | `Value.isNull slightly non-intuitive in stream mode`                                                                  |
+|                                    |          |                                                                                                                       |
+|                                    |          | When operating on a Value in stream mode it is a common pattern to check if the                                       |
+|                                    |          | current position is null before attempting to decode it. There is little reason                                       |
+|                                    |          | to then decode if it is null. A new method was added, isNull(boolean skipIfNull),                                     |
+|                                    |          | that can be used to perform this in a single call.                                                                    |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1023549 | 3.2.1    | `traverse(EQ, false, 0) returns incorrect result`                                                                     |
+|                                    |          |                                                                                                                       |
+|                                    |          | A traverse with the given parameters should return true if the key exists, without                                    |
+|                                    |          | fetching any of the value bytes. If the given key was removed and then immediately                                    |
+|                                    |          | traversed for existence, true would be returned instead of false.                                                     |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1065677 | 3.2.0    | `Persistit not recoverable after hard crash`                                                                          |
+|                                    |          |                                                                                                                       |
+|                                    |          | A system experienced a sequence of events, including being killed several times at                                    |
+|                                    |          | inopportune times by the OOM Killer, that left its journal in an unrecoverable state.                                 |
+|                                    |          | Specifically, there was a journal file that contained lots of updated pages, but no                                   |
+|                                    |          | checkpoint record.  Due to a bug in the RecoveryManager code, the system timestamp                                    |
+|                                    |          | was set incorrectly and led to an out-of-order page update sequence.  While this bug                                  |
+|                                    |          | would be difficult to recreate by any natural circumstances, it is critical because                                   |
+|                                    |          | of potential data loss.                                                                                               |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1064565 | 3.2.0    | `Accumulator state sometimes missing from checkpoint`                                                                 |
+|                                    |          |                                                                                                                       |
+|                                    |          | Occasionally the state of an Accumulator was incorrect after normal system restart.                                   |
+|                                    |          | The cause was a race in the checkpoint code. This is a critical bug due to potential                                  |
+|                                    |          | data loss.                                                                                                            |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1062315 | 3.2.0    | `Assertion failure in TransactionIndexBucket#allocateTransactionStatus`                                               |
+|                                    |          |                                                                                                                       |
+|                                    |          | An assert was observed in an 8-hour stress test run.  The underlying cause was                                        |
+|                                    |          | a brief race condition and was harmless. The race has been fixed.                                                     |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1058650 | 3.2.0    | `IllegalStateException due to out-of-order MVVs`                                                                      |
+|                                    |          |                                                                                                                       |
+|                                    |          | Stress tests experienced an occasional occurrence of an IllegalStateException due                                     |
+|                                    |          | to out-of-order versions in an MVV value.  The condition was transient and did not                                    |
+|                                    |          | cause data loss. The underlying cause has been fixed.                                                                 |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1058254 | 3.2.0    | `Join on range delete can change successor keys`                                                                      |
+|                                    |          |                                                                                                                       |
+|                                    |          | A range delete that crosses at least two page boundaries can write an incorrect key                                   |
+|                                    |          | when merging records; this causes it and subsequent keys within the page to be wrong                                  |
+|                                    |          | and also leads to a discontinuity between the max key in the page and the first key                                   |
+|                                    |          | of its right sibling.                                                                                                 |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1056489 | 3.2.0    | `MVV and step visibility and pruning errors`                                                                          |
+|                                    |          |                                                                                                                       |
+|                                    |          | Transactions using +step+ values (see com.persisit.Transaction#setStep) sometimes resulted                            |
+|                                    |          | in inconsistent states.                                                                                               |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1053680 | 3.2.0    | `Page deallocation can permanently lose pages`                                                                        |
+|                                    |          |                                                                                                                       |
+|                                    |          | When removing records causes deallocation of chain of pages configured in a particular way,                           |
+|                                    |          | a garbage page, and possibly many pages linked to it, may be stranded in a volume.                                    |
+|                                    |          | The result is irrecoverable loss of space in the volume file.                                                         |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1047973 | 3.2.0    | `O(N*N) Loop in JournalManager#cleanupPageList`                                                                       |
+|                                    |          |                                                                                                                       |
+|                                    |          | Bad code in this method causes periodic performance degradation in 4-hour TPCC test. The                              |
+|                                    |          | CPU cost of this algorithm scales as the square of the number of pages in the page list,                              |
+|                                    |          | and the work is done within a globally blocking synchronized block.                                                   |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1045971 | 3.2.0    | `Dynamically loaded volumes not recovered "cleanly"`                                                                  |
+|                                    |          |                                                                                                                       |
+|                                    |          | When a program creates new volumes using VolumeSpecifications, they subsequently                                      |
+|                                    |          | cause a "missing volume" warning from the journal copier and prevent the removal                                      |
+|                                    |          | of journal files containing the references. The journal files accumulate seemingly                                    |
+|                                    |          | without end, and each initialization of the database seems to process more and                                        |
+|                                    |          | more of the old transactions.                                                                                         |
+|                                    |          |                                                                                                                       |
+|                                    |          | See discussion about regarding the useOldVSpec property.                                                              |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1044513 | 3.1.7    | `AssertionError in IntegrityCheckTest`                                                                                |
+|                                    |          |                                                                                                                       |
+|                                    |          | A bug in unit test code caused spurious assertion errors.                                                             |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1044397 | 3.1.7    | `IntegrityCheck throws ArrayIndexOutOfBoundsException`                                                                |
+|                                    |          |                                                                                                                       |
+|                                    |          | IntegrityCheck and the CLI ``pview`` command were not immune to                                                       |
+|                                    |          | certain inconsistent byte patterns in a corrupt page, making them                                                     |
+|                                    |          | inadequate for diagnosing a severely corrupted database.                                                              |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1041293 | 3.1.7    | `Mismatched buffer pool sizes and volume page size results in NPE`                                                    |
+|                                    |          |                                                                                                                       |
+|                                    |          | Attempting to open a Volume with a valid page size S resulted in a                                                    |
+|                                    |          | NullPointerException if there was no buffer pool having page size                                                     |
+|                                    |          | S specified. This same condition how throws an IllegalStateException.                                                 |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1043536 | 3.1.7    | `Build fails: persistit-coverage hangs with deadlock`                                                                 |
+|                                    |          |                                                                                                                       |
+|                                    |          | A bug in a unit test left a deadlock condition under certain race                                                     |
+|                                    |          | conditions. Speed variations caused by clover instrumentation                                                         |
+|                                    |          | triggered frequent occurrences.                                                                                       |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1036422 | 3.1.6    | `CommitPolicy HARD can soak CPU`                                                                                      |
+|                                    |          |                                                                                                                       |
+|                                    |          | With CommitPolicy HARD we observed a CPU-soaking loop in the commit                                                   |
+|                                    |          | logic.                                                                                                                |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1032701 | 3.1.5    | `Interrupt causes Thread to exit without releasing claims`                                                            |
+|                                    |          |                                                                                                                       |
+|                                    |          | If a thread was interrupted at an inopportune time (for example,                                                      |
+|                                    |          | by query cancellation in Akiban Server), a page in the buffer pool                                                    |
+|                                    |          | could be left in a locked state blocking all further progress. The                                                    |
+|                                    |          | only remedy was to stop and restart the JVM.                                                                          |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1028016 | 3.1.4    | `Old Journal Files Not Being Deleted`                                                                                 |
+|                                    |          |                                                                                                                       |
+|                                    |          | If a volume was removed from the configuration and Persistit was                                                      |
+|                                    |          | then restarted, the associated journal files would not be removed                                                     |
+|                                    |          | due to internal safety checks. To support intentional removal of a                                                    |
+|                                    |          | volume, a new configuration option was added.                                                                         |
+|                                    |          |                                                                                                                       |
+|                                    |          | See the ``Detecting and Ignoring Missing Volumes`` feature description                                                |
+|                                    |          | for more details.                                                                                                     |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1024857 | 3.1.4    | `Class Index Updates Causing Write-Write Dependencies`                                                                |
+| https://launchpad.net/bugs/1026207 |          |                                                                                                                       |
+|                                    |          | Custom classes that are serialized into keys or values through a                                                      |
+|                                    |          | custom KeyCoder or ValueCoder are given a unique identifier.  The                                                     |
+|                                    |          | identifier was determined within an application transaction the                                                       |
+|                                    |          | first time a class was written and stored in an internal tree.  This                                                  |
+|                                    |          | would cause seemingly spurious aborts if multiple application threads                                                 |
+|                                    |          | simultaneously attempted to store the first instance of a given                                                       |
+|                                    |          | class. The identifier is now committed within an independent                                                          |
+|                                    |          | transaction.                                                                                                          |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1028050 | 3.1.4    | `Accumulator Memory Usage and Transaction Step Policy`                                                                |
+| https://launchpad.net/bugs/1028134 |          |                                                                                                                       |
+|                                    |          | Each individual change to an Accumulator was previously stored as                                                     |
+|                                    |          | an individual Delta object. For long running transactions that                                                        |
+|                                    |          | heavily utilized Accumulators, this would cause excessive memory                                                      |
+|                                    |          | usage. These unique instances are now eliminated in most scenarios,                                                   |
+|                                    |          | resulting in stable memory utilization in all but pathological                                                        |
+|                                    |          | cases.                                                                                                                |
+|                                    |          |                                                                                                                       |
+|                                    |          | Additionally, the Accumulator handling of the Transaction step value                                                  |
+|                                    |          | was inconsistent with how it was treated through an Exchange.  Now,                                                   |
+|                                    |          | both classes allow a transaction at a given step N to see any update                                                  |
+|                                    |          | created by that transaction at a step less N.                                                                         |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1005206 | 3.1.2    | `Infinite Loop When Repacking Buffer`                                                                                 |
+|                                    |          |                                                                                                                       |
+|                                    |          | This could occur if a buffer required restructuring during pruning                                                    |
+|                                    |          | of a long value that was previously stored under a transaction.                                                       |
+|                                    |          | Upon the next save of this buffer to disk (e.g.  shutdown), an                                                        |
+|                                    |          | infinite loop would occur.                                                                                            |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1010079 | 3.1.2    | `Corruption Exceptions During Various Operations`                                                                     |
+|                                    |          |                                                                                                                       |
+|                                    |          | NOTE: Only the message indicates a database corruption. The data                                                      |
+|                                    |          | volume is actually correct and intact.                                                                                |
+|                                    |          |                                                                                                                       |
+|                                    |          | This could occur if pruning a buffer containing a long record                                                         |
+|                                    |          | previously stored under a transaction required removal of keys and                                                    |
+|                                    |          | then that buffer was reused without further modification. A parallel                                                  |
+|                                    |          | structure associated with the every Buffer, the FastIndex, was not                                                    |
+|                                    |          | maintained during this operation.                                                                                     |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1012856 | 3.1.2    | `Slow Accumulator Operations`                                                                                         |
+|                                    |          |                                                                                                                       |
+|                                    |          | If a thread starting a new transaction was interrupted during the                                                     |
+|                                    |          | call to begin(), there was a chance for an internal object to wind                                                    |
+|                                    |          | up in an invalid state. This invalid state caused no visible                                                          |
+|                                    |          | consequences other than slower than expected Accumulator actions                                                      |
+|                                    |          | if this had occurred many times.                                                                                      |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1017957 | 3.1.2    | `B+Tree Corruption in Stress Test`                                                                                    |
+|                                    |          |                                                                                                                       |
+|                                    |          | An extremely rare combination of events corrupted memory structures                                                   |
+|                                    |          | causing an incorrect key-pointer pair to be inserted while deleting                                                   |
+|                                    |          | records in a key range. The bug was detected in an 8-hour stress                                                      |
+|                                    |          | test run.                                                                                                             |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+| https://launchpad.net/bugs/1018526 | 3.1.2    | `Very long recovery time due to many temporary tree IT records`                                                       |
+|                                    |          |                                                                                                                       |
+|                                    |          | Every Tree created in a temporary volume was being assigned a tree                                                    |
+|                                    |          | handle recorded permanently in the journal.  In one case the result                                                   |
+|                                    |          | was a journal containing millions of IT (Identify Tree) records,                                                      |
+|                                    |          | and these caused normal recovery to take a very long time. The fix                                                    |
+|                                    |          | keeps temporary trees out of the journal and removes IT records                                                       |
+|                                    |          | which may have been added previously.                                                                                 |
++------------------------------------+----------+-----------------------------------------------------------------------------------------------------------------------+
+
+
+Unresolved Issues
+==================
+
+Out of Memory Error, Direct Memory Buffer
+------------------------------------------------------
+
+https://bugs.launchpad.net/akiban-persistit/+bug/985117
+
+Out of Memory Error, Direct Memory Buffer. Can cause failed transactions under extreme load 
+conditions as a result of threads getting backed up writing to the journal file. However, 
+this error is transient and recoverable by by retrying the failed transaction.
+
+* Workaround: Ensure your application has the ability to retry failed transactions
+
+Tree#getChangeCount may return inaccurate result
+-------------------------------------------------------------
+
+https://bugs.launchpad.net/akiban-persistit/+bug/986465
+
+The getChangeCount method may return inaccurate results as it is not currently transactional.  
+The primary consumer is the PersistitMap. As a result of this bug Persistit may not generate 
+java.util.ConcurrentModificationException when it is supposed to.
+
+

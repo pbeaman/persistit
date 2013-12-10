@@ -1,0 +1,551 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Management &mdash; Persistit 3.3.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.3.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Persistit 3.3.1 documentation" href="index.html" />
+    <link rel="next" title="Security Notes" href="Security.html" />
+    <link rel="prev" title="Configuration" href="Configuration.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="Security.html" title="Security Notes"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="Configuration.html" title="Configuration"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="management">
+<span id="id1"></span><h1>Management<a class="headerlink" href="#management" title="Permalink to this headline">¶</a></h1>
+<p>Akiban Persistit provides three main avenues for measuring and managing its internal resources: an RMI interface, a JMX interface and a command-line interface capable of launching various utility tasks.</p>
+<p>The RMI interface is primarily intended for the <a class="reference external" href="apidocs/com/persistit/ui/AdminUI.html">com.persistit.ui.AdminUI</a> utility. AdminUI is a JFC/Swing program that runs on a device with graphical UI capabilities.  For example, in Linux and Unix it requires an XServer. Since production servers are usually headless it is often necessary to run AdminUI remotely, via its RMI interface. To do this, the Persistit configuration must specify either the <tt class="docutils literal"><span class="pre">rmiport</span></tt> or <tt class="docutils literal"><span class="pre">rmihost</span></tt> property so that it can start an RMI server.</p>
+<p>Suppose a Persistit-based application is running on a host named “somehost” and has specified the configuration property <tt class="docutils literal"><span class="pre">rmiport=1099</span></tt> in its configuration.  Then the AdminUI can be launched as follows to connect with it:</p>
+<div class="highlight-java"><div class="highlight"><pre><span class="n">java</span> <span class="o">-</span><span class="n">cp</span> <span class="n">classpath</span>  <span class="n">com</span><span class="o">.</span><span class="na">persistit</span><span class="o">.</span><span class="na">ui</span><span class="o">.</span><span class="na">AdminUI</span> <span class="nl">somehost:</span><span class="mi">1099</span>
+</pre></div>
+</div>
+<p>where classpath includes the Persistit <tt class="docutils literal"><span class="pre">com.persistit.ui</span></tt> package.</p>
+<div class="section" id="mxbeans">
+<h2>MXBeans<a class="headerlink" href="#mxbeans" title="Permalink to this headline">¶</a></h2>
+<p>The JMX interface can be used by third-party management utilities, from applications such as <tt class="docutils literal"><span class="pre">jconsole</span></tt> and <tt class="docutils literal"><span class="pre">visualvm</span></tt>, and from command-line JMX clients such as <tt class="docutils literal"><span class="pre">jmxterm</span></tt>. To enable JMX access, the configuration must specify the property <tt class="docutils literal"><span class="pre">jmx=true</span></tt>.  This causes Persistit to register several MBeans with the platform MBean server during initialization.</p>
+<p>The following JMX MXBeans are available:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">com.persistit:type=Persistit</span></tt></dt>
+<dd>See <a class="reference external" href="apidocs/com/persistit/mxbeans/ManagementMXBean.html">com.persistit.mxbeans.ManagementMXBean</a></dd>
+<dt><tt class="docutils literal"><span class="pre">com.persistit:type=Persistit,class=AlertMonitorMXBean</span></tt></dt>
+<dd>See <a class="reference external" href="apidocs/com/persistit/mxbeans/AlertMonitorMXBean.html">com.persistit.mxbeans.AlertMonitorMXBean</a>.
+Accumulates, logs and emits notifications about abnormal events such as IOExceptions and measurements outside of
+expected thresholds.</dd>
+<dt><tt class="docutils literal"><span class="pre">com.persistit:type=Persistit,class=CleanupManagerMXBean</span></tt></dt>
+<dd>See <a class="reference external" href="apidocs/com/persistit/mxbeans/CleanupManagerMXBean.html">com.persistit.mxbeans.CleanupManagerMXBean</a>.
+View current state of the Cleanup Manager. The Cleanup Manager performs background pruning and tree maintenance
+activities.</dd>
+<dt><tt class="docutils literal"><span class="pre">com.persistit:type=Persistit,class=IOMeter</span></tt></dt>
+<dd>See <a class="reference external" href="apidocs/com/persistit/mxbeans/IOMeterMXBean.html">com.persistit.mxbeans.IOMeterMXBean</a>.
+Maintains statistics on file system I/O operations.</dd>
+<dt><tt class="docutils literal"><span class="pre">com.persistit.type=Persistit,class=JournalManager</span></tt></dt>
+<dd>See <a class="reference external" href="apidocs/com/persistit/mxbeans/JournalManagerMXBean.html">com.persistit.mxbeans.JournalManagerMXBean</a>.
+Views current journal status.</dd>
+<dt><tt class="docutils literal"><span class="pre">com.persistit.type=Persistit,class=RecoveryManager</span></tt></dt>
+<dd>See <a class="reference external" href="apidocs/com/persistit/mxbeans/RecoveryManagerMXBean.html">com.persistit.mxbeans.RecoveryManagerMXBean</a>.
+Views current status of the recovery process. Attributes of this MXBean change only during the recovery process.</dd>
+<dt><tt class="docutils literal"><span class="pre">com.persistit:type=Persistit,class=TransactionIndexMXBean</span></tt></dt>
+<dd>See <a class="reference external" href="apidocs/com/persistit/mxbeans/TransactionIndexMXBean.html">com.persistit.mxbeans.TransactionIndexMXBean</a>.
+View internal state of transaction index queues and tables.</dd>
+<dt><tt class="docutils literal"><span class="pre">com.persistit.type=Persistit,class=BufferPool.*SSSS*</span></tt></dt>
+<dd>where <em>SSSS</em> is a buffer size (512, 1024, 2048, 4096 or 16394). See <a class="reference external" href="apidocs/com/persistit/mxbeans/BufferPoolMXBean.html">com.persistit.mxbeans.BufferPoolMXBean</a>. View utilization statistics for buffers of the
+selected size.</dd>
+</dl>
+</div></blockquote>
+<p>For details see the JavaDoc API documentation for each MXBean interface.</p>
+</div>
+<div class="section" id="management-tasks">
+<h2>Management Tasks<a class="headerlink" href="#management-tasks" title="Permalink to this headline">¶</a></h2>
+<p>Persistit provides several ways to launch and administer <a class="reference external" href="apidocs/com/persistit/Task.html">com.persistit.Task</a> instances.  A <tt class="docutils literal"><span class="pre">Task</span></tt> is a management operation that may take a significant amount of time and usually runs in a separate thread. For example, <a class="reference external" href="apidocs/com/persistit/IntegrityCheck.html">com.persistit.IntegrityCheck</a> is a <tt class="docutils literal"><span class="pre">Task</span></tt> that verifies the internal structural integrity of one or more trees and can run for minutes to hours, depending on the size of the database.  The AdminUI tool, <a class="reference external" href="apidocs/com/persistit/mxbeans/ManagementMXBean.html">com.persistit.mxbeans.ManagementMXBean</a> and the command-line interface (<a class="reference internal" href="#cli"><em>The Command-Line Interface</em></a>) provide mechanisms to launch, suspend or stop a task, and to monitor a task’s progress.</p>
+<p>Currently the following built-in Tasks are available:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">icheck</span></tt></dt>
+<dd>Check the integrity of one or more trees or volumes.</dd>
+<dt><tt class="docutils literal"><span class="pre">save</span></tt></dt>
+<dd>Save selected key-value pairs from one or more trees to a flat file.</dd>
+<dt><tt class="docutils literal"><span class="pre">load</span></tt></dt>
+<dd>Load selected key-value pairs from a flat file written by <tt class="docutils literal"><span class="pre">save</span></tt>.</dd>
+<dt><tt class="docutils literal"><span class="pre">backup</span></tt></dt>
+<dd>Control and/or perform a concurrent backup of one more more volumes.</dd>
+<dt><tt class="docutils literal"><span class="pre">stat</span></tt></dt>
+<dd>Aggregate various performance statistics and either return them immediately, or write them periodically to a file.</dd>
+<dt><tt class="docutils literal"><span class="pre">task</span></tt></dt>
+<dd>Check the status of an existing task.  This task can also suspend, resume or stop an existing task. This task, which
+immediately returns status information, can be used by external tools to poll the status of other tasks.</dd>
+<dt><tt class="docutils literal"><span class="pre">cliserver</span></tt></dt>
+<dd>Start a simple command-line server on a specified port.  This enables a client program to execute commands sending
+them directly to that port.</dd>
+<dt><em>other tasks</em></dt>
+<dd>Various commands allow you to select and view pages and journal records.</dd>
+</dl>
+</div></blockquote>
+<div class="section" id="executing-a-task-from-an-application">
+<h3>Executing a Task from an Application<a class="headerlink" href="#executing-a-task-from-an-application" title="Permalink to this headline">¶</a></h3>
+<p>The <a class="reference external" href="apidocs/com/persistit/mxbeans/ManagementMXBean.html#execute(java.lang.String)">execute</a> and <a class="reference external" href="apidocs/com/persistit/mxbeans/ManagementMXBean.html#launch(java.lang.String)">launch</a> methods both take a single String-valued argument, parse it to set up a <tt class="docutils literal"><span class="pre">Task</span></tt> and return a String-valued result. For example:</p>
+<div class="highlight-java"><pre>String taskId = db.getManagement().launch(“backup -z file=/tmp/mybackup.zip”);
+String status = db.getManagement().execute(“task -v -m -c taskId=” + taskId);</pre>
+</div>
+<p>launches the backup task and then queries its status.</p>
+</div>
+<div class="section" id="executing-a-task-from-a-jmx-client">
+<h3>Executing a Task from a JMX Client<a class="headerlink" href="#executing-a-task-from-a-jmx-client" title="Permalink to this headline">¶</a></h3>
+<p>The <a class="reference external" href="apidocs/com/persistit/mxbeans/ManagementMXBean.html#execute(java.lang.String)">execute</a> and <a class="reference external" href="apidocs/com/persistit/mxbeans/ManagementMXBean.html#launch(java.lang.String)">launch</a> methods are exposed as operations on the <a class="reference external" href="apidocs/com/persistit/mxbeans/ManagementMXBean.html">com.persistit.mxbeans.ManagementMXBean</a> object.  You can invoke tasks</p>
+<ul class="simple">
+<li>via <tt class="docutils literal"><span class="pre">jconsole</span></tt> by typing the desired command line as the argument of the <tt class="docutils literal"><span class="pre">execute</span></tt> operation.</li>
+<li>via a third-party JMX client such as <tt class="docutils literal"><span class="pre">jmxterm</span></tt>.</li>
+<li>via the <tt class="docutils literal"><span class="pre">cliserver</span></tt> feature</li>
+</ul>
+</div>
+<div class="section" id="executing-a-task-using-a-third-party-jmx-client">
+<h3>Executing a Task Using a Third-Party JMX client<a class="headerlink" href="#executing-a-task-using-a-third-party-jmx-client" title="Permalink to this headline">¶</a></h3>
+<p>You can use the <tt class="docutils literal"><span class="pre">jmxterm</span></tt> program, for example, (see [<a class="reference external" href="http://www.cyclopsgroup.org/projects/jmxterm">http://www.cyclopsgroup.org/projects/jmxterm</a>]) to execute commands with the following shell script:</p>
+<div class="highlight-python"><pre>#!/bin/sh
+java -jar jmxterm-1.0-alpha-4-uber.jar --verbose silent --noninteract --url $1 &lt;&lt;EOF
+run -d com.persistit -b com.persistit:type=Persistit execute $2
+EOF</pre>
+</div>
+<p>To use this script, specify either the JMX URL or the process ID as the first command argument, and the command line as the second argument.  Example:</p>
+<div class="highlight-python"><pre>peter:~/workspace/sandbox$ jmxterm-execute 1234 ‘stat\ -a’
+hit=3942334 miss=14 new=7364 evict=0 jwrite=81810 jread=2 jcopy=63848 tcommit=0 troll=0 CC=0 RV=12 RJ=2 WJ=81810 EV=0 FJ=529 IOkbytes=1134487 TOTAL</pre>
+</div>
+<p>This command invokes the <tt class="docutils literal"><span class="pre">stat</span></tt> task with the flag <tt class="docutils literal"><span class="pre">-a</span></tt> on a JVM running with process id 1234.  Note that with jxmterm white-space must be quoted by backslash (‘’) even though the argument list is also enclosed in single-quotes.  The backslash marshals the space character through <tt class="docutils literal"><span class="pre">jmxterm</span></tt>’s parser. Commas and other delimiters also need to be quoted.</p>
+</div>
+<div class="section" id="executing-a-task-using-the-built-in-cliserver">
+<span id="cliserver"></span><h3>Executing a Task Using the Built-In <tt class="docutils literal"><span class="pre">cliserver</span></tt><a class="headerlink" href="#executing-a-task-using-the-built-in-cliserver" title="Permalink to this headline">¶</a></h3>
+<p><tt class="docutils literal"><span class="pre">cliserver</span></tt> is a simple text-based server that receives a command line as a text string and emits the generated output as its response. To start it, enter the command:</p>
+<div class="highlight-python"><pre>cliserver port=9999</pre>
+</div>
+<p>programmatically or through JMX. (You may specify any valid, available port.) Then use a command-line client to send command lines to that port and display their results. Persistit includes a primitive command-line client within the <tt class="docutils literal"><span class="pre">com.persistit.CLI</span></tt> class itself.  Create a script to invoke it as follows:</p>
+<div class="highlight-python"><pre>#!/bin/sh
+java -cp classpath com.persistit.CLI localhost:9999 $*</pre>
+</div>
+<p>Where <tt class="docutils literal"><span class="pre">classpath</span></tt> includes the Persistit library. Assuming the name of the script is <tt class="docutils literal"><span class="pre">pcli</span></tt> you can then invoke commands from a shell as shown in this example:</p>
+<div class="highlight-python"><pre>/home/akiban:~$ pcli icheck -v -c "trees=*:Acc*"
+Volume,Tree,Faults,IndexPages,IndexBytes,DataPages,DataBytes,LongRecordPages,LongRecordBytes,MvvPages,MvvRecords,MvvOverhead,MvvAntiValues,IndexHoles,PrunedPages
+"persistit","AccumulatorRecoveryTest",0,3,24296,1519,15560788,0,0,1506,52192,721521,2397,0,0
+"*","*",0,3,24296,1519,15560788,0,0,1506,52192,721521,2397,0,0
+/home/akiban:~$</pre>
+</div>
+<p>Alternatively, you can use <tt class="docutils literal"><span class="pre">curl</span></tt> as follows:</p>
+<div class="highlight-python"><pre>#!/bin/sh
+echo "$*" | curl --silent --show-error telnet://localhost:9999</pre>
+</div>
+<p>to issue commands.</p>
+<div class="admonition caution">
+<p class="first admonition-title">Caution</p>
+<p class="last"><tt class="docutils literal"><span class="pre">cliserver</span></tt> has no access control and sends potentially sensitive data in cleartext form. Therefore it should be used with care and only in a secure
+network environment. Its primary mission is to allow easy inspection of internal data structures within Persistit.</p>
+</div>
+</div>
+</div>
+<div class="section" id="the-command-line-interface">
+<span id="cli"></span><h2>The Command-Line Interface<a class="headerlink" href="#the-command-line-interface" title="Permalink to this headline">¶</a></h2>
+<p>The String value passed to the <tt class="docutils literal"><span class="pre">execute</span></tt> and <tt class="docutils literal"><span class="pre">launch</span></tt> operations specifies the name of a task and its arguments. The general form is:</p>
+<div class="highlight-python"><pre>commandname -flag -flag argname=value argname=value</pre>
+</div>
+<p>where the order of arguments and flags is not significant.</p>
+<div class="section" id="command-icheck">
+<h3>Command: <tt class="docutils literal"><span class="pre">icheck</span></tt><a class="headerlink" href="#command-icheck" title="Permalink to this headline">¶</a></h3>
+<p>Performs a <a class="reference external" href="apidocs/com/persistit/IntegrityCheck.html">com.persistit.IntegrityCheck</a> task. Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">trees</span></tt></dt>
+<dd>Specifies volumes and/or trees to check. See <a class="reference external" href="apidocs/com/persistit/TreeSelector.html">com.persistit.TreeSelector</a> for details syntax. Default is all trees in all volumes.</dd>
+<dt><tt class="docutils literal"><span class="pre">-r</span></tt></dt>
+<dd>Tree specification uses Java RegEx syntax (Default is to treat ‘*’ and ‘?’ as standard single-character and multi-character wildcards.</dd>
+<dt><tt class="docutils literal"><span class="pre">-u</span></tt></dt>
+<dd>Don&#8217;t freeze updates (Default is to freeze updates)</dd>
+<dt><tt class="docutils literal"><span class="pre">-h</span></tt></dt>
+<dd>Fix index holes. An <em>index hole</em> is an anomaly that occurs rarely in normal operation such that a page does not have an index entry in the index page level
+immediately above it</dd>
+<dt><tt class="docutils literal"><span class="pre">-p</span></tt></dt>
+<dd>Prune obsolete MVV (multi-version value) instances while checking.</dd>
+<dt><tt class="docutils literal"><span class="pre">-P</span></tt></dt>
+<dd>Prune obsolete MVV instances, and clear any remaining aborted TransactionStatus instances.  Use with care.</dd>
+<dt><tt class="docutils literal"><span class="pre">-v</span></tt></dt>
+<dd>Emit verbose output. For example, emit statistics for each tree.</dd>
+<dt><tt class="docutils literal"><span class="pre">-c</span></tt></dt>
+<dd>Display tree statistics in comma-separated-variable format suitable for import into a spreadsheet program.</dd>
+</dl>
+</div></blockquote>
+<p>Example:</p>
+<div class="highlight-python"><pre>icheck trees=vehicles/* -h</pre>
+</div>
+<p>Checks all trees in the <tt class="docutils literal"><span class="pre">vehicles</span></tt> volume and repairs index holes.</p>
+</div>
+<div class="section" id="command-save">
+<h3>Command: <tt class="docutils literal"><span class="pre">save</span></tt><a class="headerlink" href="#command-save" title="Permalink to this headline">¶</a></h3>
+<p>Starts a <a class="reference external" href="apidocs/com/persistit/StreamSaver.html">com.persistit.StreamSaver</a> task. Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">file</span></tt></dt>
+<dd>Name of file to save records to (required)</dd>
+<dt><tt class="docutils literal"><span class="pre">trees</span></tt></dt>
+<dd>Specifies volumes and/or trees to save. See <a class="reference external" href="apidocs/com/persistit/TreeSelector.html">com.persistit.TreeSelector</a> for details syntax. Default is all trees in all volumes.</dd>
+<dt><tt class="docutils literal"><span class="pre">-r</span></tt></dt>
+<dd>Tree specification uses Java RegEx syntax (Default is to treat ‘*’ and ‘?’ as standard single-character and multi-character wildcards.)</dd>
+<dt><tt class="docutils literal"><span class="pre">-v</span></tt></dt>
+<dd>emit verbose output</dd>
+</dl>
+</div></blockquote>
+<p>...‘*’ and ‘?’ are standard wildcards.</p>
+<p>Example:</p>
+<div class="highlight-python"><pre>save -v file=/home/akiban/save.dat trees=vehicles/*{[“Edsel”:”Yugo”]}</pre>
+</div>
+<p>Saves the records for “Edsel” through “Yugo”, inclusive, from any tree in the volume named <tt class="docutils literal"><span class="pre">vehicles</span></tt>. See <a class="reference external" href="apidocs/com/persistit/TreeSelector.html">com.persistit.TreeSelector</a> for selection syntax details.</p>
+</div>
+<div class="section" id="command-load">
+<h3>Command: <tt class="docutils literal"><span class="pre">load</span></tt><a class="headerlink" href="#command-load" title="Permalink to this headline">¶</a></h3>
+<p>Starts a <a class="reference external" href="apidocs/com/persistit/StreamLoader.html">com.persistit.StreamLoader</a> task. Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">file</span></tt></dt>
+<dd>Name of file to load records from</dd>
+<dt><tt class="docutils literal"><span class="pre">trees</span></tt></dt>
+<dd>Specifies volumes and/or trees to load. See <a class="reference external" href="apidocs/com/persistit/TreeSelector.html">com.persistit.TreeSelector</a> for details syntax. Default is all trees in all volumes.</dd>
+<dt><tt class="docutils literal"><span class="pre">-r</span></tt></dt>
+<dd>Tree specification uses Java RegEx syntax (Default is to treat ‘*’ and ‘?’ as standard single-character and multi-character wildcards.)</dd>
+<dt><tt class="docutils literal"><span class="pre">-n</span></tt></dt>
+<dd>Don&#8217;t create missing Volumes (Default is to create them)</dd>
+<dt><tt class="docutils literal"><span class="pre">-t</span></tt></dt>
+<dd>Don&#8217;t create missing Trees (Default is to create them)</dd>
+<dt><tt class="docutils literal"><span class="pre">-v</span></tt></dt>
+<dd>Emit verbose output</dd>
+</dl>
+</div></blockquote>
+<p>‘*’ and ‘?’ are standard wildcards.</p>
+<p>Example:</p>
+<div class="highlight-python"><pre>load file=/home/akiban/save.dat trees=*/*{[“Falcon”:”Firebird”]}</pre>
+</div>
+<p>For any tree in any volume, this command loads all records having keys between “Falcon” and “Firebird”, inclusive.</p>
+</div>
+<div class="section" id="command-backup">
+<h3>Command: <tt class="docutils literal"><span class="pre">backup</span></tt><a class="headerlink" href="#command-backup" title="Permalink to this headline">¶</a></h3>
+<p>Starts a <a class="reference external" href="apidocs/com/persistit/BackupTask.html">com.persistit.BackupTask</a> task to perform concurrent (hot) backup. Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">file</span></tt></dt>
+<dd>Archive file path. If this argument is specified, BackupTask will back up the database in .zip format to the specified file.  This is intended only for small
+databases. It is expected that <tt class="docutils literal"><span class="pre">backup</span></tt> will be used in conjunction with high-speed third-party data copying utilities for production use. The <tt class="docutils literal"><span class="pre">-a</span></tt> and</dd>
+<dt><tt class="docutils literal"><span class="pre">-e</span></tt></dt>
+<dd>flags are incompatible with operation when the <tt class="docutils literal"><span class="pre">file</span></tt> argument is specified and are ignored.</dd>
+<dt><tt class="docutils literal"><span class="pre">-a</span></tt></dt>
+<dd>Start appendOnly mode - for use with third-party backup tools.  <tt class="docutils literal"><span class="pre">backup</span> <span class="pre">-a</span></tt> should be invoked before data copying begins.</dd>
+<dt><tt class="docutils literal"><span class="pre">-e</span></tt></dt>
+<dd>End appendOnly mode - for use with third-party backup tools.  <tt class="docutils literal"><span class="pre">backup</span> <span class="pre">-e</span></tt> should be invoked after data copying ends.</dd>
+<dt><tt class="docutils literal"><span class="pre">-c</span></tt></dt>
+<dd>Request checkpoint before backup.</dd>
+<dt><tt class="docutils literal"><span class="pre">-z</span></tt></dt>
+<dd>Compress output to ZIP format - meaningful only in conjunction with the <tt class="docutils literal"><span class="pre">file</span></tt> argument.</dd>
+<dt><tt class="docutils literal"><span class="pre">-f</span></tt></dt>
+<dd>Emit a list of files that need to be copied. In this form the task immediately returns with a list of files currently comprising the Persistit database,
+including Volume and journal files.</dd>
+<dt><tt class="docutils literal"><span class="pre">-y</span></tt></dt>
+<dd>Copy pages from journal to Volumes before starting backup.  This reduces the number of journal files in the backup set.</dd>
+</dl>
+</div></blockquote>
+<p>Example:</p>
+<div class="highlight-python"><pre>backup -y -a -c -y -f
+… invoke third-party backup tool to copy the database files
+backup -e</pre>
+</div>
+<p>Uses the <tt class="docutils literal"><span class="pre">backup</span></tt> task twice, once to set <em>append-only</em> mode, checkpoint the journal and perform a full copy-back cycle (a process that attempts to shorten the journal), and then write out a list of files that need to be copied. The second call to <tt class="docutils literal"><span class="pre">backup</span></tt> restores normal operation.  Between these two calls a third party backup tool is used to copy the data.</p>
+<p>Example:</p>
+<div class="highlight-python"><pre>backup -z file=/tmp/my_backup.zip</pre>
+</div>
+<p>Uses the built-in file copy feature with ZIP compression.</p>
+</div>
+<div class="section" id="command-task">
+<h3>Command: <tt class="docutils literal"><span class="pre">task</span></tt><a class="headerlink" href="#command-task" title="Permalink to this headline">¶</a></h3>
+<p>Queries, stops, suspends or resumes a background task.  Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">taskId</span></tt></dt>
+<dd>Task ID to to check, or -1 for all</dd>
+<dt><tt class="docutils literal"><span class="pre">-v</span></tt></dt>
+<dd>Verbose - returns detailed status messages from the selected task(s)</dd>
+<dt><tt class="docutils literal"><span class="pre">-m</span></tt></dt>
+<dd>Keep previously delivered messages. Default is to remove messages once reported.</dd>
+<dt><tt class="docutils literal"><span class="pre">-k</span></tt></dt>
+<dd>Keep the selected task or tasks even if completed.  Default is to remove tasks once reported.</dd>
+<dt><tt class="docutils literal"><span class="pre">-x</span></tt></dt>
+<dd>Stop the selected task or tasks</dd>
+<dt><tt class="docutils literal"><span class="pre">-u</span></tt></dt>
+<dd>Suspend the selected task or tasks</dd>
+<dt><tt class="docutils literal"><span class="pre">-r</span></tt></dt>
+<dd>Resume the selected task or tasks</dd>
+</dl>
+</div></blockquote>
+<p>Unlike other commands, the <tt class="docutils literal"><span class="pre">task</span></tt> command always runs immediately even if invoked through the <tt class="docutils literal"><span class="pre">launch</span></tt> method.</p>
+<p>You can use the <tt class="docutils literal"><span class="pre">task</span></tt> command to poll and display progress of long-running tasks. Invoke:</p>
+<div class="highlight-python"><pre>task  -v -m -c taskId=nnn</pre>
+</div>
+<p>until the result is empty.</p>
+</div>
+<div class="section" id="command-cliserver">
+<h3>Command: <tt class="docutils literal"><span class="pre">cliserver</span></tt><a class="headerlink" href="#command-cliserver" title="Permalink to this headline">¶</a></h3>
+<p>Starts a simple text-based server that receives a command line as a text string and emits the generated output as its response. Argument:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">port</span></tt></dt>
+<dd>Port number on which to listen for commands.</dd>
+</dl>
+</div></blockquote>
+</div>
+<div class="section" id="command-exit">
+<h3>Command: <tt class="docutils literal"><span class="pre">exit</span></tt><a class="headerlink" href="#command-exit" title="Permalink to this headline">¶</a></h3>
+<p>Ends a running <tt class="docutils literal"><span class="pre">cliserver</span></tt> instance.</p>
+</div>
+<div class="section" id="commands-for-viewing-data">
+<h3>Commands for Viewing Data<a class="headerlink" href="#commands-for-viewing-data" title="Permalink to this headline">¶</a></h3>
+<p>The following commands execute immediately, even if invoked through the <tt class="docutils literal"><span class="pre">launch</span></tt> method.  They provide a mechanism to examine individual database pages or journal records.</p>
+</div>
+<div class="section" id="command-select">
+<h3>Command: <tt class="docutils literal"><span class="pre">select</span></tt><a class="headerlink" href="#command-select" title="Permalink to this headline">¶</a></h3>
+<p>Selects a volume and optionally a tree for subsequent operations such as <tt class="docutils literal"><span class="pre">view</span></tt>. Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">tree</span></tt></dt>
+<dd>Specifies volume and/or tree to select as context for subsequent operations. See <a class="reference external" href="apidocs/com/persistit/TreeSelector.html">com.persistit.TreeSelector</a> for details syntax.</dd>
+<dt><tt class="docutils literal"><span class="pre">-r</span></tt></dt>
+<dd>Tree specification uses Java RegEx syntax (Default is to treat ‘*’ and ‘?’ as standard single-character and multi-character wildcards.)</dd>
+</dl>
+</div></blockquote>
+</div>
+<div class="section" id="command-list">
+<h3>Command: <tt class="docutils literal"><span class="pre">list</span></tt><a class="headerlink" href="#command-list" title="Permalink to this headline">¶</a></h3>
+<p>Lists volumes and trees.  Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">trees</span></tt></dt>
+<dd>Specifies volumes and/or trees to list. See <a class="reference external" href="apidocs/com/persistit/TreeSelector.html">com.persistit.TreeSelector</a> for details syntax. Default is all trees in all volumes.</dd>
+<dt><tt class="docutils literal"><span class="pre">-r</span></tt></dt>
+<dd>Tree specification uses Java RegEx syntax (Default is to treat ‘*’ and ‘?’ as standard single-character and multi-character wildcards.</dd>
+</dl>
+</div></blockquote>
+<p>All volumes, and all trees within those volumes, that match the <tt class="docutils literal"><span class="pre">trees</span></tt> specification are listed. By default, this command lists all trees in all volumes.</p>
+</div>
+<div class="section" id="command-pview">
+<h3>Command: <tt class="docutils literal"><span class="pre">pview</span></tt><a class="headerlink" href="#command-pview" title="Permalink to this headline">¶</a></h3>
+<p>Displays contents of a database page. Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">page</span></tt></dt>
+<dd>page address</dd>
+<dt><tt class="docutils literal"><span class="pre">jaddr</span></tt></dt>
+<dd>journal address - displays a page version stored at the specified journal address</dd>
+<dt><tt class="docutils literal"><span class="pre">key</span></tt></dt>
+<dd>a key specified as a String defined in the <a class="reference external" href="apidocs/com/persistit/Key.html">com.persistit.Key</a> class</dd>
+<dt><tt class="docutils literal"><span class="pre">level</span></tt></dt>
+<dd>tree level of the desired page</dd>
+<dt><tt class="docutils literal"><span class="pre">find</span></tt></dt>
+<dd>selected records in an index page surrounding a key that points to the specified page address</dd>
+<dt><tt class="docutils literal"><span class="pre">-a</span></tt></dt>
+<dd>all records. If specified, all records in the page will be displayed.  Otherwise the output is abbreviated to no more than 20 lines.</dd>
+<dt><tt class="docutils literal"><span class="pre">-s</span></tt></dt>
+<dd>summary - only header information in the page is displayed</dd>
+</dl>
+</div></blockquote>
+<p>The <tt class="docutils literal"><span class="pre">pview</span></tt> command identifies a page in one of three distinct ways: by page address, by journal address, or by key.  Only one of the three parameters <tt class="docutils literal"><span class="pre">page</span></tt>, <tt class="docutils literal"><span class="pre">jaddr</span></tt> or <tt class="docutils literal"><span class="pre">key</span></tt> (with <tt class="docutils literal"><span class="pre">level</span></tt>) may be used.</p>
+<p><tt class="docutils literal"><span class="pre">page</span></tt> specifies the current version of a page having the specified address.  If there is a copy of the page in the buffer pool, that copy is displayed even if it contains updates that are not yet written to disk.</p>
+<p><tt class="docutils literal"><span class="pre">jaddr</span></tt> specifies an address in the journal. Typical use is to invoke the <tt class="docutils literal"><span class="pre">jview</span></tt> command to view a list of journal records, and then to see a detailed view of one page record in the journal, invoke the <tt class="docutils literal"><span class="pre">pview</span></tt> command with its journal address.</p>
+<p><tt class="docutils literal"><span class="pre">key</span></tt> specifies a key. By default the data page associated with that key will be displayed.  The data page is defined as level 0. The <tt class="docutils literal"><span class="pre">level</span></tt> parameter allows pages at various index levels to be viewed; for example <tt class="docutils literal"><span class="pre">level=1</span></tt> refers to the index page that points to the data page containing the specified key.</p>
+<p>When examining an index page with potentially hundreds of records it is sometimes convenient to find the record that points to a particular child page, and also the records immediately before and after. Specifying the <tt class="docutils literal"><span class="pre">find</span></tt> parameter when viewing an index page abbreviates the displayed records to include just the first and last records in the page, plus a small range of records surrounding the one that points to the specified page. This mechanism provides a convenient way to find sibling pages.</p>
+</div>
+<div class="section" id="command-path">
+<h3>Command: <tt class="docutils literal"><span class="pre">path</span></tt><a class="headerlink" href="#command-path" title="Permalink to this headline">¶</a></h3>
+<p>For a specified key displays the sequence of pages from root of the tree to the data page containing they key. Argument:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">key</span></tt></dt>
+<dd>a key specified as a String defined in the <a class="reference external" href="apidocs/com/persistit/Key.html">com.persistit.Key</a> class</dd>
+</dl>
+</div></blockquote>
+</div>
+<div class="section" id="command-jview">
+<h3>Command: <tt class="docutils literal"><span class="pre">jview</span></tt><a class="headerlink" href="#command-jview" title="Permalink to this headline">¶</a></h3>
+<p>Displays journal records.  Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">start</span></tt></dt>
+<dd>starting journal address (default = 0)</dd>
+<dt><tt class="docutils literal"><span class="pre">end</span></tt></dt>
+<dd>end journal address (address = infinite)</dd>
+<dt><tt class="docutils literal"><span class="pre">timestamps</span></tt></dt>
+<dd>range selection of timestamp values, e.g., “132466-132499” for records having timestamps between these two numbers, inclusive. Default is all timestamps.</dd>
+<dt><tt class="docutils literal"><span class="pre">types</span></tt></dt>
+<dd>comma-delimted list of two-character record types, e.g., “JH,IV,IT,CP” to select only Journal Header, Identify Volume, Identify Tree and Check Point records
+(see <a class="reference external" href="apidocs/com/persistit/JournalRecord.html">com.persistit.JournalRecord</a> for definitions of all types.) Default value is all types.</dd>
+<dt><tt class="docutils literal"><span class="pre">pages</span></tt></dt>
+<dd>range selection of page address for PA (Page) records, e.g., “1,2,13-16” to include pages, 1, 2, 13, 14, 15 or 16.</dd>
+<dt><tt class="docutils literal"><span class="pre">maxkey</span></tt></dt>
+<dd>maximum display length of key values in the output. Default value is 42.</dd>
+<dt><tt class="docutils literal"><span class="pre">maxvalue</span></tt></dt>
+<dd>maximum display length of values in the output. Default value is 42.</dd>
+<dt><tt class="docutils literal"><span class="pre">path</span></tt></dt>
+<dd>journal file path. Default is the journal file path of the currently instantiated Persistit instance.</dd>
+<dt><tt class="docutils literal"><span class="pre">-v</span></tt></dt>
+<dd>verbose format. If specified, causes PM (Page Map) and TM (TransactionMap) records to be be display all map elements.</dd>
+</dl>
+</div></blockquote>
+<p>Note that the journal on a busy system contains a large number of records, so entering the <tt class="docutils literal"><span class="pre">journal</span></tt> command without constraining the address range or record types may result in extremely lengthy output.</p>
+</div>
+<div class="section" id="command-open">
+<h3>Command: <tt class="docutils literal"><span class="pre">open</span></tt><a class="headerlink" href="#command-open" title="Permalink to this headline">¶</a></h3>
+<p>Opens a Persistit database for analysis. This task can only be used to examine a copy of a Persistit database that is not currently in use by an application. It works by attempting to open the volume and journal files using a synthesized configuration. It finds a collection of journal files and volume files specified by the <tt class="docutils literal"><span class="pre">datapath</span></tt>, <tt class="docutils literal"><span class="pre">journalpath</span></tt> and <tt class="docutils literal"><span class="pre">volumepath</span></tt> arguments; from these it derives a set of properties that will allow it to examine those journals and volumes. By default all volumes are opened in read-only mode and cannot be changed by operations executed from the command-line interface.</p>
+<p>If there already is an open Persistit instance, this command detaches it. For example, if you start <tt class="docutils literal"><span class="pre">cliserver</span></tt> from a live Persistit instance and then issue the <tt class="docutils literal"><span class="pre">open</span></tt> command, the live instance will continue to operate but <tt class="docutils literal"><span class="pre">cliserver</span></tt> will no longer be attached to it.</p>
+<p>Note that you cannot <tt class="docutils literal"><span class="pre">open</span></tt> volumes that are already open in a running Persistit instance due to their file locks. However, you can copy open volumes and journal files to another location and <tt class="docutils literal"><span class="pre">open</span></tt> the copy. This is the primary use case for the <tt class="docutils literal"><span class="pre">open</span></tt> command: to analyze a copy of a database (for example a copy recovered from backup) without having to a launch the application software that embeds Persistit.</p>
+<p>Arguments:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">datapath</span></tt></dt>
+<dd>a directory path for volume and journal files to be analyzed</dd>
+<dt><tt class="docutils literal"><span class="pre">volumepath</span></tt></dt>
+<dd>overrides <tt class="docutils literal"><span class="pre">datapath</span></tt> to specify an alternative location for volume files.</dd>
+<dt><tt class="docutils literal"><span class="pre">journalpath</span></tt></dt>
+<dd>overrides <tt class="docutils literal"><span class="pre">datapath</span></tt> to specify an alternative location for journal files.</dd>
+<dt><tt class="docutils literal"><span class="pre">rmiport</span></tt></dt>
+<dd>specifies an RMI port to which an instance of the AdminUI can attach.</dd>
+<dt><tt class="docutils literal"><span class="pre">-g</span></tt></dt>
+<dd>launch a local copy of AdminUI</dd>
+<dt><tt class="docutils literal"><span class="pre">-y</span></tt></dt>
+<dd>attempt to recover committed transactions .</dd>
+</dl>
+</div></blockquote>
+<p>Note that even if you specify <tt class="docutils literal"><span class="pre">-y</span></tt> to recover transactions, the volume files will not be modified. But the <tt class="docutils literal"><span class="pre">open</span></tt> command will add a new journal file containing modifications caused by the recovery process. You can simply delete that file when done.</p>
+</div>
+<div class="section" id="command-close">
+<h3>Command: <tt class="docutils literal"><span class="pre">close</span></tt><a class="headerlink" href="#command-close" title="Permalink to this headline">¶</a></h3>
+<p>Detach and close the current Persistit instance. If the CLI was started with a live Persistit instance then this command merely detaches from it; if the instance was created with the <tt class="docutils literal"><span class="pre">open</span></tt> command then <tt class="docutils literal"><span class="pre">close</span></tt> closes it and releases all related file locks, buffers, etc.</p>
+</div>
+<div class="section" id="command-source">
+<h3>Command: <tt class="docutils literal"><span class="pre">source</span></tt><a class="headerlink" href="#command-source" title="Permalink to this headline">¶</a></h3>
+<p>Execute command lines from a specified text file. Argument:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">file</span></tt></dt>
+<dd>file name of command input file</dd>
+</dl>
+</div></blockquote>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Management</a><ul>
+<li><a class="reference internal" href="#mxbeans">MXBeans</a></li>
+<li><a class="reference internal" href="#management-tasks">Management Tasks</a><ul>
+<li><a class="reference internal" href="#executing-a-task-from-an-application">Executing a Task from an Application</a></li>
+<li><a class="reference internal" href="#executing-a-task-from-a-jmx-client">Executing a Task from a JMX Client</a></li>
+<li><a class="reference internal" href="#executing-a-task-using-a-third-party-jmx-client">Executing a Task Using a Third-Party JMX client</a></li>
+<li><a class="reference internal" href="#executing-a-task-using-the-built-in-cliserver">Executing a Task Using the Built-In <tt class="docutils literal"><span class="pre">cliserver</span></tt></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#the-command-line-interface">The Command-Line Interface</a><ul>
+<li><a class="reference internal" href="#command-icheck">Command: <tt class="docutils literal"><span class="pre">icheck</span></tt></a></li>
+<li><a class="reference internal" href="#command-save">Command: <tt class="docutils literal"><span class="pre">save</span></tt></a></li>
+<li><a class="reference internal" href="#command-load">Command: <tt class="docutils literal"><span class="pre">load</span></tt></a></li>
+<li><a class="reference internal" href="#command-backup">Command: <tt class="docutils literal"><span class="pre">backup</span></tt></a></li>
+<li><a class="reference internal" href="#command-task">Command: <tt class="docutils literal"><span class="pre">task</span></tt></a></li>
+<li><a class="reference internal" href="#command-cliserver">Command: <tt class="docutils literal"><span class="pre">cliserver</span></tt></a></li>
+<li><a class="reference internal" href="#command-exit">Command: <tt class="docutils literal"><span class="pre">exit</span></tt></a></li>
+<li><a class="reference internal" href="#commands-for-viewing-data">Commands for Viewing Data</a></li>
+<li><a class="reference internal" href="#command-select">Command: <tt class="docutils literal"><span class="pre">select</span></tt></a></li>
+<li><a class="reference internal" href="#command-list">Command: <tt class="docutils literal"><span class="pre">list</span></tt></a></li>
+<li><a class="reference internal" href="#command-pview">Command: <tt class="docutils literal"><span class="pre">pview</span></tt></a></li>
+<li><a class="reference internal" href="#command-path">Command: <tt class="docutils literal"><span class="pre">path</span></tt></a></li>
+<li><a class="reference internal" href="#command-jview">Command: <tt class="docutils literal"><span class="pre">jview</span></tt></a></li>
+<li><a class="reference internal" href="#command-open">Command: <tt class="docutils literal"><span class="pre">open</span></tt></a></li>
+<li><a class="reference internal" href="#command-close">Command: <tt class="docutils literal"><span class="pre">close</span></tt></a></li>
+<li><a class="reference internal" href="#command-source">Command: <tt class="docutils literal"><span class="pre">source</span></tt></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="Configuration.html"
+                        title="previous chapter">Configuration</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Security.html"
+                        title="next chapter">Security Notes</a></p>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="Security.html" title="Security Notes"
+             >next</a></li>
+        <li class="right" >
+          <a href="Configuration.html" title="Configuration"
+             >previous</a> |</li>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Akiban Technologies.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+com.persistit
+com.persistit.encoding
+com.persistit.exception
+com.persistit.logging
+com.persistit.mxbeans
+com.persistit.policy
+com.persistit.ref
+com.persistit.ui
+com.persistit.ui.renderers
+com.persistit.util

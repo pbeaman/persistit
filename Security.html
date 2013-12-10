@@ -1,0 +1,182 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Security Notes &mdash; Persistit 3.3.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.3.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Persistit 3.3.1 documentation" href="index.html" />
+    <link rel="next" title="Serializing Object Values" href="Serialization.html" />
+    <link rel="prev" title="Management" href="Management.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="Serialization.html" title="Serializing Object Values"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="Management.html" title="Management"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="security-notes">
+<span id="security"></span><h1>Security Notes<a class="headerlink" href="#security-notes" title="Permalink to this headline">¶</a></h1>
+<p>Akiban Persistit provides no built-in data access control because it is intended for embedded use in applications that provide their own logical access control. Security-conscious applications must also prevent unauthorized access to Persistit&#8217;s physical files and to the Persistit API. The following resources must be protected from unauthorized access:</p>
+<ul class="simple">
+<li>volume and journal files</li>
+<li>configuration properties file, if one is used</li>
+<li>access by unauthorized code to the API exposed by the Persistit library</li>
+<li>the port opened and exposed by Persistit when either the <tt class="docutils literal"><span class="pre">com.persistit.rmiport</span></tt> or <tt class="docutils literal"><span class="pre">com.persistit.rmihost</span></tt> property is set. If you are using Persistit&#8217;s remote administration feature, be sure to block unauthorized access to the RMI port.</li>
+<li>access to MXBeans via JMX</li>
+<li>the CLI server (see <a class="reference internal" href="Management.html#cliserver"><em>Executing a Task Using the Built-In cliserver</em></a>) if instantiated</li>
+</ul>
+<p>In addition to these general deployment considerations, Persistit requires certain permissions in an environment controlled by a security manager.</p>
+<p>Java programs run from the command line typically do not install a security manager, and therefore implicitly grant all permissions. However, when Persistit is used within an Applet, or within any framework that installs a security manager, it is important to understand what permissions are required.</p>
+<div class="section" id="security-domains">
+<h2>Security Domains<a class="headerlink" href="#security-domains" title="Permalink to this headline">¶</a></h2>
+<p>This section assumes a basic understanding of the Java security model. See <a class="reference external" href="http://docs.oracle.com/javase/1.5.0/docs/guide/security/spec/security-spec.doc2.html">New Protection Mechanisms - Overview of Basic Concepts</a> for further information.</p>
+<p>Note that when Java is started from the command line, as is often the case in server applications, all security privileges are granted by default. The information in this section is intended for cases where security privileges need to be controlled.</p>
+<p>Akiban Persistit performs various security-sensitive operations: it reads and writes files, it reads system properties, it optionally opens a TCP/IP socket, and it performs various security-sensitive operations related to reflection and serialization. These operations are divided into two categories: those required only by the Persistit library itself, and those required by the application that is using Persistit. For example, the application code must have permission to read and write files, but it does not require permission to access private fields through reflection; only the Persistit library itself needs this permission. The latter operation is called a “privileged” operation because Persistit invokes the access controller&#8217;s doPrivileged method to establish its permission to perform the privileged operation.</p>
+<p>At a practical level, this means you can create two separate security domains for applications embedding Persistit.  One domain is specific to the Persistit library itself, and grants all the permissions required by Persistit, including the privileged permissions. The other domain includes the application, and grants only the non-privileged permissions.</p>
+<p>Using the default java.lang.SecurityManager implementation, you define domains and the permissions available to them in a policy file stored in the user&#8217;s home directory.  For those already familiar with the policy file format, here is a security policy file that illustrates these concepts:</p>
+<div class="highlight-java"><div class="highlight"><pre><span class="n">grant</span> <span class="n">codeBase</span> <span class="s">&quot;file:/appdir/myapplication.jar&quot;</span> <span class="o">{</span>
+  <span class="n">permission</span> <span class="n">java</span><span class="o">.</span><span class="na">io</span><span class="o">.</span><span class="na">FilePermission</span> <span class="s">&quot;e:\\data\\*&quot;</span><span class="o">,</span> <span class="s">&quot;read, write, delete&quot;</span><span class="o">;</span>
+  <span class="n">permission</span> <span class="n">java</span><span class="o">.</span><span class="na">io</span><span class="o">.</span><span class="na">FilePermission</span> <span class="s">&quot;e:\\logs\\*&quot;</span><span class="o">,</span> <span class="s">&quot;read, write, delete&quot;</span><span class="o">;</span>
+  <span class="n">permission</span> <span class="n">java</span><span class="o">.</span><span class="na">net</span><span class="o">.</span><span class="na">SocketPermission</span> <span class="s">&quot;localhost&quot;</span><span class="o">,</span>
+                <span class="s">&quot;accept, connect, listen, resolve&quot;</span><span class="o">;</span>
+<span class="o">};</span>
+
+<span class="n">grant</span> <span class="n">codeBase</span> <span class="s">&quot;file:/lib/akiban-persistit.jar&quot;</span> <span class="o">{</span>
+  <span class="n">permission</span> <span class="n">java</span><span class="o">.</span><span class="na">io</span><span class="o">.</span><span class="na">FilePermission</span> <span class="s">&quot;&lt;&lt;ALL FILES&gt;&gt;&quot;</span><span class="o">,</span> <span class="s">&quot;read, write, delete&quot;</span><span class="o">;</span>
+  <span class="n">permission</span> <span class="n">java</span><span class="o">.</span><span class="na">net</span><span class="o">.</span><span class="na">SocketPermission</span> <span class="s">&quot;*:1099-&quot;</span><span class="o">,</span>
+                <span class="s">&quot;accept, connect, listen, resolve&quot;</span><span class="o">;</span>
+  <span class="n">permission</span> <span class="n">java</span><span class="o">.</span><span class="na">lang</span><span class="o">.</span><span class="na">reflect</span><span class="o">.</span><span class="na">ReflectPermission</span> <span class="s">&quot;suppressAccessChecks&quot;</span><span class="o">;</span>
+  <span class="n">permission</span> <span class="n">java</span><span class="o">.</span><span class="na">io</span><span class="o">.</span><span class="na">SerializablePermission</span> <span class="s">&quot;enableSubclassImplementation&quot;</span><span class="o">;</span>
+  <span class="n">permission</span> <span class="n">java</span><span class="o">.</span><span class="na">util</span><span class="o">.</span><span class="na">PropertyPermission</span> <span class="s">&quot;com.persistit.*&quot;</span><span class="o">,</span> <span class="s">&quot;read&quot;</span><span class="o">;</span>
+  <span class="n">permission</span> <span class="n">java</span><span class="o">.</span><span class="na">lang</span><span class="o">.</span><span class="na">RuntimePermission</span> <span class="s">&quot;accessDeclaredMembers&quot;</span><span class="o">;</span>
+<span class="o">};</span>
+</pre></div>
+</div>
+<p>This policy file sets up two security domains. One covers the application code in <tt class="docutils literal"><span class="pre">myapplication.jar</span></tt> and grants just the restricted set of permissions needed by the application, while the other grants additional permissions to the Persistit library.</p>
+<p>Although the file and socket permissions granted by the privileged domain are less restrictive than those granted to <tt class="docutils literal"><span class="pre">myapplication.jar</span></tt>, the actual permission granted to running code is the intersection of these two and is therefore restricted to just the set of files and sockets granted to myapplication.jar.</p>
+</div>
+<div class="section" id="permissions-required-for-defaultvaluecoder">
+<h2>Permissions Required for DefaultValueCoder<a class="headerlink" href="#permissions-required-for-defaultvaluecoder" title="Permalink to this headline">¶</a></h2>
+<p>DefaultValueCoder performs three security-sensitive operations:</p>
+<ul class="simple">
+<li>It enumerates the declared fields of the class being serialized,</li>
+<li>It reads and writes data from and to those fields using reflection even if they are private, and</li>
+<li>It overrides the default implementations of java.io.ObjectInputStream and java.io.ObjectOutputStream.</li>
+</ul>
+<p>If a SecurityManager is installed then three permissions must be granted to enable this new mechanism:</p>
+<div class="highlight-python"><pre>java.lang.RuntimePermission "accessDeclaredMembers";
+java.lang.reflect.ReflectPermission("suppressAccessChecks")
+java.io.SerializablePermission("enableSubclassImplementation")</pre>
+</div>
+<p>Persistit acquires these permissions through privileged operations, meaning that only the Persistit library domain needs to have them – they do not need to be and should not be granted to the application domain.</p>
+</div>
+<div class="section" id="permission-required-for-reading-system-properties">
+<h2>Permission Required for Reading System Properties<a class="headerlink" href="#permission-required-for-reading-system-properties" title="Permalink to this headline">¶</a></h2>
+<p>Persistit attempts to read system properties whose names begin with “com.persistit.” Specific permission to do this is granted by the line:</p>
+<div class="highlight-python"><pre>permission java.util.PropertyPermission "com.persistit.*", "read";</pre>
+</div>
+<p>Again, only the Persistit library domain needs to have this permission. If this permission is not granted, Persistit ignores all system properties.</p>
+</div>
+<div class="section" id="permissions-required-for-file-and-socket-i-o">
+<h2>Permissions Required for File and Socket I/O<a class="headerlink" href="#permissions-required-for-file-and-socket-i-o" title="Permalink to this headline">¶</a></h2>
+<p>Persistit needs permission to read and write its volume and journal files, to read a configuration properties file and (optionally) write to a log file.  File I/O permissions also apply to the source and destination files specified for Import and Export tasks available within the AdminUI utility. In addition, if you specify either the rmihost or rmiport property to enable remote administration, Persistit needs permission to create RMI connections.</p>
+<p>These are not privileged operations, meaning that if the policy establishes separate domains for the application and the Persistit library, both domains must grant permission for all I/O operations. (If they were privileged operations, an untrusted application code could use the Persistit library as a proxy to perform malicious file I/O.) As is defined by the Java security mechanism, when Persistit attempts to open a file, permissions of both the application domain and the Persistit library domains are checked; if the operation is denied by either domain then the attempt fails with a java.security.AccessControlException.</p>
+<p>As specified in the sample policy file above, the Persistit library domain has been granted permissions on <cite>&lt;&lt;ALL FILES&gt;&gt;</cite>. This means that the application domain controls what subset of the file system is accessible.  In the example, files may only be read and written to the e:data and e:logs directories on a Windows box.  (See the Java documentation on Permissions for details on how to construct File and Socket permissions.)</p>
+</div>
+<div class="section" id="deploying-persistit-as-an-installed-optional-package">
+<h2>Deploying Persistit as an Installed Optional Package<a class="headerlink" href="#deploying-persistit-as-an-installed-optional-package" title="Permalink to this headline">¶</a></h2>
+<p>A convenient way to grant Persistit the permissions required to perform its privileged operations is to install it as an optional package. The Sun Java Runtime Environment treats JAR files located in the <tt class="docutils literal"><span class="pre">&lt;jre-home&gt;/lib/ext</span></tt> directory as optional Java extension classes, and by default grants them the same privileges as Java system classes. If the Persistit library is loaded from this directory then only the application File and Socket privileges need to be granted explicitly through a security policy. To deploy Persistit in this manner simply copy the Persistit library jar file to the appropriate <tt class="docutils literal"><span class="pre">*jre-home*/lib/ext</span></tt> directory.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Security Notes</a><ul>
+<li><a class="reference internal" href="#security-domains">Security Domains</a></li>
+<li><a class="reference internal" href="#permissions-required-for-defaultvaluecoder">Permissions Required for DefaultValueCoder</a></li>
+<li><a class="reference internal" href="#permission-required-for-reading-system-properties">Permission Required for Reading System Properties</a></li>
+<li><a class="reference internal" href="#permissions-required-for-file-and-socket-i-o">Permissions Required for File and Socket I/O</a></li>
+<li><a class="reference internal" href="#deploying-persistit-as-an-installed-optional-package">Deploying Persistit as an Installed Optional Package</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="Management.html"
+                        title="previous chapter">Management</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Serialization.html"
+                        title="next chapter">Serializing Object Values</a></p>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="Serialization.html" title="Serializing Object Values"
+             >next</a></li>
+        <li class="right" >
+          <a href="Management.html" title="Management"
+             >previous</a> |</li>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Akiban Technologies.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b3.
+    </div>
+  </body>
+</html>

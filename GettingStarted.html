@@ -1,0 +1,353 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Getting Started with Akiban Persistit &mdash; Persistit 3.3.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.3.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Persistit 3.3.1 documentation" href="index.html" />
+    <link rel="next" title="Basic API" href="BasicAPI.html" />
+    <link rel="prev" title="Akiban Persistit User Guide" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="BasicAPI.html" title="Basic API"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="index.html" title="Akiban Persistit User Guide"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="getting-started-with-akiban-persistit">
+<h1>Getting Started with Akiban Persistit<a class="headerlink" href="#getting-started-with-akiban-persistit" title="Permalink to this headline">¶</a></h1>
+<p>Welcome!</p>
+<p>We have worked hard to make Akiban Persistit™ exceptionally fast, reliable, simple and lightweight. We hope you will enjoy learning more about it and using it.</p>
+<p>Akiban Persistit is a key/value data storage library written in Java™. Key features include:</p>
+<ul class="simple">
+<li>support for highly concurrent transaction processing with multi-version concurrency control</li>
+<li>optimized serialization and deserialization mechanism for Java primitives and objects</li>
+<li>multi-segment (compound) keys to enable a natural logical key hierarchy</li>
+<li>support for long records (megabytes)</li>
+<li>implementation of a persistent SortedMap</li>
+<li>extensive management capability including command-line and GUI tools</li>
+</ul>
+<p>This chapter briefly and informally introduces and demonstrates various Persistit features through examples. Subsequent chapters and the Javadoc API documentation provides a detailed reference guide to the product.</p>
+<div class="section" id="download-and-install">
+<h2>Download and Install<a class="headerlink" href="#download-and-install" title="Permalink to this headline">¶</a></h2>
+<p>Download <tt class="docutils literal"><span class="pre">akiban-persistit-3.3.1.zip</span></tt> from the <a class="reference external" href="https://launchpad.net/akiban-persistit/+download">Launchpad project</a> or directly from <a class="reference external" href="http://www.akiban.com/akiban-persistit">akiban.com</a>.</p>
+<p>Unpack the distribution kit into a convenient directory using any unzip utility. For example, use <tt class="docutils literal"><span class="pre">jar</span> <span class="pre">-xvf</span> <span class="pre">akiban-persistit-3.3.1.zip</span></tt> to unpack the distribution kit into the current working directory.</p>
+<p>Review the <tt class="docutils literal"><span class="pre">LICENSE.txt</span></tt> file located in the root of the installation directory. Persistit is licensed under the Eclipse Public License or a free-use community license, see our <a class="reference external" href="http://www.akiban.com/akiban-licensing-options">licensing options</a> for more details. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree to these terms, remove and destroy all copies of the software in your possession immediately.</p>
+</div>
+<div class="section" id="working-with-persistit">
+<h2>Working with Persistit<a class="headerlink" href="#working-with-persistit" title="Permalink to this headline">¶</a></h2>
+<p>Add the <tt class="docutils literal"><span class="pre">akiban-persistit-3.3.1.jar</span></tt>, is found in the root directory of the distribution kit, to your project&#8217;s classpath. For example, copy it to <tt class="docutils literal"><span class="pre">jre/lib/ext</span></tt> in your Java Runtime Environment, or add it to your classpath environment variable.</p>
+<p>That&#8217;s it. You are ready to work with Persistit.</p>
+<div class="section" id="examples">
+<h3>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h3>
+<p>Review the <tt class="docutils literal"><span class="pre">examples</span></tt> directory. Here you will find functional examples of varying complexity.</p>
+<blockquote>
+<div><dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">examples/HelloWorld</span></tt></dt>
+<dd>source code for the example illustrating this chapter</dd>
+<dt><tt class="docutils literal"><span class="pre">examples/SimpleDemo</span></tt></dt>
+<dd>short, simple program similar to HelloWorld</dd>
+<dt><tt class="docutils literal"><span class="pre">examples/SimpleBench</span></tt></dt>
+<dd>a small micro-benchmark measuring the speed of insert, traversal, random updates, etc.</dd>
+<dt><tt class="docutils literal"><span class="pre">examples/SimpleTransaction</span></tt></dt>
+<dd>example demonstrating use of Persisit’s multi-version currency control (MVCC) transactions</dd>
+<dt><tt class="docutils literal"><span class="pre">examples/FindFile</span></tt></dt>
+<dd>a somewhat larger example that uses Persistit as the backing store for file finder utility</dd>
+<dt><tt class="docutils literal"><span class="pre">examples/PersistitMapDemo</span></tt></dt>
+<dd>demonstration of the PersistitMap interface</dd>
+<dt><tt class="docutils literal"><span class="pre">examples/SpringFrameworkExample</span></tt></dt>
+<dd>configures and initializes a Persistit instance through Spring Framework</dd>
+</dl>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="helloworld">
+<h2>HelloWorld<a class="headerlink" href="#helloworld" title="Permalink to this headline">¶</a></h2>
+<p>Before going further let&#8217;s honor tradition with a small program that stores, fetches and displays the phrase “Hello World.” In this program we will create a record with the key “Hello” and the value “World”.</p>
+<p><strong>HelloWorld.java</strong></p>
+<div class="highlight-java"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">com.persistit.Exchange</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">com.persistit.Key</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">com.persistit.Persistit</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">HelloWorld</span> <span class="o">{</span>
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span> <span class="o">{</span>
+        <span class="n">Persistit</span> <span class="n">db</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Persistit</span><span class="o">();</span>
+        <span class="k">try</span> <span class="o">{</span>
+            <span class="c1">// Read configuration from persistit.properties, allocate</span>
+            <span class="c1">// buffers, open Volume, and perform recovery processing</span>
+            <span class="c1">// if necessary.</span>
+            <span class="c1">//</span>
+            <span class="n">db</span><span class="o">.</span><span class="na">initialize</span><span class="o">();</span>
+            <span class="c1">//</span>
+            <span class="c1">// Create an Exchange, which is a thread-private facade for</span>
+            <span class="c1">// accessing data in a Persistit Tree. This Exchange will</span>
+            <span class="c1">// access a Tree called &quot;greetings&quot; in a Volume called</span>
+            <span class="c1">// &quot;hwdemo&quot;. It will create a new Tree by that name</span>
+            <span class="c1">// if one does not already exist.</span>
+            <span class="c1">//</span>
+            <span class="n">Exchange</span> <span class="n">dbex</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="na">getExchange</span><span class="o">(</span><span class="s">&quot;hwdemo&quot;</span><span class="o">,</span> <span class="s">&quot;greetings&quot;</span><span class="o">,</span> <span class="kc">true</span><span class="o">);</span>
+            <span class="c1">//</span>
+            <span class="c1">// Set up the Value field of the Exchange.</span>
+            <span class="c1">//</span>
+            <span class="n">dbex</span><span class="o">.</span><span class="na">getValue</span><span class="o">().</span><span class="na">put</span><span class="o">(</span><span class="s">&quot;World&quot;</span><span class="o">);</span>
+            <span class="c1">//</span>
+            <span class="c1">// Set up the Key field of the Exchange.</span>
+            <span class="c1">//</span>
+            <span class="n">dbex</span><span class="o">.</span><span class="na">getKey</span><span class="o">().</span><span class="na">append</span><span class="o">(</span><span class="s">&quot;Hello&quot;</span><span class="o">);</span>
+            <span class="c1">//</span>
+            <span class="c1">// Ask Persistit to put this key/value pair into the Tree.</span>
+            <span class="c1">// Until this point, the changes to the Exchange are local</span>
+            <span class="c1">// to this thread.</span>
+            <span class="c1">//</span>
+            <span class="n">dbex</span><span class="o">.</span><span class="na">store</span><span class="o">();</span>
+            <span class="c1">//</span>
+            <span class="c1">// Prepare to traverse all the keys in the Tree (of which there</span>
+            <span class="c1">// is currently only one!) and for each key display its value.</span>
+            <span class="c1">//</span>
+            <span class="n">dbex</span><span class="o">.</span><span class="na">getKey</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="n">Key</span><span class="o">.</span><span class="na">BEFORE</span><span class="o">);</span>
+            <span class="k">while</span> <span class="o">(</span><span class="n">dbex</span><span class="o">.</span><span class="na">next</span><span class="o">())</span> <span class="o">{</span>
+                <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">dbex</span><span class="o">.</span><span class="na">getKey</span><span class="o">().</span><span class="na">indexTo</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">decode</span><span class="o">()</span> <span class="o">+</span> <span class="s">&quot; &quot;</span>
+                        <span class="o">+</span> <span class="n">dbex</span><span class="o">.</span><span class="na">getValue</span><span class="o">().</span><span class="na">get</span><span class="o">());</span>
+            <span class="o">}</span>
+            <span class="n">db</span><span class="o">.</span><span class="na">releaseExchange</span><span class="o">(</span><span class="n">dbex</span><span class="o">);</span>
+        <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+            <span class="c1">// Always close Persistit. If the application does not do</span>
+            <span class="c1">// this, Persistit&#39;s background threads will keep the JVM from</span>
+            <span class="c1">// terminating.</span>
+            <span class="c1">//</span>
+            <span class="n">db</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="concepts">
+<h2>Concepts<a class="headerlink" href="#concepts" title="Permalink to this headline">¶</a></h2>
+<p>Although <tt class="docutils literal"><span class="pre">HelloWorld.java</span></tt> is not very useful, it demonstrates several of the basic building blocks of the Persistit API.</p>
+<div class="section" id="initialization-and-configuration">
+<h3>Initialization and Configuration<a class="headerlink" href="#initialization-and-configuration" title="Permalink to this headline">¶</a></h3>
+<p>Before accessing any data, <tt class="docutils literal"><span class="pre">HelloWorld.java</span></tt> calls the <a class="reference external" href="apidocs/com/persistit/Persistit.html#initialize()">initialize</a> method. This sets up the memory configuration for buffers and the path names of Persistit volume and journal files. Alternative methods accept configuration information from a <a class="reference external" href="apidocs/com/persistit/Configuration.html">com.persistit.Configuration</a> object, a <tt class="docutils literal"><span class="pre">java.util.Properties</span></tt> object, a specified properties file, or by default from the file named <tt class="docutils literal"><span class="pre">persistit.properties</span></tt> in the current working directory.</p>
+<p>In this example, <tt class="docutils literal"><span class="pre">persistit.properties</span></tt> looks like this:</p>
+<div class="highlight-python"><pre>datapath=.
+buffer.count.8192=32
+volume.1=${datapath}/hwdemo,create,pageSize:8192,initialPages:5,extensionPages:5,maximumPages:100000
+journalpath=${datapath}/hwdemo_journal</pre>
+</div>
+<p>See <a class="reference internal" href="Configuration.html#configuration"><em>Configuration</em></a> for additional information about Persistit configuration properties.</p>
+</div>
+<div class="section" id="volumes-and-trees">
+<h3>Volumes and Trees<a class="headerlink" href="#volumes-and-trees" title="Permalink to this headline">¶</a></h3>
+<p>A configuration defines one or more volume files that will contain stored Persistit data. Usually you will specify the <tt class="docutils literal"><span class="pre">create</span></tt> flag, which allows Persistit to create a new volume if the file does not already exist. Creating a new file also establishes the initial size and growth parameters for that volume.</p>
+<p>Each volume may contain an unlimited number of named trees. Each tree within a volume embodies a logically distinct B+Tree index structure. Think of a tree as simply a named key space within a volume.</p>
+<p><tt class="docutils literal"><span class="pre">HelloWorld.java</span></tt> stores its key/value pair in a tree called “greetings” in a volume named “hwdemo”. This is specified by constructing an Exchange.</p>
+</div>
+</div>
+<div class="section" id="exchanges">
+<h2>Exchanges<a class="headerlink" href="#exchanges" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference external" href="apidocs/com/persistit/Exchange.html">com.persistit.Exchange</a> class is the primary facade for interacting with Persistit data. It is so-named because it allows an application to exchange information with the database. An Exchange provides methods for storing, deleting, fetching and traversing key/value pairs.</p>
+<p>The method</p>
+<div class="highlight-java"><div class="highlight"><pre><span class="n">Exchange</span> <span class="n">dbex</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="na">getExchange</span><span class="o">(</span><span class="s">&quot;hwdemo&quot;</span><span class="o">,</span> <span class="s">&quot;greetings&quot;</span><span class="o">,</span> <span class="kc">true</span><span class="o">);</span>
+</pre></div>
+</div>
+<p>in <tt class="docutils literal"><span class="pre">HelloWorld.java</span></tt> finds a volume named &#8220;hwdemo&#8221; and attempts to find a tree in it named &#8220;greetings&#8221;. If there is no such tree, <tt class="docutils literal"><span class="pre">getExchange</span></tt> creates it.</p>
+<p>Methods <a class="reference external" href="apidocs/com/persistit/Persistit.html#getExchange(com.persistit.Volume,%20java.lang.String,%20boolean)">getExchange</a> and <a class="reference external" href="apidocs/com/persistit/Persistit.html#releaseExchange(com.persistit.Exchange)">releaseExchange</a> maintain a pool of reusable Exchange objects designed for use by multi-threaded applications such as web applications. If a suitable exchange already exists, <tt class="docutils literal"><span class="pre">getExchange</span></tt> returns it; otherwise it constructs a new one.</p>
+<p>The Exchange looks up the volume name “hwdemo” by matching it against the volumes specified in the configuration. The match is based on the simple file name of the volume after removing its final dotted suffix.  For example, the volume name “hwdemo” matches the volume specification <tt class="docutils literal"><span class="pre">${datapath}/hwdemo.v00</span></tt>.</p>
+<p>Each Exchange is implicitly associated with a <a class="reference external" href="apidocs/com/persistit/Key.html">com.persistit.Key</a> and a <a class="reference external" href="apidocs/com/persistit/Value.html">com.persistit.Value</a>. Typically you work with an Exchange in one of the following patterns:</p>
+<ul class="simple">
+<li>Modify the Key, modify the Value and then perform a <a class="reference external" href="apidocs/com/persistit/Exchange.html#store()">store</a> operation.</li>
+<li>Modify the Key, perform a <a class="reference external" href="apidocs/com/persistit/Exchange.html#fetch()">fetch</a> operation and then read the Value.</li>
+<li>Modify the Key and then perform a <a class="reference external" href="apidocs/com/persistit/Exchange.html#remove()">remove</a> operation.</li>
+<li>Optionally modify the Key, perform a <a class="reference external" href="apidocs/com/persistit/Exchange.html#next()">next</a>, <a class="reference external" href="apidocs/com/persistit/Exchange.html#previous()">previous</a> or <a class="reference external" href="apidocs/com/persistit/Exchange.html#traverse(com.persistit.Key.Direction,%20boolean)">traverse</a> operation, then read the resulting Key and/or Value.</li>
+</ul>
+<p>These methods and their variants provide the foundation for using Persistit.</p>
+<div class="section" id="records">
+<h3>Records<a class="headerlink" href="#records" title="Permalink to this headline">¶</a></h3>
+<p>In Persistit, a database record consists of a Key and a Value. The terms “record” and “key/value pair” are used interchangeably.</p>
+<p>When you store a record, Persistit searches for a previously stored record having the same key. If there is such a record, Persistit replaces its value.  If there is no such record, Persistit inserts a new one.  Like a Java Map, Persistit stores at most one value per key, and every record in a Tree has a unique key value.</p>
+</div>
+<div class="section" id="keys">
+<h3>Keys<a class="headerlink" href="#keys" title="Permalink to this headline">¶</a></h3>
+<p>A Key contains a unique identifier for key/value pair - or record - in a tree. The identifier consists of a sequence of one or more Java values encoded into an array of bytes stored in the volume file.</p>
+<p>Key instances are mutable. Your application typically changes an Exchange&#8217;s Key in preparation for fetching or retrieving data. In particular, you can append, remove or replace one or more values in a Key. Each value you append is called a <em>key segment</em>. You append multiple key segments to implement concatenated keys. See <a class="reference external" href="apidocs/com/persistit/Key.html">com.persistit.Key</a> for additional information on constructing keys and the ordering of key traversal within a tree.</p>
+<p>The <tt class="docutils literal"><span class="pre">HelloWorld.java</span></tt> example appends “Hello” to the Exchange’s Key object in this line:</p>
+<div class="highlight-java"><div class="highlight"><pre><span class="n">dbex</span><span class="o">.</span><span class="na">getKey</span><span class="o">().</span><span class="na">append</span><span class="o">(</span><span class="s">&quot;Hello&quot;</span><span class="o">);</span>
+</pre></div>
+</div>
+<p>The result is a key with a single key segment.</p>
+</div>
+<div class="section" id="values">
+<h3>Values<a class="headerlink" href="#values" title="Permalink to this headline">¶</a></h3>
+<p>A Value object represents the serialized state of a Java object or a primitive value. It is a staging area for data being transferred from or to the database by <tt class="docutils literal"><span class="pre">fetch</span></tt>, <tt class="docutils literal"><span class="pre">traverse</span></tt> and <tt class="docutils literal"><span class="pre">store</span></tt> operations.</p>
+<p>Value instances are mutable. The <tt class="docutils literal"><span class="pre">fetch</span></tt> and <tt class="docutils literal"><span class="pre">traverse</span></tt> operations modify the state of an Exchange&#8217;s Value instance to represent the value associated with some Key. Your application executes methods to modify the state of the Value instance in preparation for storing new data values into the database.</p>
+<p>Numerous methods allow you to serialize and deserialize primitives values and objects into and from a Value object. For example, in <tt class="docutils literal"><span class="pre">HelloWorld.java</span></tt>, the statement</p>
+<div class="highlight-java"><div class="highlight"><pre><span class="n">dbex</span><span class="o">.</span><span class="na">getValue</span><span class="o">().</span><span class="na">put</span><span class="o">(</span><span class="s">&quot;World&quot;</span><span class="o">);</span>
+</pre></div>
+</div>
+<p>serializes the string “World” into the backing byte array of the Exchange’s Value object and</p>
+<div class="highlight-java"><div class="highlight"><pre><span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span>
+        <span class="n">dbex</span><span class="o">.</span><span class="na">getKey</span><span class="o">().</span><span class="na">indexTo</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">decode</span><span class="o">()</span> <span class="o">+</span> <span class="s">&quot; &quot;</span> <span class="o">+</span>
+        <span class="n">dbex</span><span class="o">.</span><span class="na">getValue</span><span class="o">().</span><span class="na">get</span><span class="o">());</span>
+</pre></div>
+</div>
+<p>deserializes and prints an object value from the Key and another object value from the Value. Value also has methods such as <tt class="docutils literal"><span class="pre">getInt</span></tt>, <tt class="docutils literal"><span class="pre">getLong</span></tt>, <tt class="docutils literal"><span class="pre">getByteArray</span></tt> to decode primitive and array values directly.</p>
+</div>
+<div class="section" id="storing-and-fetching-data">
+<h3>Storing and Fetching Data<a class="headerlink" href="#storing-and-fetching-data" title="Permalink to this headline">¶</a></h3>
+<p>Finally, it is these two methods in <tt class="docutils literal"><span class="pre">HelloWorld.java</span></tt> that cause the Exchange object to share data with the B+Tree, making it persistent and potentially available to other threads:</p>
+<div class="highlight-java"><div class="highlight"><pre><span class="n">dbex</span><span class="o">.</span><span class="na">store</span><span class="o">();</span>
+<span class="o">...</span>
+<span class="k">while</span> <span class="o">(</span><span class="n">dbex</span><span class="o">.</span><span class="na">next</span><span class="o">())</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="closing-persistit">
+<h3>Closing Persistit<a class="headerlink" href="#closing-persistit" title="Permalink to this headline">¶</a></h3>
+<p>Persistit creates one or more background threads that lazily write data to the Volume files and perform other maintenance activities. Be sure to invoke the <a class="reference external" href="apidocs/com/persistit/Persistit.html#close()">close</a> method to allow these threads to finish their work and exit properly. The pattern illustrated in <tt class="docutils literal"><span class="pre">HelloWorld.java</span></tt>, using a <em>try/finally</em> block to invoke <tt class="docutils literal"><span class="pre">close</span></tt>, is strongly recommended.</p>
+<p>The <a class="reference external" href="apidocs/com/persistit/Persistit.html#close()">close</a> method optionally flushes all data to disk from the buffer pool before shutting down. Specifying the <tt class="docutils literal"><span class="pre">false</span></tt> option will close Persistit more quickly will lose recent updates if they were not performed inside of transactions, or will potentially require a longer recovery process during the next startup to reapply committed transactions.</p>
+</div>
+</div>
+<div class="section" id="additional-topics">
+<h2>Additional Topics<a class="headerlink" href="#additional-topics" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="persistitmap">
+<h3>PersistitMap<a class="headerlink" href="#persistitmap" title="Permalink to this headline">¶</a></h3>
+<p>A particularly easy way to get started with Persistit is to use its built-in <a class="reference external" href="apidocs/com/persistit/PersistitMap.html">com.persistit.PersistitMap</a> implementation. PersistitMap implements the <tt class="docutils literal"><span class="pre">java.util.SortedMap</span></tt> interface, so it can directly replace <tt class="docutils literal"><span class="pre">java.util.TreeMap</span></tt> or other kinds of Map in existing Java code.</p>
+<p>See <a class="reference internal" href="BasicAPI.html#persistitmap"><em>PersistitMap</em></a>.</p>
+</div>
+<div class="section" id="keyfilters">
+<h3>KeyFilters<a class="headerlink" href="#keyfilters" title="Permalink to this headline">¶</a></h3>
+<p>A <a class="reference external" href="apidocs/com/persistit/KeyFilter.html">com.persistit.KeyFilter</a> can be supplied to restrict the results returned by the <a class="reference external" href="apidocs/com/persistit/Exchange.html#traverse(com.persistit.Key.Direction,%20boolean)">traverse</a> methods. You can specify discrete values or ranges for values of individual key segments and apply other simple predicates.</p>
+<p>See <a class="reference internal" href="BasicAPI.html#basic-api"><em>Basic API</em></a>.</p>
+</div>
+<div class="section" id="transactions">
+<h3>Transactions<a class="headerlink" href="#transactions" title="Permalink to this headline">¶</a></h3>
+<p>Persistit provides ACID Transaction support with multi-version concurrency control (MVCC) and adjustable durability policy.</p>
+<p>See <a class="reference internal" href="Transactions.html#transactions"><em>Transactions</em></a>.</p>
+</div>
+<div class="section" id="managing-persistit">
+<h3>Managing Persistit<a class="headerlink" href="#managing-persistit" title="Permalink to this headline">¶</a></h3>
+<p>Persistit provides several mechanisms for managing Persistit operation within an application. These include</p>
+<ul class="simple">
+<li>JMX MXBeans</li>
+<li>The <a class="reference external" href="apidocs/com/persistit/Management.html">com.persistit.Management</a> object which provides programmatic access to many management operations</li>
+<li>The <a class="reference external" href="apidocs/com/persistit/CLI.html">com.persistit.CLI</a> object which provides a command-line interface for various management operations</li>
+<li>The AdminUI tool which provides a graphical client interface for examining records and other resources</li>
+<li>Logging interface design for easy embedding in host applications</li>
+</ul>
+<p>See <a class="reference internal" href="Management.html#management"><em>Management</em></a>.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Getting Started with Akiban Persistit</a><ul>
+<li><a class="reference internal" href="#download-and-install">Download and Install</a></li>
+<li><a class="reference internal" href="#working-with-persistit">Working with Persistit</a><ul>
+<li><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#helloworld">HelloWorld</a></li>
+<li><a class="reference internal" href="#concepts">Concepts</a><ul>
+<li><a class="reference internal" href="#initialization-and-configuration">Initialization and Configuration</a></li>
+<li><a class="reference internal" href="#volumes-and-trees">Volumes and Trees</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#exchanges">Exchanges</a><ul>
+<li><a class="reference internal" href="#records">Records</a></li>
+<li><a class="reference internal" href="#keys">Keys</a></li>
+<li><a class="reference internal" href="#values">Values</a></li>
+<li><a class="reference internal" href="#storing-and-fetching-data">Storing and Fetching Data</a></li>
+<li><a class="reference internal" href="#closing-persistit">Closing Persistit</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#additional-topics">Additional Topics</a><ul>
+<li><a class="reference internal" href="#persistitmap">PersistitMap</a></li>
+<li><a class="reference internal" href="#keyfilters">KeyFilters</a></li>
+<li><a class="reference internal" href="#transactions">Transactions</a></li>
+<li><a class="reference internal" href="#managing-persistit">Managing Persistit</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Akiban Persistit User Guide</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="BasicAPI.html"
+                        title="next chapter">Basic API</a></p>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="BasicAPI.html" title="Basic API"
+             >next</a></li>
+        <li class="right" >
+          <a href="index.html" title="Akiban Persistit User Guide"
+             >previous</a> |</li>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Akiban Technologies.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b3.
+    </div>
+  </body>
+</html>

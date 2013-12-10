@@ -1,0 +1,867 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Akiban Persistit Version 3.3.0 &mdash; Persistit 3.3.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.3.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Persistit 3.3.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="akiban-persistit-version-3-3-0">
+<h1>Akiban Persistit Version 3.3.0<a class="headerlink" href="#akiban-persistit-version-3-3-0" title="Permalink to this headline">¶</a></h1>
+<p>May 17, 2013</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference external" href="http://akiban.github.com/persistit">http://akiban.github.com/persistit</a> for a summary of features and benefits and how to get support.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This version of Persistit is released under the Apache License, Version 2.0. Previous
+releases were licensed under the Eclipse Public License.  We made this change for
+better compatibility with other open source projects.</p>
+</div>
+</div>
+<div class="section" id="documentation">
+<h2>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h2>
+<p>Users Guide: <a class="reference external" href="http://akiban.github.com/persistit/docs">http://akiban.github.com/persistit/docs</a></p>
+<p>JavaDoc: <a class="reference external" href="http://akiban.github.com/persistit/javadoc/index.html">http://akiban.github.com/persistit/javadoc/index.html</a></p>
+</div>
+<div class="section" id="building-akiban-persistit">
+<h2>Building Akiban-Persistit<a class="headerlink" href="#building-akiban-persistit" title="Permalink to this headline">¶</a></h2>
+<p>Use Maven (maven.apache.org) to build Persistit.</p>
+<p>To build:</p>
+<div class="highlight-python"><pre>mvn install</pre>
+</div>
+<p>The resulting jar files are in the <tt class="docutils literal"><span class="pre">target</span></tt> directory. To build the Javadoc:</p>
+<div class="highlight-python"><pre>mvn javadoc:javadoc</pre>
+</div>
+<p>The resulting Javadoc HTML files are in <tt class="docutils literal"><span class="pre">target/site/apidocs</span></tt>.</p>
+<div class="section" id="building-and-running-the-examples">
+<h3>Building and Running the Examples<a class="headerlink" href="#building-and-running-the-examples" title="Permalink to this headline">¶</a></h3>
+<p>Small examples are located in the <tt class="docutils literal"><span class="pre">examples</span></tt> directory. Each has a short README file describing the
+example, and an Ant build script (<a class="reference external" href="http://ant.apache.org">http://ant.apache.org</a>). After building the main akiban-persisit jar file using Maven, you may run:</p>
+<div class="highlight-python"><pre>ant run</pre>
+</div>
+<p>in each of the examples subdirectories to build and run the examples.</p>
+</div>
+<div class="section" id="java-7-versus-java-6">
+<h3>Java 7 versus Java 6<a class="headerlink" href="#java-7-versus-java-6" title="Permalink to this headline">¶</a></h3>
+<p>Persistit compiles and runs successfully under either Java 6 or Java 7. However, when compiled with Java 7, the resulting classes are
+incompatible with Java 6 due to a change in the <tt class="docutils literal"><span class="pre">java.nio.channels.FileChannel</span></tt> class introduced in Java 7.
+See <a class="reference external" href="http://mail.openjdk.java.net/pipermail/nio-dev/2012-July/001788.html">FileChannel incompatibility introduced between 6 and 7</a>. Classes
+compiled under Java 6 run correctly in Java 7.</p>
+</div>
+</div>
+<div class="section" id="buffer-pool-configuration">
+<h2>Buffer Pool Configuration<a class="headerlink" href="#buffer-pool-configuration" title="Permalink to this headline">¶</a></h2>
+<p>For optimal performance, proper configuration of the Persistit buffer pool is required.  See section &#8220;Configuring the Buffer Pool&#8221; in the configuration document <a class="reference external" href="http://akiban.github.com/persistit/docs/Configuration.html">http://akiban.github.com/persistit/docs/Configuration.html</a></p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Especially when used with multi-gigabyte heaps, the default Hotspot JVM server heuristics are
+suboptimal for Persistit applications. Persistit is usually configured to allocate a large
+fraction of the heap to Buffer instances that are allocated at startup and held for the
+duration of the Persistit instance. For efficient operation, all of the Buffer instances
+must fit in the tenured (old) generation of the heap to avoid very significant garbage
+collector overhead. Use either -XX:NewSize or -Xmn to adjust the relative sizes of
+the new and old generations.</p>
+</div>
+<div class="line-block">
+<div class="line"><br /></div>
+<div class="line"><br /></div>
+</div>
+</div>
+<div class="section" id="version-history">
+<h2>Version History<a class="headerlink" href="#version-history" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="9%" />
+<col width="19%" />
+<col width="72%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Version</th>
+<th class="head">Release Date</th>
+<th class="head">Summary</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>3.3.0</td>
+<td>May 17, 2013</td>
+<td>Change license from Eclipse Public License to Apache License, Version
+2.0. Create and remove Trees correctly within the scope of a transaction.
+Correct problems with transaction session management. Modify
+Accumulator API to better suggest correct usage.</td>
+</tr>
+<tr class="row-odd"><td>3.2.7</td>
+<td>March 22, 2013</td>
+<td>Add several new API features, including TreeBuilder, Traverse Visitor
+and Lock. Fix several non-critical bugs.</td>
+</tr>
+<tr class="row-even"><td>3.2.2</td>
+<td>November 30, 2012</td>
+<td>Improve support for Spring Framework. Fix rare but serious bugs found in
+stress tests. Fix issue related to locale and make sure Persistit builds
+everywhere.</td>
+</tr>
+<tr class="row-odd"><td>3.2.1</td>
+<td>November 13, 2012</td>
+<td>Fix several low-priority bugs.</td>
+</tr>
+<tr class="row-even"><td>3.2.0</td>
+<td>October 15, 2012</td>
+<td>Fix several critical and other bugs, one of which requires a modified
+journal file format. This version also significantly improves
+performance for I/O-intensive concurrent transaction loads.</td>
+</tr>
+<tr class="row-odd"><td>3.1.7</td>
+<td>September 11, 2012</td>
+<td>Fix several bugs, add buffer pool preload (&#8220;warm-up&#8221;),
+reformat code base</td>
+</tr>
+<tr class="row-even"><td>3.1.6</td>
+<td>August 24, 2012</td>
+<td>Fix bug 1036422</td>
+</tr>
+<tr class="row-odd"><td>3.1.5</td>
+<td>August 6, 2012</td>
+<td>Fix bug 1032701, modify pom.xml for Eclipse Juno</td>
+</tr>
+<tr class="row-even"><td>3.1.4</td>
+<td>August 3, 2012</td>
+<td>License changed to Eclipse Public License, various other enhancements</td>
+</tr>
+<tr class="row-odd"><td>3.1.2</td>
+<td>July 13, 2012</td>
+<td>Fix several bugs</td>
+</tr>
+<tr class="row-even"><td>3.1.1</td>
+<td>May 31, 2012</td>
+<td>First open source release of Akiban Persistit</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="changes-and-new-features">
+<h2>Changes and New Features<a class="headerlink" href="#changes-and-new-features" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="license">
+<h3>3.3.0 - License<a class="headerlink" href="#license" title="Permalink to this headline">¶</a></h3>
+<p>Akiban Persistit is now licensed under the Apache License, Version 2.0.</p>
+</div>
+<div class="section" id="creating-and-removing-trees-in-transactions">
+<h3>3.3.0 - Creating and Removing Trees in Transactions<a class="headerlink" href="#creating-and-removing-trees-in-transactions" title="Permalink to this headline">¶</a></h3>
+<p>Resolving a long-standing anomaly in the Persistit API, this release now handles
+creation and deletion of Tree instances correctly inside transactions. As a result,
+a transaction can create and populate a Tree which becomes visible within other
+transactions only when the transaction commits, and which is implicitly removed
+if the transaction aborts.  Similarly, the removal of a Tree within a
+transaction becomes visible to other transactions only upon commit.</p>
+</div>
+<div class="section" id="better-session-support">
+<h3>3.3.0 - Better Session Support<a class="headerlink" href="#better-session-support" title="Permalink to this headline">¶</a></h3>
+<p>This release corrects issues with session support. Each thread is assigned a
+<a class="reference external" href="apidocs/com/persistit/SessionId.html">com.persistit.SessionId</a> when it uses Persistit, and that SessionId is linked
+to a unique <a class="reference external" href="apidocs/com/persistit/Transaction.html">com.persistit.Transaction</a> instance.  Usually a transaction is confined to a single
+thread that retains a single SessionId for its entire life.  However, for use cases in
+which a server may support transactions that span multiple
+network requests, and where each request may be serviced by an arbitrary thread from a
+thread pool, there is support for changing the association of a SessionId with a thread. See
+notes in <a class="reference external" href="apidocs/com/persistit/Transaction.html">com.persistit.Transaction</a> for details.</p>
+<p>This release corrects two issues related to sessions:</p>
+<ul class="simple">
+<li>The constructor for SessionId is now public.</li>
+<li>It is now possible for a thread other than the one that began the transaction
+to commit it. Previous versions would throw an IllegalMonitorStateException in this
+case.</li>
+</ul>
+</div>
+<div class="section" id="accumulator-api">
+<h3>3.3.0 - Accumulator API<a class="headerlink" href="#accumulator-api" title="Permalink to this headline">¶</a></h3>
+<p>The <a class="reference external" href="apidocs/com/persistit/Accumulator.html">com.persistit.Accumulator</a> class and its inner classes <tt class="docutils literal"><span class="pre">MinAccumulator</span></tt>
+<tt class="docutils literal"><span class="pre">MaxAccumulator</span></tt>, <tt class="docutils literal"><span class="pre">SumAccumulator</span></tt> and <tt class="docutils literal"><span class="pre">SeqAccumulator</span></tt> provide an efficient
+way to update counts, sums and unique ID counters that would otherwise cause
+significant contention among concurrent transactions.  This release
+replaces a single method named <tt class="docutils literal"><span class="pre">update</span></tt> with a use-specific method for each
+type of Accumulator.  For example, the <a class="reference external" href="apidocs/com/persistit/Accumulator.SeqAccumulator.html">com.persistit.Accumulator.SeqAccumulator</a>
+class provides the method <a class="reference external" href="apidocs/com/persistit/Accumulator.SeqAccumulator.html#allocate()">allocate</a> to
+allocate a sequence number.  See <tt class="docutils literal"><span class="pre">Accumulator</span></tt> class JavaDoc for details.</p>
+</div>
+<div class="section" id="treebuilder">
+<h3>3.2.7 - TreeBuilder<a class="headerlink" href="#treebuilder" title="Permalink to this headline">¶</a></h3>
+<p>Inserting a large set of records with non-sequential keys causes significant I/O overhead. Once the size
+of the Tree is larger than available main memory, each insertion can result in a disk write (to flush a page
+to disk so that its buffer can be reused) and a disk read (to read a different page into the buffer).</p>
+<p>The <a class="reference external" href="apidocs/com/persistit/TreeBuilder.html">com.persistit.TreeBuilder</a> class provides a more efficient way to load a large set of records with
+non-sequential keys. TreeBuilder creates a set of files containing partially-sorted records. From these,
+TreeBuilder performs a merge-sort to complete the operation.</p>
+<p>TreeBuilder is effective only for inserting large sets of non-sequential records. For example, in tests we have
+loaded a billion records with keys generated as UUID instances. See the API documentation for
+<a class="reference external" href="apidocs/com/persistit/TreeBuilder.html">com.persistit.TreeBuilder</a> for more information.</p>
+</div>
+<div class="section" id="traverse-visitor">
+<h3>3.2.7 - Traverse Visitor<a class="headerlink" href="#traverse-visitor" title="Permalink to this headline">¶</a></h3>
+<p>The <a class="reference external" href="apidocs/com/persistit/Exchange.html#traverse(com.persistit.Key.Direction,%20boolean)">traverse</a> methods provide Persistit&#8217;s fundamental mechanism for iterating
+over a collection of keys within a Tree.  Each call to <tt class="docutils literal"><span class="pre">traverse</span></tt> (or <a class="reference external" href="apidocs/com/persistit/Exchange.html#next()">next</a> or
+<a class="reference external" href="apidocs/com/persistit/Exchange.html#previous()">previous</a>) performs a significant amount of set-up and tear-down activity.</p>
+<p>To better support code that visits a large number of records by calling one of the <tt class="docutils literal"><span class="pre">traverse</span></tt> methods in a loop, this
+release adds a more efficient mechanism based on the visitor pattern. See <a class="reference external" href="apidocs/com/persistit/Exchange.TraverseVisitor.html">com.persistit.Exchange.TraverseVisitor</a>
+for details.</p>
+</div>
+<div class="section" id="lock-to-avoid-write-skew-anomalies">
+<h3>3.2.7 - Lock to avoid Write Skew Anomalies<a class="headerlink" href="#lock-to-avoid-write-skew-anomalies" title="Permalink to this headline">¶</a></h3>
+<p>Persistit transactions implement Snapshot Isolation to prevent concurrent transactions from interfering with
+each other.  See <a class="reference external" href="apidocs/com/persistit/Transaction.html">com.persistit.Transaction</a> for details.</p>
+<p>Snapshot Isolation is a well-known protocol for multi-version concurrency control. It is employed by many
+commercial databases because it offers lock-free serializable read transactions and frequently permits very high
+throughput for concurrent execution of update transactions. And for many (but not all) transactions
+it offers fully serializable execution of concurrent transactions (meaning that the effect of executing
+a set of transactions concurrently is identical to running them serially in some order).</p>
+<p>The non-serializable exception case is called &#8220;Write Skew.&#8221; See the <a class="reference external" href="http://wikipedia.org/wiki/Snapshot_isolation">Wikipedia</a>
+article for a brief description of write skew.</p>
+<p>In Persistit the issue arises when two (or more) concurrent transactions modify records with different keys
+in such a way that an integrity constraint which each transaction running alone would enforce is violated.
+For example, two concurrent transactions may write to separate data items X and Y in a way that
+violates an invariant that neither transaction alone would have permitted. Because the write operations
+are to different keys, no write conflict is detected, and both transactions are permitted to commit. The
+result is a database state that could not have occurred if the transactions had run sequentially in any order.</p>
+<p>A well-known solution is to modify the transaction logic to perform an additional write operation to a common
+key. The <a class="reference external" href="apidocs/com/persistit/Exchange.html#lock()">lock</a> method provides a convenient and efficient mechanism for doing so. The <tt class="docutils literal"><span class="pre">lock</span></tt>
+method does not actually lock anything, but is so-named because it serves a similar function.</p>
+</div>
+<div class="section" id="miscellaneous-issues">
+<h3>3.2.7 - Miscellaneous Issues<a class="headerlink" href="#miscellaneous-issues" title="Permalink to this headline">¶</a></h3>
+<p>Changes needed to build and run Persistit on Mac OSX under Java 7 were made.</p>
+<p>A new CLI command to display the contents of a Persistit volume file was added.  The command</p>
+<blockquote>
+<div>volumeinfo file=/path/to/volume/file</div></blockquote>
+<p>displays all of the meta data contained in the volume file.</p>
+</div>
+<div class="section" id="spring-framework">
+<h3>3.2.2 - Spring Framework<a class="headerlink" href="#spring-framework" title="Permalink to this headline">¶</a></h3>
+<p>Prior to this release Persistit was needlessly difficult to configure and initialize within Spring Framework.
+This version provides new setter methods and constructors on the <a class="reference external" href="apidocs/com/persistit/Persistit.html">com.persistit.Persistit</a> object to allow easy
+injection of configuration properties and make it possible to inject a fully instantiated
+Persistit instance within a Spring project. In addition, new methods were added to the
+<a class="reference external" href="apidocs/com/persistit/Configuration.html">com.persistit.Configuration</a> class to simplify supplying buffer pool and initial volume specifications.
+Three of the <a class="reference external" href="apidocs/com/persistit/Persistit.html#initialize()">initialize</a> methods were deprecated.</p>
+<p>This release also adds a new sample application that shows how a configured Persistit instance can be created. For
+Maven users, note that the pom.xml file now includes a dependency on Spring Framework in test scope only; Persistit
+can still be deployed without any external dependencies.</p>
+</div>
+<div class="section" id="bug-fixes">
+<h3>3.2.2 - Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this headline">¶</a></h3>
+<p>Version 3.2.2 corrects two issues that were identified through stress tests. For this release
+we added hundreds of hours of stress-testing experience and will continue to invest in ongoing testing.</p>
+<p>This version also fixes a unit test with string literals containing numbers formatted according to en_US
+conventions. The test has been corrected and the Persistit build has been tested in several locales.</p>
+</div>
+<div class="section" id="id4">
+<h3>3.2.1 - Bug Fixes<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<p>Version 3.2.1 is a maintenance release that fixes a number of non-critical bugs, primarily in less frequently
+used sections of the API. See the associated bug list for full descriptions of each resolved.</p>
+</div>
+<div class="section" id="default-journal-file-format-changed">
+<h3>3.2.0 - Default Journal File Format Changed<a class="headerlink" href="#default-journal-file-format-changed" title="Permalink to this headline">¶</a></h3>
+<p>Version 3.2.0 fixes problems related to Volumes created and opened by the <a class="reference external" href="apidocs/com/persistit/Persistit.html#loadVolume(com.persistit.VolumeSpecification)">loadVolume</a>
+method rather than being specified by the initial system configuration. In previous versions, journal files
+contained insufficient information to properly recover such volumes, even during normal startup.</p>
+<p>To solve this problem the format of the IV (identify volume) journal record changed to include
+the <a class="reference external" href="apidocs/com/persistit/VolumeSpecification.html">com.persistit.VolumeSpecification</a> rather than the volume name alone. By default, journal
+files written by earlier versions of Persistit continue to be supported, but once Persistit 3.2.0 has
+added one or more new journal files to a database, earlier versions of Persistit are unable to
+open the database.</p>
+<p>In most cases it is never necessary to revert to an earlier version, but to support sites where
+backward-compatibility may be important, it is possible to specify a new configuration parameter
+(see <a class="reference external" href="apidocs/com/persistit/Configuration.html#setVolumeList(java.util.List)">setVolumeList</a>. When this property is +true+, Persistit writes
+journal files that are backward-compatible, but incapable of supporting dynamically created volumes.</p>
+</div>
+<div class="section" id="performance-improvements">
+<h3>3.2.0 - Performance Improvements<a class="headerlink" href="#performance-improvements" title="Permalink to this headline">¶</a></h3>
+<p>Version 3.2.0 significantly improves I/O performance for concurrent transactions and
+better controls the number of journal files created during by very aggressive loads. A new attribute
+in the <a class="reference external" href="apidocs/com/persistit/mxbeans/JournalManagerMXBean.html">com.persistit.mxbeans.JournalManagerMXBean</a> class called <tt class="docutils literal"><span class="pre">urgentFileCountThreshold</span></tt> controls the
+maximum number of journal files Persistit will create before ramping the up the urgency of copying pages to
+allow purging old files. Several other issues related to I/O scheduling and management of
+dirty pages were resolved.</p>
+<p>Version 3.2.0 significantly improves scheduling of version pruning operations.  Pruning is the process by
+which obsolete versions are removed from multi-version values (MVVs). Better scheduling results in a
+significant reduction in the amount of space consumed by obsolete version and also results in better
+transaction throughput.</p>
+</div>
+<div class="section" id="code-base-reformatted">
+<h3>3.1.7 - Code Base Reformatted<a class="headerlink" href="#code-base-reformatted" title="Permalink to this headline">¶</a></h3>
+<p>To simplify diffs and improve legibility, the entire code base was reformatted and &#8220;cleaned up&#8221;
+by the Eclipse code formatting tool. The maven build now automatically formats all
+source to ensure coherent diffs in the future.  The settings for formatting and code style
+cleanup by Eclipse are found in the <tt class="docutils literal"><span class="pre">src/etc</span></tt> directory.</p>
+</div>
+<div class="section" id="buffer-pool-preload">
+<h3>3.1.7 - Buffer Pool Preload<a class="headerlink" href="#buffer-pool-preload" title="Permalink to this headline">¶</a></h3>
+<p>On a server with a large buffer pool (many gigabytes), a Persistit instance can run for a long
+time before the buffer pool becomes populated with a suitable working set of database pages.
+Until then performance is degraded due to a potentially large number of random reads.
+For a production server the result may be poor performance for minutes to hours after restart.</p>
+<p>The preload facility periodically records an inventory of the pages currently in the buffer
+pool(s) and optionally reloads the same set of pages when Persistit is restarted. During the
+preload process Persistit attempts to read pages in approximate file-address order to
+accelerate reads. In one of our experiments Persistit preloads a buffer pool with over
+800,000 16Kbyte buffers in about a minute, which is orders of magnitude faster than the
+same process would take with reads performed incrementally at random.</p>
+<p>Two new configuration properties <a class="reference external" href="apidocs/com/persistit/Configuration.html#setBufferInventoryEnabled(boolean)">setBufferInventoryEnabled</a> and
+<a class="reference external" href="apidocs/com/persistit/Configuration.html#setBufferPreloadEnabled(boolean)">setBufferPreloadEnabled</a> control this behavior. These settings
+are turned off by default in version 3.1.7.</p>
+</div>
+<div class="section" id="detecting-and-ignoring-missing-volumes">
+<h3>3.1.4 - Detecting and Ignoring Missing Volumes<a class="headerlink" href="#detecting-and-ignoring-missing-volumes" title="Permalink to this headline">¶</a></h3>
+<p>Every time Persistit writes a modified page to disk, it does so first to the journal.
+During recovery processing, the page images from the journal are analyzed and reinserted
+into volumes in such a way that all B+Trees are restored to a consistent state. The issue
+addressed in this change is how Persistit behaves during recovery if it discovers that a
+volume referred to by a page in the journal no longer exists.</p>
+<p>Recognizing that under some circumstances an administrator may indeed wish to remove a
+volume from an existing Database, this change provides a configurable switch to optionally
+allow pages from missing volumes to be skipped (with logged warning messages) during recovery
+processing.  The switch can be enabled by setting the configuration parameter
+<a class="reference external" href="apidocs/com/persistit/Configuration.html#setIgnoreMissingVolumes(boolean)">setIgnoreMissingVolumes</a> to true.</p>
+</div>
+<div class="section" id="reduce-keycoder-serialized-object-size">
+<h3>3.1.4 - Reduce KeyCoder Serialized Object Size<a class="headerlink" href="#reduce-keycoder-serialized-object-size" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Any Database containing objects serialized by a custom KeyCoder from a previous version
+of Persistit is incompatible with this change</p>
+</div>
+<p>Minimize the per-instance overhead for application objects written into Persistit Keys by
+reducing the size of the internal identifier.</p>
+<p>Persistit has rich support for serializing standard Java primitive and object types into a
+Key. Additionally, the KeyCoder class allows for any application level object to also be
+appended to a Key right next to any other type. This is tagged internally with per-class
+handles. This change lowers the initial offset to reduce and in many cases halve the serialized size.</p>
+</div>
+<div class="section" id="maven-pom-changes-for-eclipse-juno">
+<h3>3.1.4 - Maven POM Changes For Eclipse Juno<a class="headerlink" href="#maven-pom-changes-for-eclipse-juno" title="Permalink to this headline">¶</a></h3>
+<p>The latest version of Eclipse, code named Juno, features a wide array of changes, including a
+new release of the m2eclipse plugin. In an effort to make getting started with Persistit as
+easy as possible, we have included the required m2e configuration sections in our pom.</p>
+<p>Please contact Akiban if you have encounter any issues getting up and running with Persistit.</p>
+</div>
+<div class="section" id="asserts-added-to-check-for-correct-exchange-thread-behavior">
+<h3>3.1.2 - Asserts Added to Check for Correct Exchange Thread Behavior<a class="headerlink" href="#asserts-added-to-check-for-correct-exchange-thread-behavior" title="Permalink to this headline">¶</a></h3>
+<p>A bug in the Akiban Server code caused an Exchange to be used concurrently by two Threads,
+causing serious and seemingly unrelated failures in Persistit including instances of
+IllegalMonitorException and IllegalStateException. To guard against future occurrences,
+asserts were added to catch such concurrent use by multiple threads.  Applications should
+be tested with asserts enabled to verify correct thread usage.</p>
+</div>
+</div>
+<div class="section" id="resolved-issues">
+<h2>Resolved Issues<a class="headerlink" href="#resolved-issues" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="22%" />
+<col width="6%" />
+<col width="72%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Bug Reference</th>
+<th class="head">Fixed in
+Version</th>
+<th class="head">Summary</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1055557">https://launchpad.net/bugs/1055557</a></td>
+<td>3.3.0</td>
+<td><p class="first"><cite>Trees removed inside transaction can automatically come back</cite></p>
+<p class="last">Resolved by support for creating and removing trees within transactions.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1174352">https://launchpad.net/bugs/1174352</a></td>
+<td>3.3.0</td>
+<td><p class="first"><cite>Transaction commit and abort cannot be performed from a different Thread</cite></p>
+<p class="last">A ReentrantLock was replaced by a Semaphore to allow modification of locked
+state by different threads.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1167056">https://launchpad.net/bugs/1167056</a></td>
+<td>3.3.0</td>
+<td><p class="first"><cite>Value returned from Accumulator#update() is non-transactional</cite></p>
+<p class="last">The issue was unintended use of a value returned from this method. The Accumulator
+API was reworked to avoid confusion.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1161062">https://launchpad.net/bugs/1161062</a></td>
+<td>3.3.0</td>
+<td><p class="first"><cite>Missing public constructor for com.persistit.SessionId</cite></p>
+<p class="last">Added.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1159313">https://launchpad.net/bugs/1159313</a></td>
+<td>3.3.0</td>
+<td><p class="first"><cite>Deadlock in Bug882219Test</cite></p>
+<p class="last">We determined that a deadlock exists in the Java 7 implementation of
+AbstractInterruptibleChannel independent of Persistit. Bug number 9002674 was
+assigned by the Oracle Java Bug Database. In the meantime, the test has been
+disabled to avoid hung builds.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1157809">https://launchpad.net/bugs/1157809</a></td>
+<td>3.3.0</td>
+<td><p class="first"><cite>Appending value to a Key causes an ArrayIndexOutOfBoundsException</cite></p>
+<p class="last">An attempt to append overflow the backing store of a <tt class="docutils literal"><span class="pre">com.persistit.Key</span></tt> now
+throws a <tt class="docutils literal"><span class="pre">com.persistit.exceptions.KeyTooLongException</span></tt>.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1133039">https://launchpad.net/bugs/1133039</a></td>
+<td>3.3.0</td>
+<td><p class="first"><cite>Pruning incomplete on simple DUPLICATE_KEY error</cite></p>
+<p class="last">The actual cause of this bug was inadequate pruning velocity when cleaning up transactions
+using the new <tt class="docutils literal"><span class="pre">com.persistit.Exchange#lock</span></tt> method. Locked elements are now
+pruned synchronously to avoid overloading the cleanup manager.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1126868">https://launchpad.net/bugs/1126868</a></td>
+<td>3.3.0</td>
+<td><p class="first"><cite>Lock table not pruned</cite></p>
+<p class="last">See 1133039 above.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1126297">https://launchpad.net/bugs/1126297</a></td>
+<td>3.3.0</td>
+<td><p class="first">&#8216;Assertion failure in TransactionIndexBucket#allocateTransactionStatus&#8217;</p>
+<p class="last">Corrected by allowing a different thread than the one that created it to
+abort a transaction.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1076517">https://launchpad.net/bugs/1076517</a></td>
+<td>3.2.2</td>
+<td><p class="first"><cite>InUseExceptions in stress tests</cite></p>
+<p class="last">Stress tests occasionally experienced InUseExceptions, usually signifying
+a deadlock. Two mechanisms were discovered and fixed. Note that an InUseException
+occurs when an attempt to lock a resource such as a Tree or a Buffer is
+unsatisfied for 60 seconds (the current default timeout).  This exception can
+occur for reasons other than deadlock such as an extraordinarily slow I/O
+operation or as a result of a debug breakpoint in sensitive code.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1079288">https://launchpad.net/bugs/1079288</a></td>
+<td>3.2.2</td>
+<td><p class="first"><cite>Persistit build success is sensitive to locale</cite></p>
+<p class="last">One Persistit unit test depended on locale-specific text formatting, and therefore
+failed when built in a locale which does not conform to en_US formatting rules.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1079406">https://launchpad.net/bugs/1079406</a></td>
+<td>3.2.2</td>
+<td><p class="first"><cite>Design flaw makes Persistit needlessly difficult to use in Spring Framework</cite></p>
+<p class="last">Persistit initialization API was modified to make it easy to create and use
+a Persistit instance within Spring Framework.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1081659">https://launchpad.net/bugs/1081659</a></td>
+<td>3.2.2</td>
+<td><p class="first"><cite>isNull(true) leaves Value in unsafe state for stream mode get</cite></p>
+<p class="last">The implementation of isNull(boolean) added in Version 3.2.1 contained a bug that
+made stream-mode get operations fail.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1074372">https://launchpad.net/bugs/1074372</a></td>
+<td>3.2.2</td>
+<td><p class="first"><cite>Stress tests induce RebalanceException</cite></p>
+<p class="last">Code was added to handle a rare situation
+in which removing a key at the boundary between two pages requires one of the pages to split. Formerly this condition
+was not handled properly and instead caused the application thread to receive a RebalanceException.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1076403">https://launchpad.net/bugs/1076403</a></td>
+<td>3.2.1</td>
+<td><p class="first"><cite>NPE while starting AdminUI</cite></p>
+<p class="last">Localized property files are used for text labels in the AdminUI. Only an
+English file was provided by default so starting the UI in another language
+would case a NullPointerException. Move the current English property file
+to the default name so it is always selected.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1073357">https://launchpad.net/bugs/1073357</a></td>
+<td>3.2.1</td>
+<td><p class="first"><cite>Value.getType() is not reliable for CLASS_REREF</cite></p>
+<p class="last">A special internal tag, CLASS_REFREF, is used when appending the same object
+multiple times to a Value in stream mode. This is so cycles can be handled
+correctly in a generic object graph. The getType() method, which returns the
+Class of the encoded object without fully decoding it, did not always return
+the most specific specific Class for this internal tag.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1046049">https://launchpad.net/bugs/1046049</a></td>
+<td>3.2.1</td>
+<td><p class="first"><cite>Filtered traverse in LTEQ direction appears not to work</cite></p>
+<p class="last">A bug in the com.persistit.KeyFilter caused reverse-direction traversal using
+a KeyFilter with a range term to return incorrect results.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1042960">https://launchpad.net/bugs/1042960</a></td>
+<td>3.2.1</td>
+<td><p class="first"><cite>Value.isNull slightly non-intuitive in stream mode</cite></p>
+<p class="last">When operating on a Value in stream mode it is a common pattern to check if the
+current position is null before attempting to decode it. There is little reason
+to then decode if it is null. A new method was added, isNull(boolean skipIfNull),
+that can be used to perform this in a single call.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1023549">https://launchpad.net/bugs/1023549</a></td>
+<td>3.2.1</td>
+<td><p class="first"><cite>traverse(EQ, false, 0) returns incorrect result</cite></p>
+<p class="last">A traverse with the given parameters should return true if the key exists, without
+fetching any of the value bytes. If the given key was removed and then immediately
+traversed for existence, true would be returned instead of false.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1065677">https://launchpad.net/bugs/1065677</a></td>
+<td>3.2.0</td>
+<td><p class="first"><cite>Persistit not recoverable after hard crash</cite></p>
+<p class="last">A system experienced a sequence of events, including being killed several times at
+inopportune times by the OOM Killer, that left its journal in an unrecoverable state.
+Specifically, there was a journal file that contained lots of updated pages, but no
+checkpoint record.  Due to a bug in the RecoveryManager code, the system timestamp
+was set incorrectly and led to an out-of-order page update sequence.  While this bug
+would be difficult to recreate by any natural circumstances, it is critical because
+of potential data loss.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1064565">https://launchpad.net/bugs/1064565</a></td>
+<td>3.2.0</td>
+<td><p class="first"><cite>Accumulator state sometimes missing from checkpoint</cite></p>
+<p class="last">Occasionally the state of an Accumulator was incorrect after normal system restart.
+The cause was a race in the checkpoint code. This is a critical bug due to potential
+data loss.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1062315">https://launchpad.net/bugs/1062315</a></td>
+<td>3.2.0</td>
+<td><p class="first"><cite>Assertion failure in TransactionIndexBucket#allocateTransactionStatus</cite></p>
+<p class="last">An assert was observed in an 8-hour stress test run.  The underlying cause was
+a brief race condition and was harmless. The race has been fixed.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1058650">https://launchpad.net/bugs/1058650</a></td>
+<td>3.2.0</td>
+<td><p class="first"><cite>IllegalStateException due to out-of-order MVVs</cite></p>
+<p class="last">Stress tests experienced an occasional occurrence of an IllegalStateException due
+to out-of-order versions in an MVV value.  The condition was transient and did not
+cause data loss. The underlying cause has been fixed.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1058254">https://launchpad.net/bugs/1058254</a></td>
+<td>3.2.0</td>
+<td><p class="first"><cite>Join on range delete can change successor keys</cite></p>
+<p class="last">A range delete that crosses at least two page boundaries can write an incorrect key
+when merging records; this causes it and subsequent keys within the page to be wrong
+and also leads to a discontinuity between the max key in the page and the first key
+of its right sibling.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1056489">https://launchpad.net/bugs/1056489</a></td>
+<td>3.2.0</td>
+<td><p class="first"><cite>MVV and step visibility and pruning errors</cite></p>
+<p class="last">Transactions using +step+ values (see com.persisit.Transaction#setStep) sometimes resulted
+in inconsistent states.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1053680">https://launchpad.net/bugs/1053680</a></td>
+<td>3.2.0</td>
+<td><p class="first"><cite>Page deallocation can permanently lose pages</cite></p>
+<p class="last">When removing records causes deallocation of chain of pages configured in a particular way,
+a garbage page, and possibly many pages linked to it, may be stranded in a volume.
+The result is irrecoverable loss of space in the volume file.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1047973">https://launchpad.net/bugs/1047973</a></td>
+<td>3.2.0</td>
+<td><p class="first"><cite>O(N*N) Loop in JournalManager#cleanupPageList</cite></p>
+<p class="last">Bad code in this method causes periodic performance degradation in 4-hour TPCC test. The
+CPU cost of this algorithm scales as the square of the number of pages in the page list,
+and the work is done within a globally blocking synchronized block.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1045971">https://launchpad.net/bugs/1045971</a></td>
+<td>3.2.0</td>
+<td><p class="first"><cite>Dynamically loaded volumes not recovered &#8220;cleanly&#8221;</cite></p>
+<p>When a program creates new volumes using VolumeSpecifications, they subsequently
+cause a &#8220;missing volume&#8221; warning from the journal copier and prevent the removal
+of journal files containing the references. The journal files accumulate seemingly
+without end, and each initialization of the database seems to process more and
+more of the old transactions.</p>
+<p class="last">See discussion about regarding the useOldVSpec property.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1044513">https://launchpad.net/bugs/1044513</a></td>
+<td>3.1.7</td>
+<td><p class="first"><cite>AssertionError in IntegrityCheckTest</cite></p>
+<p class="last">A bug in unit test code caused spurious assertion errors.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1044397">https://launchpad.net/bugs/1044397</a></td>
+<td>3.1.7</td>
+<td><p class="first"><cite>IntegrityCheck throws ArrayIndexOutOfBoundsException</cite></p>
+<p class="last">IntegrityCheck and the CLI <tt class="docutils literal"><span class="pre">pview</span></tt> command were not immune to
+certain inconsistent byte patterns in a corrupt page, making them
+inadequate for diagnosing a severely corrupted database.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1041293">https://launchpad.net/bugs/1041293</a></td>
+<td>3.1.7</td>
+<td><p class="first"><cite>Mismatched buffer pool sizes and volume page size results in NPE</cite></p>
+<p class="last">Attempting to open a Volume with a valid page size S resulted in a
+NullPointerException if there was no buffer pool having page size
+S specified. This same condition how throws an IllegalStateException.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1043536">https://launchpad.net/bugs/1043536</a></td>
+<td>3.1.7</td>
+<td><p class="first"><cite>Build fails: persistit-coverage hangs with deadlock</cite></p>
+<p class="last">A bug in a unit test left a deadlock condition under certain race
+conditions. Speed variations caused by clover instrumentation
+triggered frequent occurrences.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1036422">https://launchpad.net/bugs/1036422</a></td>
+<td>3.1.6</td>
+<td><p class="first"><cite>CommitPolicy HARD can soak CPU</cite></p>
+<p class="last">With CommitPolicy HARD we observed a CPU-soaking loop in the commit
+logic.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1032701">https://launchpad.net/bugs/1032701</a></td>
+<td>3.1.5</td>
+<td><p class="first"><cite>Interrupt causes Thread to exit without releasing claims</cite></p>
+<p class="last">If a thread was interrupted at an inopportune time (for example,
+by query cancellation in Akiban Server), a page in the buffer pool
+could be left in a locked state blocking all further progress. The
+only remedy was to stop and restart the JVM.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1028016">https://launchpad.net/bugs/1028016</a></td>
+<td>3.1.4</td>
+<td><p class="first"><cite>Old Journal Files Not Being Deleted</cite></p>
+<p>If a volume was removed from the configuration and Persistit was
+then restarted, the associated journal files would not be removed
+due to internal safety checks. To support intentional removal of a
+volume, a new configuration option was added.</p>
+<p class="last">See the <tt class="docutils literal"><span class="pre">Detecting</span> <span class="pre">and</span> <span class="pre">Ignoring</span> <span class="pre">Missing</span> <span class="pre">Volumes</span></tt> feature description
+for more details.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1024857">https://launchpad.net/bugs/1024857</a>
+<a class="reference external" href="https://launchpad.net/bugs/1026207">https://launchpad.net/bugs/1026207</a></td>
+<td>3.1.4</td>
+<td><p class="first"><cite>Class Index Updates Causing Write-Write Dependencies</cite></p>
+<p class="last">Custom classes that are serialized into keys or values through a
+custom KeyCoder or ValueCoder are given a unique identifier.  The
+identifier was determined within an application transaction the
+first time a class was written and stored in an internal tree.  This
+would cause seemingly spurious aborts if multiple application threads
+simultaneously attempted to store the first instance of a given
+class. The identifier is now committed within an independent
+transaction.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1028050">https://launchpad.net/bugs/1028050</a>
+<a class="reference external" href="https://launchpad.net/bugs/1028134">https://launchpad.net/bugs/1028134</a></td>
+<td>3.1.4</td>
+<td><p class="first"><cite>Accumulator Memory Usage and Transaction Step Policy</cite></p>
+<p>Each individual change to an Accumulator was previously stored as
+an individual Delta object. For long running transactions that
+heavily utilized Accumulators, this would cause excessive memory
+usage. These unique instances are now eliminated in most scenarios,
+resulting in stable memory utilization in all but pathological
+cases.</p>
+<p class="last">Additionally, the Accumulator handling of the Transaction step value
+was inconsistent with how it was treated through an Exchange.  Now,
+both classes allow a transaction at a given step N to see any update
+created by that transaction at a step less N.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1005206">https://launchpad.net/bugs/1005206</a></td>
+<td>3.1.2</td>
+<td><p class="first"><cite>Infinite Loop When Repacking Buffer</cite></p>
+<p class="last">This could occur if a buffer required restructuring during pruning
+of a long value that was previously stored under a transaction.
+Upon the next save of this buffer to disk (e.g.  shutdown), an
+infinite loop would occur.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1010079">https://launchpad.net/bugs/1010079</a></td>
+<td>3.1.2</td>
+<td><p class="first"><cite>Corruption Exceptions During Various Operations</cite></p>
+<p>NOTE: Only the message indicates a database corruption. The data
+volume is actually correct and intact.</p>
+<p class="last">This could occur if pruning a buffer containing a long record
+previously stored under a transaction required removal of keys and
+then that buffer was reused without further modification. A parallel
+structure associated with the every Buffer, the FastIndex, was not
+maintained during this operation.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1012856">https://launchpad.net/bugs/1012856</a></td>
+<td>3.1.2</td>
+<td><p class="first"><cite>Slow Accumulator Operations</cite></p>
+<p class="last">If a thread starting a new transaction was interrupted during the
+call to begin(), there was a chance for an internal object to wind
+up in an invalid state. This invalid state caused no visible
+consequences other than slower than expected Accumulator actions
+if this had occurred many times.</p>
+</td>
+</tr>
+<tr class="row-even"><td><a class="reference external" href="https://launchpad.net/bugs/1017957">https://launchpad.net/bugs/1017957</a></td>
+<td>3.1.2</td>
+<td><p class="first"><cite>B+Tree Corruption in Stress Test</cite></p>
+<p class="last">An extremely rare combination of events corrupted memory structures
+causing an incorrect key-pointer pair to be inserted while deleting
+records in a key range. The bug was detected in an 8-hour stress
+test run.</p>
+</td>
+</tr>
+<tr class="row-odd"><td><a class="reference external" href="https://launchpad.net/bugs/1018526">https://launchpad.net/bugs/1018526</a></td>
+<td>3.1.2</td>
+<td><p class="first"><cite>Very long recovery time due to many temporary tree IT records</cite></p>
+<p class="last">Every Tree created in a temporary volume was being assigned a tree
+handle recorded permanently in the journal.  In one case the result
+was a journal containing millions of IT (Identify Tree) records,
+and these caused normal recovery to take a very long time. The fix
+keeps temporary trees out of the journal and removes IT records
+which may have been added previously.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="unresolved-issues">
+<h2>Unresolved Issues<a class="headerlink" href="#unresolved-issues" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="out-of-memory-error-direct-memory-buffer">
+<h3>Out of Memory Error, Direct Memory Buffer<a class="headerlink" href="#out-of-memory-error-direct-memory-buffer" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://bugs.launchpad.net/akiban-persistit/+bug/985117">https://bugs.launchpad.net/akiban-persistit/+bug/985117</a></p>
+<p>Out of Memory Error, Direct Memory Buffer. Can cause failed transactions under extreme load
+conditions as a result of threads getting backed up writing to the journal file. However,
+this error is transient and recoverable by by retrying the failed transaction.</p>
+<ul class="simple">
+<li>Workaround: Ensure your application has the ability to retry failed transactions</li>
+</ul>
+</div>
+<div class="section" id="tree-getchangecount-may-return-inaccurate-result">
+<h3>Tree#getChangeCount may return inaccurate result<a class="headerlink" href="#tree-getchangecount-may-return-inaccurate-result" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://bugs.launchpad.net/akiban-persistit/+bug/986465">https://bugs.launchpad.net/akiban-persistit/+bug/986465</a></p>
+<p>The getChangeCount method may return inaccurate results as it is not currently transactional.
+The primary consumer is the PersistitMap. As a result of this bug Persistit may not generate
+java.util.ConcurrentModificationException when it is supposed to.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Akiban Persistit Version 3.3.0</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#documentation">Documentation</a></li>
+<li><a class="reference internal" href="#building-akiban-persistit">Building Akiban-Persistit</a><ul>
+<li><a class="reference internal" href="#building-and-running-the-examples">Building and Running the Examples</a></li>
+<li><a class="reference internal" href="#java-7-versus-java-6">Java 7 versus Java 6</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#buffer-pool-configuration">Buffer Pool Configuration</a></li>
+<li><a class="reference internal" href="#version-history">Version History</a></li>
+<li><a class="reference internal" href="#changes-and-new-features">Changes and New Features</a><ul>
+<li><a class="reference internal" href="#license">3.3.0 - License</a></li>
+<li><a class="reference internal" href="#creating-and-removing-trees-in-transactions">3.3.0 - Creating and Removing Trees in Transactions</a></li>
+<li><a class="reference internal" href="#better-session-support">3.3.0 - Better Session Support</a></li>
+<li><a class="reference internal" href="#accumulator-api">3.3.0 - Accumulator API</a></li>
+<li><a class="reference internal" href="#treebuilder">3.2.7 - TreeBuilder</a></li>
+<li><a class="reference internal" href="#traverse-visitor">3.2.7 - Traverse Visitor</a></li>
+<li><a class="reference internal" href="#lock-to-avoid-write-skew-anomalies">3.2.7 - Lock to avoid Write Skew Anomalies</a></li>
+<li><a class="reference internal" href="#miscellaneous-issues">3.2.7 - Miscellaneous Issues</a></li>
+<li><a class="reference internal" href="#spring-framework">3.2.2 - Spring Framework</a></li>
+<li><a class="reference internal" href="#bug-fixes">3.2.2 - Bug Fixes</a></li>
+<li><a class="reference internal" href="#id4">3.2.1 - Bug Fixes</a></li>
+<li><a class="reference internal" href="#default-journal-file-format-changed">3.2.0 - Default Journal File Format Changed</a></li>
+<li><a class="reference internal" href="#performance-improvements">3.2.0 - Performance Improvements</a></li>
+<li><a class="reference internal" href="#code-base-reformatted">3.1.7 - Code Base Reformatted</a></li>
+<li><a class="reference internal" href="#buffer-pool-preload">3.1.7 - Buffer Pool Preload</a></li>
+<li><a class="reference internal" href="#detecting-and-ignoring-missing-volumes">3.1.4 - Detecting and Ignoring Missing Volumes</a></li>
+<li><a class="reference internal" href="#reduce-keycoder-serialized-object-size">3.1.4 - Reduce KeyCoder Serialized Object Size</a></li>
+<li><a class="reference internal" href="#maven-pom-changes-for-eclipse-juno">3.1.4 - Maven POM Changes For Eclipse Juno</a></li>
+<li><a class="reference internal" href="#asserts-added-to-check-for-correct-exchange-thread-behavior">3.1.2 - Asserts Added to Check for Correct Exchange Thread Behavior</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#resolved-issues">Resolved Issues</a></li>
+<li><a class="reference internal" href="#unresolved-issues">Unresolved Issues</a><ul>
+<li><a class="reference internal" href="#out-of-memory-error-direct-memory-buffer">Out of Memory Error, Direct Memory Buffer</a></li>
+<li><a class="reference internal" href="#tree-getchangecount-may-return-inaccurate-result">Tree#getChangeCount may return inaccurate result</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li><a href="index.html">Persistit 3.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Akiban Technologies.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b3.
+    </div>
+  </body>
+</html>
